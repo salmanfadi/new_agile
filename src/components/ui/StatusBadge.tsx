@@ -40,7 +40,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
       default:
         return {
           className: 'bg-gray-100 text-gray-800',
-          label: status.charAt(0).toUpperCase() + status.slice(1)
+          label: status
         };
     }
   };

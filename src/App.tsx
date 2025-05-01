@@ -18,6 +18,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 
 // Warehouse Manager pages
 import ManagerDashboard from "./pages/warehouseManager/ManagerDashboard";
+import InventoryView from "./pages/warehouseManager/InventoryView";
 
 // Field Operator pages
 import OperatorDashboard from "./pages/fieldOperator/OperatorDashboard";
@@ -45,7 +46,7 @@ const App = () => (
               <Route path="/" element={
                 <RequireAuth>
                   {({ user }) => {
-                    switch (user?.role) {
+                    switch (user.role) {
                       case 'admin':
                         return <AdminDashboard />;
                       case 'warehouse_manager':
@@ -67,8 +68,12 @@ const App = () => (
               
               {/* Warehouse Manager routes */}
               <Route 
-                path="/manager/*" 
+                path="/manager" 
                 element={<RequireAuth allowedRoles={['warehouse_manager']}><ManagerDashboard /></RequireAuth>} 
+              />
+              <Route 
+                path="/manager/inventory" 
+                element={<RequireAuth allowedRoles={['warehouse_manager']}><InventoryView /></RequireAuth>} 
               />
               
               {/* Field Operator routes */}
