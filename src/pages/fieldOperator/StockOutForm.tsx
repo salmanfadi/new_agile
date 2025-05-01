@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,20 +16,27 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ArrowLeft } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
-// Mock products for the select dropdown
-const mockProducts = [
-  { id: 1, name: 'LED Wall Clock' },
-  { id: 2, name: 'Desktop Clock' },
-  { id: 3, name: 'Table Clock' },
-  { id: 4, name: 'Wall Clock' },
-  { id: 5, name: 'Alarm Clock' },
-];
+import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const StockOutForm: React.FC = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Fetch products
+  const { data: products, isLoading: productsLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name')
+        .order('name');
+        
+      if (error) throw error;
+      return data;
+    },
+  });
   
   const [formData, setFormData] = useState({
     productId: '',
@@ -37,7 +45,38 @@ const StockOutForm: React.FC = () => {
     reason: '',
   });
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Create stock out mutation
+  const createStockOutMutation = useMutation({
+    mutationFn: async (data: { 
+      product_id: string; 
+      quantity: number; 
+      requested_by: string;
+      destination: string;
+      reason?: string;
+    }) => {
+      const { data: result, error } = await supabase
+        .from('stock_out')
+        .insert([data])
+        .select();
+        
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Stock Out request submitted!',
+        description: `${formData.quantity} units of the selected product have been requested for dispatch to ${formData.destination}.`,
+      });
+      navigate('/operator/submissions');
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Submission failed',
+        description: error instanceof Error ? error.message : 'Failed to submit stock out request',
+      });
+    },
+  });
   
   const handleProductChange = (value: string) => {
     setFormData({ ...formData, productId: value });
@@ -58,17 +97,23 @@ const StockOutForm: React.FC = () => {
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     
-    // In a real app, this would be an API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    if (!user?.id) {
       toast({
-        title: 'Stock Out request submitted!',
-        description: `${formData.quantity} units of product #${formData.productId} have been requested for dispatch to ${formData.destination}.`,
+        variant: 'destructive',
+        title: 'Authentication required',
+        description: 'You must be logged in to submit stock out requests',
       });
-      navigate('/operator/submissions');
-    }, 1000);
+      return;
+    }
+    
+    createStockOutMutation.mutate({
+      product_id: formData.productId,
+      quantity: formData.quantity,
+      destination: formData.destination,
+      reason: formData.reason || undefined,
+      requested_by: user.id
+    });
   };
   
   const isFormValid = () => {
@@ -110,11 +155,17 @@ const StockOutForm: React.FC = () => {
                     <SelectValue placeholder="Select a product" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockProducts.map(product => (
-                      <SelectItem key={product.id} value={String(product.id)}>
-                        {product.name}
-                      </SelectItem>
-                    ))}
+                    {productsLoading ? (
+                      <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                    ) : products && products.length > 0 ? (
+                      products.map(product => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>No products available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -161,9 +212,9 @@ const StockOutForm: React.FC = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={!isFormValid() || isSubmitting}
+                disabled={!isFormValid() || createStockOutMutation.isPending}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                {createStockOutMutation.isPending ? 'Submitting...' : 'Submit Request'}
               </Button>
             </CardFooter>
           </form>

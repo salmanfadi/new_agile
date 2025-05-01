@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,27 +15,59 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ArrowLeft } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
-// Mock products for the select dropdown
-const mockProducts = [
-  { id: 1, name: 'LED Wall Clock' },
-  { id: 2, name: 'Desktop Clock' },
-  { id: 3, name: 'Table Clock' },
-  { id: 4, name: 'Wall Clock' },
-  { id: 5, name: 'Alarm Clock' },
-];
+import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const StockInForm: React.FC = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Fetch products
+  const { data: products, isLoading: productsLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name')
+        .order('name');
+        
+      if (error) throw error;
+      return data;
+    },
+  });
   
   const [formData, setFormData] = useState({
     productId: '',
     numberOfBoxes: 1,
   });
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Create stock in mutation
+  const createStockInMutation = useMutation({
+    mutationFn: async (data: { product_id: string; boxes: number; submitted_by: string }) => {
+      const { data: result, error } = await supabase
+        .from('stock_in')
+        .insert([data])
+        .select();
+        
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Stock In request submitted!',
+        description: `${formData.numberOfBoxes} boxes of the selected product have been submitted for processing.`,
+      });
+      navigate('/operator/submissions');
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Submission failed',
+        description: error instanceof Error ? error.message : 'Failed to submit stock in request',
+      });
+    },
+  });
   
   const handleProductChange = (value: string) => {
     setFormData({ ...formData, productId: value });
@@ -49,17 +82,21 @@ const StockInForm: React.FC = () => {
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     
-    // In a real app, this would be an API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    if (!user?.id) {
       toast({
-        title: 'Stock In request submitted!',
-        description: `${formData.numberOfBoxes} boxes of product #${formData.productId} have been submitted for processing.`,
+        variant: 'destructive',
+        title: 'Authentication required',
+        description: 'You must be logged in to submit stock in requests',
       });
-      navigate('/operator/submissions');
-    }, 1000);
+      return;
+    }
+    
+    createStockInMutation.mutate({
+      product_id: formData.productId,
+      boxes: formData.numberOfBoxes,
+      submitted_by: user.id
+    });
   };
   
   return (
@@ -97,11 +134,17 @@ const StockInForm: React.FC = () => {
                     <SelectValue placeholder="Select a product" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockProducts.map(product => (
-                      <SelectItem key={product.id} value={String(product.id)}>
-                        {product.name}
-                      </SelectItem>
-                    ))}
+                    {productsLoading ? (
+                      <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                    ) : products && products.length > 0 ? (
+                      products.map(product => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>No products available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -123,9 +166,9 @@ const StockInForm: React.FC = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={!formData.productId || isSubmitting}
+                disabled={!formData.productId || createStockInMutation.isPending}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                {createStockInMutation.isPending ? 'Submitting...' : 'Submit Request'}
               </Button>
             </CardFooter>
           </form>

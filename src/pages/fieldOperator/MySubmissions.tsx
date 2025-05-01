@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,24 +16,78 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
-// Mock data for submissions
-const mockStockIn = [
-  { id: 1, product: 'LED Wall Clock', boxes: 10, timestamp: '2025-05-01 10:30 AM', status: 'pending' },
-  { id: 2, product: 'Desktop Clock', boxes: 5, timestamp: '2025-04-30 09:45 AM', status: 'processed' },
-  { id: 3, product: 'Wall Clock', boxes: 7, timestamp: '2025-04-29 02:15 PM', status: 'processed' },
-];
-
-const mockStockOut = [
-  { id: 1, product: 'LED Wall Clock', quantity: 20, destination: 'ABC Store, 123 Main St', status: 'pending' },
-  { id: 2, product: 'Table Clock', quantity: 15, destination: 'XYZ Store, 456 Oak Ave', status: 'approved' },
-  { id: 3, product: 'Alarm Clock', quantity: 10, destination: 'PQR Store, 789 Pine Rd', status: 'rejected' },
-  { id: 4, product: 'Wall Clock', quantity: 25, destination: 'LMN Store, 101 Cedar Ln', status: 'completed' },
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 const MySubmissions: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('stock-in');
+
+  // Fetch user's stock in submissions
+  const { data: stockInSubmissions, isLoading: stockInLoading } = useQuery({
+    queryKey: ['user-stock-in', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('stock_in')
+        .select(`
+          id,
+          product:product_id(name),
+          boxes,
+          status,
+          created_at
+        `)
+        .eq('submitted_by', user.id)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      return data.map(item => ({
+        id: item.id,
+        product: item.product?.name || 'Unknown Product',
+        boxes: item.boxes,
+        timestamp: item.created_at,
+        status: item.status,
+      }));
+    },
+    enabled: !!user?.id,
+    initialData: [],
+  });
+
+  // Fetch user's stock out submissions
+  const { data: stockOutSubmissions, isLoading: stockOutLoading } = useQuery({
+    queryKey: ['user-stock-out', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('stock_out')
+        .select(`
+          id,
+          product:product_id(name),
+          quantity,
+          approved_quantity,
+          destination,
+          status,
+          created_at
+        `)
+        .eq('requested_by', user.id)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      return data.map(item => ({
+        id: item.id,
+        product: item.product?.name || 'Unknown Product',
+        quantity: item.quantity,
+        approved_quantity: item.approved_quantity,
+        destination: item.destination,
+        status: item.status,
+      }));
+    },
+    enabled: !!user?.id,
+    initialData: [],
+  });
   
   return (
     <div className="space-y-6">
@@ -71,16 +126,36 @@ const MySubmissions: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockStockIn.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.product}</TableCell>
-                        <TableCell>{item.boxes}</TableCell>
-                        <TableCell>{item.timestamp}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={item.status as any} />
+                    {stockInLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          <div className="flex justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                          </div>
+                          <div className="mt-2">Loading submissions...</div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : stockInSubmissions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                          No stock in submissions found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      stockInSubmissions.map((item) => (
+                        <TableRow key={item.id} className="bg-green-50">
+                          <TableCell className="font-medium">{item.product}</TableCell>
+                          <TableCell>{item.boxes}</TableCell>
+                          <TableCell>{typeof item.timestamp === 'string' 
+                            ? new Date(item.timestamp).toLocaleString() 
+                            : item.timestamp}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={item.status as any} />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -102,16 +177,40 @@ const MySubmissions: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockStockOut.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.product}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.destination}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={item.status as any} />
+                    {stockOutLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          <div className="flex justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                          </div>
+                          <div className="mt-2">Loading submissions...</div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : stockOutSubmissions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                          No stock out submissions found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      stockOutSubmissions.map((item) => (
+                        <TableRow key={item.id} className="bg-blue-50">
+                          <TableCell className="font-medium">{item.product}</TableCell>
+                          <TableCell>
+                            {item.quantity}
+                            {item.approved_quantity !== null && item.approved_quantity !== undefined && (
+                              <span className="text-sm text-gray-500 ml-1">
+                                (Approved: {item.approved_quantity})
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>{item.destination}</TableCell>
+                          <TableCell>
+                            <StatusBadge status={item.status as any} />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>

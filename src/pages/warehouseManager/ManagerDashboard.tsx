@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -15,11 +16,40 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Package, LogIn, LogOut, Warehouse, BarChart } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 const ManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  // Subscribe to real-time updates for stock_in and stock_out tables
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'stock_in'
+      }, () => {
+        // Invalidate queries when changes occur
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'stock_out'
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
   
   // Fetch dashboard stats
   const { data: stats, isLoading } = useQuery({
@@ -48,53 +78,55 @@ const ManagerDashboard: React.FC = () => {
   const { data: recentActivity = [] } = useQuery({
     queryKey: ['recent-activity'],
     queryFn: async () => {
+      // Fetch recent stock_in records
       const stockIns = await supabase
         .from('stock_in')
         .select(`
           id,
           product:product_id(name),
           status,
-          created_at
+          created_at,
+          boxes
         `)
         .order('created_at', { ascending: false })
         .limit(3);
         
+      // Fetch recent stock_out records
       const stockOuts = await supabase
         .from('stock_out')
         .select(`
           id,
           product:product_id(name),
           status,
-          created_at
+          created_at,
+          quantity
         `)
         .order('created_at', { ascending: false })
         .limit(2);
         
       const stockInActivity = (stockIns.data || []).map(item => ({
-        action: 'Stock In Processed',
-        product: item.product.name,
+        action: 'Stock In',
+        product: item.product?.name || 'Unknown',
+        details: `${item.boxes} boxes`,
         timestamp: item.created_at,
-        status: item.status
+        status: item.status,
+        type: 'stock_in'
       }));
       
       const stockOutActivity = (stockOuts.data || []).map(item => ({
-        action: 'Stock Out Processed',
-        product: item.product.name,
+        action: 'Stock Out',
+        product: item.product?.name || 'Unknown',
+        details: `${item.quantity} units`,
         timestamp: item.created_at,
-        status: item.status
+        status: item.status,
+        type: 'stock_out'
       }));
       
       return [...stockInActivity, ...stockOutActivity]
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, 5);
     },
-    initialData: [
-      { action: 'Stock In Processed', product: 'LED Wall Clock', timestamp: '2025-05-01 10:30 AM', status: 'completed' },
-      { action: 'Stock Out Approved', product: 'Desktop Clock', timestamp: '2025-05-01 09:45 AM', status: 'approved' },
-      { action: 'Stock In Processed', product: 'Table Clock', timestamp: '2025-04-30 04:20 PM', status: 'completed' },
-      { action: 'Stock Out Rejected', product: 'Wall Clock', timestamp: '2025-04-30 02:15 PM', status: 'rejected' },
-      { action: 'Stock In Processed', product: 'Alarm Clock', timestamp: '2025-04-30 11:05 AM', status: 'completed' }
-    ]
+    initialData: []
   });
 
   const statsCards = [
@@ -146,15 +178,20 @@ const ManagerDashboard: React.FC = () => {
                     <TableRow>
                       <TableHead>Action</TableHead>
                       <TableHead>Product</TableHead>
+                      <TableHead>Details</TableHead>
                       <TableHead>Timestamp</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {recentActivity.map((activity, index) => (
-                      <TableRow key={index}>
+                      <TableRow 
+                        key={index} 
+                        className={activity.type === 'stock_in' ? 'bg-green-50' : activity.type === 'stock_out' ? 'bg-blue-50' : ''}
+                      >
                         <TableCell className="font-medium">{activity.action}</TableCell>
                         <TableCell>{activity.product}</TableCell>
+                        <TableCell>{activity.details}</TableCell>
                         <TableCell>{typeof activity.timestamp === 'string' 
                           ? new Date(activity.timestamp).toLocaleString() 
                           : activity.timestamp}
@@ -164,6 +201,13 @@ const ManagerDashboard: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {recentActivity.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                          No recent activity found
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -184,7 +228,20 @@ const ManagerDashboard: React.FC = () => {
                 <BarChart className="h-4 w-4" />
                 View Inventory
               </Button>
-              {/* Add more buttons as needed */}
+              <Button 
+                className="w-full flex items-center justify-center gap-2"
+                onClick={() => navigate('/manager/stock-in')}
+              >
+                <LogIn className="h-4 w-4" />
+                Process Stock In
+              </Button>
+              <Button 
+                className="w-full flex items-center justify-center gap-2"
+                onClick={() => navigate('/manager/stock-out')}
+              >
+                <LogOut className="h-4 w-4" />
+                Review Stock Out
+              </Button>
             </CardContent>
           </Card>
         </div>
