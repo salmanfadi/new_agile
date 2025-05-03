@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -38,7 +37,7 @@ import { Product } from '@/types/database';
 interface StockOutData {
   id: string;
   product: { name: string; id: string };
-  requester: { name: string; username: string };
+  requester: { name: string; username: string } | null;
   quantity: number;
   approved_quantity: number | null;
   destination: string;
@@ -77,7 +76,19 @@ const StockOutApproval: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as StockOutData[];
+      
+      // Transform the data to handle potential embedding errors
+      return (data as any[]).map(item => ({
+        id: item.id,
+        product: item.product || { name: 'Unknown Product', id: '' },
+        requester: item.requester && !item.requester.error ? item.requester : { name: 'Unknown', username: 'unknown' },
+        quantity: item.quantity,
+        approved_quantity: item.approved_quantity,
+        destination: item.destination,
+        reason: item.reason,
+        status: item.status,
+        created_at: item.created_at
+      })) as StockOutData[];
     },
   });
 

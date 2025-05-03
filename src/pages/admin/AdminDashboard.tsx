@@ -1,7 +1,8 @@
-
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/button';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import {
@@ -12,132 +13,130 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Warehouse, Package, Users, BarChart3, Box } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Warehouse, Package, Users, BarChart, User, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
-const AdminDashboard: React.FC = () => {
-  // Fetch dashboard stats
-  const { data: dashboardStats, isLoading: statsLoading } = useQuery({
+const AdminDashboard = () => {
+  const navigate = useNavigate();
+
+  // Fetch dashboard statistics
+  const { data: stats = {} } = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: async () => {
-      const [warehouses, products, inventory, stockIn, stockOut, users] = await Promise.all([
+      const [usersCount, warehousesCount, productsCount, inventorySum] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('warehouses').select('*', { count: 'exact', head: true }),
         supabase.from('products').select('*', { count: 'exact', head: true }),
-        supabase.from('inventory').select('quantity').throwOnError(),
-        supabase.from('stock_in').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('stock_out').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('inventory').select('quantity').then(res => 
+          res.data ? res.data.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0
+        )
       ]);
       
-      // Calculate total inventory
-      const totalInventory = inventory.data?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-      
       return {
-        warehousesCount: warehouses.count || 0,
-        productsCount: products.count || 0,
-        inventoryCount: totalInventory,
-        pendingStockIn: stockIn.count || 0,
-        pendingStockOut: stockOut.count || 0,
-        usersCount: users.count || 0,
+        users: usersCount.count || 0,
+        warehouses: warehousesCount.count || 0,
+        products: productsCount.count || 0,
+        inventory: inventorySum
       };
     },
     initialData: {
-      warehousesCount: 0,
-      productsCount: 0,
-      inventoryCount: 0,
-      pendingStockIn: 0,
-      pendingStockOut: 0,
-      usersCount: 0,
+      users: 0,
+      warehouses: 0,
+      products: 0,
+      inventory: 0
     }
   });
-
-  // Fetch recent activity
-  const { data: recentActivity = [], isLoading: activityLoading } = useQuery({
-    queryKey: ['admin-recent-activity'],
+  
+  // Fetch recent activities
+  const { data: recentActivities = [] } = useQuery({
+    queryKey: ['admin-dashboard-activities'],
     queryFn: async () => {
-      // Get recent stock in activities
-      const { data: stockInData } = await supabase
+      // Fetch recent stock_in records
+      const stockIns = await supabase
         .from('stock_in')
         .select(`
           id,
           product:product_id(name),
-          submitter:submitted_by(username),
-          boxes,
+          submitter:submitted_by(name, username),
           status,
-          created_at
+          created_at,
+          boxes
         `)
         .order('created_at', { ascending: false })
         .limit(3);
-      
-      // Get recent stock out activities
-      const { data: stockOutData } = await supabase
+        
+      // Fetch recent stock_out records
+      const stockOuts = await supabase
         .from('stock_out')
         .select(`
           id,
           product:product_id(name),
-          requester:requested_by(username),
-          quantity,
+          requester:requested_by(name, username),
           status,
-          created_at
+          created_at,
+          quantity
         `)
         .order('created_at', { ascending: false })
-        .limit(2);
+        .limit(3);
+        
+      const stockInActivities = (stockIns.data || []).map(item => {
+        const submitter = item.submitter && !item.submitter.error 
+          ? `${item.submitter.name} (${item.submitter.username})` 
+          : 'Unknown User';
+        
+        return {
+          type: 'Stock In',
+          product: item.product?.name || 'Unknown',
+          user: submitter,
+          quantity: `${item.boxes} boxes`,
+          status: item.status,
+          date: new Date(item.created_at).toLocaleDateString()
+        };
+      });
       
-      const stockInActivity = (stockInData || []).map(item => ({
-        action: 'Stock In Submitted',
-        user: item.submitter?.username || 'Unknown',
-        details: `${item.boxes} boxes of ${item.product?.name || 'Unknown Product'}`,
-        timestamp: item.created_at,
-        status: item.status
-      }));
+      const stockOutActivities = (stockOuts.data || []).map(item => {
+        const requester = item.requester && !item.requester.error 
+          ? `${item.requester.name} (${item.requester.username})` 
+          : 'Unknown User';
+        
+        return {
+          type: 'Stock Out',
+          product: item.product?.name || 'Unknown',
+          user: requester,
+          quantity: `${item.quantity} units`,
+          status: item.status,
+          date: new Date(item.created_at).toLocaleDateString()
+        };
+      });
       
-      const stockOutActivity = (stockOutData || []).map(item => ({
-        action: 'Stock Out Requested',
-        user: item.requester?.username || 'Unknown',
-        details: `${item.quantity} units of ${item.product?.name || 'Unknown Product'}`,
-        timestamp: item.created_at,
-        status: item.status
-      }));
-      
-      return [...stockInActivity, ...stockOutActivity]
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      return [...stockInActivities, ...stockOutActivities]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 5);
-    },
-    initialData: []
+    }
   });
-  
-  const mockStats = [
+
+  const statsCards = [
     { 
-      title: 'Total Warehouses', 
-      value: statsLoading ? '...' : dashboardStats.warehousesCount, 
-      icon: <Warehouse className="h-5 w-5" /> 
+      title: 'Total Users', 
+      value: stats.users, 
+      icon: <Users className="h-5 w-5" />,
+    },
+    { 
+      title: 'Warehouses', 
+      value: stats.warehouses, 
+      icon: <Warehouse className="h-5 w-5" />,
+    },
+    { 
+      title: 'Products', 
+      value: stats.products, 
+      icon: <Package className="h-5 w-5" />,
     },
     { 
       title: 'Total Inventory', 
-      value: statsLoading ? '...' : `${dashboardStats.inventoryCount} Units`, 
-      icon: <Box className="h-5 w-5" /> 
-    },
-    { 
-      title: 'Pending Stock In', 
-      value: statsLoading ? '...' : dashboardStats.pendingStockIn, 
-      icon: <Package className="h-5 w-5" /> 
-    },
-    { 
-      title: 'Pending Stock Out', 
-      value: statsLoading ? '...' : dashboardStats.pendingStockOut, 
-      icon: <Package className="h-5 w-5" /> 
-    },
-    { 
-      title: 'Total Users', 
-      value: statsLoading ? '...' : dashboardStats.usersCount, 
-      icon: <Users className="h-5 w-5" /> 
-    },
-    { 
-      title: 'Total Products', 
-      value: statsLoading ? '...' : dashboardStats.productsCount, 
-      icon: <BarChart3 className="h-5 w-5" /> 
-    },
+      value: stats.inventory, 
+      icon: <BarChart className="h-5 w-5" />,
+    }
   ];
 
   return (
@@ -148,7 +147,7 @@ const AdminDashboard: React.FC = () => {
       />
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockStats.map((stat, index) => (
+        {statsCards.map((stat, index) => (
           <StatsCard
             key={index}
             title={stat.title}
@@ -176,37 +175,17 @@ const AdminDashboard: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activityLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <div className="flex justify-center">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                      </div>
-                      <div className="mt-2">Loading activity...</div>
+                {recentActivities.map((activity, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{activity.type}</TableCell>
+                    <TableCell>{activity.user}</TableCell>
+                    <TableCell>{activity.details}</TableCell>
+                    <TableCell>{activity.date}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={activity.status as any} />
                     </TableCell>
                   </TableRow>
-                ) : recentActivity.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                      No recent activity found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  recentActivity.map((activity, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{activity.action}</TableCell>
-                      <TableCell>{activity.user}</TableCell>
-                      <TableCell>{activity.details}</TableCell>
-                      <TableCell>{typeof activity.timestamp === 'string' 
-                        ? new Date(activity.timestamp).toLocaleString() 
-                        : activity.timestamp}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={activity.status as any} />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ))}
               </TableBody>
             </Table>
           </div>

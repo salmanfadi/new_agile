@@ -1,7 +1,6 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -22,6 +21,7 @@ import { useAuth } from '@/context/AuthContext';
 const ManagerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   // Subscribe to real-time updates for stock_in and stock_out tables
   useEffect(() => {
@@ -49,7 +49,7 @@ const ManagerDashboard: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [queryClient]);
   
   // Fetch dashboard stats
   const { data: stats, isLoading } = useQuery({

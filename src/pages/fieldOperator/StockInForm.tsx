@@ -39,7 +39,11 @@ const StockInForm: React.FC = () => {
   
   const [formData, setFormData] = useState({
     productId: '',
-    numberOfBoxes: 1,
+    numberOfBoxes: '' as string | number, // Changed to accept string for empty input
+  });
+  
+  const [formErrors, setFormErrors] = useState({
+    numberOfBoxes: '',
   });
   
   // Create stock in mutation
@@ -74,14 +78,42 @@ const StockInForm: React.FC = () => {
   };
   
   const handleBoxesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      setFormData({ ...formData, numberOfBoxes: value });
+    const value = e.target.value;
+    setFormData({ ...formData, numberOfBoxes: value });
+    
+    // Validate the input
+    if (value === '') {
+      setFormErrors({ ...formErrors, numberOfBoxes: 'Quantity is required' });
+    } else {
+      const numValue = parseInt(value);
+      if (isNaN(numValue)) {
+        setFormErrors({ ...formErrors, numberOfBoxes: 'Please enter a valid number' });
+      } else if (numValue < 1) {
+        setFormErrors({ ...formErrors, numberOfBoxes: 'Quantity must be at least 1' });
+      } else {
+        setFormErrors({ ...formErrors, numberOfBoxes: '' });
+      }
     }
   };
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!formData.productId) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Please select a product',
+      });
+      return;
+    }
+    
+    const numBoxes = parseInt(formData.numberOfBoxes as string);
+    if (isNaN(numBoxes) || numBoxes < 1) {
+      setFormErrors({ ...formErrors, numberOfBoxes: 'Quantity must be at least 1' });
+      return;
+    }
     
     if (!user?.id) {
       toast({
@@ -94,7 +126,7 @@ const StockInForm: React.FC = () => {
     
     createStockInMutation.mutate({
       product_id: formData.productId,
-      boxes: formData.numberOfBoxes,
+      boxes: numBoxes,
       submitted_by: user.id
     });
   };
@@ -154,11 +186,14 @@ const StockInForm: React.FC = () => {
                 <Input
                   id="boxes"
                   type="number"
-                  min={1}
+                  placeholder="Enter quantity"
                   value={formData.numberOfBoxes}
                   onChange={handleBoxesChange}
                   required
                 />
+                {formErrors.numberOfBoxes && (
+                  <p className="text-sm text-red-500 mt-1">{formErrors.numberOfBoxes}</p>
+                )}
               </div>
             </CardContent>
             
@@ -166,7 +201,7 @@ const StockInForm: React.FC = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={!formData.productId || createStockInMutation.isPending}
+                disabled={!formData.productId || formData.numberOfBoxes === '' || !!formErrors.numberOfBoxes || createStockInMutation.isPending}
               >
                 {createStockInMutation.isPending ? 'Submitting...' : 'Submit Request'}
               </Button>

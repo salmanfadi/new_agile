@@ -40,9 +40,13 @@ const StockOutForm: React.FC = () => {
   
   const [formData, setFormData] = useState({
     productId: '',
-    quantity: 1,
+    quantity: '' as string | number,
     destination: '',
     reason: '',
+  });
+  
+  const [formErrors, setFormErrors] = useState({
+    quantity: '',
   });
   
   // Create stock out mutation
@@ -86,9 +90,20 @@ const StockOutForm: React.FC = () => {
     const { name, value } = e.target;
     
     if (name === 'quantity') {
-      const numValue = parseInt(value);
-      if (!isNaN(numValue) && numValue > 0) {
-        setFormData({ ...formData, [name]: numValue });
+      setFormData({ ...formData, [name]: value });
+      
+      // Validate quantity
+      if (value === '') {
+        setFormErrors({ ...formErrors, quantity: 'Quantity is required' });
+      } else {
+        const numValue = parseInt(value);
+        if (isNaN(numValue)) {
+          setFormErrors({ ...formErrors, quantity: 'Please enter a valid number' });
+        } else if (numValue < 1) {
+          setFormErrors({ ...formErrors, quantity: 'Quantity must be at least 1' });
+        } else {
+          setFormErrors({ ...formErrors, quantity: '' });
+        }
       }
     } else {
       setFormData({ ...formData, [name]: value });
@@ -97,6 +112,31 @@ const StockOutForm: React.FC = () => {
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!formData.productId) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Please select a product',
+      });
+      return;
+    }
+    
+    const numQuantity = parseInt(formData.quantity as string);
+    if (isNaN(numQuantity) || numQuantity < 1) {
+      setFormErrors({ ...formErrors, quantity: 'Quantity must be at least 1' });
+      return;
+    }
+    
+    if (!formData.destination.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Please enter a destination',
+      });
+      return;
+    }
     
     if (!user?.id) {
       toast({
@@ -109,7 +149,7 @@ const StockOutForm: React.FC = () => {
     
     createStockOutMutation.mutate({
       product_id: formData.productId,
-      quantity: formData.quantity,
+      quantity: numQuantity,
       destination: formData.destination,
       reason: formData.reason || undefined,
       requested_by: user.id
@@ -117,7 +157,12 @@ const StockOutForm: React.FC = () => {
   };
   
   const isFormValid = () => {
-    return formData.productId && formData.quantity > 0 && formData.destination.trim() !== '';
+    return (
+      formData.productId && 
+      (typeof formData.quantity === 'number' ? formData.quantity > 0 : false) &&
+      formData.destination.trim() !== '' &&
+      !formErrors.quantity
+    );
   };
   
   return (
@@ -176,11 +221,14 @@ const StockOutForm: React.FC = () => {
                   id="quantity"
                   name="quantity"
                   type="number"
-                  min={1}
+                  placeholder="Enter quantity"
                   value={formData.quantity}
                   onChange={handleInputChange}
                   required
                 />
+                {formErrors.quantity && (
+                  <p className="text-sm text-red-500 mt-1">{formErrors.quantity}</p>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -212,7 +260,7 @@ const StockOutForm: React.FC = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={!isFormValid() || createStockOutMutation.isPending}
+                disabled={!formData.productId || formData.quantity === '' || formData.destination === '' || !!formErrors.quantity || createStockOutMutation.isPending}
               >
                 {createStockOutMutation.isPending ? 'Submitting...' : 'Submit Request'}
               </Button>

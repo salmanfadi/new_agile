@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -45,9 +44,9 @@ import { useAuth } from '@/context/AuthContext';
 interface StockInData {
   id: string;
   product: { name: string };
-  submitter: { name: string; username: string };
+  submitter: { name: string; username: string } | null;
   boxes: number;
-  status: string;
+  status: "pending" | "approved" | "rejected" | "completed" | "processing";
   created_at: string;
 }
 
@@ -94,7 +93,16 @@ const StockInProcessing: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as StockInData[];
+      
+      // Transform the data to handle potential embedding errors
+      return (data as any[]).map(item => ({
+        id: item.id,
+        product: item.product || { name: 'Unknown Product' },
+        submitter: item.submitter && !item.submitter.error ? item.submitter : { name: 'Unknown', username: 'unknown' },
+        boxes: item.boxes,
+        status: item.status as StockInData['status'],
+        created_at: item.created_at
+      })) as StockInData[];
     },
   });
 

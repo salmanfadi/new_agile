@@ -18,6 +18,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersManagement from "./pages/admin/UsersManagement";
 import WarehouseManagement from "./pages/admin/WarehouseManagement";
 import ProductManagement from "./pages/admin/ProductManagement";
+import AdminInventoryView from "./pages/admin/InventoryView";
 
 // Warehouse Manager pages
 import ManagerDashboard from "./pages/warehouseManager/ManagerDashboard";
@@ -77,7 +78,9 @@ const App = () => (
               <Route path="/admin/users" element={<RequireAuth allowedRoles={['admin']}><UsersManagement /></RequireAuth>} />
               <Route path="/admin/warehouses" element={<RequireAuth allowedRoles={['admin']}><WarehouseManagement /></RequireAuth>} />
               <Route path="/admin/products" element={<RequireAuth allowedRoles={['admin']}><ProductManagement /></RequireAuth>} />
-              <Route path="/admin/inventory" element={<RequireAuth allowedRoles={['admin']}><InventoryView /></RequireAuth>} />
+              <Route path="/admin/inventory" element={<RequireAuth allowedRoles={['admin']}><AdminInventoryView /></RequireAuth>} />
+              <Route path="/admin/stock-in" element={<RequireAuth allowedRoles={['admin']}><StockInProcessing /></RequireAuth>} />
+              <Route path="/admin/stock-out" element={<RequireAuth allowedRoles={['admin']}><StockOutApproval /></RequireAuth>} />
               
               {/* Warehouse Manager routes */}
               <Route path="/manager" element={<RequireAuth allowedRoles={['warehouse_manager']}><ManagerDashboard /></RequireAuth>} />
