@@ -19,7 +19,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardFooter,
 } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
@@ -98,7 +97,9 @@ const StockInProcessing: React.FC = () => {
       return (data as any[]).map(item => ({
         id: item.id,
         product: item.product || { name: 'Unknown Product' },
-        submitter: item.submitter && !item.submitter.error ? item.submitter : { name: 'Unknown', username: 'unknown' },
+        submitter: item.submitter && typeof item.submitter === 'object' && 'name' in item.submitter && 'username' in item.submitter
+          ? item.submitter 
+          : { name: 'Unknown', username: 'unknown' },
         boxes: item.boxes,
         status: item.status as StockInData['status'],
         created_at: item.created_at
@@ -135,7 +136,7 @@ const StockInProcessing: React.FC = () => {
 
   // Update stock in status mutation
   const updateStockInMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status }: { id: string; status: "pending" | "approved" | "rejected" | "completed" | "processing" }) => {
       const { data, error } = await supabase
         .from('stock_in')
         .update({ 
@@ -168,10 +169,11 @@ const StockInProcessing: React.FC = () => {
   const processStockInMutation = useMutation({
     mutationFn: async (data: { stockInId: string; details: ProcessingForm }) => {
       // First update stock in status to processing
+      const status: "pending" | "approved" | "rejected" | "completed" | "processing" = "processing";
       const { error: updateError } = await supabase
         .from('stock_in')
         .update({ 
-          status: 'processing',
+          status,
           processed_by: user?.id 
         })
         .eq('id', data.stockInId);
@@ -237,9 +239,10 @@ const StockInProcessing: React.FC = () => {
       }
 
       // Finally update stock in status to completed
+      const finalStatus: "pending" | "approved" | "rejected" | "completed" | "processing" = "completed";
       const { error: completeError } = await supabase
         .from('stock_in')
-        .update({ status: 'completed' })
+        .update({ status: finalStatus })
         .eq('id', data.stockInId);
 
       if (completeError) throw completeError;
@@ -264,7 +267,7 @@ const StockInProcessing: React.FC = () => {
     },
   });
 
-  const handleStatusUpdate = (id: string, status: 'approved' | 'rejected') => {
+  const handleStatusUpdate = (id: string, status: "pending" | "approved" | "rejected" | "completed" | "processing") => {
     updateStockInMutation.mutate({ id, status });
   };
 
@@ -343,7 +346,7 @@ const StockInProcessing: React.FC = () => {
                       <TableCell>{stockIn.boxes}</TableCell>
                       <TableCell>{new Date(stockIn.created_at).toLocaleString()}</TableCell>
                       <TableCell>
-                        <StatusBadge status={stockIn.status as any} />
+                        <StatusBadge status={stockIn.status} />
                       </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button 
@@ -357,7 +360,7 @@ const StockInProcessing: React.FC = () => {
                           size="sm" 
                           variant="outline" 
                           className="text-green-600"
-                          onClick={() => handleStatusUpdate(stockIn.id, 'approved')}
+                          onClick={() => handleStatusUpdate(stockIn.id, "approved")}
                         >
                           <CheckCircle className="h-4 w-4 mr-1" /> Approve
                         </Button>
@@ -365,7 +368,7 @@ const StockInProcessing: React.FC = () => {
                           size="sm" 
                           variant="outline"
                           className="text-red-600"
-                          onClick={() => handleStatusUpdate(stockIn.id, 'rejected')}
+                          onClick={() => handleStatusUpdate(stockIn.id, "rejected")}
                         >
                           <XCircle className="h-4 w-4 mr-1" /> Reject
                         </Button>
