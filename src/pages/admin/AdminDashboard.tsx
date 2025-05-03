@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -56,7 +57,7 @@ const AdminDashboard = () => {
         .select(`
           id, 
           product:product_id(name), 
-          submitter:profiles!stock_in_submitter_fkey(name, username),
+          submitter:submitted_by(name, username),
           boxes,
           status,
           created_at
@@ -88,7 +89,7 @@ const AdminDashboard = () => {
         .select(`
           id,
           product:product_id(name),
-          submitter:profiles!stock_in_submitter_fkey(name, username),
+          submitter:submitted_by(name, username),
           status,
           created_at,
           boxes
@@ -100,7 +101,7 @@ const AdminDashboard = () => {
         .select(`
           id,
           product:product_id(name),
-          requester:profiles!stock_out_requested_by_fkey(name, username),
+          requester:requested_by(name, username),
           status,
           created_at,
           quantity

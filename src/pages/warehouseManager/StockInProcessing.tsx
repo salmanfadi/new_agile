@@ -42,7 +42,7 @@ const StockInProcessing: React.FC = () => {
         .select(`
           id,
           product:product_id(name),
-          submitter:profiles!stock_in_submitter_fkey(name, username),
+          submitter:submitted_by(name, username),
           boxes,
           status,
           created_at
