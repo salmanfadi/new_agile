@@ -99,7 +99,7 @@ const InventoryView: React.FC = () => {
               <SelectValue placeholder="Filter by warehouse" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Warehouses</SelectItem>
+              <SelectItem value="all-warehouses">All Warehouses</SelectItem>
               {warehousesQuery.data?.map((warehouse) => (
                 <SelectItem key={warehouse.id} value={warehouse.id}>
                   {warehouse.name}

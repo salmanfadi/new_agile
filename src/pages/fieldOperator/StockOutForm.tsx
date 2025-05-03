@@ -201,7 +201,7 @@ const StockOutForm: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {productsLoading ? (
-                      <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                      <SelectItem value="loading-products" disabled>Loading products...</SelectItem>
                     ) : products && products.length > 0 ? (
                       products.map(product => (
                         <SelectItem key={product.id} value={product.id}>
@@ -209,7 +209,7 @@ const StockOutForm: React.FC = () => {
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="none" disabled>No products available</SelectItem>
+                      <SelectItem value="no-products" disabled>No products available</SelectItem>
                     )}
                   </SelectContent>
                 </Select>

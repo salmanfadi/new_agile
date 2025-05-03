@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -83,7 +84,7 @@ const StockInProcessing: React.FC = () => {
         .select(`
           id,
           product:product_id(name),
-          submitter:submitted_by(name, username),
+          submitter:profiles!stock_in_submitter_fkey(name, username),
           boxes,
           status,
           created_at
@@ -97,9 +98,7 @@ const StockInProcessing: React.FC = () => {
       return (data as any[]).map(item => ({
         id: item.id,
         product: item.product || { name: 'Unknown Product' },
-        submitter: item.submitter && typeof item.submitter === 'object' && 'name' in item.submitter && 'username' in item.submitter
-          ? item.submitter 
-          : { name: 'Unknown', username: 'unknown' },
+        submitter: item.submitter || { name: 'Unknown', username: 'unknown' },
         boxes: item.boxes,
         status: item.status as StockInData['status'],
         created_at: item.created_at
@@ -410,7 +409,9 @@ const StockInProcessing: React.FC = () => {
                     <SelectContent>
                       {warehouses?.map(warehouse => (
                         <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
-                      ))}
+                      )) || (
+                        <SelectItem value="no-warehouses" disabled>No warehouses available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -431,7 +432,9 @@ const StockInProcessing: React.FC = () => {
                         <SelectItem key={location.id} value={location.id}>
                           Floor {location.floor}, Zone {location.zone}
                         </SelectItem>
-                      ))}
+                      )) || (
+                        <SelectItem value="no-locations" disabled>No locations available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

@@ -58,7 +58,7 @@ const AdminDashboard = () => {
         .select(`
           id,
           product:product_id(name),
-          submitter:submitted_by(name, username),
+          submitter:profiles!stock_in_submitter_fkey(name, username),
           status,
           created_at,
           boxes
@@ -70,7 +70,7 @@ const AdminDashboard = () => {
         .select(`
           id,
           product:product_id(name),
-          requester:requested_by(name, username),
+          requester:profiles!stock_out_requested_by_fkey(name, username),
           status,
           created_at,
           quantity
@@ -78,9 +78,8 @@ const AdminDashboard = () => {
         
       const stockInActivities = (stockIns.data || []).map(item => {
         const submitterName = item.submitter ? 
-          (typeof item.submitter === 'object' && 'name' in item.submitter && 'username' in item.submitter) ?
           `${item.submitter.name || 'Unknown'} (${item.submitter.username || 'Unknown'})` : 
-          'Unknown User' : 'Unknown User';
+          'Unknown User';
         
         return {
           type: 'Stock In',
@@ -94,9 +93,8 @@ const AdminDashboard = () => {
       
       const stockOutActivities = (stockOuts.data || []).map(item => {
         const requesterName = item.requester ? 
-          (typeof item.requester === 'object' && 'name' in item.requester && 'username' in item.requester) ?
           `${item.requester.name || 'Unknown'} (${item.requester.username || 'Unknown'})` : 
-          'Unknown User' : 'Unknown User';
+          'Unknown User';
         
         return {
           type: 'Stock Out',
