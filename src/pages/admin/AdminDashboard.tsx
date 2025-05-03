@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -48,6 +47,37 @@ const AdminDashboard = () => {
     }
   });
   
+  // Fetch recent stock in data
+  const recentStockInQuery = useQuery({
+    queryKey: ['recent-stock-in'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_in')
+        .select(`
+          id, 
+          product:product_id(name), 
+          submitter:profiles!stock_in_submitter_fkey(name, username),
+          boxes,
+          status,
+          created_at
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+        
+      if (error) throw error;
+      
+      // Transform and validate data to match expected structure
+      return data.map((item: any) => ({
+        id: item.id,
+        product: item.product || { name: 'Unknown Product' },
+        submitter: item.submitter || { name: 'Unknown', username: 'unknown' },
+        boxes: item.boxes,
+        status: item.status,
+        created_at: item.created_at
+      }));
+    }
+  });
+
   // Fetch recent activities
   const { data: recentActivities = [] } = useQuery({
     queryKey: ['admin-dashboard-activities'],
