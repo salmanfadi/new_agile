@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, AuthState } from '../types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,13 +60,59 @@ const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User 
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>(initialState);
-  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     const initAuth = async () => {
-      // First check for existing session
+      console.log("Starting auth initialization");
+      
       try {
+        // Set up auth state listener first (important for proper order)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            console.log("Auth state changed:", event, !!session);
+            
+            try {
+              if (session) {
+                const user = await mapSupabaseUser(session.user);
+                setState({
+                  user,
+                  isAuthenticated: !!user,
+                  isLoading: false,
+                });
+              } else {
+                // Check for mock users (for demo purposes)
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                  console.log("Found stored mock user");
+                  const user = JSON.parse(storedUser);
+                  setState({
+                    user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                  });
+                } else {
+                  setState({
+                    user: null,
+                    isAuthenticated: false,
+                    isLoading: false,
+                  });
+                }
+              }
+            } catch (error) {
+              console.error("Error in auth state change handler:", error);
+              setState({
+                user: null,
+                isAuthenticated: false,
+                isLoading: false, // Important: still set loading to false even on error
+              });
+            }
+          }
+        );
+        
+        // Then check for existing session
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("Initial session check:", !!session);
+        
         if (session) {
           const user = await mapSupabaseUser(session.user);
           setState({
@@ -76,9 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isLoading: false,
           });
         } else {
-          // Check if there's a mock user in localStorage (for demo)
+          // Check for mock users (for demo purposes)
           const storedUser = localStorage.getItem('user');
           if (storedUser) {
+            console.log("Found stored mock user on init");
             const user = JSON.parse(storedUser);
             setState({
               user,
@@ -87,65 +133,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
           } else {
             setState({
-              ...initialState,
+              user: null,
+              isAuthenticated: false,
               isLoading: false,
             });
           }
         }
+        
+        return () => {
+          subscription.unsubscribe();
+        };
       } catch (error) {
         console.error("Auth initialization error:", error);
         setState({
           ...initialState,
-          isLoading: false,
+          isLoading: false, // Important: set loading to false on error
         });
       }
     };
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        try {
-          if (session) {
-            const user = await mapSupabaseUser(session.user);
-            setState({
-              user,
-              isAuthenticated: !!user,
-              isLoading: false,
-            });
-          } else {
-            // Check for mock users when Supabase session is not available
-            const storedUser = localStorage.getItem('user');
-            if (storedUser) {
-              const user = JSON.parse(storedUser);
-              setState({
-                user,
-                isAuthenticated: true,
-                isLoading: false,
-              });
-            } else {
-              setState({
-                user: null,
-                isAuthenticated: false,
-                isLoading: false,
-              });
-            }
-          }
-        } catch (error) {
-          console.error("Auth state change error:", error);
-          setState({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-          });
-        }
-      }
-    );
-
     initAuth();
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
 
   const login = async (email: string, password: string) => {
