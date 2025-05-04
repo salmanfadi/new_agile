@@ -27,6 +27,7 @@ const AdminDashboard = () => {
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
+          <CardDescription>Latest stock movements and system events</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoadingActivities ? (

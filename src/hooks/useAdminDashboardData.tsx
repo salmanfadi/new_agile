@@ -29,25 +29,25 @@ export const useAdminDashboardData = () => {
   const activitiesQuery = useQuery({
     queryKey: ['admin-dashboard-activities'],
     queryFn: async () => {
-      // Fetch recent stock_in records
+      // Fetch recent stock_in records with proper relationship hints
       const stockIns = await supabase
         .from('stock_in')
         .select(`
           id,
           product:product_id(name),
-          submitter:submitted_by(name, username),
+          submitter:submitted_by(id, name, username)
           status,
           created_at,
           boxes
         `);
         
-      // Fetch recent stock_out records
+      // Fetch recent stock_out records with proper relationship hints
       const stockOuts = await supabase
         .from('stock_out')
         .select(`
           id,
           product:product_id(name),
-          requester:requested_by(name, username),
+          requester:requested_by(id, name, username),
           status,
           created_at,
           quantity
@@ -88,8 +88,6 @@ export const useAdminDashboardData = () => {
         .slice(0, 5);
     }
   });
-
-  // No need to fetch recent stock in separately as it's included in activities
 
   return {
     stats: statsQuery.data || { users: 0, warehouses: 0, products: 0, inventory: 0 },
