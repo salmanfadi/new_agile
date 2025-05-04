@@ -15,7 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from '@/components/ui/use-toast';
-import { User, Users, Edit } from 'lucide-react';
+import { User, Users, Edit, Plus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,9 +31,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserRole } from '@/types/auth';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 interface UserData {
   id: string;
@@ -44,15 +56,61 @@ interface UserData {
   created_at: string;
 }
 
+// Schema for form validation
+const createUserSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
+  name: z.string().optional(),
+  role: z.enum(['admin', 'warehouse_manager', 'field_operator']),
+  active: z.boolean().default(true),
+});
+
+// Schema for edit form
+const editUserSchema = z.object({
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
+  name: z.string().optional(),
+  role: z.enum(['admin', 'warehouse_manager', 'field_operator']),
+  active: z.boolean().default(true),
+});
+
+type CreateUserFormValues = z.infer<typeof createUserSchema>;
+type EditUserFormValues = z.infer<typeof editUserSchema>;
+
 const UsersManagement = () => {
   const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [formData, setFormData] = useState({
     username: '',
     name: '',
     role: 'field_operator' as UserRole,
     active: true,
+  });
+
+  // Create user form
+  const createForm = useForm<CreateUserFormValues>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      username: '',
+      name: '',
+      role: 'field_operator',
+      active: true,
+    },
+  });
+
+  // Edit user form
+  const editForm = useForm<EditUserFormValues>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: {
+      username: '',
+      name: '',
+      role: 'field_operator',
+      active: true,
+    },
   });
 
   // Fetch users from the database
@@ -77,9 +135,61 @@ const UsersManagement = () => {
     },
   });
 
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: async (userData: CreateUserFormValues) => {
+      // First create the user in auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            username: userData.username,
+            name: userData.name,
+            role: userData.role,
+          },
+        },
+      });
+
+      if (authError) throw authError;
+      
+      // The profile should automatically be created via the trigger
+      // But we'll update it to ensure the role is set correctly
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            role: userData.role,
+            active: userData.active,
+          })
+          .eq('id', authData.user.id);
+
+        if (profileError) throw profileError;
+      }
+
+      return authData;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setIsCreateDialogOpen(false);
+      createForm.reset();
+      toast({
+        title: 'User created',
+        description: 'New user has been created successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Create failed',
+        description: error instanceof Error ? error.message : 'Failed to create user',
+      });
+    },
+  });
+
   // Update user mutation
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, userData }: { id: string; userData: Partial<UserData> }) => {
+    mutationFn: async ({ id, userData }: { id: string; userData: Partial<EditUserFormValues> }) => {
       const { data, error } = await supabase
         .from('profiles')
         .update(userData)
@@ -92,7 +202,7 @@ const UsersManagement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      setIsDialogOpen(false);
+      setIsEditDialogOpen(false);
       toast({
         title: 'User updated',
         description: 'User information has been updated successfully.',
@@ -109,34 +219,25 @@ const UsersManagement = () => {
 
   const handleEditUser = (user: UserData) => {
     setEditingUser(user);
-    setFormData({
+    editForm.reset({
       username: user.username,
       name: user.name || '',
       role: user.role,
       active: user.active,
     });
-    setIsDialogOpen(true);
+    setIsEditDialogOpen(true);
   };
 
-  const handleFormChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleCreateSubmit = (values: CreateUserFormValues) => {
+    createUserMutation.mutate(values);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEditSubmit = (values: EditUserFormValues) => {
     if (!editingUser) return;
 
     updateUserMutation.mutate({
       id: editingUser.id,
-      userData: {
-        username: formData.username,
-        name: formData.name || null,
-        role: formData.role,
-        active: formData.active,
-      }
+      userData: values
     });
   };
 
@@ -159,6 +260,12 @@ const UsersManagement = () => {
         title="Users Management" 
         description="View and manage system users"
       />
+      
+      <div className="flex justify-end mb-4">
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Add New User
+        </Button>
+      </div>
       
       <Card>
         <CardContent className="p-6">
@@ -216,78 +323,234 @@ const UsersManagement = () => {
       </Card>
 
       {/* Edit User Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
           </DialogHeader>
           
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input 
-                  id="username" 
-                  value={formData.username}
-                  onChange={(e) => handleFormChange('username', e.target.value)}
-                  required
-                />
-              </div>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input 
-                  id="name" 
-                  value={formData.name}
-                  onChange={(e) => handleFormChange('name', e.target.value)}
-                />
-              </div>
+              <FormField
+                control={editForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select 
-                  value={formData.role} 
-                  onValueChange={(value) => handleFormChange('role', value as UserRole)}
+              <FormField
+                control={editForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
+                        <SelectItem value="field_operator">Field Operator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <input 
+                        type="checkbox" 
+                        className="h-4 w-4 rounded border-gray-300"
+                        checked={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="m-0">Active</FormLabel>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsEditDialogOpen(false)}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
-                    <SelectItem value="field_operator">Field Operator</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={updateUserMutation.isPending}
+                >
+                  {updateUserMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New User</DialogTitle>
+          </DialogHeader>
+          
+          <Form {...createForm}>
+            <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-4">
+              <FormField
+                control={createForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
-              <div className="flex items-center space-x-2">
-                <input 
-                  type="checkbox" 
-                  id="active" 
-                  className="h-4 w-4 rounded border-gray-300"
-                  checked={formData.active}
-                  onChange={(e) => handleFormChange('active', e.target.checked)}
-                />
-                <Label htmlFor="active">Active</Label>
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit"
-                disabled={updateUserMutation.isPending}
-              >
-                {updateUserMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </DialogFooter>
-          </form>
+              <FormField
+                control={createForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="password" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={createForm.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={createForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name (Optional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={createForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
+                        <SelectItem value="field_operator">Field Operator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={createForm.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <input 
+                        type="checkbox" 
+                        className="h-4 w-4 rounded border-gray-300"
+                        checked={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="m-0">Active</FormLabel>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsCreateDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={createUserMutation.isPending}
+                >
+                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

@@ -30,32 +30,45 @@ export const useAdminDashboardData = () => {
     queryKey: ['admin-dashboard-activities'],
     queryFn: async () => {
       // Fetch recent stock_in records with proper relationship hints
-      const stockIns = await supabase
+      const { data: stockInsData, error: stockInsError } = await supabase
         .from('stock_in')
         .select(`
           id,
           product:product_id(name),
-          submitter:submitted_by(id, name, username),
+          boxes,
           status,
           created_at,
-          boxes
+          submitted_by
         `);
         
       // Fetch recent stock_out records with proper relationship hints
-      const stockOuts = await supabase
+      const { data: stockOutsData, error: stockOutsError } = await supabase
         .from('stock_out')
         .select(`
           id,
           product:product_id(name),
-          requester:requested_by(id, name, username),
+          quantity,
           status,
           created_at,
-          quantity
+          requested_by
         `);
+      
+      // Fetch profiles to properly map user IDs to names
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name, username');
+      
+      // Create a map of user IDs to profile data for easy lookup
+      const profilesMap = profilesData ? 
+        profilesData.reduce((map, profile) => {
+          map[profile.id] = profile;
+          return map;
+        }, {}) : {};
         
-      const stockInActivities = (stockIns.data || []).map(item => {
-        const submitterName = item.submitter ? 
-          `${item.submitter.name || 'Unknown'} (${item.submitter.username || 'Unknown'})` : 
+      const stockInActivities = (stockInsData || []).map(item => {
+        const submitter = profilesMap[item.submitted_by];
+        const submitterName = submitter ? 
+          `${submitter.name || 'Unknown'} (${submitter.username || 'Unknown'})` : 
           'Unknown User';
         
         return {
@@ -68,9 +81,10 @@ export const useAdminDashboardData = () => {
         };
       });
       
-      const stockOutActivities = (stockOuts.data || []).map(item => {
-        const requesterName = item.requester ? 
-          `${item.requester.name || 'Unknown'} (${item.requester.username || 'Unknown'})` : 
+      const stockOutActivities = (stockOutsData || []).map(item => {
+        const requester = profilesMap[item.requested_by];
+        const requesterName = requester ? 
+          `${requester.name || 'Unknown'} (${requester.username || 'Unknown'})` : 
           'Unknown User';
         
         return {
