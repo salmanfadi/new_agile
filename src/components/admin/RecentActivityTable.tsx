@@ -46,7 +46,7 @@ export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({ activi
               <TableCell>{activity.quantity}</TableCell>
               <TableCell>{activity.date}</TableCell>
               <TableCell>
-                <StatusBadge status={activity.status} />
+                <StatusBadge status={activity.status as any} />
               </TableCell>
             </TableRow>
           ))}

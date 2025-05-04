@@ -2,7 +2,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-export type StatusType = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing';
+export type StatusType = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing' | string;
 
 interface StatusBadgeProps {
   status: StatusType;

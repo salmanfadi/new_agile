@@ -35,7 +35,7 @@ export const useAdminDashboardData = () => {
         .select(`
           id,
           product:product_id(name),
-          submitter:submitted_by(id, name, username)
+          submitter:submitted_by(id, name, username),
           status,
           created_at,
           boxes
