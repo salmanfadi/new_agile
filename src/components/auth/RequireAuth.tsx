@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole, RequireAuthProps } from '@/types/auth';
+import { Progress } from '@/components/ui/progress';
 
 export const RequireAuth: React.FC<RequireAuthProps> = ({ 
   children, 
@@ -11,13 +12,16 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
   const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
 
-  // Show loading state
+  // Show loading state but only briefly
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="h-10 w-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+        <div className="text-center max-w-md w-full px-4">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-10 w-10 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <Progress value={45} className="w-full h-2" />
+            <p className="mt-4 text-gray-600">Verifying access...</p>
+          </div>
         </div>
       </div>
     );
