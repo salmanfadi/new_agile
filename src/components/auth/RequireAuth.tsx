@@ -16,7 +16,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <div className="h-10 w-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
@@ -25,6 +25,15 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Special case for admins - they always have access to all pages
+  if (user?.role === 'admin') {
+    // Handle function children (render prop pattern)
+    if (typeof children === 'function') {
+      return children({ user });
+    }
+    return <>{children}</>;
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {

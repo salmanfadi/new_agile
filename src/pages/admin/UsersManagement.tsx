@@ -15,7 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from '@/components/ui/use-toast';
-import { User, Users, Edit, Plus } from 'lucide-react';
+import { User, Users, Edit, Plus, Eye, EyeOff } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -74,20 +74,23 @@ const editUserSchema = z.object({
   active: z.boolean().default(true),
 });
 
+// Schema for reset password form
+const resetPasswordSchema = z.object({
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+});
+
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
 type EditUserFormValues = z.infer<typeof editUserSchema>;
+type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
 const UsersManagement = () => {
   const queryClient = useQueryClient();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
-  const [formData, setFormData] = useState({
-    username: '',
-    name: '',
-    role: 'field_operator' as UserRole,
-    active: true,
-  });
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Create user form
   const createForm = useForm<CreateUserFormValues>({
@@ -110,6 +113,14 @@ const UsersManagement = () => {
       name: '',
       role: 'field_operator',
       active: true,
+    },
+  });
+
+  // Reset password form
+  const resetPasswordForm = useForm<ResetPasswordFormValues>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      password: '',
     },
   });
 
@@ -216,6 +227,37 @@ const UsersManagement = () => {
       });
     },
   });
+  
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ id, password }: { id: string; password: string }) => {
+      // Using the Supabase Admin API to update user password
+      // This requires admin privileges
+      const { error } = await supabase.auth.admin.updateUserById(
+        id,
+        { password }
+      );
+      
+      if (error) throw error;
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      setIsResetPasswordDialogOpen(false);
+      resetPasswordForm.reset();
+      toast({
+        title: 'Password reset',
+        description: 'User password has been reset successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Password reset failed',
+        description: error instanceof Error ? error.message : 'Failed to reset user password',
+      });
+    },
+  });
 
   const handleEditUser = (user: UserData) => {
     setEditingUser(user);
@@ -226,6 +268,11 @@ const UsersManagement = () => {
       active: user.active,
     });
     setIsEditDialogOpen(true);
+  };
+  
+  const handleResetPassword = (user: UserData) => {
+    setSelectedUser(user);
+    setIsResetPasswordDialogOpen(true);
   };
 
   const handleCreateSubmit = (values: CreateUserFormValues) => {
@@ -239,6 +286,19 @@ const UsersManagement = () => {
       id: editingUser.id,
       userData: values
     });
+  };
+  
+  const handleResetPasswordSubmit = (values: ResetPasswordFormValues) => {
+    if (!selectedUser) return;
+    
+    resetPasswordMutation.mutate({
+      id: selectedUser.id,
+      password: values.password
+    });
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   const getRoleBadgeColor = (role: UserRole) => {
@@ -271,7 +331,7 @@ const UsersManagement = () => {
         <CardContent className="p-6">
           {isLoading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              <div className="h-10 w-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : (
             <Table>
@@ -303,9 +363,14 @@ const UsersManagement = () => {
                       </TableCell>
                       <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" variant="ghost" onClick={() => handleEditUser(user)}>
-                          <Edit className="h-4 w-4 mr-1" /> Edit
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => handleEditUser(user)}>
+                            <Edit className="h-4 w-4 mr-1" /> Edit
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleResetPassword(user)}>
+                            Reset Password
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -424,6 +489,64 @@ const UsersManagement = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Reset Password Dialog */}
+      <Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password for {selectedUser?.username}</DialogTitle>
+          </DialogHeader>
+          
+          <Form {...resetPasswordForm}>
+            <form onSubmit={resetPasswordForm.handleSubmit(handleResetPasswordSubmit)} className="space-y-4">
+              <FormField
+                control={resetPasswordForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New Password</FormLabel>
+                    <div className="relative">
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type={showPassword ? "text" : "password"} 
+                          className="pr-10"
+                        />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={togglePasswordVisibility}
+                        className="absolute right-0 top-0 h-full"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsResetPasswordDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={resetPasswordMutation.isPending}
+                >
+                  {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       {/* Create User Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-md">
@@ -453,9 +576,24 @@ const UsersManagement = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="password" />
-                    </FormControl>
+                    <div className="relative">
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type={showPassword ? "text" : "password"}
+                          className="pr-10" 
+                        />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={togglePasswordVisibility}
+                        className="absolute right-0 top-0 h-full"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

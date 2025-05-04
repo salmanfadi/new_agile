@@ -12,7 +12,7 @@ const Unauthorized: React.FC = () => {
   // Auto-redirect admins to their dashboard
   useEffect(() => {
     if (user?.role === 'admin') {
-      navigate('/admin');
+      navigate('/admin', { replace: true });
     }
   }, [user, navigate]);
   
