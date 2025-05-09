@@ -35,7 +35,8 @@ import StockInForm from '@/pages/fieldOperator/StockInForm';
 import StockOutForm from '@/pages/fieldOperator/StockOutForm';
 import MySubmissions from '@/pages/fieldOperator/MySubmissions';
 import BarcodeScanner from '@/pages/BarcodeScanner';
-import { BarcodeLookup as OperatorBarcodeLookup } from '@/pages/fieldOperator/BarcodeLookup';
+// Fix: Import BarcodeLookup directly without destructuring
+import OperatorBarcodeLookup from '@/pages/fieldOperator/BarcodeLookup';
 
 // Sales Operator Pages
 import SalesOperatorDashboard from '@/pages/salesOperator/SalesOperatorDashboard';

@@ -62,7 +62,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const channel = supabase
       .channel(`${tableName}_changes`)
       .on(
-        'postgres_changes',
+        'postgres_changes', // Fix: This is the correct event name for Supabase Realtime
         {
           event: event,
           schema: 'public',
