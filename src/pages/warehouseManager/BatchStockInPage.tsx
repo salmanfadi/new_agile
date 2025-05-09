@@ -13,7 +13,6 @@ import { useBatchStockIn } from '@/hooks/useBatchStockIn';
 import { BatchForm } from '@/components/warehouse/BatchForm';
 import { BatchCard } from '@/components/warehouse/BatchCard';
 import { useStockInData } from '@/hooks/useStockInData';
-import { toast } from '@/hooks/use-toast';
 
 const BatchStockInPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId?: string }>();
@@ -38,35 +37,19 @@ const BatchStockInPage: React.FC = () => {
   // Populate form with stockInData when it's loaded
   useEffect(() => {
     if (stockInData) {
-      console.log("Stock in data loaded:", stockInData);
       setSource(stockInData.source || '');
       setNotes(stockInData.notes || '');
     }
   }, [stockInData]);
 
   const handleBatchSubmission = () => {
-    if (!user) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Error',
-        description: 'You must be logged in to submit batches',
-      });
-      return;
-    }
-    
-    if (batches.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'No Batches',
-        description: 'Please add at least one batch before submitting',
-      });
-      return;
-    }
+    if (!user) return;
+    if (batches.length === 0) return;
 
     // Fix: Add proper type handling for productId
     let productId: string;
     
-    if (stockInData?.product && 'id' in stockInData.product && stockInData.product.id) {
+    if (stockInData?.product && 'id' in stockInData.product) {
       // When product has an id property, use it with string casting for safety
       productId = stockInData.product.id as string;
     } else if (batches.length > 0) {
@@ -75,16 +58,8 @@ const BatchStockInPage: React.FC = () => {
     } else {
       // Ultimate fallback (shouldn't happen due to the check above, but TypeScript needs this)
       console.error("No product ID found in either stockInData or batches");
-      
-      toast({
-        variant: 'destructive',
-        title: 'Missing Product ID',
-        description: 'Could not determine product ID for submission',
-      });
       return;
     }
-    
-    console.log("Submitting stock in with productId:", productId);
     
     submitStockIn({
       stockInId: stockInId,

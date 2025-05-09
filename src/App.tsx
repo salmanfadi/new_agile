@@ -1,128 +1,154 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { RequireAuth } from './components/auth/RequireAuth';
-import Login from './pages/Login';
-import NotFound from './pages/NotFound';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import ManagerDashboard from './pages/warehouseManager/ManagerDashboard';
-import InventoryView from './pages/warehouseManager/InventoryView';
-import StockInProcessing from './pages/warehouseManager/StockInProcessing';
-import StockOutApproval from './pages/warehouseManager/StockOutApproval';
-import BarcodeLookup from './pages/warehouseManager/BarcodeLookup';
-import AdminBatchStockInPage from './pages/admin/BatchStockInPage';
-import BatchStockInPage from './pages/warehouseManager/BatchStockInPage';
-import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
+import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
+import { AuthProvider } from '@/context/AuthContext';
+import { RequireAuth } from '@/components/auth/RequireAuth';
+import { MainLayout } from '@/components/layout/MainLayout';
+import Index from '@/pages/Index';
+import Login from '@/pages/Login';
+import AdminDashboard from '@/pages/admin/AdminDashboard';
+import ManagerDashboard from '@/pages/warehouseManager/ManagerDashboard';
+import OperatorDashboard from '@/pages/fieldOperator/OperatorDashboard';
+import StockInProcessing from '@/pages/warehouseManager/StockInProcessing';
+import ProcessStockInPage from '@/pages/warehouseManager/ProcessStockInPage';
+import BatchStockInPage from '@/pages/warehouseManager/BatchStockInPage'; // New import
+import AdminBatchStockInPage from '@/pages/admin/BatchStockInPage'; // New import
+import StockOutApproval from '@/pages/warehouseManager/StockOutApproval';
+import StockOutForm from '@/pages/fieldOperator/StockOutForm';
+import MySubmissions from '@/pages/fieldOperator/MySubmissions';
+import InventoryView from '@/pages/warehouseManager/InventoryView';
+import Unauthorized from '@/pages/Unauthorized';
+import BarcodeLookup from "./pages/fieldOperator/BarcodeLookup";
+import ManagerBarcodeLookup from "./pages/warehouseManager/BarcodeLookup";
+import BarcodeScannerPage from "./pages/BarcodeScanner";
+import ProductManagement from "./pages/admin/ProductManagement";
+import WarehouseManagement from "./pages/admin/WarehouseManagement";
+import ProductCatalogue from "./pages/public/ProductCatalogue";
+import ProductDetail from "./pages/public/ProductDetail";
+import Cart from "./pages/public/Cart";
+import SalesInquiries from "./pages/admin/SalesInquiries";
+import AdminInventoryView from "./pages/admin/InventoryView";
+import UsersManagement from "./pages/admin/UsersManagement"; 
+import SalesOperatorDashboard from "./pages/salesOperator/SalesOperatorDashboard";
+import SalesInquiriesManagement from "./pages/salesOperator/SalesInquiriesManagement";
+import SalesInventoryView from "./pages/salesOperator/InventoryView";
+import StockInForm from "./pages/fieldOperator/StockInForm";
+import BarcodeManagement from "./pages/admin/BarcodeManagement";
+import AdminStockInManagement from "./pages/admin/StockInManagement";
+import AdminStockOutManagement from "./pages/admin/StockOutManagement";
+// Import customer pages
+import CustomerLanding from "./pages/customer/CustomerLanding";
+import CustomerProducts from "./pages/customer/CustomerProducts";
+import CustomerInquiry from "./pages/customer/CustomerInquiry";
+import CustomerInquirySuccess from "./pages/customer/CustomerInquirySuccess";
+import CustomerLogin from "./pages/customer/CustomerLogin";
+import CustomerPortal from "./pages/customer/CustomerPortal";
+import CustomerRegister from "./pages/customer/CustomerRegister";
 
-// Placeholder component for missing pages
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="p-8">
-    <h1 className="text-2xl font-bold mb-4">{title} Page</h1>
-    <p>This page is under construction.</p>
-  </div>
-);
-
-// Placeholder components for missing pages
-const Register = () => <PlaceholderPage title="Register" />;
-const UserProfile = () => <PlaceholderPage title="User Profile" />;
-const FieldOperatorDashboard = () => <PlaceholderPage title="Field Operator Dashboard" />;
-const SalesOperatorDashboard = () => <PlaceholderPage title="Sales Operator Dashboard" />;
-const CustomerDashboard = () => <PlaceholderPage title="Customer Dashboard" />;
-const SalesInquiries = () => <PlaceholderPage title="Sales Inquiries" />;
-const SalesInquiryDetails = () => <PlaceholderPage title="Sales Inquiry Details" />;
-const Products = () => <PlaceholderPage title="Products" />;
-const CreateProduct = () => <PlaceholderPage title="Create Product" />;
-const EditProduct = () => <PlaceholderPage title="Edit Product" />;
-const WarehouseManagement = () => <PlaceholderPage title="Warehouse Management" />;
-const CreateWarehouse = () => <PlaceholderPage title="Create Warehouse" />;
-const EditWarehouse = () => <PlaceholderPage title="Edit Warehouse" />;
-const WarehouseLocations = () => <PlaceholderPage title="Warehouse Locations" />;
-const CreateWarehouseLocation = () => <PlaceholderPage title="Create Warehouse Location" />;
-const EditWarehouseLocation = () => <PlaceholderPage title="Edit Warehouse Location" />;
-const UsersManagement = () => <PlaceholderPage title="Users Management" />;
-const CreateUser = () => <PlaceholderPage title="Create User" />;
-const EditUser = () => <PlaceholderPage title="Edit User" />;
-const StockOutRequests = () => <PlaceholderPage title="Stock Out Requests" />;
-const CreateStockOutRequest = () => <PlaceholderPage title="Create Stock Out Request" />;
-const EditStockOutRequest = () => <PlaceholderPage title="Edit Stock Out Request" />;
-const SalesDashboard = () => <PlaceholderPage title="Sales Dashboard" />;
-const Customers = () => <PlaceholderPage title="Customers" />;
-const CreateCustomer = () => <PlaceholderPage title="Create Customer" />;
-const EditCustomer = () => <PlaceholderPage title="Edit Customer" />;
-const CustomerOrders = () => <PlaceholderPage title="Customer Orders" />;
-const CreateCustomerOrder = () => <PlaceholderPage title="Create Customer Order" />;
-const EditCustomerOrder = () => <PlaceholderPage title="Edit Customer Order" />;
-
-function App() {
+const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Routes>
-          {/* Public Routes */}
+          <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/" element={<Login />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Protected User Profile Route */}
-          <Route path="/profile" element={<RequireAuth><UserProfile /></RequireAuth>} />
+          {/* Admin Routes */}
+          <Route path="/admin" element={
+            <RequireAuth allowedRoles={['admin']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<AdminDashboard />} />
+            <Route path="products" element={<ProductManagement />} />
+            <Route path="warehouses" element={<WarehouseManagement />} />
+            <Route path="inventory" element={<AdminInventoryView />} />
+            <Route path="barcodes" element={<BarcodeManagement />} />
+            <Route path="stock-in" element={<AdminStockInManagement />} />
+            <Route path="stock-in/batch" element={<AdminBatchStockInPage />} /> {/* New route */}
+            <Route path="stock-out" element={<AdminStockOutManagement />} />
+            <Route path="sales" element={<SalesInquiries />} />
+            <Route path="users" element={<UsersManagement />} />
+          </Route>
 
-          {/* Protected Admin Routes */}
-          <Route path="/admin" element={<RequireAuth allowedRoles={['admin']}><AdminDashboard /></RequireAuth>} />
-          <Route path="/admin/products" element={<RequireAuth allowedRoles={['admin']}><Products /></RequireAuth>} />
-          <Route path="/admin/products/create" element={<RequireAuth allowedRoles={['admin']}><CreateProduct /></RequireAuth>} />
-          <Route path="/admin/products/edit/:productId" element={<RequireAuth allowedRoles={['admin']}><EditProduct /></RequireAuth>} />
-          <Route path="/admin/warehouses" element={<RequireAuth allowedRoles={['admin']}><WarehouseManagement /></RequireAuth>} />
-          <Route path="/admin/warehouses/create" element={<RequireAuth allowedRoles={['admin']}><CreateWarehouse /></RequireAuth>} />
-          <Route path="/admin/warehouses/edit/:warehouseId" element={<RequireAuth allowedRoles={['admin']}><EditWarehouse /></RequireAuth>} />
-          <Route path="/admin/warehouses/:warehouseId/locations" element={<RequireAuth allowedRoles={['admin']}><WarehouseLocations /></RequireAuth>} />
-          <Route path="/admin/warehouses/:warehouseId/locations/create" element={<RequireAuth allowedRoles={['admin']}><CreateWarehouseLocation /></RequireAuth>} />
-          <Route path="/admin/warehouses/:warehouseId/locations/edit/:locationId" element={<RequireAuth allowedRoles={['admin']}><EditWarehouseLocation /></RequireAuth>} />
-          <Route path="/admin/users" element={<RequireAuth allowedRoles={['admin']}><UsersManagement /></RequireAuth>} />
-          <Route path="/admin/users/create" element={<RequireAuth allowedRoles={['admin']}><CreateUser /></RequireAuth>} />
-          <Route path="/admin/users/edit/:userId" element={<RequireAuth allowedRoles={['admin']}><EditUser /></RequireAuth>} />
-          <Route path="/admin/customers" element={<RequireAuth allowedRoles={['admin']}><Customers /></RequireAuth>} />
-          <Route path="/admin/customers/create" element={<RequireAuth allowedRoles={['admin']}><CreateCustomer /></RequireAuth>} />
-          <Route path="/admin/customers/edit/:customerId" element={<RequireAuth allowedRoles={['admin']}><EditCustomer /></RequireAuth>} />
+          {/* Warehouse Manager Routes */}
+          <Route path="/manager" element={
+            <RequireAuth allowedRoles={['warehouse_manager']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<ManagerDashboard />} />
+            <Route path="stock-in" element={<StockInProcessing />} />
+            <Route path="stock-in/batch" element={<BatchStockInPage />} /> {/* New route */}
+            <Route path="process-stock-in/:stockInId" element={<ProcessStockInPage />} />
+            <Route path="stock-out-approval" element={<StockOutApproval />} />
+            <Route path="inventory" element={<InventoryView />} />
+            <Route path="barcode" element={<ManagerBarcodeLookup />} />
+          </Route>
+
+          {/* Field Operator Routes */}
+          <Route path="/operator" element={
+            <RequireAuth allowedRoles={['field_operator']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<OperatorDashboard />} />
+            <Route path="stock-in" element={<StockInForm />} />
+            <Route path="stock-out" element={<StockOutForm />} />
+            <Route path="submissions" element={<MySubmissions />} />
+            <Route path="barcode-lookup" element={<BarcodeLookup />} />
+          </Route>
+
+          {/* Sales Operator Routes */}
+          <Route path="/sales" element={
+            <RequireAuth allowedRoles={['sales_operator']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<SalesOperatorDashboard />} />
+            <Route path="inquiries" element={<SalesInquiriesManagement />} />
+            <Route path="inventory" element={<SalesInventoryView />} />
+          </Route>
+
+          {/* Shared Route for Barcode Scanner */}
+          <Route path="/scan" element={
+            <RequireAuth allowedRoles={['warehouse_manager', 'field_operator', 'admin']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<BarcodeScannerPage />} />
+          </Route>
+
+          {/* Customer Facing Routes */}
+          <Route path="/products" element={<ProductCatalogue />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/cart" element={<Cart />} />
           
-          {/* Add this line to existing admin routes */}
-          <Route path="/admin/stock-in/batch/:stockInId?" element={<RequireAuth allowedRoles={['admin']}><AdminBatchStockInPage /></RequireAuth>} />
-
-          {/* Protected Warehouse Manager Routes */}
-          <Route path="/manager" element={<RequireAuth allowedRoles={['warehouse_manager']}><ManagerDashboard /></RequireAuth>} />
-          <Route path="/manager/inventory" element={<RequireAuth allowedRoles={['warehouse_manager']}><InventoryView /></RequireAuth>} />
-          <Route path="/manager/stock-in" element={<RequireAuth allowedRoles={['warehouse_manager']}><StockInProcessing /></RequireAuth>} />
-          <Route path="/manager/stock-out" element={<RequireAuth allowedRoles={['warehouse_manager']}><StockOutApproval /></RequireAuth>} />
-          <Route path="/manager/barcode" element={<RequireAuth allowedRoles={['warehouse_manager']}><BarcodeLookup /></RequireAuth>} />
-          
-          {/* Add this line for the warehouse manager batch processing route */}
-          <Route path="/manager/stock-in/batch/:stockInId?" element={<RequireAuth allowedRoles={['warehouse_manager']}><BatchStockInPage /></RequireAuth>} />
-          <Route path="/manager/stock-in/process/:stockInId" element={<RequireAuth allowedRoles={['warehouse_manager']}><ProcessStockInPage /></RequireAuth>} />
-
-          {/* Protected Field Operator Routes */}
-          <Route path="/field-operator" element={<RequireAuth allowedRoles={['field_operator']}><FieldOperatorDashboard /></RequireAuth>} />
-          <Route path="/field-operator/stock-out" element={<RequireAuth allowedRoles={['field_operator']}><StockOutRequests /></RequireAuth>} />
-          <Route path="/field-operator/stock-out/create" element={<RequireAuth allowedRoles={['field_operator']}><CreateStockOutRequest /></RequireAuth>} />
-          <Route path="/field-operator/stock-out/edit/:stockOutId" element={<RequireAuth allowedRoles={['field_operator']}><EditStockOutRequest /></RequireAuth>} />
-
-          {/* Protected Sales Operator Routes */}
-          <Route path="/sales" element={<RequireAuth allowedRoles={['sales_operator']}><SalesOperatorDashboard /></RequireAuth>} />
-          <Route path="/sales/dashboard" element={<RequireAuth allowedRoles={['sales_operator']}><SalesDashboard /></RequireAuth>} />
-          <Route path="/sales/inquiries" element={<RequireAuth allowedRoles={['sales_operator']}><SalesInquiries /></RequireAuth>} />
-          <Route path="/sales/inquiries/:inquiryId" element={<RequireAuth allowedRoles={['sales_operator']}><SalesInquiryDetails /></RequireAuth>} />
-
-          {/* Customer Routes */}
-          <Route path="/customer" element={<RequireAuth allowedRoles={['customer']}><CustomerDashboard /></RequireAuth>} />
-          <Route path="/customer/orders" element={<RequireAuth allowedRoles={['customer']}><CustomerOrders /></RequireAuth>} />
-          <Route path="/customer/orders/create" element={<RequireAuth allowedRoles={['customer']}><CreateCustomerOrder /></RequireAuth>} />
-          <Route path="/customer/orders/edit/:orderId" element={<RequireAuth allowedRoles={['customer']}><EditCustomerOrder /></RequireAuth>} />
-
-          {/* Catch All - 404 */}
-          <Route path="*" element={<NotFound />} />
+          {/* Customer Portal */}
+          <Route path="/customer">
+            <Route index element={<CustomerLanding />} />
+            <Route path="products" element={<CustomerProducts />} />
+            <Route path="inquiry" element={<CustomerInquiry />} />
+            <Route path="inquiry/success" element={<CustomerInquirySuccess />} />
+            <Route path="login" element={<CustomerLogin />} />
+            <Route path="register" element={<CustomerRegister />} />
+            <Route path="portal" element={<CustomerPortal />} />
+          </Route>
         </Routes>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
-}
+};
 
 export default App;

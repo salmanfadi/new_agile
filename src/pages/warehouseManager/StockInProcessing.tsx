@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
@@ -152,7 +151,6 @@ const StockInProcessing: React.FC = () => {
 
   // Navigate to batch processing page with the stock in ID
   const handleProcess = (stockIn: StockInData) => {
-    console.log("Processing stock in:", stockIn.id);
     navigate(`/manager/stock-in/batch/${stockIn.id}`);
   };
 
