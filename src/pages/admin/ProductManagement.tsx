@@ -39,6 +39,7 @@ interface ProductFormData {
   description: string;
   sku: string;
   specifications: string;
+  category?: string; // Added category field
   image_file: File | null;
 }
 
@@ -55,6 +56,7 @@ const ProductManagement: React.FC = () => {
     description: '',
     sku: '',
     specifications: '',
+    category: '', // Initialize category
     image_file: null
   });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -272,6 +274,7 @@ const ProductManagement: React.FC = () => {
       description: product.description || '',
       sku: product.sku || '',
       specifications: product.specifications || '',
+      category: '', // Initialize category
       image_file: null
     });
     setPreviewUrl(product.image_url);
@@ -301,6 +304,7 @@ const ProductManagement: React.FC = () => {
       description: '',
       sku: '',
       specifications: '',
+      category: '', // Initialize category
       image_file: null
     });
     setPreviewUrl(null);
@@ -461,6 +465,17 @@ const ProductManagement: React.FC = () => {
                   onChange={handleInputChange}
                   placeholder="Enter product specifications"
                   rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Input 
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  placeholder="Enter product category"
                 />
               </div>
 

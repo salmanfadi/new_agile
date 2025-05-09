@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      barcode_logs: {
+        Row: {
+          action: string
+          barcode: string
+          details: Json | null
+          id: string
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          barcode: string
+          details?: Json | null
+          id?: string
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          barcode?: string
+          details?: Json | null
+          id?: string
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       inventory: {
         Row: {
           barcode: string
@@ -108,6 +135,7 @@ export type Database = {
       }
       products: {
         Row: {
+          category: string | null
           created_at: string
           description: string | null
           id: string
@@ -119,6 +147,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -130,6 +159,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           description?: string | null
           id?: string

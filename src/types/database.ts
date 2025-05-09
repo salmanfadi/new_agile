@@ -1,4 +1,3 @@
-
 export interface Warehouse {
   id: string;
   name: string;
@@ -28,6 +27,7 @@ export interface Product {
   is_active?: boolean;
   in_stock_quantity?: number;
   is_out_of_stock?: boolean;
+  category?: string | null; // Added category field
 }
 
 export interface Inventory {

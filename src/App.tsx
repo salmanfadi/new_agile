@@ -129,6 +129,18 @@ const App: React.FC = () => {
                 </RequireAuth>
               }
             />
+            <Route
+              path="/admin/barcodes"
+              element={
+                <RequireAuth allowedRoles={["admin", "warehouse_manager"]}>
+                  <MainLayout>
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      <BarcodeManagement />
+                    </React.Suspense>
+                  </MainLayout>
+                </RequireAuth>
+              }
+            />
 
             {/* Sales Operator Routes */}
             <Route
