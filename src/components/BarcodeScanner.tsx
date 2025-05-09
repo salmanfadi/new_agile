@@ -23,6 +23,11 @@ interface BarcodeScannerProps {
   embedded?: boolean;
   allowManualEntry?: boolean;
   allowCameraScanning?: boolean;
+  // New props for enhanced functionality
+  onBarcodeScanned?: (barcode: string) => void | Promise<void>;
+  inputValue?: string;
+  onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  scanButtonLabel?: string;
 }
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
@@ -30,8 +35,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   embedded = false,
   allowManualEntry = true,
   allowCameraScanning = true,
+  // Add the new props with defaults
+  onBarcodeScanned,
+  inputValue,
+  onInputChange,
+  scanButtonLabel = 'Search',
 }) => {
-  const [barcode, setBarcode] = useState('');
+  const [barcode, setBarcode] = useState(inputValue || '');
   const [isScanning, setIsScanning] = useState(false);
   const [scanData, setScanData] = useState<ScanResponse['data'] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,11 +59,24 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Update barcode when inputValue changes (for controlled component)
+  useEffect(() => {
+    if (inputValue !== undefined) {
+      setBarcode(inputValue);
+    }
+  }, [inputValue]);
+
   // Process barcode scan
   const processScan = useCallback(async (scannedBarcode: string) => {
     if (!scannedBarcode || scannedBarcode.length < 8) {
       setError('Invalid barcode format');
       return;
+    }
+    
+    // If an external handler is provided, call it and optionally stop processing
+    if (onBarcodeScanned) {
+      await onBarcodeScanned(scannedBarcode);
+      return; // Let the parent component handle the barcode
     }
     
     setLoading(true);
@@ -104,7 +127,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       setLoading(false);
       setBarcode('');
     }
-  }, [user, toast, onScanComplete]);
+  }, [user, toast, onScanComplete, onBarcodeScanned]);
 
   // Handle hardware scanner input
   useEffect(() => {
@@ -311,6 +334,17 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     }
   };
 
+  // Handle input change for controlled or uncontrolled component
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onInputChange) {
+      // For controlled component
+      onInputChange(e);
+    } else {
+      // For uncontrolled component
+      setBarcode(e.target.value);
+    }
+  };
+
   return (
     <Card className={embedded ? 'border-dashed border-2' : ''}>
       <CardHeader>
@@ -333,7 +367,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
                 ref={inputRef}
                 type="text"
                 value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
+                onChange={handleInputChange}
                 placeholder="Scan or enter barcode"
                 className="flex-1"
                 autoFocus
@@ -343,7 +377,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
               {allowManualEntry && (
                 <Button type="submit" disabled={!barcode || loading}>
                   <Search className="h-4 w-4 mr-2" />
-                  {loading ? 'Searching...' : 'Search'}
+                  {loading ? 'Searching...' : scanButtonLabel || 'Search'}
                 </Button>
               )}
               
@@ -387,7 +421,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
           </form>
         )}
         
-        {scanData && (
+        {scanData && !onBarcodeScanned && (
           <div className="mt-4 space-y-4">
             <div className="bg-primary/10 p-4 rounded-md">
               <h3 className="font-medium text-lg">{scanData.product.name}</h3>
@@ -485,7 +519,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
           {isScanning ? 'Stop Scanning' : 'Start Scanning'}
         </Button>
         
-        {scanData && (
+        {scanData && !onBarcodeScanned && (
           <Button variant="secondary" onClick={resetScan}>
             <X className="h-4 w-4 mr-2" />
             Clear
