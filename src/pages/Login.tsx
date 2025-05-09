@@ -13,7 +13,7 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -21,6 +21,7 @@ const Login: React.FC = () => {
   // Check if we're already authenticated - redirect if so
   useEffect(() => {
     if (isAuthenticated) {
+      console.log("User is authenticated, redirecting");
       const from = location.state?.from?.pathname || '/';
       navigate(from, { replace: true });
     }
@@ -41,15 +42,16 @@ const Login: React.FC = () => {
     setIsLoading(true);
     
     try {
+      console.log("Attempting login with:", username);
       await login(username, password);
-      // Navigation handled in the useEffect above
+      // Navigation handled in the login function and useEffect above
     } catch (error) {
+      console.error("Login submission error:", error);
       toast({
         variant: 'destructive',
         title: 'Login failed',
         description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -58,15 +60,16 @@ const Login: React.FC = () => {
   const handleQuickLogin = async (role: string) => {
     setIsLoading(true);
     try {
+      console.log("Quick login with role:", role);
       await login(role, 'password');
-      // Navigation handled in the useEffect above
+      // Navigation handled in the login function and useEffect above
     } catch (error) {
+      console.error("Quick login error:", error);
       toast({
         variant: 'destructive',
         title: 'Login failed',
         description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -82,6 +85,11 @@ const Login: React.FC = () => {
           <CardDescription>
             Sign in to your account to continue
           </CardDescription>
+          {authLoading && (
+            <div className="text-sm text-amber-600">
+              Auth state is loading, please wait...
+            </div>
+          )}
         </CardHeader>
         
         <form onSubmit={handleSubmit}>
@@ -94,7 +102,7 @@ const Login: React.FC = () => {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 placeholder="Enter your username"
-                disabled={isLoading}
+                disabled={isLoading || authLoading}
               />
             </div>
             
@@ -107,7 +115,7 @@ const Login: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="Enter your password"
-                disabled={isLoading}
+                disabled={isLoading || authLoading}
               />
             </div>
           </CardContent>
@@ -116,7 +124,7 @@ const Login: React.FC = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading || authLoading}
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
@@ -129,7 +137,7 @@ const Login: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => handleQuickLogin('admin')}
-                  disabled={isLoading}
+                  disabled={isLoading || authLoading}
                 >
                   Admin
                 </Button>
@@ -138,7 +146,7 @@ const Login: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => handleQuickLogin('warehouse')}
-                  disabled={isLoading}
+                  disabled={isLoading || authLoading}
                 >
                   Warehouse
                 </Button>
@@ -147,7 +155,7 @@ const Login: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => handleQuickLogin('field')}
-                  disabled={isLoading}
+                  disabled={isLoading || authLoading}
                 >
                   Field
                 </Button>
