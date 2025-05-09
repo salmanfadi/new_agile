@@ -28,6 +28,7 @@ interface Location {
   id: string;
   floor: number;
   zone: string;
+  warehouse_id: string; // Added the warehouse_id property that was missing
 }
 
 interface BoxesTableProps {
