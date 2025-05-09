@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Minus, Trash, Box } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Dialog,
   DialogContent,
@@ -69,6 +72,8 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
   const [defaultLocation, setDefaultLocation] = useState<string>('');
   const [defaultColor, setDefaultColor] = useState<string>('');
   const [defaultSize, setDefaultSize] = useState<string>('');
+  const [defaultQuantity, setDefaultQuantity] = useState<number>(0);
+  const isMobile = useIsMobile();
 
   // Reset form when selectedStockIn changes
   React.useEffect(() => {
@@ -89,6 +94,7 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
       setDefaultLocation('');
       setDefaultColor('');
       setDefaultSize('');
+      setDefaultQuantity(0);
     }
   }, [selectedStockIn, open]);
 
@@ -248,7 +254,8 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
       warehouse_id: defaultWarehouse,
       location_id: defaultLocation,
       color: defaultColor,
-      size: defaultSize
+      size: defaultSize,
+      quantity: defaultQuantity > 0 ? defaultQuantity : box.quantity // Only update if default quantity is set
     }));
     
     setBoxesData(updatedBoxes);
@@ -284,207 +291,221 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className={isMobile ? "max-w-[95vw] h-[85vh] p-4" : "max-w-3xl"}>
         <DialogHeader>
           <DialogTitle>Process Stock In</DialogTitle>
         </DialogHeader>
         
         {selectedStockIn && (
           <form onSubmit={handleProcessingSubmit}>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="font-medium">Product: {selectedStockIn.product?.name}</div>
-                <div className="text-sm text-gray-500">Total Boxes: {selectedStockIn.boxes}</div>
-                <div className="text-sm text-gray-500">
-                  Submitted By: {selectedStockIn.submitter ? `${selectedStockIn.submitter.name} (${selectedStockIn.submitter.username})` : 'Unknown'}
-                </div>
-                <div className="text-sm text-gray-500">
-                  Source: {selectedStockIn.source}
-                </div>
-                {selectedStockIn.notes && (
+            <ScrollArea className={isMobile ? "h-[calc(85vh-10rem)]" : "max-h-[70vh]"}>
+              <div className="space-y-4 px-1">
+                <div className="space-y-2">
+                  <div className="font-medium">Product: {selectedStockIn.product?.name}</div>
+                  <div className="text-sm text-gray-500">Total Boxes: {selectedStockIn.boxes}</div>
                   <div className="text-sm text-gray-500">
-                    Notes: {selectedStockIn.notes}
+                    Submitted By: {selectedStockIn.submitter ? `${selectedStockIn.submitter.name} (${selectedStockIn.submitter.username})` : 'Unknown'}
                   </div>
-                )}
-              </div>
-              
-              <div className="bg-slate-50 p-4 rounded-md">
-                <h3 className="text-sm font-medium mb-3">Set Default Values (Apply to All Boxes)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <Label htmlFor="default_warehouse">Warehouse</Label>
-                    <Select 
-                      value={defaultWarehouse} 
-                      onValueChange={setDefaultWarehouse}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select warehouse" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {warehouses?.map(warehouse => (
-                          <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
-                        )) || (
-                          <SelectItem value="no-warehouses-available" disabled>No warehouses available</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                  <div className="text-sm text-gray-500">
+                    Source: {selectedStockIn.source}
                   </div>
-                  
-                  <div>
-                    <Label htmlFor="default_location">Location</Label>
-                    <Select 
-                      value={defaultLocation} 
-                      onValueChange={setDefaultLocation}
-                      disabled={!defaultWarehouse}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations?.map(location => (
-                          <SelectItem key={location.id} value={location.id}>
-                            Floor {location.floor}, Zone {location.zone}
-                          </SelectItem>
-                        )) || (
-                          <SelectItem value="no-locations-available" disabled>No locations available</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="default_color">Color (Optional)</Label>
-                    <Input 
-                      id="default_color"
-                      value={defaultColor}
-                      onChange={(e) => setDefaultColor(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="default_size">Size (Optional)</Label>
-                    <Input 
-                      id="default_size"
-                      value={defaultSize}
-                      onChange={(e) => setDefaultSize(e.target.value)}
-                    />
-                  </div>
+                  {selectedStockIn.notes && (
+                    <div className="text-sm text-gray-500">
+                      Notes: {selectedStockIn.notes}
+                    </div>
+                  )}
                 </div>
-                <Button 
-                  type="button" 
-                  onClick={applyDefaultsToAll}
-                  className="mt-4"
-                  disabled={!defaultWarehouse || !defaultLocation}
-                >
-                  Apply to All Boxes
-                </Button>
-              </div>
-              
-              <div>
-                <h3 className="font-medium mb-3">Box Details</h3>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Box #</TableHead>
-                        <TableHead>Barcode</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Warehouse</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Color</TableHead>
-                        <TableHead>Size</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {boxesData.map((box, index) => (
-                        <TableRow key={box.id}>
-                          <TableCell>
-                            <span className="flex items-center space-x-1">
-                              <Box className="h-4 w-4" />
-                              <span>{index + 1}</span>
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Input 
-                              value={box.barcode}
-                              onChange={(e) => handleBoxUpdate(index, 'barcode', e.target.value)}
-                              className="w-32"
-                              required
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input 
-                              type="number"
-                              value={box.quantity}
-                              onChange={(e) => handleBoxUpdate(index, 'quantity', parseInt(e.target.value) || 0)}
-                              className="w-20"
-                              min="1"
-                              required
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Select 
-                              value={box.warehouse_id} 
-                              onValueChange={(value) => {
-                                handleBoxUpdate(index, 'warehouse_id', value);
-                                handleBoxUpdate(index, 'location_id', '');
-                              }}
-                              required
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue placeholder="Warehouse" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {warehouses?.map(warehouse => (
-                                  <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
-                                )) || (
-                                  <SelectItem value="no-warehouses-available" disabled>None</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Select 
-                              value={box.location_id} 
-                              onValueChange={(value) => handleBoxUpdate(index, 'location_id', value)}
-                              disabled={!box.warehouse_id}
-                              required
-                            >
-                              <SelectTrigger className="w-28">
-                                <SelectValue placeholder="Location" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {locations?.filter(loc => loc.warehouse_id === box.warehouse_id).map(location => (
-                                  <SelectItem key={location.id} value={location.id}>
-                                    F{location.floor}, Z{location.zone}
-                                  </SelectItem>
-                                )) || (
-                                  <SelectItem value="no-locations-available" disabled>None</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Input 
-                              value={box.color}
-                              onChange={(e) => handleBoxUpdate(index, 'color', e.target.value)}
-                              className="w-24"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input 
-                              value={box.size}
-                              onChange={(e) => handleBoxUpdate(index, 'size', e.target.value)}
-                              className="w-24"
-                            />
-                          </TableCell>
+                
+                <div className="bg-slate-50 p-4 rounded-md">
+                  <h3 className="text-sm font-medium mb-3">Set Default Values (Apply to All Boxes)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="default_warehouse">Warehouse</Label>
+                      <Select 
+                        value={defaultWarehouse} 
+                        onValueChange={setDefaultWarehouse}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select warehouse" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {warehouses?.map(warehouse => (
+                            <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
+                          )) || (
+                            <SelectItem value="no-warehouses-available" disabled>No warehouses available</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="default_location">Location</Label>
+                      <Select 
+                        value={defaultLocation} 
+                        onValueChange={setDefaultLocation}
+                        disabled={!defaultWarehouse}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select location" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {locations?.map(location => (
+                            <SelectItem key={location.id} value={location.id}>
+                              Floor {location.floor}, Zone {location.zone}
+                            </SelectItem>
+                          )) || (
+                            <SelectItem value="no-locations-available" disabled>No locations available</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="default_quantity">Quantity per Box</Label>
+                      <Input 
+                        id="default_quantity"
+                        type="number"
+                        value={defaultQuantity || ''}
+                        onChange={(e) => setDefaultQuantity(parseInt(e.target.value) || 0)}
+                        min="0"
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="default_color">Color (Optional)</Label>
+                      <Input 
+                        id="default_color"
+                        value={defaultColor}
+                        onChange={(e) => setDefaultColor(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="default_size">Size (Optional)</Label>
+                      <Input 
+                        id="default_size"
+                        value={defaultSize}
+                        onChange={(e) => setDefaultSize(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    type="button" 
+                    onClick={applyDefaultsToAll}
+                    className="mt-4"
+                    disabled={!defaultWarehouse || !defaultLocation}
+                  >
+                    Apply to All Boxes
+                  </Button>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-3">Box Details</h3>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Box #</TableHead>
+                          <TableHead>Barcode</TableHead>
+                          <TableHead>Quantity</TableHead>
+                          <TableHead>Warehouse</TableHead>
+                          <TableHead>Location</TableHead>
+                          <TableHead>Color</TableHead>
+                          <TableHead>Size</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {boxesData.map((box, index) => (
+                          <TableRow key={box.id}>
+                            <TableCell>
+                              <span className="flex items-center space-x-1">
+                                <Box className="h-4 w-4" />
+                                <span>{index + 1}</span>
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                value={box.barcode}
+                                onChange={(e) => handleBoxUpdate(index, 'barcode', e.target.value)}
+                                className="w-32"
+                                required
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                type="number"
+                                value={box.quantity}
+                                onChange={(e) => handleBoxUpdate(index, 'quantity', parseInt(e.target.value) || 0)}
+                                className="w-20"
+                                min="1"
+                                required
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Select 
+                                value={box.warehouse_id} 
+                                onValueChange={(value) => {
+                                  handleBoxUpdate(index, 'warehouse_id', value);
+                                  handleBoxUpdate(index, 'location_id', '');
+                                }}
+                                required
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue placeholder="Warehouse" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {warehouses?.map(warehouse => (
+                                    <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
+                                  )) || (
+                                    <SelectItem value="no-warehouses-available" disabled>None</SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Select 
+                                value={box.location_id} 
+                                onValueChange={(value) => handleBoxUpdate(index, 'location_id', value)}
+                                disabled={!box.warehouse_id}
+                                required
+                              >
+                                <SelectTrigger className="w-28">
+                                  <SelectValue placeholder="Location" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {locations?.filter(loc => loc.warehouse_id === box.warehouse_id).map(location => (
+                                    <SelectItem key={location.id} value={location.id}>
+                                      F{location.floor}, Z{location.zone}
+                                    </SelectItem>
+                                  )) || (
+                                    <SelectItem value="no-locations-available" disabled>None</SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                value={box.color}
+                                onChange={(e) => handleBoxUpdate(index, 'color', e.target.value)}
+                                className="w-24"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                value={box.size}
+                                onChange={(e) => handleBoxUpdate(index, 'size', e.target.value)}
+                                className="w-24"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </div>
-            </div>
+            </ScrollArea>
             
             <DialogFooter className="mt-6">
               <Button 
