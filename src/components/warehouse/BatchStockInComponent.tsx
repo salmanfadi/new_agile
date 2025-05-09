@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Boxes, AlertTriangle } from 'lucide-react';
+import { Boxes, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useBatchStockIn } from '@/hooks/useBatchStockIn';
 import { BatchForm } from '@/components/warehouse/BatchForm';
@@ -111,14 +111,6 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ adminMode
     });
   };
 
-  const goBack = () => {
-    if (adminMode) {
-      navigate('/admin/stock-in');
-    } else {
-      navigate('/manager/stock-in');
-    }
-  };
-
   return (
     <>
       <PageHeader 
@@ -128,16 +120,6 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ adminMode
           : "Create and process multiple batches at once"
         }
       />
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={goBack}
-        className="mb-4"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
-      </Button>
       
       {isLoadingStockIn ? (
         <Card>
