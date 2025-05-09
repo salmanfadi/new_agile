@@ -1,47 +1,58 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { RequireAuth } from './components/auth/RequireAuth';
 import Login from './pages/Login';
-import Register from './pages/Register';
+import NotFound from './pages/NotFound';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ManagerDashboard from './pages/warehouseManager/ManagerDashboard';
-import FieldOperatorDashboard from './pages/fieldOperator/FieldOperatorDashboard';
-import SalesOperatorDashboard from './pages/salesOperator/SalesOperatorDashboard';
-import CustomerDashboard from './pages/customer/CustomerDashboard';
-import NotFound from './pages/NotFound';
-import UserProfile from './pages/UserProfile';
 import InventoryView from './pages/warehouseManager/InventoryView';
 import StockInProcessing from './pages/warehouseManager/StockInProcessing';
 import StockOutApproval from './pages/warehouseManager/StockOutApproval';
 import BarcodeLookup from './pages/warehouseManager/BarcodeLookup';
-import SalesInquiries from './pages/salesOperator/SalesInquiries';
-import SalesInquiryDetails from './pages/salesOperator/SalesInquiryDetails';
-import Products from './pages/admin/Products';
-import CreateProduct from './pages/admin/CreateProduct';
-import EditProduct from './pages/admin/EditProduct';
-import WarehouseManagement from './pages/admin/WarehouseManagement';
-import CreateWarehouse from './pages/admin/CreateWarehouse';
-import EditWarehouse from './pages/admin/EditWarehouse';
-import WarehouseLocations from './pages/admin/WarehouseLocations';
-import CreateWarehouseLocation from './pages/admin/CreateWarehouseLocation';
-import EditWarehouseLocation from './pages/admin/EditWarehouseLocation';
-import UsersManagement from './pages/admin/UsersManagement';
-import CreateUser from './pages/admin/CreateUser';
-import EditUser from './pages/admin/EditUser';
-import StockOutRequests from './pages/fieldOperator/StockOutRequests';
-import CreateStockOutRequest from './pages/fieldOperator/CreateStockOutRequest';
-import EditStockOutRequest from './pages/fieldOperator/EditStockOutRequest';
-import SalesDashboard from './pages/salesOperator/SalesDashboard';
-import Customers from './pages/admin/Customers';
-import CreateCustomer from './pages/admin/CreateCustomer';
-import EditCustomer from './pages/admin/EditCustomer';
-import CustomerOrders from './pages/customer/CustomerOrders';
-import CreateCustomerOrder from './pages/customer/CreateCustomerOrder';
-import EditCustomerOrder from './pages/customer/EditCustomerOrder';
 import AdminBatchStockInPage from './pages/admin/BatchStockInPage';
 import BatchStockInPage from './pages/warehouseManager/BatchStockInPage';
 import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
+
+// Placeholder component for missing pages
+const PlaceholderPage = ({ title }: { title: string }) => (
+  <div className="p-8">
+    <h1 className="text-2xl font-bold mb-4">{title} Page</h1>
+    <p>This page is under construction.</p>
+  </div>
+);
+
+// Placeholder components for missing pages
+const Register = () => <PlaceholderPage title="Register" />;
+const UserProfile = () => <PlaceholderPage title="User Profile" />;
+const FieldOperatorDashboard = () => <PlaceholderPage title="Field Operator Dashboard" />;
+const SalesOperatorDashboard = () => <PlaceholderPage title="Sales Operator Dashboard" />;
+const CustomerDashboard = () => <PlaceholderPage title="Customer Dashboard" />;
+const SalesInquiries = () => <PlaceholderPage title="Sales Inquiries" />;
+const SalesInquiryDetails = () => <PlaceholderPage title="Sales Inquiry Details" />;
+const Products = () => <PlaceholderPage title="Products" />;
+const CreateProduct = () => <PlaceholderPage title="Create Product" />;
+const EditProduct = () => <PlaceholderPage title="Edit Product" />;
+const WarehouseManagement = () => <PlaceholderPage title="Warehouse Management" />;
+const CreateWarehouse = () => <PlaceholderPage title="Create Warehouse" />;
+const EditWarehouse = () => <PlaceholderPage title="Edit Warehouse" />;
+const WarehouseLocations = () => <PlaceholderPage title="Warehouse Locations" />;
+const CreateWarehouseLocation = () => <PlaceholderPage title="Create Warehouse Location" />;
+const EditWarehouseLocation = () => <PlaceholderPage title="Edit Warehouse Location" />;
+const UsersManagement = () => <PlaceholderPage title="Users Management" />;
+const CreateUser = () => <PlaceholderPage title="Create User" />;
+const EditUser = () => <PlaceholderPage title="Edit User" />;
+const StockOutRequests = () => <PlaceholderPage title="Stock Out Requests" />;
+const CreateStockOutRequest = () => <PlaceholderPage title="Create Stock Out Request" />;
+const EditStockOutRequest = () => <PlaceholderPage title="Edit Stock Out Request" />;
+const SalesDashboard = () => <PlaceholderPage title="Sales Dashboard" />;
+const Customers = () => <PlaceholderPage title="Customers" />;
+const CreateCustomer = () => <PlaceholderPage title="Create Customer" />;
+const EditCustomer = () => <PlaceholderPage title="Edit Customer" />;
+const CustomerOrders = () => <PlaceholderPage title="Customer Orders" />;
+const CreateCustomerOrder = () => <PlaceholderPage title="Create Customer Order" />;
+const EditCustomerOrder = () => <PlaceholderPage title="Edit Customer Order" />;
 
 function App() {
   return (
