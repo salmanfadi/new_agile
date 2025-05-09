@@ -17,11 +17,12 @@ import { useAuth } from '@/context/AuthContext';
 import { ProcessStockInDialog } from '@/components/warehouse/ProcessStockInDialog';
 import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
 import { RejectStockInDialog } from '@/components/warehouse/RejectStockInDialog';
+import { toast } from '@/hooks/use-toast';
 
 interface StockInData {
   id: string;
-  product: { name: string };
-  submitter: { name: string; username: string } | null;
+  product: { name: string; id?: string | null };
+  submitter: { name: string; username: string; id?: string | null } | null;
   boxes: number;
   status: "pending" | "approved" | "rejected" | "completed" | "processing";
   created_at: string;
@@ -62,6 +63,11 @@ const StockInProcessing: React.FC = () => {
 
         if (error) {
           console.error('Error fetching stock in requests:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Error loading data',
+            description: error.message,
+          });
           throw error;
         }
         
@@ -81,7 +87,13 @@ const StockInProcessing: React.FC = () => {
         })) as StockInData[];
       } catch (error) {
         console.error('Failed to fetch stock in requests:', error);
-        throw error;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        toast({
+          variant: 'destructive',
+          title: 'Failed to load stock requests',
+          description: errorMessage,
+        });
+        return [];
       }
     },
   });
@@ -128,7 +140,7 @@ const StockInProcessing: React.FC = () => {
         </CardHeader>
         <CardContent>
           <StockInRequestsTable 
-            stockInRequests={stockInRequests}
+            stockInRequests={stockInRequests || []}
             isLoading={isLoading}
             onProcess={handleProcess}
             onReject={handleReject}

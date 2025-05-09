@@ -1,8 +1,6 @@
 
 import React from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import {
@@ -27,7 +25,7 @@ interface StockInData {
 }
 
 interface StockInRequestsTableProps {
-  stockInRequests: StockInData[] | undefined;
+  stockInRequests: StockInData[];
   isLoading: boolean;
   onProcess: (stockIn: StockInData) => void;
   onReject: (stockIn: StockInData) => void;
@@ -41,8 +39,6 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   onReject,
   userId,
 }) => {
-  const queryClient = useQueryClient();
-  
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
@@ -74,7 +70,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {stockInRequests?.map((stockIn) => (
+          {stockInRequests.map((stockIn) => (
             <TableRow key={stockIn.id} className={stockIn.status === 'pending' ? "bg-green-50" : undefined}>
               <TableCell className="font-medium">{stockIn.product?.name || 'Unknown Product'}</TableCell>
               <TableCell>{stockIn.submitter ? `${stockIn.submitter.name} (${stockIn.submitter.username})` : 'Unknown'}</TableCell>
@@ -105,9 +101,9 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                   </>
                 )}
                 {stockIn.status === 'rejected' && stockIn.rejection_reason && (
-                  <span className="text-sm text-red-600">
+                  <div className="text-xs text-red-600">
                     Reason: {stockIn.rejection_reason}
-                  </span>
+                  </div>
                 )}
               </TableCell>
             </TableRow>

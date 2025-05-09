@@ -376,6 +376,7 @@ export type Database = {
           notes: string | null
           processed_by: string | null
           product_id: string
+          rejection_reason: string | null
           source: string
           status: Database["public"]["Enums"]["stock_status"]
           submitted_by: string
@@ -388,6 +389,7 @@ export type Database = {
           notes?: string | null
           processed_by?: string | null
           product_id: string
+          rejection_reason?: string | null
           source: string
           status?: Database["public"]["Enums"]["stock_status"]
           submitted_by: string
@@ -400,6 +402,7 @@ export type Database = {
           notes?: string | null
           processed_by?: string | null
           product_id?: string
+          rejection_reason?: string | null
           source?: string
           status?: Database["public"]["Enums"]["stock_status"]
           submitted_by?: string
