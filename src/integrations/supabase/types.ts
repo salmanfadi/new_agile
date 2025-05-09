@@ -13,7 +13,9 @@ export type Database = {
         Row: {
           action: string
           barcode: string
+          batch_id: string | null
           details: Json | null
+          event_type: string | null
           id: string
           timestamp: string
           user_id: string
@@ -21,7 +23,9 @@ export type Database = {
         Insert: {
           action: string
           barcode: string
+          batch_id?: string | null
           details?: Json | null
+          event_type?: string | null
           id?: string
           timestamp?: string
           user_id: string
@@ -29,7 +33,9 @@ export type Database = {
         Update: {
           action?: string
           barcode?: string
+          batch_id?: string | null
           details?: Json | null
+          event_type?: string | null
           id?: string
           timestamp?: string
           user_id?: string
@@ -100,6 +106,44 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          is_read: boolean
+          metadata: Json
+          role: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          metadata?: Json
+          role: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          metadata?: Json
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       otp_tokens: {
         Row: {
           created_at: string | null
@@ -164,6 +208,7 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           image_url: string | null
@@ -176,6 +221,7 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
@@ -188,6 +234,7 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
@@ -197,7 +244,15 @@ export type Database = {
           specifications?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

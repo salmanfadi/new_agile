@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,14 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Printer, Download } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Printer, Download, Loader2 } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import BarcodePreview from './BarcodePreview';
+import { generateBarcodeString } from '@/utils/barcodeUtils';
 import jsPDF from 'jspdf';
 import bwipjs from 'bwip-js';
+import { v4 as uuidv4 } from 'uuid';
 
 interface BarcodeBox {
   id: string;
@@ -36,6 +39,8 @@ const BarcodePrinter: React.FC = () => {
   const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [generating, setGenerating] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // Fetch product categories
   const { data: categories, isLoading: categoriesLoading } = useQuery({
@@ -58,56 +63,65 @@ const BarcodePrinter: React.FC = () => {
     },
   });
 
-  // Fetch boxes for selected category
-  const { data: boxes, isLoading: boxesLoading } = useQuery({
-    queryKey: ['category-boxes', selectedCategory],
+  // Fetch products by selected category with pagination
+  const { data: products, isLoading: productsLoading } = useQuery({
+    queryKey: ['category-products', selectedCategory, page],
     enabled: !!selectedCategory,
     queryFn: async () => {
-      // First get products in the category
-      const { data: products, error: productError } = await supabase
+      const { data: products, error: productError, count } = await supabase
         .from('products')
-        .select('id, name, sku')
-        .eq('category', selectedCategory);
+        .select('id, name, sku, category', { count: 'exact' })
+        .eq('category', selectedCategory)
+        .eq('is_active', true)
+        .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
       if (productError) throw productError;
-      if (!products.length) return [];
+      if (!products.length) return { products: [], count: 0 };
 
-      // Then get inventory items for these products
-      const productIds = products.map(p => p.id);
-      const { data: inventory, error: inventoryError } = await supabase
-        .from('inventory')
-        .select('id, barcode, product_id, quantity')
-        .in('product_id', productIds)
-        .eq('status', 'available');
+      return { products, count };
+    }
+  });
 
-      if (inventoryError) throw inventoryError;
-
-      // Map inventory to include product details
-      return inventory.map(item => {
-        const product = products.find(p => p.id === item.product_id);
-        return {
-          id: item.id,
-          barcode: item.barcode,
-          product_name: product.name,
-          sku: product.sku,
-          quantity: item.quantity
-        };
+  // Create notification for barcode generation
+  const createNotificationMutation = useMutation({
+    mutationFn: async ({
+      user_id,
+      role,
+      action_type,
+      metadata
+    }: {
+      user_id: string;
+      role: string;
+      action_type: string;
+      metadata: any;
+    }) => {
+      const { error } = await supabase.from('notifications').insert({
+        user_id,
+        role,
+        action_type,
+        metadata
       });
+      
+      if (error) throw error;
+    },
+    onError: (error) => {
+      console.error('Error creating notification:', error);
     }
   });
 
   // Generate PDF with barcode labels
   const handleGeneratePDF = async () => {
-    if (!boxes || boxes.length === 0) {
+    if (!products || products.products.length === 0) {
       toast({
-        title: "No boxes to print",
-        description: "There are no boxes available for the selected category.",
+        title: "No products to print",
+        description: "There are no products available for the selected category.",
         variant: "destructive"
       });
       return;
     }
 
     setGenerating(true);
+    const batchId = uuidv4();
 
     try {
       // Create a new PDF document
@@ -126,8 +140,14 @@ const BarcodePrinter: React.FC = () => {
       const labelsPerRow = 3;
       const labelsPerCol = 10;
 
-      // For each box, create a label
-      boxes.forEach((box, index) => {
+      // For each product, create a barcode label
+      products.products.forEach((product, index) => {
+        const barcode = generateBarcodeString(
+          product.category || 'MISC',
+          product.sku || product.name.substring(0, 6).toUpperCase().replace(/\s+/g, ''),
+          index + 1
+        );
+
         // Calculate position for this label
         const row = Math.floor(index / labelsPerRow);
         const col = index % labelsPerRow;
@@ -148,7 +168,7 @@ const BarcodePrinter: React.FC = () => {
         try {
           bwipjs.toCanvas(canvas, {
             bcid: 'code128',
-            text: box.barcode,
+            text: barcode,
             scale: 2,
             height: 10,
             includetext: false,
@@ -169,32 +189,51 @@ const BarcodePrinter: React.FC = () => {
         
         // Add text details
         doc.setFontSize(8);
-        doc.text(box.barcode, x + labelWidth/2, y + 15, { align: 'center' });
-        doc.text(`Product: ${box.product_name}`, x + 5, y + 18);
-        doc.text(`SKU: ${box.sku}`, x + 5, y + 21);
-        doc.text(`Box ID: ${box.id.substring(0, 8)}...`, x + 5, y + 24);
-        doc.text(`Qty: ${box.quantity}`, x + labelWidth - 15, y + 24);
+        doc.text(barcode, x + labelWidth/2, y + 15, { align: 'center' });
+        doc.text(`Product: ${product.name.substring(0, 20)}`, x + 5, y + 18);
+        doc.text(`SKU: ${product.sku || 'N/A'}`, x + 5, y + 21);
+        doc.text(`Category: ${product.category}`, x + 5, y + 24);
+
+        // Log the barcode generation
+        if (user?.id) {
+          supabase.from('barcode_logs').insert({
+            barcode: barcode,
+            action: 'generated',
+            user_id: user.id,
+            event_type: 'barcode_generated',
+            batch_id: batchId,
+            timestamp: new Date().toISOString(),
+            details: { 
+              product_id: product.id,
+              product_name: product.name,
+              category: product.category,
+              method: 'bulk-generation'
+            }
+          }).then(null);
+        }
       });
 
       // Save the PDF
       doc.save(`barcode-labels-${selectedCategory}.pdf`);
 
-      // Log the printing action
+      // Create notification for the bulk generation
       if (user?.id) {
-        for (const box of boxes) {
-          await supabase.from('barcode_logs').insert({
-            barcode: box.barcode,
-            action: 'printed',
-            user_id: user.id,
-            timestamp: new Date().toISOString(),
-            details: { method: 'pdf-export' }
-          });
-        }
+        createNotificationMutation.mutate({
+          user_id: user.id,
+          role: user.role,
+          action_type: 'barcode_generated',
+          metadata: {
+            category: selectedCategory,
+            count: products.products.length,
+            product_ids: products.products.map(p => p.id),
+            batch_id: batchId
+          }
+        });
       }
 
       toast({
         title: "Success",
-        description: `Generated barcode labels for ${boxes.length} boxes.`,
+        description: `Generated barcode labels for ${products.products.length} products.`,
       });
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -208,10 +247,13 @@ const BarcodePrinter: React.FC = () => {
     }
   };
 
+  // Handle pagination
+  const totalPages = products?.count ? Math.ceil(products.count / PAGE_SIZE) : 0;
+  
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Bulk Print Barcodes</CardTitle>
+        <CardTitle>Bulk Generate Barcodes</CardTitle>
         <CardDescription>Generate and print barcode labels by product category</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -243,27 +285,44 @@ const BarcodePrinter: React.FC = () => {
         {selectedCategory && (
           <div className="space-y-4 mt-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-medium">Available Boxes</h3>
+              <h3 className="text-sm font-medium">Available Products</h3>
               <span className="text-xs text-muted-foreground">
-                {boxesLoading ? 'Loading...' : boxes ? `${boxes.length} boxes found` : '0 boxes'}
+                {productsLoading ? 'Loading...' : products ? `${products.count || 0} products found` : '0 products'}
               </span>
             </div>
-            {boxesLoading ? (
+            {productsLoading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
               </div>
-            ) : boxes && boxes.length > 0 ? (
+            ) : products && products.products.length > 0 ? (
               <div className="border rounded-md max-h-60 overflow-y-auto">
                 <div className="divide-y">
-                  {boxes.map((box) => (
-                    <div key={box.id} className="p-3 flex items-center justify-between">
+                  {products.products.map((product) => (
+                    <div key={product.id} className="p-3 flex items-center justify-between">
                       <div>
-                        <div className="font-medium">{box.product_name}</div>
-                        <div className="text-sm text-gray-500">SKU: {box.sku} • Qty: {box.quantity}</div>
-                        <div className="text-sm text-gray-400 mt-1">{box.barcode}</div>
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-sm text-gray-500">
+                          SKU: {product.sku || 'N/A'} • Category: {product.category}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {generateBarcodeString(
+                            product.category || 'MISC',
+                            product.sku || product.name.substring(0, 6).toUpperCase().replace(/\s+/g, ''),
+                            1
+                          )}
+                        </div>
                       </div>
                       <div className="ml-4">
-                        <BarcodePreview barcode={box.barcode} width={100} height={40} scale={1.5} />
+                        <BarcodePreview 
+                          barcode={generateBarcodeString(
+                            product.category || 'MISC',
+                            product.sku || product.name.substring(0, 6).toUpperCase().replace(/\s+/g, ''),
+                            1
+                          )} 
+                          width={100} 
+                          height={40} 
+                          scale={1.5} 
+                        />
                       </div>
                     </div>
                   ))}
@@ -271,7 +330,32 @@ const BarcodePrinter: React.FC = () => {
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500 border rounded-md">
-                No boxes available for this category
+                No products available for this category
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(p - 1, 1))}
+                  disabled={page === 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+                  disabled={page === totalPages}
+                >
+                  Next
+                </Button>
               </div>
             )}
           </div>
@@ -280,11 +364,14 @@ const BarcodePrinter: React.FC = () => {
       <CardFooter>
         <Button
           onClick={handleGeneratePDF}
-          disabled={!selectedCategory || boxesLoading || (boxes && boxes.length === 0) || generating}
+          disabled={!selectedCategory || productsLoading || (products && products.products.length === 0) || generating}
           className="w-full"
         >
           {generating ? (
-            <>Generating PDF...</>
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating PDF...
+            </>
           ) : (
             <>
               <Printer className="mr-2 h-4 w-4" /> Generate Barcode Labels PDF

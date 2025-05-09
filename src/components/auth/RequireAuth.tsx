@@ -52,6 +52,26 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
     }
     return <>{children}</>;
   }
+  
+  // Special access rule for barcode management
+  // Allow warehouse_manager to access barcode management
+  if (location.pathname === '/admin/barcodes' && user?.role === 'warehouse_manager') {
+    console.log("Warehouse manager accessing barcode management, granting access");
+    if (typeof children === 'function') {
+      return children({ user });
+    }
+    return <>{children}</>;
+  }
+  
+  // Special access rule for product management
+  // Allow warehouse_manager to access product management
+  if (location.pathname === '/admin/products' && user?.role === 'warehouse_manager') {
+    console.log("Warehouse manager accessing product management, granting access");
+    if (typeof children === 'function') {
+      return children({ user });
+    }
+    return <>{children}</>;
+  }
 
   // Check if the user has the required role for the page
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -16,7 +15,7 @@ import {
   BarChart4,
   MessageSquare,
   Store,
-  ChevronRight
+  Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -162,6 +161,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
                   <NavLink to="/admin/barcodes" className={navLinkClass}>
                     <Printer className="h-4 w-4 flex-shrink-0" />
                     {!collapsed && <span>Barcode Management</span>}
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/admin/products" className={navLinkClass}>
+                    <Package className="h-4 w-4 flex-shrink-0" />
+                    {!collapsed && <span>Product Management</span>}
                   </NavLink>
                 </li>
               </ul>
