@@ -38,6 +38,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ArrowLeft, Package, Search } from 'lucide-react';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+
+// Define a type for valid status values to prevent future type errors
+type InquiryStatus = 'new' | 'in_progress' | 'completed';
 
 const SalesInquiries: React.FC = () => {
   const navigate = useNavigate();
@@ -82,7 +86,7 @@ const SalesInquiries: React.FC = () => {
   }, [inquiries, searchTerm, statusFilter]);
 
   // Handle status change
-  const updateInquiryStatus = async (id: string, status: 'new' | 'in_progress' | 'completed') => {
+  const updateInquiryStatus = async (id: string, status: InquiryStatus) => {
     const { error } = await supabase
       .from('sales_inquiries')
       .update({ status })
@@ -117,6 +121,16 @@ const SalesInquiries: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  // Function to validate and convert status string to our InquiryStatus type
+  const validateStatus = (status: string): InquiryStatus => {
+    if (status === 'new' || status === 'in_progress' || status === 'completed') {
+      return status;
+    }
+    // Default to 'new' if the status is not a valid value
+    console.warn(`Invalid status value: ${status}, defaulting to 'new'`);
+    return 'new';
   };
 
   return (
@@ -266,7 +280,7 @@ const SalesInquiries: React.FC = () => {
                   <div className="flex items-center space-x-3">
                     <Select
                       value={selectedInquiry.status}
-                      onValueChange={(value) => updateInquiryStatus(selectedInquiry.id, value)}
+                      onValueChange={(value) => updateInquiryStatus(selectedInquiry.id, validateStatus(value))}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
