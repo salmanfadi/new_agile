@@ -2,13 +2,14 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Menu, LogOut, Bell, Search, User } from 'lucide-react';
+import { Menu, PanelLeft, PanelRight, LogOut, Bell, Search, User } from 'lucide-react';
 import { UserRole } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NavbarProps {
   toggleSidebar: () => void;
+  sidebarCollapsed?: boolean;
 }
 
 const getRoleLabel = (role: UserRole): string => {
@@ -26,7 +27,7 @@ const getRoleLabel = (role: UserRole): string => {
   }
 };
 
-export const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
+export const Navbar: React.FC<NavbarProps> = ({ toggleSidebar, sidebarCollapsed = false }) => {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -58,12 +59,18 @@ export const Navbar: React.FC<NavbarProps> = ({ toggleSidebar }) => {
           size="icon"
           onClick={toggleSidebar}
           className="mr-4"
-          aria-label="Toggle sidebar"
+          aria-label={isMobile ? "Toggle sidebar" : (sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")}
+          title={isMobile ? "Toggle sidebar" : (sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")}
         >
-          <Menu className="h-5 w-5" />
+          {isMobile ? (
+            <Menu className="h-5 w-5" />
+          ) : (
+            sidebarCollapsed ? <PanelRight className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />
+          )}
         </Button>
+        
         <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
-          {isMobile ? "AW" : "Agile Warehouse"}
+          {isMobile || sidebarCollapsed ? "AW" : "Agile Warehouse"}
         </div>
       </div>
       
