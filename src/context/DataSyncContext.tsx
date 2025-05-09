@@ -59,15 +59,15 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     console.log(`Subscribing to table: ${tableName} for events: ${event}`);
 
+    // Fix: Use proper type annotation for the postgres_changes event
     const channel = supabase
       .channel(`${tableName}_changes`)
-      .on(
-        'postgres_changes',
-        {
-          event,
-          schema: 'public',
-          table: tableName
-        },
+      .on('postgres_changes', 
+        { 
+          event: event, 
+          schema: 'public', 
+          table: tableName 
+        }, 
         (payload) => {
           console.log(`Received ${payload.eventType} event on ${tableName}:`, payload);
           
@@ -82,8 +82,7 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               description: 'You have a new notification',
             });
           }
-        }
-      )
+      })
       .subscribe((status) => {
         console.log(`Subscription status for ${tableName}: ${status}`);
         if (status === 'SUBSCRIBED') {
