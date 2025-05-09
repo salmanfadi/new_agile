@@ -212,15 +212,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: `Logged in as ${user.name} (${user.role})`,
         });
 
-        // Direct navigation without timeout
+        // Fix: Correctly map all roles to their right paths, including sales_operator
         const redirectPath = user.role === 'admin' 
           ? '/admin' 
           : user.role === 'warehouse_manager' 
             ? '/manager' 
             : user.role === 'field_operator'
               ? '/operator'
-              : '/sales';
-            
+              : user.role === 'sales_operator'
+                ? '/sales'
+                : '/login';
+        
+        console.log("Redirecting user to:", redirectPath, "with role:", user.role);
         window.location.href = redirectPath;
       } else {
         // Use Supabase auth
