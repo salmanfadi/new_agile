@@ -28,6 +28,7 @@ import AdminInventoryView from "./pages/admin/InventoryView";
 import UsersManagement from "./pages/admin/UsersManagement"; 
 import SalesOperatorDashboard from "./pages/salesOperator/SalesOperatorDashboard";
 import SalesInquiriesManagement from "./pages/salesOperator/SalesInquiriesManagement";
+import SalesInventoryView from "./pages/salesOperator/InventoryView"; // Add the new import
 import StockInForm from "./pages/fieldOperator/StockInForm";
 import BarcodeManagement from "./pages/admin/BarcodeManagement";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -161,6 +162,16 @@ const App: React.FC = () => {
                 <RequireAuth allowedRoles={['admin', 'sales_operator']}>
                   <MainLayout>
                     <SalesInquiriesManagement />
+                  </MainLayout>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/sales/inventory"
+              element={
+                <RequireAuth allowedRoles={['admin', 'sales_operator']}>
+                  <MainLayout>
+                    <SalesInventoryView />
                   </MainLayout>
                 </RequireAuth>
               }

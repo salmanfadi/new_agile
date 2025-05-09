@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SalesDashboard } from '@/components/sales/SalesDashboard';
 import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { PackageOpen, FileText } from 'lucide-react';
 
 const SalesOperatorDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -40,6 +42,30 @@ const SalesOperatorDashboard: React.FC = () => {
         title={`Welcome, ${user?.name || 'Sales Operator'}`}
         description="Manage customer inquiries and view product information"
       />
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Button 
+          onClick={() => navigate('/sales/inventory')} 
+          variant="outline" 
+          className="h-24 flex items-center justify-center border-dashed border-2"
+        >
+          <div className="flex flex-col items-center">
+            <PackageOpen className="h-8 w-8 mb-2 text-blue-600" />
+            <span>View Product Inventory</span>
+          </div>
+        </Button>
+        
+        <Button 
+          onClick={() => navigate('/sales/inquiries')} 
+          variant="outline" 
+          className="h-24 flex items-center justify-center border-dashed border-2"
+        >
+          <div className="flex flex-col items-center">
+            <FileText className="h-8 w-8 mb-2 text-blue-600" />
+            <span>Manage Customer Inquiries</span>
+          </div>
+        </Button>
+      </div>
       
       <SalesDashboard
         totalInquiries={totalInquiries}
