@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Barcode, Search, Camera, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import Quagga from 'quagga';
 
 interface BarcodeScannerProps {
   onScanComplete?: (data: ScanResponse['data']) => void;
@@ -40,6 +41,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const barcodeBuffer = useRef('');
   const lastScanTime = useRef<number>(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -140,6 +144,136 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     };
   }, [isScanning, processScan]);
 
+  // Initialize HTML5 Barcode Detection API if supported
+  const initBarcodeDetection = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    
+    try {
+      // Check if the BarcodeDetector API is available
+      if ('BarcodeDetector' in window) {
+        const barcodeDetector = new (window as any).BarcodeDetector({
+          formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e']
+        });
+        
+        // Access the camera stream
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+        
+        // Set up the scanning loop
+        const scanLoop = async () => {
+          if (!isCameraActive || !videoRef.current || !canvasRef.current) return;
+          
+          try {
+            // Detect barcodes in the video stream
+            const barcodes = await barcodeDetector.detect(videoRef.current);
+            
+            if (barcodes.length > 0) {
+              // We found a barcode
+              const barcode = barcodes[0].rawValue;
+              setIsCameraActive(false);
+              await processScan(barcode);
+            }
+          } catch (err) {
+            console.error("Barcode detection error:", err);
+          }
+          
+          // Continue scanning
+          if (isCameraActive) {
+            requestAnimationFrame(scanLoop);
+          }
+        };
+        
+        // Start the scanning loop
+        scanLoop();
+      } else {
+        // Fallback to QuaggaJS if BarcodeDetector is not supported
+        initQuagga();
+      }
+    } catch (error) {
+      console.error("Camera initialization error:", error);
+      setError("Failed to access camera. Please check permissions.");
+      
+      // Fallback to QuaggaJS if camera access fails
+      initQuagga();
+    }
+  }, [isCameraActive, processScan]);
+
+  // Initialize QuaggaJS as fallback
+  const initQuagga = useCallback(() => {
+    if (!canvasRef.current) return;
+    
+    Quagga.init({
+      inputStream: {
+        name: "Live",
+        type: "LiveStream",
+        target: canvasRef.current,
+        constraints: {
+          facingMode: "environment"
+        }
+      },
+      decoder: {
+        readers: ["code_128_reader", "ean_reader", "ean_8_reader", "code_39_reader", "upc_reader"]
+      }
+    }, (err) => {
+      if (err) {
+        console.error("QuaggaJS initialization error:", err);
+        setError("Failed to initialize barcode scanner");
+        return;
+      }
+      
+      // Start QuaggaJS
+      Quagga.start();
+      
+      // Listen for detected barcodes
+      Quagga.onDetected((result) => {
+        if (!isCameraActive) return;
+        
+        const code = result.codeResult.code;
+        if (code) {
+          setIsCameraActive(false);
+          Quagga.stop();
+          processScan(code);
+        }
+      });
+    });
+    
+    // Cleanup function
+    return () => {
+      Quagga.stop();
+    };
+  }, [isCameraActive, processScan]);
+
+  // Handle camera activation/deactivation
+  useEffect(() => {
+    if (isCameraActive) {
+      initBarcodeDetection();
+    } else {
+      // Clean up camera resources
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      
+      // Stop QuaggaJS if it's running
+      Quagga.stop();
+    }
+    
+    return () => {
+      // Clean up on component unmount
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      Quagga.stop();
+    };
+  }, [isCameraActive, initBarcodeDetection]);
+
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (barcode) {
@@ -160,10 +294,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   };
 
   const toggleCamera = () => {
-    // This would integrate with a camera scanning library
-    // For now just toggle the state to show we would activate camera
     setIsCameraActive(!isCameraActive);
-    // In a real implementation, would initialize camera scanning here
   };
 
   const resetScan = () => {
@@ -223,10 +354,22 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
             </div>
             
             {isCameraActive && (
-              <div className="border rounded-md p-4 bg-muted h-[200px] flex items-center justify-center">
-                <p className="text-center text-muted-foreground">
-                  Camera scanning would be implemented here with a library like
-                  QuaggaJS or HTML5 Barcode Detection API
+              <div className="border rounded-md p-4 bg-muted relative h-[200px] flex items-center justify-center overflow-hidden">
+                <video 
+                  ref={videoRef} 
+                  className="absolute inset-0 w-full h-full object-cover"
+                  playsInline
+                  muted
+                />
+                <canvas 
+                  ref={canvasRef} 
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="border-2 border-primary w-3/4 h-1/2 max-w-48 rounded-md"></div>
+                </div>
+                <p className="absolute bottom-2 text-center text-white text-xs bg-black/50 px-2 py-1 rounded">
+                  Position barcode in frame
                 </p>
               </div>
             )}
