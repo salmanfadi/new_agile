@@ -17,7 +17,6 @@ import { useStockInBoxes, StockInData } from '@/hooks/useStockInBoxes';
 import { DefaultValuesForm } from '@/components/warehouse/DefaultValuesForm';
 import { BoxesTable } from '@/components/warehouse/BoxesTable';
 import { processStockIn } from '@/utils/stockInProcessor';
-import { DebugInfo } from './DebugInfo';
 
 interface ProcessStockInDialogProps {
   open: boolean;
@@ -130,11 +129,6 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
                   <div className="text-sm text-gray-500">
                     Submitted By: {selectedStockIn.submitter ? `${selectedStockIn.submitter.name} (${selectedStockIn.submitter.username})` : 'Unknown'}
                   </div>
-                  {selectedStockIn.submitter?.id && (
-                    <div className="text-sm text-gray-500">
-                      Submitter ID: {selectedStockIn.submitter.id}
-                    </div>
-                  )}
                   <div className="text-sm text-gray-500">
                     Source: {selectedStockIn.source}
                   </div>
@@ -158,12 +152,6 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
                   handleBoxUpdate={handleBoxUpdate}
                   warehouses={warehouses}
                   locations={locations}
-                />
-                
-                <DebugInfo 
-                  label="Selected Stock In" 
-                  data={selectedStockIn} 
-                  show={false} 
                 />
               </div>
             </ScrollArea>

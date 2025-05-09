@@ -42,12 +42,7 @@ export const useStockInData = (stockInId: string | undefined) => {
         if (!submitterError && submitterData) {
           submitter = submitterData;
         } else {
-          console.error('Error fetching submitter profile:', submitterError);
-          submitter = { 
-            id: data.submitted_by, 
-            name: 'Unknown', 
-            username: 'unknown' 
-          };
+          submitter = { name: 'Unknown', username: 'unknown' };
         }
       }
       
