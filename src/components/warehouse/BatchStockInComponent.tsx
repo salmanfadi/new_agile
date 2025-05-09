@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Boxes, AlertTriangle, ArrowLeft, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useBatchStockIn } from '@/hooks/useBatchStockIn';
@@ -301,10 +302,6 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
                 onCancel={editingIndex !== null ? () => setEditingIndex(null) : undefined}
                 maxBoxes={remainingBoxes + (editingIndex !== null ? batches[editingIndex].boxes_count : 0)}
                 stockInData={stockInData}
-                defaultValues={defaultValues}
-                setDefaultValues={setDefaultValues}
-                warehouses={warehouses || []}
-                locations={locations || []}
               />
               
               {/* Default values section for warehouse/location - optional */}

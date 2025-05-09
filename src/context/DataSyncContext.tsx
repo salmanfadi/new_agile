@@ -63,9 +63,9 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       .channel(`${tableName}_changes`)
       .on(
         'postgres_changes',
-        { 
-          event: event, 
-          schema: 'public', 
+        {
+          event: event,
+          schema: 'public',
           table: tableName
         },
         (payload) => {

@@ -166,11 +166,11 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
 
     console.log(`[${traceId}] Successfully processed stock-in: ${stockInId}`);
     
-    // Show success toast
+    // Show success toast - Fixed variant to be one of the allowed values
     toast({
       title: "Stock-In Processed Successfully",
       description: `${boxes.length} boxes have been added to inventory`,
-      variant: "success"
+      variant: "default"  // Changed from 'success' to 'default'
     });
     
     return true;
