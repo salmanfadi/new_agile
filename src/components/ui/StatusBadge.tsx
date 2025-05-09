@@ -2,7 +2,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-export type StatusType = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing' | string;
+export type StatusType = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing' | 'available' | string;
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -15,7 +15,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
       case 'pending':
         return {
           className: 'bg-yellow-100 text-yellow-800',
-          label: 'Pending'
+          label: 'Awaiting Review'
         };
       case 'approved':
         return {
@@ -35,7 +35,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
       case 'processing':
         return {
           className: 'bg-purple-100 text-purple-800',
-          label: 'Processing' // Changed back from "In Stock" to "Processing"
+          label: 'In Processing'
+        };
+      case 'available':
+        return {
+          className: 'bg-emerald-100 text-emerald-800',
+          label: 'In Stock'
         };
       default:
         return {

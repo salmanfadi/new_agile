@@ -1,6 +1,5 @@
-
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/types/database';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +14,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from '@/hooks/use-toast';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ProductInventory extends Product {
   in_stock_quantity: number;
@@ -23,6 +24,7 @@ interface ProductInventory extends Product {
 
 export const InventoryStatus: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const queryClient = useQueryClient();
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products-inventory'],
@@ -81,6 +83,31 @@ export const InventoryStatus: React.FC = () => {
       return productsWithInventory;
     }
   });
+
+  // Set up real-time updates for inventory changes
+  useEffect(() => {
+    const channel: RealtimeChannel = supabase
+      .channel('sales-inventory-updates')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'inventory' },
+        (payload) => {
+          console.log('Inventory change detected in sales view:', payload);
+          
+          // Refresh inventory data
+          queryClient.invalidateQueries({ queryKey: ['products-inventory'] });
+          
+          toast({
+            title: 'Inventory Updated',
+            description: 'Product inventory has been updated',
+          });
+        })
+      .subscribe();
+
+    // Clean up subscription
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [queryClient]);
 
   const filteredProducts = products?.filter(product => 
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

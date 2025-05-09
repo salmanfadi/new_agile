@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,15 +22,20 @@ import {
 } from '@/components/ui/card';
 import { ArrowLeft, Package } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/hooks/use-toast';
+import { RealtimeChannel } from '@supabase/supabase-js';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 
 const AdminInventoryView = () => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const queryClient = useQueryClient();
   
   // Fetch inventory data
   const { data: inventoryItems = [], isLoading } = useQuery({
     queryKey: ['admin-inventory-data'],
     queryFn: async () => {
+      console.log('Fetching inventory data');
       const { data, error } = await supabase
         .from('inventory')
         .select(`
@@ -43,11 +48,15 @@ const AdminInventoryView = () => {
           color,
           size,
           created_at,
-          updated_at
+          updated_at,
+          status
         `)
         .order('updated_at', { ascending: false });
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching inventory:', error);
+        throw error;
+      }
       
       return data.map(item => ({
         id: item.id,
@@ -59,11 +68,46 @@ const AdminInventoryView = () => {
         quantity: item.quantity,
         color: item.color || '-',
         size: item.size || '-',
+        status: item.status || 'available',
         lastUpdated: new Date(item.updated_at).toLocaleString(),
       }));
     }
   });
 
+  // Set up real-time subscription for inventory changes
+  useEffect(() => {
+    // Create and subscribe to the Supabase channel
+    const channel: RealtimeChannel = supabase
+      .channel('inventory-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'inventory' },
+        (payload) => {
+          console.log('Inventory change detected:', payload);
+          
+          // Show toast notification for inventory changes
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: 'New Inventory Item',
+              description: 'A new item has been added to inventory',
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            toast({
+              title: 'Inventory Updated',
+              description: 'An inventory item has been updated',
+            });
+          }
+          
+          // Invalidate the query to refresh inventory data
+          queryClient.invalidateQueries({ queryKey: ['admin-inventory-data'] });
+        })
+      .subscribe();
+
+    // Clean up channel subscription when component unmounts
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [queryClient]);
+  
   // Filter inventory based on search term
   const filteredInventory = searchTerm
     ? inventoryItems.filter(item => 
@@ -133,6 +177,7 @@ const AdminInventoryView = () => {
                     <TableHead>Quantity</TableHead>
                     <TableHead>Color</TableHead>
                     <TableHead>Size</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Last Updated</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -146,6 +191,9 @@ const AdminInventoryView = () => {
                       <TableCell>{item.quantity}</TableCell>
                       <TableCell>{item.color}</TableCell>
                       <TableCell>{item.size}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={item.status} />
+                      </TableCell>
                       <TableCell className="text-right">{item.lastUpdated}</TableCell>
                     </TableRow>
                   ))}

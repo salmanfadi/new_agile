@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/PageHeader';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -21,6 +22,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Inventory, Warehouse, Product } from '@/types/database';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 // Define a type for the extended inventory data that comes from the query
 interface ExtendedInventory {
@@ -34,6 +37,7 @@ interface ExtendedInventory {
   size: string | null;
   created_at: string;
   updated_at: string;
+  status: string;
   product: { name: string };
   warehouse: { name: string };
   warehouse_location: { floor: number; zone: string };
@@ -42,6 +46,7 @@ interface ExtendedInventory {
 const InventoryView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('');
+  const queryClient = useQueryClient();
   
   // Fetch warehouses for filter
   const warehousesQuery = useQuery({
@@ -60,6 +65,7 @@ const InventoryView: React.FC = () => {
   const inventoryQuery = useQuery({
     queryKey: ['inventory', warehouseFilter],
     queryFn: async () => {
+      console.log('Fetching inventory data with filter:', warehouseFilter);
       let query = supabase
         .from('inventory')
         .select(`
@@ -73,12 +79,39 @@ const InventoryView: React.FC = () => {
         query = query.eq('warehouse_id', warehouseFilter);
       }
       
-      const { data, error } = await query;
+      const { data, error } = await query.order('updated_at', { ascending: false });
         
       if (error) throw error;
       return data as unknown as ExtendedInventory[];
     }
   });
+
+  // Set up real-time subscription for inventory changes
+  useEffect(() => {
+    const channel: RealtimeChannel = supabase
+      .channel('inventory-changes-manager')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'inventory' },
+        (payload) => {
+          console.log('Inventory change detected in manager view:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: 'New Inventory Item',
+              description: 'A new item has been added to inventory',
+            });
+          }
+          
+          // Refresh inventory data
+          queryClient.invalidateQueries({ queryKey: ['inventory', warehouseFilter] });
+        })
+      .subscribe();
+
+    // Clean up subscription
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [queryClient, warehouseFilter]);
   
   const filteredInventory = inventoryQuery.data?.filter(item => {
     return (
@@ -134,6 +167,7 @@ const InventoryView: React.FC = () => {
                 <TableHead>Warehouse</TableHead>
                 <TableHead>Floor</TableHead>
                 <TableHead>Zone</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Color</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Last Updated</TableHead>
@@ -142,7 +176,7 @@ const InventoryView: React.FC = () => {
             <TableBody>
               {inventoryQuery.isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={10} className="text-center py-8">
                     <div className="flex justify-center">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                     </div>
@@ -151,13 +185,13 @@ const InventoryView: React.FC = () => {
                 </TableRow>
               ) : inventoryQuery.isError ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-red-500">
+                  <TableCell colSpan={10} className="text-center py-8 text-red-500">
                     Error loading inventory data
                   </TableCell>
                 </TableRow>
               ) : filteredInventory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                     No inventory items found
                   </TableCell>
                 </TableRow>
@@ -170,6 +204,7 @@ const InventoryView: React.FC = () => {
                     <TableCell>{item.warehouse.name}</TableCell>
                     <TableCell>{item.warehouse_location.floor}</TableCell>
                     <TableCell>{item.warehouse_location.zone}</TableCell>
+                    <TableCell><StatusBadge status={item.status} /></TableCell>
                     <TableCell>{item.color || '-'}</TableCell>
                     <TableCell>{item.size || '-'}</TableCell>
                     <TableCell>{new Date(item.updated_at).toLocaleString()}</TableCell>
