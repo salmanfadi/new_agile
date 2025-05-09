@@ -380,6 +380,7 @@ export type Database = {
           source: string
           status: Database["public"]["Enums"]["stock_status"]
           submitted_by: string
+          submitted_byy: string | null
           updated_at: string
         }
         Insert: {
@@ -393,6 +394,7 @@ export type Database = {
           source: string
           status?: Database["public"]["Enums"]["stock_status"]
           submitted_by: string
+          submitted_byy?: string | null
           updated_at?: string
         }
         Update: {
@@ -406,6 +408,7 @@ export type Database = {
           source?: string
           status?: Database["public"]["Enums"]["stock_status"]
           submitted_by?: string
+          submitted_byy?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -39,7 +39,9 @@ export const useAdminDashboardData = () => {
           status,
           created_at,
           submitted_by
-        `);
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
         
       // Fetch recent stock_out records with proper relationship hints
       const { data: stockOutsData, error: stockOutsError } = await supabase
@@ -51,7 +53,9 @@ export const useAdminDashboardData = () => {
           status,
           created_at,
           requested_by
-        `);
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
       
       // Fetch profiles to properly map user IDs to names
       const { data: profilesData } = await supabase

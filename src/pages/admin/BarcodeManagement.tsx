@@ -23,6 +23,13 @@ const BarcodeManagement: React.FC = () => {
     return null;
   }
 
+  const handleBarcodeGenerated = (barcode: string) => {
+    toast({
+      title: "Barcode Generated",
+      description: `Generated barcode: ${barcode}`
+    });
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader 
@@ -66,12 +73,7 @@ const BarcodeManagement: React.FC = () => {
               productName="" 
               productSku="" 
               category="" 
-              onGenerateBarcode={(barcode) => {
-                toast({
-                  title: "Barcode Generated",
-                  description: `Generated barcode: ${barcode}`
-                });
-              }} 
+              onGenerateBarcode={handleBarcodeGenerated} 
             />
           </div>
         </TabsContent>

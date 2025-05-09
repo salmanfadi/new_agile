@@ -28,7 +28,7 @@ export const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData }) =
           <div className="text-sm text-gray-500">Total Boxes: {stockInData.boxes}</div>
           
           <div className="text-sm">
-            <span className="font-medium">Submitted By:</span>
+            <span className="font-medium">User:</span>
             {stockInData.submitter ? (
               <div className="ml-2 mt-1 p-2 bg-slate-50 rounded-md border border-slate-100">
                 <div className="font-medium flex items-center">

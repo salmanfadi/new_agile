@@ -62,7 +62,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
         <TableHeader>
           <TableRow>
             <TableHead>Product</TableHead>
-            <TableHead>Submitted By</TableHead>
+            <TableHead>User</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>Boxes</TableHead>
             <TableHead>Submission Date</TableHead>
@@ -81,7 +81,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                     <span className="text-sm text-gray-600">@{stockIn.submitter.username}</span>
                   </div>
                 ) : (
-                  <span className="text-amber-500">Unknown Submitter</span>
+                  <span className="text-amber-500">Unknown User</span>
                 )}
               </TableCell>
               <TableCell>{stockIn.source}</TableCell>

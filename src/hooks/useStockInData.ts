@@ -66,7 +66,6 @@ export const useStockInData = (stockInId: string | undefined) => {
             .maybeSingle();
             
           if (!submitterError && submitterData) {
-            // Use the name field from profiles table
             submitter = {
               id: submitterData.id,
               name: submitterData.name || 'Unknown User',
