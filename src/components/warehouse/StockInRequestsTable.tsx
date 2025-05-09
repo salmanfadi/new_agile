@@ -1,10 +1,10 @@
+
 import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { CheckCircle, XCircle } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -23,12 +23,14 @@ interface StockInData {
   created_at: string;
   source: string;
   notes?: string;
+  rejection_reason?: string;
 }
 
 interface StockInRequestsTableProps {
   stockInRequests: StockInData[] | undefined;
   isLoading: boolean;
   onProcess: (stockIn: StockInData) => void;
+  onReject: (stockIn: StockInData) => void;
   userId: string | undefined;
 }
 
@@ -36,45 +38,11 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   stockInRequests,
   isLoading,
   onProcess,
+  onReject,
   userId,
 }) => {
   const queryClient = useQueryClient();
   
-  // Update stock in status mutation
-  const updateStockInMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: "pending" | "approved" | "rejected" | "completed" | "processing" }) => {
-      const { data, error } = await supabase
-        .from('stock_in')
-        .update({ 
-          status,
-          processed_by: userId 
-        })
-        .eq('id', id)
-        .select();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-      toast({
-        title: 'Stock In Updated',
-        description: 'The stock in request has been updated successfully.',
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Update failed',
-        description: error instanceof Error ? error.message : 'Failed to update stock in status',
-      });
-    },
-  });
-
-  const handleStatusUpdate = (id: string, status: "pending" | "approved" | "rejected" | "completed" | "processing") => {
-    updateStockInMutation.mutate({ id, status });
-  };
-
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
@@ -107,7 +75,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
         </TableHeader>
         <TableBody>
           {stockInRequests?.map((stockIn) => (
-            <TableRow key={stockIn.id} className="bg-green-50">
+            <TableRow key={stockIn.id} className={stockIn.status === 'pending' ? "bg-green-50" : undefined}>
               <TableCell className="font-medium">{stockIn.product?.name || 'Unknown Product'}</TableCell>
               <TableCell>{stockIn.submitter ? `${stockIn.submitter.name} (${stockIn.submitter.username})` : 'Unknown'}</TableCell>
               <TableCell>{stockIn.source}</TableCell>
@@ -117,29 +85,30 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                 <StatusBadge status={stockIn.status} />
               </TableCell>
               <TableCell className="text-right space-x-2">
-                <Button 
-                  size="sm" 
-                  variant="default"
-                  onClick={() => onProcess(stockIn)}
-                >
-                  Process
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="text-green-600"
-                  onClick={() => handleStatusUpdate(stockIn.id, "approved")}
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" /> Approve
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  className="text-red-600"
-                  onClick={() => handleStatusUpdate(stockIn.id, "rejected")}
-                >
-                  <XCircle className="h-4 w-4 mr-1" /> Reject
-                </Button>
+                {stockIn.status === 'pending' && (
+                  <>
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      onClick={() => onProcess(stockIn)}
+                    >
+                      Process
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="text-red-600"
+                      onClick={() => onReject(stockIn)}
+                    >
+                      Reject
+                    </Button>
+                  </>
+                )}
+                {stockIn.status === 'rejected' && stockIn.rejection_reason && (
+                  <span className="text-sm text-red-600">
+                    Reason: {stockIn.rejection_reason}
+                  </span>
+                )}
               </TableCell>
             </TableRow>
           ))}

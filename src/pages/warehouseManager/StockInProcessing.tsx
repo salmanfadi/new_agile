@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +16,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { ProcessStockInDialog } from '@/components/warehouse/ProcessStockInDialog';
 import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
+import { RejectStockInDialog } from '@/components/warehouse/RejectStockInDialog';
 
 interface StockInData {
   id: string;
@@ -25,6 +27,7 @@ interface StockInData {
   created_at: string;
   source: string;
   notes?: string;
+  rejection_reason?: string;
 }
 
 const StockInProcessing: React.FC = () => {
@@ -33,6 +36,7 @@ const StockInProcessing: React.FC = () => {
   
   const [selectedStockIn, setSelectedStockIn] = useState<StockInData | null>(null);
   const [isProcessingDialogOpen, setIsProcessingDialogOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
   // Fetch pending stock in requests
   const { data: stockInRequests, isLoading } = useQuery({
@@ -48,9 +52,10 @@ const StockInProcessing: React.FC = () => {
           status,
           created_at,
           source,
-          notes
+          notes,
+          rejection_reason
         `)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'rejected'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -64,7 +69,8 @@ const StockInProcessing: React.FC = () => {
         status: item.status as StockInData['status'],
         created_at: item.created_at,
         source: item.source || 'Unknown Source',
-        notes: item.notes
+        notes: item.notes,
+        rejection_reason: item.rejection_reason
       })) as StockInData[];
     },
   });
@@ -72,6 +78,11 @@ const StockInProcessing: React.FC = () => {
   const handleProcess = (stockIn: StockInData) => {
     setSelectedStockIn(stockIn);
     setIsProcessingDialogOpen(true);
+  };
+
+  const handleReject = (stockIn: StockInData) => {
+    setSelectedStockIn(stockIn);
+    setIsRejectDialogOpen(true);
   };
 
   return (
@@ -93,7 +104,7 @@ const StockInProcessing: React.FC = () => {
       
       <Card>
         <CardHeader>
-          <CardTitle>Pending Stock In Requests</CardTitle>
+          <CardTitle>Stock In Requests</CardTitle>
           <CardDescription>Review and process incoming stock requests</CardDescription>
         </CardHeader>
         <CardContent>
@@ -101,6 +112,7 @@ const StockInProcessing: React.FC = () => {
             stockInRequests={stockInRequests}
             isLoading={isLoading}
             onProcess={handleProcess}
+            onReject={handleReject}
             userId={user?.id}
           />
         </CardContent>
@@ -110,6 +122,14 @@ const StockInProcessing: React.FC = () => {
       <ProcessStockInDialog
         open={isProcessingDialogOpen}
         onOpenChange={setIsProcessingDialogOpen}
+        selectedStockIn={selectedStockIn}
+        userId={user?.id}
+      />
+
+      {/* Rejection Dialog */}
+      <RejectStockInDialog
+        open={isRejectDialogOpen}
+        onOpenChange={setIsRejectDialogOpen}
         selectedStockIn={selectedStockIn}
         userId={user?.id}
       />

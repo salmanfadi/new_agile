@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -119,15 +119,14 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
     enabled: !!defaultWarehouse,
   });
 
-  // Process stock in mutation
+  // Process stock in mutation - Update to mark as approved instead of completed
   const processStockInMutation = useMutation({
     mutationFn: async (data: { stockInId: string; boxes: BoxData[] }) => {
       // First update stock in status to processing
-      const status: "pending" | "approved" | "rejected" | "completed" | "processing" = "processing";
       const { error: updateError } = await supabase
         .from('stock_in')
         .update({ 
-          status,
+          status: "processing",
           processed_by: userId 
         })
         .eq('id', data.stockInId);
@@ -183,11 +182,22 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
       
       if (inventoryError) throw inventoryError.error;
 
-      // Finally update stock in status to completed
-      const finalStatus: "pending" | "approved" | "rejected" | "completed" | "processing" = "completed";
+      // Create a notification for the processed stock in
+      await supabase.from('notifications').insert([{
+        user_id: userId,
+        role: 'warehouse_manager', 
+        action_type: 'stock_in_processed',
+        metadata: {
+          stock_in_id: data.stockInId,
+          boxes_count: data.boxes.length,
+          product_id: stockInData.product_id
+        }
+      }]);
+
+      // Finally update stock in status to approved (instead of completed)
       const { error: completeError } = await supabase
         .from('stock_in')
-        .update({ status: finalStatus })
+        .update({ status: "approved" })
         .eq('id', data.stockInId);
 
       if (completeError) throw completeError;
@@ -488,7 +498,7 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
                 type="submit"
                 disabled={isMissingRequiredData() || processStockInMutation.isPending}
               >
-                {processStockInMutation.isPending ? 'Processing...' : 'Process Stock In'}
+                {processStockInMutation.isPending ? 'Processing...' : 'Accept & Process Stock In'}
               </Button>
             </DialogFooter>
           </form>
