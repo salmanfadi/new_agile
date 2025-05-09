@@ -137,7 +137,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
             variant="ghost"
             size="sm"
             onClick={handleGoBack}
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 hover-lift"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to {adminMode ? 'Stock In Management' : 'Stock In Processing'}
@@ -156,7 +156,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       )}
       
       {isLoadingStockIn ? (
-        <Card>
+        <Card className="apple-shadow-sm">
           <CardContent className="p-6 flex justify-center items-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </CardContent>
@@ -164,7 +164,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       ) : (
         <div className="space-y-6">
           {stockInData && (
-            <Card>
+            <Card className="apple-shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Boxes className="h-5 w-5" />
@@ -175,13 +175,13 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Product</Label>
-                    <div className="p-2 bg-muted rounded-md">
+                    <div className="p-2 bg-muted rounded-lg">
                       {stockInData.product?.name || 'Unknown Product'}
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Total Boxes</Label>
-                    <div className="p-2 bg-muted rounded-md flex justify-between items-center">
+                    <div className="p-2 bg-muted rounded-lg flex justify-between items-center">
                       <span>{stockInData.boxes || 0}</span>
                       <span className={`text-sm font-medium ${remainingBoxes < 0 ? 'text-red-500' : remainingBoxes === 0 ? 'text-green-500' : 'text-yellow-500'}`}>
                         {remainingBoxes < 0 ? `Exceeded by ${Math.abs(remainingBoxes)}` : 
@@ -199,6 +199,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                     onChange={(e) => setSource(e.target.value)} 
                     placeholder="Supplier or source"
                     readOnly={!!stockInId}
+                    className="apple-shadow-sm"
                   />
                 </div>
                 <div className="space-y-2">
@@ -209,6 +210,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                     onChange={(e) => setNotes(e.target.value)} 
                     placeholder="Optional notes about this batch"
                     readOnly={!!stockInId}
+                    className="apple-shadow-sm min-h-[100px]"
                   />
                 </div>
               </CardContent>
@@ -216,8 +218,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
           )}
           
           {remainingBoxes < 0 && (
-            <Card className="border-red-300 bg-red-50">
-              <CardContent className="p-4 flex items-center gap-2 text-red-600">
+            <Card className="border-red-300 bg-red-50 dark:bg-red-900/20 apple-shadow-sm">
+              <CardContent className="p-4 flex items-center gap-2 text-red-600 dark:text-red-400">
                 <AlertTriangle size={16} />
                 <span>Warning: You've allocated more boxes than are available in the original request.</span>
               </CardContent>
@@ -240,13 +242,13 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
               <h3 className="text-lg font-medium">Batches ({batches.length})</h3>
               
               {batches.length === 0 ? (
-                <Card>
+                <Card className="apple-shadow-sm">
                   <CardContent className="p-6 text-center text-muted-foreground">
                     No batches added yet. Use the form to add batches.
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                <div className="space-y-4 max-h-[600px] overflow-y-auto scrollbar-thin pr-1">
                   {batches.map((batch, index) => (
                     <BatchCard 
                       key={index}
@@ -260,7 +262,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                   
                   <Button 
                     onClick={handleBatchSubmission} 
-                    className="w-full mt-4" 
+                    className="w-full mt-4 apple-shadow-sm" 
                     disabled={batches.length === 0 || isSubmitting}
                   >
                     {isSubmitting ? 'Processing...' : 'Submit All Batches'}

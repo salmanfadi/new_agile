@@ -14,7 +14,7 @@ export const BackButton: React.FC<BackButtonProps> = ({ onClick, className = '' 
       variant="ghost"
       size="sm"
       onClick={onClick}
-      className={className}
+      className={`hover-lift ${className}`}
     >
       <ArrowLeft className="mr-2 h-4 w-4" />
       Back to Stock In Processing

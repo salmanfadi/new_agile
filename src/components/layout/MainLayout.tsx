@@ -51,7 +51,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       >
         <Navbar toggleSidebar={toggleSidebar} sidebarCollapsed={sidebarCollapsed} />
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8">
           <div className="animate-fade-in max-w-7xl mx-auto">
             {children}
           </div>
@@ -61,7 +61,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       {/* Overlay to close sidebar on mobile */}
       {sidebarOpen && isMobile && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-10"
+          className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-10"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />

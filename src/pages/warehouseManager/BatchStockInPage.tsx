@@ -21,7 +21,7 @@ const BatchStockInPage: React.FC = () => {
 
   return (
     <Sheet open={open} onOpenChange={handleSheetClose}>
-      <SheetContent side="right" className="w-full sm:w-[90%] md:w-[80%] lg:max-w-[1200px] overflow-y-auto p-0">
+      <SheetContent side="right" className="w-full sm:w-[90%] md:w-[80%] lg:max-w-[1200px] overflow-y-auto p-0 rounded-l-2xl apple-shadow-lg">
         <div className="h-full flex flex-col">
           <SheetHeader className="p-6 border-b">
             <SheetTitle>Batch Stock In Processing</SheetTitle>
@@ -29,7 +29,7 @@ const BatchStockInPage: React.FC = () => {
               Create and process multiple batches at once
             </SheetDescription>
           </SheetHeader>
-          <div className="flex-grow p-4 md:p-6 overflow-y-auto">
+          <div className="flex-grow p-3 sm:p-4 md:p-6 overflow-y-auto scrollbar-thin">
             <BatchStockInComponent sheetMode={true} onClose={handleSheetClose} />
           </div>
         </div>
