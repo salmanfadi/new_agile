@@ -1,14 +1,10 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useSalesInquiries } from '@/hooks/useSalesInquiries';
-import { InquiryList } from '@/components/admin/sales-inquiries/InquiryList';
-import { InquiryDetails } from '@/components/admin/sales-inquiries/InquiryDetails';
-import { SearchFilters } from '@/components/admin/sales-inquiries/SearchFilters';
+import { InquiryManagement } from '@/components/sales/InquiryManagement';
 
 const SalesInquiries: React.FC = () => {
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  
   const {
     inquiries,
     isLoading,
@@ -16,16 +12,10 @@ const SalesInquiries: React.FC = () => {
     setSearchTerm,
     statusFilter,
     setStatusFilter,
-    selectedInquiry,
-    setSelectedInquiry,
     updateInquiryStatus,
-    formatDate
+    formatDate,
+    refreshInquiries
   } = useSalesInquiries();
-
-  const handleViewDetails = (inquiry: any) => {
-    setSelectedInquiry(inquiry);
-    setIsDetailsOpen(true);
-  };
 
   return (
     <div className="space-y-6">
@@ -34,28 +24,16 @@ const SalesInquiries: React.FC = () => {
         description="View and manage customer pricing inquiries"
       />
       
-      <div className="flex flex-col sm:flex-row sm:justify-between gap-4 mb-6">
-        <SearchFilters
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-        />
-      </div>
-      
-      <InquiryList
+      <InquiryManagement
         inquiries={inquiries}
         isLoading={isLoading}
-        onViewDetails={handleViewDetails}
+        searchTerm={searchTerm}
+        statusFilter={statusFilter}
+        setSearchTerm={setSearchTerm}
+        setStatusFilter={setStatusFilter}
+        updateInquiryStatus={updateInquiryStatus}
         formatDate={formatDate}
-      />
-      
-      <InquiryDetails
-        inquiry={selectedInquiry}
-        open={isDetailsOpen}
-        onOpenChange={setIsDetailsOpen}
-        onStatusChange={updateInquiryStatus}
-        formatDate={formatDate}
+        refreshInquiries={refreshInquiries}
       />
     </div>
   );

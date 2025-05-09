@@ -1,3 +1,4 @@
+
 export interface Warehouse {
   id: string;
   name: string;
@@ -110,7 +111,7 @@ export interface StockOutDetail {
 export interface Profile {
   id: string;
   username: string;
-  role: 'admin' | 'warehouse_manager' | 'field_operator';
+  role: 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator';
   name: string | null;
   active: boolean;
   created_at: string;
@@ -124,7 +125,7 @@ export interface SalesInquiry {
   customer_company: string;
   customer_phone: string | null;
   message: string | null;
-  status: string; // Changed from restrictive union type to string
+  status: string;
   created_at: string;
   updated_at: string;
   items?: SalesInquiryItem[];
