@@ -49,7 +49,7 @@ const ProcessStockInPage: React.FC = () => {
         .select(`
           id,
           product:product_id(id, name),
-          submitter:submitted_by(id, name, username),
+          submitted_by,
           boxes,
           status,
           created_at,
@@ -62,11 +62,27 @@ const ProcessStockInPage: React.FC = () => {
 
       if (error) throw error;
       
+      // Fetch submitter information separately to avoid the relationship error
+      let submitter = null;
+      if (data && data.submitted_by) {
+        const { data: submitterData, error: submitterError } = await supabase
+          .from('profiles')
+          .select('id, name, username')
+          .eq('id', data.submitted_by)
+          .single();
+          
+        if (!submitterError && submitterData) {
+          submitter = submitterData;
+        } else {
+          submitter = { name: 'Unknown', username: 'unknown' };
+        }
+      }
+      
       if (data) {
         setStockInData({
           id: data.id,
           product: data.product || { name: 'Unknown Product' },
-          submitter: data.submitter || { name: 'Unknown', username: 'unknown' },
+          submitter: submitter,
           boxes: data.boxes,
           status: data.status,
           created_at: data.created_at,
@@ -276,6 +292,25 @@ const ProcessStockInPage: React.FC = () => {
       </form>
     </div>
   );
+
+  function handleProcessingSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stockInId || !stockInData) return;
+
+    if (isMissingRequiredData()) {
+      toast({
+        variant: 'destructive',
+        title: 'Incomplete data',
+        description: 'Please fill in all required fields for each box.',
+      });
+      return;
+    }
+
+    processStockInMutation.mutate({
+      stockInId: stockInId,
+      boxes: boxesData,
+    });
+  }
 };
 
 export default ProcessStockInPage;

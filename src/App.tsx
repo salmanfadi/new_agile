@@ -44,3 +44,88 @@ import CustomerPortal from '@/pages/customer/CustomerPortal';
 
 // Create a client
 const queryClient = new QueryClient();
+
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+
+            {/* Admin Routes */}
+            <Route path="/admin" element={<RequireAuth allowedRoles={['admin']} />}>
+              <Route element={<MainLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="products" element={<ProductManagement />} />
+                <Route path="warehouses" element={<WarehouseManagement />} />
+                <Route path="inventory" element={<AdminInventoryView />} />
+                <Route path="barcodes" element={<BarcodeManagement />} />
+                <Route path="sales-inquiries" element={<SalesInquiries />} />
+                <Route path="users" element={<UsersManagement />} />
+              </Route>
+            </Route>
+
+            {/* Warehouse Manager Routes */}
+            <Route path="/manager" element={<RequireAuth allowedRoles={['warehouse_manager']} />}>
+              <Route element={<MainLayout />}>
+                <Route index element={<ManagerDashboard />} />
+                <Route path="stock-in" element={<StockInProcessing />} />
+                <Route path="process-stock-in/:stockInId" element={<ProcessStockInPage />} />
+                <Route path="stock-out" element={<StockOutApproval />} />
+                <Route path="inventory" element={<InventoryView />} />
+                <Route path="barcode-lookup" element={<ManagerBarcodeLookup />} />
+              </Route>
+            </Route>
+
+            {/* Field Operator Routes */}
+            <Route path="/operator" element={<RequireAuth allowedRoles={['field_operator']} />}>
+              <Route element={<MainLayout />}>
+                <Route index element={<OperatorDashboard />} />
+                <Route path="stock-in" element={<StockInForm />} />
+                <Route path="stock-out" element={<StockOutForm />} />
+                <Route path="my-submissions" element={<MySubmissions />} />
+                <Route path="barcode-lookup" element={<BarcodeLookup />} />
+              </Route>
+            </Route>
+
+            {/* Sales Operator Routes */}
+            <Route path="/sales" element={<RequireAuth allowedRoles={['sales_operator']} />}>
+              <Route element={<MainLayout />}>
+                <Route index element={<SalesOperatorDashboard />} />
+                <Route path="inquiries" element={<SalesInquiriesManagement />} />
+                <Route path="inventory" element={<SalesInventoryView />} />
+              </Route>
+            </Route>
+
+            {/* Shared Route for Barcode Scanner */}
+            <Route path="/scan" element={<RequireAuth allowedRoles={['warehouse_manager', 'field_operator', 'admin']} />}>
+              <Route element={<MainLayout />}>
+                <Route index element={<BarcodeScannerPage />} />
+              </Route>
+            </Route>
+
+            {/* Customer Facing Routes */}
+            <Route path="/products" element={<ProductCatalogue />} />
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/cart" element={<Cart />} />
+            
+            {/* Customer Portal */}
+            <Route path="/customer">
+              <Route index element={<CustomerLanding />} />
+              <Route path="products" element={<CustomerProducts />} />
+              <Route path="inquiry" element={<CustomerInquiry />} />
+              <Route path="inquiry/success" element={<CustomerInquirySuccess />} />
+              <Route path="login" element={<CustomerLogin />} />
+              <Route path="portal" element={<CustomerPortal />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </Router>
+    </QueryClientProvider>
+  );
+};
+
+export default App;
