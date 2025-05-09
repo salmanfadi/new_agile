@@ -1,0 +1,129 @@
+
+import React from 'react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { DefaultValues } from '@/hooks/useStockInBoxes';
+
+interface Warehouse {
+  id: string;
+  name: string;
+}
+
+interface Location {
+  id: string;
+  floor: number;
+  zone: string;
+}
+
+interface DefaultValuesFormProps {
+  defaultValues: DefaultValues;
+  setDefaultValues: React.Dispatch<React.SetStateAction<DefaultValues>>;
+  applyDefaultsToAll: () => void;
+  warehouses?: Warehouse[];
+  locations?: Location[];
+}
+
+export const DefaultValuesForm: React.FC<DefaultValuesFormProps> = ({
+  defaultValues,
+  setDefaultValues,
+  applyDefaultsToAll,
+  warehouses,
+  locations
+}) => {
+  return (
+    <div className="bg-slate-50 p-4 rounded-md">
+      <h3 className="text-sm font-medium mb-3">Set Default Values (Apply to All Boxes)</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="default_warehouse">Warehouse</Label>
+          <Select 
+            value={defaultValues.warehouse} 
+            onValueChange={(value) => setDefaultValues(prev => ({ ...prev, warehouse: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select warehouse" />
+            </SelectTrigger>
+            <SelectContent>
+              {warehouses?.map(warehouse => (
+                <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
+              )) || (
+                <SelectItem value="no-warehouses-available" disabled>No warehouses available</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Label htmlFor="default_location">Location</Label>
+          <Select 
+            value={defaultValues.location} 
+            onValueChange={(value) => setDefaultValues(prev => ({ ...prev, location: value }))}
+            disabled={!defaultValues.warehouse}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select location" />
+            </SelectTrigger>
+            <SelectContent>
+              {locations?.map(location => (
+                <SelectItem key={location.id} value={location.id}>
+                  Floor {location.floor}, Zone {location.zone}
+                </SelectItem>
+              )) || (
+                <SelectItem value="no-locations-available" disabled>No locations available</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Label htmlFor="default_quantity">Quantity per Box</Label>
+          <Input 
+            id="default_quantity"
+            type="number"
+            value={defaultValues.quantity || ''}
+            onChange={(e) => setDefaultValues(prev => ({ 
+              ...prev, 
+              quantity: parseInt(e.target.value) || 0 
+            }))}
+            min="0"
+            className="w-full"
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="default_color">Color (Optional)</Label>
+          <Input 
+            id="default_color"
+            value={defaultValues.color}
+            onChange={(e) => setDefaultValues(prev => ({ ...prev, color: e.target.value }))}
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="default_size">Size (Optional)</Label>
+          <Input 
+            id="default_size"
+            value={defaultValues.size}
+            onChange={(e) => setDefaultValues(prev => ({ ...prev, size: e.target.value }))}
+          />
+        </div>
+      </div>
+      <Button 
+        type="button" 
+        onClick={applyDefaultsToAll}
+        className="mt-4"
+        disabled={!defaultValues.warehouse || !defaultValues.location}
+      >
+        Apply to All Boxes
+      </Button>
+    </div>
+  );
+};
