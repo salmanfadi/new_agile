@@ -78,10 +78,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                 {stockIn.submitter ? (
                   <div className="flex flex-col">
                     <span className="font-medium">{stockIn.submitter.name}</span>
-                    <span className="text-xs text-gray-500">@{stockIn.submitter.username}</span>
-                    {stockIn.submitter.id && (
-                      <Badge variant="outline" className="text-xs mt-1">ID: {stockIn.submitter.id.substring(0, 8)}...</Badge>
-                    )}
+                    <span className="text-sm text-gray-600">@{stockIn.submitter.username}</span>
                   </div>
                 ) : (
                   <span className="text-amber-500">Unknown Submitter</span>
@@ -126,3 +123,4 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
     </div>
   );
 };
+

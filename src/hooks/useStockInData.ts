@@ -52,26 +52,36 @@ export const useStockInData = (stockInId: string | undefined) => {
         }
       }
       
-      // Fetch submitter information
+      // Fetch submitter information with better error handling
       let submitter = null;
       if (data.submitted_by) {
         console.log("Fetching submitter with ID:", data.submitted_by);
-        const { data: submitterData, error: submitterError } = await supabase
-          .from('profiles')
-          .select('id, name, username')
-          .eq('id', data.submitted_by)
-          .maybeSingle(); // Use maybeSingle instead of single to avoid errors
-          
-        if (!submitterError && submitterData) {
-          submitter = submitterData;
-          console.log("Found submitter:", submitter);
-        } else {
-          console.error("Error fetching submitter profile:", submitterError);
-          // Create a fallback submitter with the ID at least
+        
+        try {
+          const { data: submitterData, error: submitterError } = await supabase
+            .from('profiles')
+            .select('id, name, username')
+            .eq('id', data.submitted_by)
+            .maybeSingle();
+            
+          if (!submitterError && submitterData) {
+            submitter = submitterData;
+            console.log("Found submitter:", submitter);
+          } else {
+            console.warn("Submitter profile not found:", submitterError);
+            // Create a fallback submitter with the ID
+            submitter = { 
+              id: data.submitted_by, 
+              name: 'Unknown User', 
+              username: data.submitted_by.substring(0, 8) + '...'
+            };
+          }
+        } catch (err) {
+          console.error("Error while fetching submitter:", err);
           submitter = { 
             id: data.submitted_by, 
             name: 'Unknown User', 
-            username: data.submitted_by.substring(0, 8) 
+            username: 'unknown'
           };
         }
       }

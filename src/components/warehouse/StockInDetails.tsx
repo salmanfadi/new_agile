@@ -29,15 +29,13 @@ export const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData }) =
           <div className="text-sm">
             <span className="font-medium">Submitted By:</span>
             {stockInData.submitter ? (
-              <div className="inline-flex items-center ml-2">
-                <span className="font-medium">{stockInData.submitter.name}</span>
-                <Badge variant="outline" className="ml-2 text-xs">
-                  @{stockInData.submitter.username}
-                </Badge>
+              <div className="ml-2 mt-1 p-2 bg-slate-50 rounded-md border border-slate-100">
+                <div className="font-medium">{stockInData.submitter.name}</div>
+                <div className="text-sm text-blue-600">@{stockInData.submitter.username}</div>
                 {stockInData.submitter.id && (
-                  <Badge variant="secondary" className="ml-2 text-xs">
-                    ID: {stockInData.submitter.id.substring(0, 8)}...
-                  </Badge>
+                  <div className="text-xs text-gray-500 mt-1">
+                    ID: {stockInData.submitter.id}
+                  </div>
                 )}
               </div>
             ) : (

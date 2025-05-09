@@ -85,22 +85,31 @@ const StockInProcessing: React.FC = () => {
             }
           }
           
-          // Get submitter details
+          // Get submitter details with better error handling
           let submitter = null;
           if (item.submitted_by) {
-            const { data: submitterData } = await supabase
-              .from('profiles')
-              .select('id, name, username')
-              .eq('id', item.submitted_by)
-              .maybeSingle(); // Use maybeSingle instead of single to prevent errors
-            
-            if (submitterData) {
-              submitter = submitterData;
-            } else {
-              console.log(`No submitter found for ID: ${item.submitted_by}`);
+            try {
+              const { data: submitterData, error: submitterError } = await supabase
+                .from('profiles')
+                .select('id, name, username')
+                .eq('id', item.submitted_by)
+                .maybeSingle();
+              
+              if (!submitterError && submitterData) {
+                submitter = submitterData;
+              } else {
+                console.warn(`No submitter found for ID: ${item.submitted_by}`, submitterError);
+                submitter = { 
+                  id: item.submitted_by,
+                  name: 'Unknown User',
+                  username: item.submitted_by.substring(0, 8) + '...'
+                };
+              }
+            } catch (err) {
+              console.error(`Error fetching submitter for ID: ${item.submitted_by}`, err);
               submitter = { 
                 id: item.submitted_by,
-                name: 'Unknown',
+                name: 'Unknown User',
                 username: 'unknown'
               };
             }
