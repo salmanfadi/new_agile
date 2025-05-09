@@ -20,9 +20,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Inventory, Warehouse } from '@/types/database';
+import { Inventory, Warehouse, Product } from '@/types/database';
 
-interface ExtendedInventory extends Inventory {
+// Define a type for the extended inventory data that comes from the query
+interface ExtendedInventory {
+  id: string;
+  product_id: string;
+  warehouse_id: string;
+  location_id: string;
+  barcode: string;
+  quantity: number;
+  color: string | null;
+  size: string | null;
+  created_at: string;
+  updated_at: string;
   product: { name: string };
   warehouse: { name: string };
   warehouse_location: { floor: number; zone: string };

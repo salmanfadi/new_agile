@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -62,7 +61,7 @@ const createUserSchema = z.object({
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
   username: z.string().min(3, { message: "Username must be at least 3 characters" }),
   name: z.string().optional(),
-  role: z.enum(['admin', 'warehouse_manager', 'field_operator']),
+  role: z.enum(['admin', 'warehouse_manager', 'field_operator', 'sales_operator']),
   active: z.boolean().default(true),
 });
 
@@ -70,7 +69,7 @@ const createUserSchema = z.object({
 const editUserSchema = z.object({
   username: z.string().min(3, { message: "Username must be at least 3 characters" }),
   name: z.string().optional(),
-  role: z.enum(['admin', 'warehouse_manager', 'field_operator']),
+  role: z.enum(['admin', 'warehouse_manager', 'field_operator', 'sales_operator']),
   active: z.boolean().default(true),
 });
 
@@ -309,6 +308,8 @@ const UsersManagement = () => {
         return 'bg-blue-100 text-blue-800';
       case 'field_operator':
         return 'bg-green-100 text-green-800';
+      case 'sales_operator':
+        return 'bg-yellow-100 text-yellow-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -443,6 +444,7 @@ const UsersManagement = () => {
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
                         <SelectItem value="field_operator">Field Operator</SelectItem>
+                        <SelectItem value="sales_operator">Sales Operator</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -646,6 +648,7 @@ const UsersManagement = () => {
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
                         <SelectItem value="field_operator">Field Operator</SelectItem>
+                        <SelectItem value="sales_operator">Sales Operator</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
