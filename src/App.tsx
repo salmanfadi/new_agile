@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
@@ -28,10 +27,18 @@ import AdminInventoryView from "./pages/admin/InventoryView";
 import UsersManagement from "./pages/admin/UsersManagement"; 
 import SalesOperatorDashboard from "./pages/salesOperator/SalesOperatorDashboard";
 import SalesInquiriesManagement from "./pages/salesOperator/SalesInquiriesManagement";
-import SalesInventoryView from "./pages/salesOperator/InventoryView"; // Add the new import
+import SalesInventoryView from "./pages/salesOperator/InventoryView";
 import StockInForm from "./pages/fieldOperator/StockInForm";
 import BarcodeManagement from "./pages/admin/BarcodeManagement";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Customer facing routes
+import CustomerLanding from '@/pages/customer/CustomerLanding';
+import CustomerProducts from '@/pages/customer/CustomerProducts';
+import CustomerInquiry from '@/pages/customer/CustomerInquiry';
+import CustomerInquirySuccess from '@/pages/customer/CustomerInquirySuccess';
+import CustomerLogin from '@/pages/customer/CustomerLogin';
+import CustomerPortal from '@/pages/customer/CustomerPortal';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -50,6 +57,14 @@ const App: React.FC = () => {
             <Route path="/products" element={<ProductCatalogue />} />
             <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
+
+            {/* Customer-facing application routes */}
+            <Route path="/customer" element={<CustomerLanding />} />
+            <Route path="/customer/products" element={<CustomerProducts />} />
+            <Route path="/customer/inquiry" element={<CustomerInquiry />} />
+            <Route path="/customer/inquiry-success" element={<CustomerInquirySuccess />} />
+            <Route path="/customer/login" element={<CustomerLogin />} />
+            <Route path="/customer/portal" element={<CustomerPortal />} />
 
             {/* Admin Routes */}
             <Route

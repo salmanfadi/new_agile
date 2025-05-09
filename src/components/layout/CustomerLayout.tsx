@@ -1,19 +1,16 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Package, Warehouse, Users } from 'lucide-react';
-import { useCart } from '@/hooks/useCart';
+import { ShoppingCart, Package, Warehouse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-interface PublicLayoutProps {
+interface CustomerLayoutProps {
   children: React.ReactNode;
 }
 
-export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
-  const { cartItems } = useCart();
-  
+export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Header/Navigation */}
       <header className="bg-white shadow-sm py-4">
         <div className="container mx-auto px-4 flex items-center justify-between">
@@ -24,39 +21,24 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
           
           <div className="flex items-center space-x-6">
             <Link 
-              to="/products" 
+              to="/customer/products" 
               className="flex items-center text-gray-700 hover:text-blue-600 transition-colors"
             >
               <Package className="h-5 w-5 mr-1" />
               <span>Products</span>
             </Link>
-
-            <Link 
-              to="/customer" 
-              className="flex items-center text-gray-700 hover:text-blue-600 transition-colors"
-            >
-              <Users className="h-5 w-5 mr-1" />
-              <span>Customer Portal</span>
-            </Link>
             
             <Link 
-              to="/cart" 
+              to="/customer/inquiry" 
               className="flex items-center text-gray-700 hover:text-blue-600 transition-colors"
             >
-              <div className="relative">
-                <ShoppingCart className="h-5 w-5 mr-1" />
-                {cartItems.length > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                    {cartItems.length}
-                  </span>
-                )}
-              </div>
-              <span>Cart</span>
+              <ShoppingCart className="h-5 w-5 mr-1" />
+              <span>Submit Inquiry</span>
             </Link>
             
-            <Link to="/login">
+            <Link to="/customer/login">
               <Button variant="outline" size="sm">
-                Staff Login
+                Customer Portal
               </Button>
             </Link>
           </div>
@@ -81,17 +63,14 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
             </div>
             
             <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-8">
-              <Link to="/products" className="hover:text-white transition-colors">
+              <Link to="/customer/products" className="hover:text-white transition-colors">
                 Products
               </Link>
-              <Link to="/customer" className="hover:text-white transition-colors">
+              <Link to="/customer/inquiry" className="hover:text-white transition-colors">
+                Submit Inquiry
+              </Link>
+              <Link to="/customer/login" className="hover:text-white transition-colors">
                 Customer Portal
-              </Link>
-              <Link to="/cart" className="hover:text-white transition-colors">
-                Request Pricing
-              </Link>
-              <Link to="/login" className="hover:text-white transition-colors">
-                Staff Portal
               </Link>
             </div>
           </div>

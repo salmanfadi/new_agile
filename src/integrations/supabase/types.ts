@@ -100,6 +100,33 @@ export type Database = {
           },
         ]
       }
+      otp_tokens: {
+        Row: {
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          token: string
+          used: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          token: string
+          used?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean | null
+        }
+        Relationships: []
+      }
       pricing_inquiries: {
         Row: {
           company: string | null
@@ -211,6 +238,7 @@ export type Database = {
           customer_phone: string | null
           id: string
           message: string | null
+          response: string | null
           status: string
           updated_at: string
         }
@@ -222,6 +250,7 @@ export type Database = {
           customer_phone?: string | null
           id?: string
           message?: string | null
+          response?: string | null
           status?: string
           updated_at?: string
         }
@@ -233,6 +262,7 @@ export type Database = {
           customer_phone?: string | null
           id?: string
           message?: string | null
+          response?: string | null
           status?: string
           updated_at?: string
         }
@@ -611,6 +641,7 @@ export type Database = {
         | "warehouse_manager"
         | "field_operator"
         | "sales_operator"
+        | "customer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -738,6 +769,7 @@ export const Constants = {
         "warehouse_manager",
         "field_operator",
         "sales_operator",
+        "customer",
       ],
     },
   },
