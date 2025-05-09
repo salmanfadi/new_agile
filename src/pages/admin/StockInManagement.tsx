@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -184,7 +185,7 @@ const AdminStockInManagement: React.FC = () => {
       
       <div className="flex items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Filter:</span>
+        <span className="text-sm font-medium">Filter by status:</span>
         <Select 
           value={statusFilter} 
           onValueChange={setStatusFilter}
@@ -194,13 +195,12 @@ const AdminStockInManagement: React.FC = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectLabel>Status</SelectLabel>
               <SelectItem value="all">All Requests</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="pending">Awaiting Review</SelectItem>
+              <SelectItem value="processing">In Processing</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
