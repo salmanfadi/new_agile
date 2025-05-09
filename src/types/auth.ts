@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator';
 
 export interface User {
@@ -46,3 +47,4 @@ export interface ScanResponse {
   };
   error?: string;
 }
+
