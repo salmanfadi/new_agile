@@ -87,7 +87,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("Starting auth initialization");
       
       try {
-        // Set up auth state listener first (important for proper order)
+        // Check for mock users first (for demo purposes)
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          console.log("Found stored mock user on init");
+          const user = JSON.parse(storedUser);
+          setState({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          return;
+        }
+        
+        // Set up auth state listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             console.log("Auth state changed:", event, !!session);
@@ -101,36 +114,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   isLoading: false,
                 });
               } else {
-                // Check for mock users (for demo purposes)
-                const storedUser = localStorage.getItem('user');
-                if (storedUser) {
-                  console.log("Found stored mock user");
-                  const user = JSON.parse(storedUser);
-                  setState({
-                    user,
-                    isAuthenticated: true,
-                    isLoading: false,
-                  });
-                } else {
-                  setState({
-                    user: null,
-                    isAuthenticated: false,
-                    isLoading: false,
-                  });
-                }
+                setState({
+                  user: null,
+                  isAuthenticated: false,
+                  isLoading: false,
+                });
               }
             } catch (error) {
               console.error("Error in auth state change handler:", error);
               setState({
                 user: null,
                 isAuthenticated: false,
-                isLoading: false, // Important: still set loading to false even on error
+                isLoading: false,
               });
             }
           }
         );
         
-        // Then check for existing session
+        // Check for existing session
         const { data: { session } } = await supabase.auth.getSession();
         console.log("Initial session check:", !!session);
         
@@ -142,23 +143,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isLoading: false,
           });
         } else {
-          // Check for mock users (for demo purposes)
-          const storedUser = localStorage.getItem('user');
-          if (storedUser) {
-            console.log("Found stored mock user on init");
-            const user = JSON.parse(storedUser);
-            setState({
-              user,
-              isAuthenticated: true,
-              isLoading: false,
-            });
-          } else {
-            setState({
-              user: null,
-              isAuthenticated: false,
-              isLoading: false,
-            });
-          }
+          // If no session and no mock user, set loading to false
+          setState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
         }
         
         return () => {
@@ -173,7 +163,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    // Set a timeout to ensure loading state doesn't get stuck forever
+    const timeoutId = setTimeout(() => {
+      if (state.isLoading) {
+        console.log("Auth initialization timeout - forcing loading state to false");
+        setState(prev => ({
+          ...prev,
+          isLoading: false
+        }));
+      }
+    }, 5000); // 5 second safety timeout
+
     initAuth();
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -211,6 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await supabase.auth.signOut({ scope: 'global' });
         } catch (err) {
           // Continue even if this fails
+          console.log("Sign out before login failed:", err);
         }
         
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -313,6 +317,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await supabase.auth.signOut({ scope: 'global' });
       } catch (err) {
         // Ignore errors
+        console.log("Sign out error:", err);
       }
       
       setState({
@@ -331,8 +336,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = '/login';
   };
 
+  // Add a debug value to see auth state in React DevTools
+  const debugValue = {
+    ...state,
+    login,
+    logout,
+    signUp,
+    _debug: {
+      mockUsers,
+      hasLocalStorageUser: !!localStorage.getItem('user')
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, signUp }}>
+    <AuthContext.Provider value={debugValue}>
       {children}
     </AuthContext.Provider>
   );
