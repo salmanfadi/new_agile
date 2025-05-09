@@ -85,7 +85,8 @@ export const useBatchStockIn = (userId: string) => {
       // Start transaction
       const { data: stockInData, error: stockInError } = await supabase
         .from('stock_in')
-        .insert({
+        .upsert({
+          id: data.stockInId || undefined,
           product_id: data.productId,
           submitted_by: data.submittedBy,
           boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
@@ -131,11 +132,26 @@ export const useBatchStockIn = (userId: string) => {
           
           if (!batchId) throw new Error('Invalid batch ID returned');
           
-          // Create barcode details for each box in the batch
+          // Create inventory entries and barcode details for each box in the batch
           const detailsToInsert = [];
+          const inventoryToInsert = [];
           
           for (let i = 0; i < batch.boxes_count; i++) {
             const barcode = batch.barcodes ? batch.barcodes[i] : uuidv4();
+            
+            // Create inventory entry for each box with the same barcode
+            const inventoryEntry = {
+              product_id: batch.product_id,
+              warehouse_id: batch.warehouse_id,
+              location_id: batch.location_id,
+              barcode: barcode,
+              quantity: batch.quantity_per_box,
+              color: batch.color,
+              size: batch.size,
+              status: 'available'
+            };
+            
+            inventoryToInsert.push(inventoryEntry);
             
             detailsToInsert.push({
               stock_in_id: stockInId,
@@ -150,12 +166,39 @@ export const useBatchStockIn = (userId: string) => {
             });
           }
           
+          // Insert inventory entries
+          const { error: inventoryError } = await supabase
+            .from('inventory')
+            .insert(inventoryToInsert);
+            
+          if (inventoryError) throw inventoryError;
+          
           // Insert all box details
           const { error: detailsError } = await supabase
             .from('stock_in_details')
             .insert(detailsToInsert);
             
           if (detailsError) throw detailsError;
+          
+          // Add entry to barcode_logs
+          const { error: logError } = await supabase
+            .from('barcode_logs')
+            .insert(batch.barcodes?.map(barcode => ({
+              barcode,
+              action: 'stock_in',
+              user_id: data.submittedBy,
+              details: {
+                stock_in_id: stockInId,
+                batch_id: batchId,
+                quantity: batch.quantity_per_box,
+                product_id: batch.product_id
+              }
+            })) || []);
+            
+          if (logError) {
+            console.error('Failed to create barcode logs:', logError);
+            // Don't throw here, continue with the success flow
+          }
           
           return batchId;
         } catch (error) {
