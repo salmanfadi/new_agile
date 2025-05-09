@@ -84,8 +84,8 @@ const StockInForm: React.FC = () => {
         title: 'Stock In request submitted!',
         description: `${formData.numberOfBoxes} boxes of the selected product have been submitted for processing.`,
       });
-      // Ensure we navigate to the submissions page after success
-      navigate('/operator/submissions');
+      // Fix navigation path to match route in App.tsx
+      navigate('/operator/my-submissions');
     },
     onError: (error) => {
       toast({
