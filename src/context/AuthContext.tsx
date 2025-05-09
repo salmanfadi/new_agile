@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { User, UserRole, AuthState } from '../types/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
@@ -83,7 +83,8 @@ const cleanupAuthState = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>(initialState);
+  // Fix: Properly define state using React.useState 
+  const [state, setState] = React.useState<AuthState>(initialState);
 
   useEffect(() => {
     const initAuth = async () => {

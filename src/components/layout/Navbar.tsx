@@ -37,6 +37,24 @@ const getRoleLabel = (role: UserRole): string => {
   }
 };
 
+interface NotificationMetadata {
+  category?: string;
+  product_ids?: string[];
+  count?: number;
+  reason?: string;
+  [key: string]: any;
+}
+
+interface Notification {
+  id: string;
+  user_id: string;
+  role: string;
+  action_type: string;
+  metadata: NotificationMetadata;
+  created_at: string;
+  is_read: boolean;
+}
+
 export const Navbar: React.FC<NavbarProps> = ({ toggleSidebar, sidebarCollapsed = false }) => {
   const { user, logout } = useAuth();
   const { toast } = useToast();
@@ -101,7 +119,13 @@ export const Navbar: React.FC<NavbarProps> = ({ toggleSidebar, sidebarCollapsed 
         return [];
       }
       
-      return data;
+      // Parse the metadata if it's a string
+      return data?.map(notification => ({
+        ...notification,
+        metadata: typeof notification.metadata === 'string' 
+          ? JSON.parse(notification.metadata) 
+          : notification.metadata
+      })) || [];
     },
     enabled: !!user && canViewNotifications && notificationsOpen
   });
@@ -220,7 +244,7 @@ export const Navbar: React.FC<NavbarProps> = ({ toggleSidebar, sidebarCollapsed 
               <div className="max-h-[300px] overflow-y-auto">
                 {recentNotifications.length > 0 ? (
                   <div className="divide-y">
-                    {recentNotifications.map((notification) => (
+                    {recentNotifications.map((notification: Notification) => (
                       <div 
                         key={notification.id} 
                         className={`p-3 ${!notification.is_read ? 'bg-muted/20' : ''}`}
@@ -232,8 +256,8 @@ export const Navbar: React.FC<NavbarProps> = ({ toggleSidebar, sidebarCollapsed 
                           </span>
                         </div>
                         <p className="text-sm">
-                          {notification.metadata.category && `Category: ${notification.metadata.category}`}
-                          {notification.metadata.count && `, ${notification.metadata.count} items`}
+                          {notification.metadata?.category && `Category: ${notification.metadata.category}`}
+                          {notification.metadata?.count && `, ${notification.metadata.count} items`}
                         </p>
                         <div className="text-xs text-muted-foreground mt-1">
                           by {notification.role}

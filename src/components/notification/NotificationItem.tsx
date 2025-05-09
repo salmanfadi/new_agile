@@ -15,6 +15,7 @@ export interface Notification {
     category?: string;
     product_ids?: string[];
     count?: number;
+    reason?: string;
     [key: string]: any;
   };
   created_at: string;

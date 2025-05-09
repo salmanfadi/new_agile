@@ -47,7 +47,14 @@ export const NotificationsList: React.FC = () => {
       const { data, error } = await query;
       
       if (error) throw error;
-      return data || [];
+      
+      // Parse metadata JSON if it's a string
+      return data?.map(item => ({
+        ...item,
+        metadata: typeof item.metadata === 'string' 
+          ? JSON.parse(item.metadata) 
+          : item.metadata
+      })) || [];
     }
   });
 
