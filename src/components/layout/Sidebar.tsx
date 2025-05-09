@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -61,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
   
   const operatorLinks: SidebarLink[] = [
     { href: '/operator', icon: <LayoutDashboard className="h-5 w-5" />, text: 'Dashboard' },
+    { href: '/operator/stock-in', icon: <UploadCloud className="h-5 w-5" />, text: 'New Stock In' },
     { href: '/operator/stock-out', icon: <Download className="h-5 w-5" />, text: 'Request Stock Out' },
     { href: '/operator/submissions', icon: <ClipboardList className="h-5 w-5" />, text: 'My Submissions' },
     { href: '/operator/barcode', icon: <ScanLine className="h-5 w-5" />, text: 'Scan Barcode' },

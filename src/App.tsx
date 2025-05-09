@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
@@ -28,6 +27,7 @@ import AdminInventoryView from "./pages/admin/InventoryView";
 import UsersManagement from "./pages/admin/UsersManagement"; 
 import SalesOperatorDashboard from "./pages/salesOperator/SalesOperatorDashboard";
 import SalesInquiriesManagement from "./pages/salesOperator/SalesInquiriesManagement";
+import StockInForm from "./pages/fieldOperator/StockInForm";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Create a client
@@ -211,6 +211,16 @@ const App: React.FC = () => {
                 <RequireAuth allowedRoles={['field_operator', 'admin', 'warehouse_manager']}>
                   <MainLayout>
                     <OperatorDashboard />
+                  </MainLayout>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/operator/stock-in"
+              element={
+                <RequireAuth allowedRoles={['field_operator', 'admin', 'warehouse_manager']}>
+                  <MainLayout>
+                    <StockInForm />
                   </MainLayout>
                 </RequireAuth>
               }
