@@ -52,7 +52,7 @@ export const useStockInData = (stockInId: string | undefined) => {
         }
       }
       
-      // Fetch submitter information with better error handling
+      // Fetch submitter information from profiles table
       let submitter = null;
       if (data.submitted_by) {
         console.log("Fetching submitter with ID:", data.submitted_by);
@@ -68,13 +68,27 @@ export const useStockInData = (stockInId: string | undefined) => {
             submitter = submitterData;
             console.log("Found submitter:", submitter);
           } else {
-            console.warn("Submitter profile not found:", submitterError);
-            // Create a fallback submitter with the ID
-            submitter = { 
-              id: data.submitted_by, 
-              name: 'Unknown User', 
-              username: data.submitted_by.substring(0, 8) + '...'
-            };
+            console.warn("Submitter profile not found in profiles table:", submitterError);
+            
+            // Fallback: Try to get user information from auth.users via profiles
+            // This is just a backup approach, as we should normally have the data in profiles
+            const { data: userData } = await supabase.auth.admin.getUserById(data.submitted_by);
+            
+            if (userData && userData.user) {
+              submitter = { 
+                id: data.submitted_by, 
+                name: userData.user.email?.split('@')[0] || 'Unknown User',
+                username: userData.user.email || 'unknown'
+              };
+              console.log("Found user via auth:", submitter);
+            } else {
+              // Last resort fallback
+              submitter = { 
+                id: data.submitted_by, 
+                name: 'Unknown User', 
+                username: data.submitted_by.substring(0, 8) + '...'
+              };
+            }
           }
         } catch (err) {
           console.error("Error while fetching submitter:", err);

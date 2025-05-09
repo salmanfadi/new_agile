@@ -37,7 +37,7 @@ const StockInProcessing: React.FC = () => {
   const [selectedStockIn, setSelectedStockIn] = useState<StockInData | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
-  // Fetch stock in requests - improved query to properly fetch submitter info
+  // Fetch stock in requests with improved query
   const { data: stockInRequests, isLoading, error } = useQuery({
     queryKey: ['stock-in-requests'],
     queryFn: async () => {
@@ -89,6 +89,7 @@ const StockInProcessing: React.FC = () => {
           let submitter = null;
           if (item.submitted_by) {
             try {
+              // Try to get submitter from profiles table first
               const { data: submitterData, error: submitterError } = await supabase
                 .from('profiles')
                 .select('id, name, username')
@@ -97,13 +98,37 @@ const StockInProcessing: React.FC = () => {
               
               if (!submitterError && submitterData) {
                 submitter = submitterData;
+                console.log(`Found submitter in profiles: ${submitterData.name} (${submitterData.username})`);
               } else {
-                console.warn(`No submitter found for ID: ${item.submitted_by}`, submitterError);
-                submitter = { 
-                  id: item.submitted_by,
-                  name: 'Unknown User',
-                  username: item.submitted_by.substring(0, 8) + '...'
-                };
+                // If not found in profiles, try to get email from auth
+                console.warn(`No profile found for user ID: ${item.submitted_by}`, submitterError);
+                try {
+                  // Note: In production, this would require appropriate permissions
+                  const { data: userData } = await supabase.auth.admin.getUserById(item.submitted_by);
+                  
+                  if (userData && userData.user && userData.user.email) {
+                    submitter = { 
+                      id: item.submitted_by,
+                      name: userData.user.email.split('@')[0] || 'Unknown User',
+                      username: userData.user.email
+                    };
+                    console.log(`Created submitter from auth: ${submitter.name} (${submitter.username})`);
+                  } else {
+                    // Fallback option if all else fails
+                    submitter = { 
+                      id: item.submitted_by,
+                      name: 'Unknown User',
+                      username: item.submitted_by.substring(0, 8) + '...'
+                    };
+                  }
+                } catch (authError) {
+                  console.error('Error accessing user auth data:', authError);
+                  submitter = { 
+                    id: item.submitted_by,
+                    name: 'Unknown User',
+                    username: item.submitted_by.substring(0, 8) + '...'
+                  };
+                }
               }
             } catch (err) {
               console.error(`Error fetching submitter for ID: ${item.submitted_by}`, err);

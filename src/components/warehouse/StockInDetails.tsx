@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/card';
 import { StockInData } from '@/hooks/useStockInBoxes';
 import { Badge } from '@/components/ui/badge';
+import { AtSign, User } from 'lucide-react';
 
 interface StockInDetailsProps {
   stockInData: StockInData;
@@ -30,8 +31,14 @@ export const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData }) =
             <span className="font-medium">Submitted By:</span>
             {stockInData.submitter ? (
               <div className="ml-2 mt-1 p-2 bg-slate-50 rounded-md border border-slate-100">
-                <div className="font-medium">{stockInData.submitter.name}</div>
-                <div className="text-sm text-blue-600">@{stockInData.submitter.username}</div>
+                <div className="font-medium flex items-center">
+                  <User className="h-4 w-4 mr-1 text-slate-500" />
+                  {stockInData.submitter.name}
+                </div>
+                <div className="text-sm text-blue-600 flex items-center mt-1">
+                  <AtSign className="h-3 w-3 mr-1" />
+                  {stockInData.submitter.username}
+                </div>
                 {stockInData.submitter.id && (
                   <div className="text-xs text-gray-500 mt-1">
                     ID: {stockInData.submitter.id}
