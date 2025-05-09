@@ -39,6 +39,7 @@ const Login: React.FC = () => {
       if (user.role === 'admin') targetRoute = '/admin';
       else if (user.role === 'warehouse_manager') targetRoute = '/manager';
       else if (user.role === 'field_operator') targetRoute = '/operator';
+      else if (user.role === 'sales_operator') targetRoute = '/sales';
       
       // Use navigate for smoother transition
       navigate(targetRoute, { replace: true });
@@ -108,20 +109,22 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900 p-4">
+      <Card className="w-full max-w-md shadow-lg border-0 dark:bg-slate-800">
+        <CardHeader className="space-y-1 text-center pb-6">
           <div className="flex justify-center mb-4">
-            <Warehouse className="h-10 w-10 text-blue-600" />
+            <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+              <Warehouse className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Agile Warehouse</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl font-bold text-slate-900 dark:text-white">Agile Warehouse</CardTitle>
+          <CardDescription className="text-slate-600 dark:text-slate-400">
             Sign in to your account to continue
           </CardDescription>
           
           {authLoading && (
-            <div className="text-sm text-amber-600 flex items-center justify-center gap-2">
-              <div className="h-4 w-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="text-sm text-amber-600 dark:text-amber-400 flex items-center justify-center gap-2 mt-2">
+              <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
               Auth state is loading, please wait...
             </div>
           )}
@@ -138,7 +141,7 @@ const Login: React.FC = () => {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="text-slate-700 dark:text-slate-300">Username</Label>
               <Input
                 id="username"
                 value={username}
@@ -146,11 +149,12 @@ const Login: React.FC = () => {
                 required
                 placeholder="Enter your username"
                 disabled={isLoading || authLoading}
+                className="h-11 dark:bg-slate-700 dark:border-slate-600 dark:placeholder:text-slate-400"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -159,28 +163,30 @@ const Login: React.FC = () => {
                 required
                 placeholder="Enter your password"
                 disabled={isLoading || authLoading}
+                className="h-11 dark:bg-slate-700 dark:border-slate-600 dark:placeholder:text-slate-400"
               />
             </div>
           </CardContent>
           
-          <CardFooter className="flex flex-col">
+          <CardFooter className="flex flex-col pt-0">
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white"
               disabled={isLoading || authLoading}
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
             
             <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground mb-2">Quick login for demo:</p>
-              <div className="flex gap-2 justify-center mt-2">
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Quick login for demo:</p>
+              <div className="flex flex-wrap gap-2 justify-center mt-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => handleQuickLogin('admin')}
                   disabled={isLoading || authLoading}
+                  className="dark:border-slate-600 dark:text-slate-300"
                 >
                   Admin
                 </Button>
@@ -190,6 +196,7 @@ const Login: React.FC = () => {
                   size="sm"
                   onClick={() => handleQuickLogin('warehouse')}
                   disabled={isLoading || authLoading}
+                  className="dark:border-slate-600 dark:text-slate-300"
                 >
                   Warehouse
                 </Button>
@@ -199,8 +206,19 @@ const Login: React.FC = () => {
                   size="sm"
                   onClick={() => handleQuickLogin('field')}
                   disabled={isLoading || authLoading}
+                  className="dark:border-slate-600 dark:text-slate-300"
                 >
                   Field
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickLogin('sales')}
+                  disabled={isLoading || authLoading}
+                  className="dark:border-slate-600 dark:text-slate-300"
+                >
+                  Sales
                 </Button>
               </div>
               
@@ -210,7 +228,7 @@ const Login: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={handleForceClearAuth}
-                  className="mt-6 text-red-500 hover:text-red-600 hover:bg-red-50"
+                  className="mt-6 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
                 >
                   Reset Auth State
                 </Button>
