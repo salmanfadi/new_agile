@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -45,9 +46,13 @@ const BatchStockInPage: React.FC = () => {
     if (!user) return;
     if (batches.length === 0) return;
 
-    // Fix for error #1: Check if stockInData exists and has a product with an id
-    // Otherwise fall back to the first batch's product_id
-    const productId = stockInData?.product?.id || batches[0].product_id;
+    // Fix for error: Check if stockInData exists and has a proper product object with an id
+    // The product can be typed as { name: string } or { id: string, name: string }
+    // We need to safely handle both cases
+    const productId = 
+      (stockInData?.product && 'id' in stockInData.product) 
+        ? stockInData.product.id 
+        : batches[0].product_id;
     
     submitStockIn({
       stockInId: stockInId,
@@ -161,7 +166,6 @@ const BatchStockInPage: React.FC = () => {
                     <BatchCard 
                       key={index}
                       batch={batch}
-                      // Fix for error #2: Include the required index prop
                       index={index}
                       onEdit={() => editBatch(index)} 
                       onDelete={() => deleteBatch(index)} 
