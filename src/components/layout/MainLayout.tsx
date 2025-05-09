@@ -1,11 +1,14 @@
 
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
 import { cn } from '@/lib/utils';
 
-export const MainLayout: React.FC = () => {
+interface MainLayoutProps {
+  children: React.ReactNode;
+}
+
+export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const toggleSidebar = () => {
@@ -26,7 +29,7 @@ export const MainLayout: React.FC = () => {
         
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="animate-fade-in">
-            <Outlet />
+            {children}
           </div>
         </main>
       </div>
