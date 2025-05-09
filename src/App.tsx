@@ -34,6 +34,14 @@ import StockInForm from "./pages/fieldOperator/StockInForm";
 import BarcodeManagement from "./pages/admin/BarcodeManagement";
 import AdminStockInManagement from "./pages/admin/StockInManagement";
 import AdminStockOutManagement from "./pages/admin/StockOutManagement";
+// Import customer pages
+import CustomerLanding from "./pages/customer/CustomerLanding";
+import CustomerProducts from "./pages/customer/CustomerProducts";
+import CustomerInquiry from "./pages/customer/CustomerInquiry";
+import CustomerInquirySuccess from "./pages/customer/CustomerInquirySuccess";
+import CustomerLogin from "./pages/customer/CustomerLogin";
+import CustomerPortal from "./pages/customer/CustomerPortal";
+import CustomerRegister from "./pages/customer/CustomerRegister";
 
 const App: React.FC = () => {
   return (
@@ -130,6 +138,7 @@ const App: React.FC = () => {
             <Route path="inquiry" element={<CustomerInquiry />} />
             <Route path="inquiry/success" element={<CustomerInquirySuccess />} />
             <Route path="login" element={<CustomerLogin />} />
+            <Route path="register" element={<CustomerRegister />} />
             <Route path="portal" element={<CustomerPortal />} />
           </Route>
         </Routes>

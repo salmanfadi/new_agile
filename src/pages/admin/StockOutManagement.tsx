@@ -8,16 +8,7 @@ import { ArrowLeft, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { toast } from '@/hooks/use-toast';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -27,16 +18,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 
 interface StockOutItem {
   id: string;
-  product: { name: string; id: string | null };
-  requester: { name: string; username: string; id: string | null } | null;
+  product: { name: string; id: string };
+  requestedBy: { name: string; id: string; username: string } | null;
+  approvedBy: { name: string; id: string; username: string } | null;
   quantity: number;
-  approved_quantity: number | null;
-  destination: string;
-  reason: string | null;
+  approvedQuantity: number;
   status: "pending" | "approved" | "rejected" | "completed" | "processing";
+  destination: string;
+  reason: string;
   created_at: string;
   invoice_number: string | null;
   packing_slip_number: string | null;
@@ -44,13 +40,15 @@ interface StockOutItem {
 
 const AdminStockOutManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user } = useAuth();
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  
+  const [statusFilter, setStatusFilter] = useState("all");
+
   // Fetch stock out requests with filter
   const { data: stockOutRequests, isLoading, error } = useQuery({
     queryKey: ['admin-stock-out-requests', statusFilter],
     queryFn: async () => {
+      console.log('Fetching stock out requests with filter:', statusFilter);
       try {
         // Build query based on filter
         let query = supabase
@@ -59,6 +57,7 @@ const AdminStockOutManagement: React.FC = () => {
             id,
             product_id,
             requested_by,
+            approved_by,
             quantity,
             approved_quantity,
             status,
@@ -70,7 +69,7 @@ const AdminStockOutManagement: React.FC = () => {
           `);
           
         if (statusFilter !== 'all') {
-          query = query.eq('status', statusFilter);
+          query = query.eq('status', statusFilter as "pending" | "approved" | "rejected" | "completed" | "processing");
         }
         
         const { data: stockData, error: stockError } = await query
@@ -88,7 +87,7 @@ const AdminStockOutManagement: React.FC = () => {
         // Process each stock out record to fetch related data
         const processedData = await Promise.all(stockData.map(async (item) => {
           // Get product details
-          let product = { name: 'Unknown Product', id: null };
+          let product = { name: 'Unknown Product', id: item.product_id || '' };
           if (item.product_id) {
             const { data: productData } = await supabase
               .from('products')
@@ -102,36 +101,49 @@ const AdminStockOutManagement: React.FC = () => {
           }
           
           // Get requester details
-          let requester = null;
+          let requestedBy = null;
           if (item.requested_by) {
-            try {
-              // Get requester details from profiles table
-              const { data: requesterData, error: requesterError } = await supabase
-                .from('profiles')
-                .select('id, name, username')
-                .eq('id', item.requested_by)
-                .maybeSingle();
-              
-              if (!requesterError && requesterData) {
-                requester = {
-                  id: requesterData.id,
-                  name: requesterData.name || 'Unknown User',
-                  username: requesterData.username
-                };
-              } else {
-                // Fallback if profile not found
-                requester = { 
-                  id: item.requested_by,
-                  name: 'Unknown User',
-                  username: item.requested_by.substring(0, 8) + '...'
-                };
-              }
-            } catch (err) {
-              console.error(`Error fetching requester for ID: ${item.requested_by}`, err);
-              requester = { 
+            const { data: requesterData } = await supabase
+              .from('profiles')
+              .select('id, name, username')
+              .eq('id', item.requested_by)
+              .maybeSingle();
+            
+            if (requesterData) {
+              requestedBy = {
+                id: requesterData.id,
+                name: requesterData.name || 'Unknown User',
+                username: requesterData.username
+              };
+            } else {
+              requestedBy = { 
                 id: item.requested_by,
                 name: 'Unknown User',
-                username: 'unknown'
+                username: item.requested_by.substring(0, 8) + '...'
+              };
+            }
+          }
+          
+          // Get approver details if exists
+          let approvedBy = null;
+          if (item.approved_by) {
+            const { data: approverData } = await supabase
+              .from('profiles')
+              .select('id, name, username')
+              .eq('id', item.approved_by)
+              .maybeSingle();
+            
+            if (approverData) {
+              approvedBy = {
+                id: approverData.id,
+                name: approverData.name || 'Unknown Approver',
+                username: approverData.username
+              };
+            } else {
+              approvedBy = { 
+                id: item.approved_by,
+                name: 'Unknown Approver',
+                username: item.approved_by.substring(0, 8) + '...'
               };
             }
           }
@@ -139,13 +151,14 @@ const AdminStockOutManagement: React.FC = () => {
           return {
             id: item.id,
             product,
-            requester,
+            requestedBy,
+            approvedBy,
             quantity: item.quantity,
-            approved_quantity: item.approved_quantity,
+            approvedQuantity: item.approved_quantity || 0,
             status: item.status,
-            created_at: item.created_at,
-            destination: item.destination || 'Unknown Destination',
+            destination: item.destination,
             reason: item.reason,
+            created_at: item.created_at,
             invoice_number: item.invoice_number,
             packing_slip_number: item.packing_slip_number
           };
@@ -157,7 +170,7 @@ const AdminStockOutManagement: React.FC = () => {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         toast({
           variant: 'destructive',
-          title: 'Failed to load stock requests',
+          title: 'Failed to load stock out requests',
           description: errorMessage,
         });
         return [];
@@ -218,66 +231,70 @@ const AdminStockOutManagement: React.FC = () => {
             <div className="p-4 text-red-500">
               Error loading stock out requests. Please try again.
             </div>
-          ) : isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-            </div>
-          ) : !stockOutRequests || stockOutRequests.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No stock out requests found
-            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Date</TableHead>
                     <TableHead>Product</TableHead>
                     <TableHead>User</TableHead>
                     <TableHead>Quantity</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Request Date</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Details</TableHead>
+                    <TableHead>Destination</TableHead>
+                    <TableHead>Approved By</TableHead>
+                    <TableHead>Documents</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockOutRequests.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.product?.name || 'Unknown Product'}</TableCell>
-                      <TableCell>
-                        {item.requester ? (
-                          <div className="flex flex-col">
-                            <span className="font-medium">{item.requester.name}</span>
-                            <span className="text-sm text-gray-600">@{item.requester.username}</span>
-                          </div>
-                        ) : (
-                          <span className="text-amber-500">Unknown User</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {item.quantity}
-                        {item.approved_quantity !== null && (
-                          <span className="text-sm text-green-600 ml-2">
-                            (Approved: {item.approved_quantity})
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>{item.destination}</TableCell>
-                      <TableCell>{new Date(item.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={item.status} />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/manager/stock-out-approval/${item.id}`)}
-                        >
-                          View Details
-                        </Button>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center">
+                        <div className="flex justify-center items-center h-full">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : stockOutRequests?.length ? (
+                    stockOutRequests.map((request) => (
+                      <TableRow key={request.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {format(new Date(request.created_at), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell className="font-medium">{request.product.name}</TableCell>
+                        <TableCell>{request.requestedBy?.name || 'Unknown'}</TableCell>
+                        <TableCell>
+                          {request.status === 'approved' || request.status === 'completed' ? 
+                            `${request.approvedQuantity} / ${request.quantity}` : 
+                            request.quantity
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={request.status} />
+                        </TableCell>
+                        <TableCell>{request.destination}</TableCell>
+                        <TableCell>{request.approvedBy?.name || '—'}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {request.invoice_number ? (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full mr-1">
+                              INV: {request.invoice_number}
+                            </span>
+                          ) : null}
+                          {request.packing_slip_number ? (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              PS: {request.packing_slip_number}
+                            </span>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-24 text-center">
+                        No stock out requests found
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

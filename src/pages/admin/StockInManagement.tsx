@@ -63,7 +63,7 @@ const AdminStockInManagement: React.FC = () => {
           `);
           
         if (statusFilter !== 'all') {
-          query = query.eq('status', statusFilter);
+          query = query.eq('status', statusFilter as "pending" | "approved" | "rejected" | "completed" | "processing");
         }
         
         const { data: stockData, error: stockError } = await query
