@@ -75,21 +75,30 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          image_url: string | null
           name: string
+          sku: string | null
+          specifications: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           name: string
+          sku?: string | null
+          specifications?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           name?: string
+          sku?: string | null
+          specifications?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -123,6 +132,87 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      sales_inquiries: {
+        Row: {
+          created_at: string
+          customer_company: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          message: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_company: string
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_company?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sales_inquiry_items: {
+        Row: {
+          created_at: string
+          id: string
+          inquiry_id: string
+          product_id: string
+          quantity: number
+          specific_requirements: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inquiry_id: string
+          product_id: string
+          quantity: number
+          specific_requirements?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inquiry_id?: string
+          product_id?: string
+          quantity?: number
+          specific_requirements?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_inquiry_items_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "sales_inquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_inquiry_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_in: {
         Row: {

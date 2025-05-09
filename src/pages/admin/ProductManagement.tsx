@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
+import { Product } from '@/types/database';
 import {
   Table,
   TableBody,
@@ -33,16 +33,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-
-interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  sku: string | null;
-  specifications: string | null;
-  image_url: string | null;
-}
 
 interface ProductFormData {
   name: string;

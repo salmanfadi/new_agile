@@ -82,7 +82,7 @@ const SalesInquiries: React.FC = () => {
   }, [inquiries, searchTerm, statusFilter]);
 
   // Handle status change
-  const updateInquiryStatus = async (id: string, status: string) => {
+  const updateInquiryStatus = async (id: string, status: 'new' | 'in_progress' | 'completed') => {
     const { error } = await supabase
       .from('sales_inquiries')
       .update({ status })
@@ -97,7 +97,7 @@ const SalesInquiries: React.FC = () => {
     if (selectedInquiry && selectedInquiry.id === id) {
       setSelectedInquiry({
         ...selectedInquiry,
-        status: status as 'new' | 'in_progress' | 'completed'
+        status: status
       });
     }
   };
