@@ -37,7 +37,7 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
   // Get product_id from stock_in for inventory creation
   const { data: stockInData } = await supabase
     .from('stock_in')
-    .select('product_id')
+    .select('product_id, submitted_by')
     .eq('id', stockInId)
     .single();
 
@@ -65,13 +65,14 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
 
   // Create a notification for the processed stock in
   await supabase.from('notifications').insert([{
-    user_id: userId,
+    user_id: stockInData.submitted_by || userId || '', // Use the submitted_by if available
     role: 'warehouse_manager', 
     action_type: 'stock_in_processed',
     metadata: {
       stock_in_id: stockInId,
       boxes_count: boxes.length,
-      product_id: stockInData.product_id
+      product_id: stockInData.product_id,
+      processed_by: userId
     }
   }]);
 

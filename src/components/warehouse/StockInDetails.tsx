@@ -27,6 +27,11 @@ export const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData }) =
           <div className="text-sm text-gray-500">
             Submitted By: {stockInData.submitter ? `${stockInData.submitter.name} (${stockInData.submitter.username})` : 'Unknown'}
           </div>
+          {stockInData.submitter?.id && (
+            <div className="text-sm text-gray-500">
+              Submitter ID: {stockInData.submitter.id}
+            </div>
+          )}
           <div className="text-sm text-gray-500">
             Source: {stockInData.source}
           </div>
