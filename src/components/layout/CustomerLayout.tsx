@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Package, Warehouse } from 'lucide-react';
+import { ShoppingCart, Package, Warehouse, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CustomerLayoutProps {
@@ -36,11 +36,20 @@ export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
               <span>Submit Inquiry</span>
             </Link>
             
-            <Link to="/customer/login">
-              <Button variant="outline" size="sm">
-                Customer Portal
-              </Button>
-            </Link>
+            <div className="flex items-center space-x-2">
+              <Link to="/customer/login">
+                <Button variant="outline" size="sm" className="flex items-center">
+                  <LogIn className="h-4 w-4 mr-1" />
+                  <span>Login</span>
+                </Button>
+              </Link>
+              <Link to="/customer/register">
+                <Button variant="default" size="sm" className="flex items-center">
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  <span>Register</span>
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -71,6 +80,9 @@ export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
               </Link>
               <Link to="/customer/login" className="hover:text-white transition-colors">
                 Customer Portal
+              </Link>
+              <Link to="/customer/register" className="hover:text-white transition-colors">
+                Register
               </Link>
             </div>
           </div>

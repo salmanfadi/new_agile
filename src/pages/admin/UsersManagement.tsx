@@ -14,13 +14,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from '@/components/ui/use-toast';
-import { User, Users, Edit, Plus, Eye, EyeOff } from 'lucide-react';
+import { User, Users, Edit, Plus, Eye, EyeOff, Ban, UserCheck, Filter, ExternalLink } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -40,11 +39,35 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { UserRole } from '@/types/auth';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+
+// Business Types
+const businessTypes = [
+  { value: 'manufacturer', label: 'Manufacturer' },
+  { value: 'wholesaler', label: 'Wholesaler' },
+  { value: 'retailer', label: 'Retailer' },
+  { value: 'distributor', label: 'Distributor' },
+  { value: 'ecommerce', label: 'E-Commerce' },
+  { value: 'service_provider', label: 'Service Provider' },
+  { value: 'other', label: 'Other' }
+];
 
 interface UserData {
   id: string;
@@ -53,50 +76,71 @@ interface UserData {
   role: UserRole;
   active: boolean;
   created_at: string;
+  company_name?: string | null;
+  gstin?: string | null;
+  phone?: string | null;
+  business_type?: string | null;
+  address?: string | null;
+  business_reg_number?: string | null;
 }
 
-// Schema for form validation
-const createUserSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+// Define form schema for staff edit
+const editStaffSchema = z.object({
   username: z.string().min(3, { message: "Username must be at least 3 characters" }),
   name: z.string().optional(),
-  role: z.enum(['admin', 'warehouse_manager', 'field_operator', 'sales_operator'] as const),
+  role: z.enum(['admin', 'warehouse_manager', 'field_operator', 'sales_operator', 'customer'] as const),
   active: z.boolean().default(true),
 });
 
-// Schema for edit form
-const editUserSchema = z.object({
-  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
-  name: z.string().optional(),
-  role: z.enum(['admin', 'warehouse_manager', 'field_operator', 'sales_operator'] as const),
+// Define form schema for customer edit
+const editCustomerSchema = z.object({
+  username: z.string().email({ message: "Invalid email address" }),
+  name: z.string().min(2, { message: "Full name is required" }),
+  company_name: z.string().min(2, { message: "Company name is required" }),
+  gstin: z.string().optional(),
+  phone: z.string().optional(),
+  business_type: z.string().optional(),
+  address: z.string().optional(),
+  business_reg_number: z.string().optional(),
   active: z.boolean().default(true),
+  // Role is fixed as 'customer' for this schema
 });
 
 // Schema for reset password form
 const resetPasswordSchema = z.object({
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
 });
 
-type CreateUserFormValues = z.infer<typeof createUserSchema>;
-type EditUserFormValues = z.infer<typeof editUserSchema>;
+type EditStaffFormValues = z.infer<typeof editStaffSchema>;
+type EditCustomerFormValues = z.infer<typeof editCustomerSchema>;
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+
+// This is for audit logging
+interface AuditLogEntry {
+  userId: string;
+  action: string;
+  details: object;
+  timestamp: string;
+}
 
 const UsersManagement = () => {
   const queryClient = useQueryClient();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCustomerEditDialogOpen, setIsCustomerEditDialogOpen] = useState(false);
+  const [isViewDetailsDialogOpen, setIsViewDetailsDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [viewingUser, setViewingUser] = useState<UserData | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('all');
 
-  // Create user form
-  const createForm = useForm<CreateUserFormValues>({
-    resolver: zodResolver(createUserSchema),
+  // Edit staff form
+  const editStaffForm = useForm<EditStaffFormValues>({
+    resolver: zodResolver(editStaffSchema),
     defaultValues: {
-      email: '',
-      password: '',
       username: '',
       name: '',
       role: 'field_operator',
@@ -104,13 +148,18 @@ const UsersManagement = () => {
     },
   });
 
-  // Edit user form
-  const editForm = useForm<EditUserFormValues>({
-    resolver: zodResolver(editUserSchema),
+  // Edit customer form
+  const editCustomerForm = useForm<EditCustomerFormValues>({
+    resolver: zodResolver(editCustomerSchema),
     defaultValues: {
       username: '',
       name: '',
-      role: 'field_operator',
+      company_name: '',
+      gstin: '',
+      phone: '',
+      business_type: '',
+      address: '',
+      business_reg_number: '',
       active: true,
     },
   });
@@ -122,6 +171,29 @@ const UsersManagement = () => {
       password: '',
     },
   });
+
+  // Log admin actions for audit
+  const logAdminAction = async (entry: AuditLogEntry) => {
+    try {
+      // In a real system, you'd save this to a database table
+      // For now, we'll just log to console
+      console.log('ADMIN AUDIT LOG:', entry);
+      
+      // You could implement this in the future with a database table:
+      /*
+      await supabase
+        .from('admin_audit_logs')
+        .insert({
+          user_id: entry.userId,
+          action: entry.action,
+          details: entry.details,
+          created_at: entry.timestamp,
+        });
+      */
+    } catch (error) {
+      console.error('Failed to log admin action:', error);
+    }
+  };
 
   // Fetch users from the database
   const { data: users, isLoading } = useQuery({
@@ -147,7 +219,7 @@ const UsersManagement = () => {
 
   // Create user mutation
   const createUserMutation = useMutation({
-    mutationFn: async (userData: CreateUserFormValues) => {
+    mutationFn: async (userData: any) => {
       // First create the user in auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
@@ -175,6 +247,17 @@ const UsersManagement = () => {
           .eq('id', authData.user.id);
 
         if (profileError) throw profileError;
+
+        // Log the admin action
+        await logAdminAction({
+          userId: 'admin', // In a real app, get the current admin's ID
+          action: 'create_user',
+          details: { 
+            user_id: authData.user.id,
+            role: userData.role,
+          },
+          timestamp: new Date().toISOString(),
+        });
       }
 
       return authData;
@@ -182,7 +265,6 @@ const UsersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsCreateDialogOpen(false);
-      createForm.reset();
       toast({
         title: 'User created',
         description: 'New user has been created successfully.',
@@ -197,9 +279,9 @@ const UsersManagement = () => {
     },
   });
 
-  // Update user mutation
-  const updateUserMutation = useMutation({
-    mutationFn: async ({ id, userData }: { id: string; userData: Partial<EditUserFormValues> }) => {
+  // Update user mutation (for staff)
+  const updateStaffMutation = useMutation({
+    mutationFn: async ({ id, userData }: { id: string; userData: Partial<EditStaffFormValues> }) => {
       const { data, error } = await supabase
         .from('profiles')
         .update(userData)
@@ -208,6 +290,18 @@ const UsersManagement = () => {
         .single();
 
       if (error) throw error;
+
+      // Log the admin action
+      await logAdminAction({
+        userId: 'admin',
+        action: 'update_user',
+        details: { 
+          user_id: id,
+          changes: userData,
+        },
+        timestamp: new Date().toISOString(),
+      });
+
       return data;
     },
     onSuccess: () => {
@@ -226,6 +320,48 @@ const UsersManagement = () => {
       });
     },
   });
+
+  // Update user mutation (for customer)
+  const updateCustomerMutation = useMutation({
+    mutationFn: async ({ id, userData }: { id: string; userData: Partial<EditCustomerFormValues> }) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(userData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Log the admin action
+      await logAdminAction({
+        userId: 'admin',
+        action: 'update_customer',
+        details: { 
+          user_id: id,
+          changes: userData,
+        },
+        timestamp: new Date().toISOString(),
+      });
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setIsCustomerEditDialogOpen(false);
+      toast({
+        title: 'Customer updated',
+        description: 'Customer information has been updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Failed to update customer',
+      });
+    },
+  });
   
   // Reset password mutation
   const resetPasswordMutation = useMutation({
@@ -238,6 +374,16 @@ const UsersManagement = () => {
       );
       
       if (error) throw error;
+
+      // Log the admin action
+      await logAdminAction({
+        userId: 'admin',
+        action: 'reset_password',
+        details: { 
+          user_id: id,
+        },
+        timestamp: new Date().toISOString(),
+      });
       
       return { success: true };
     },
@@ -258,15 +404,79 @@ const UsersManagement = () => {
     },
   });
 
+  // Toggle user active status
+  const toggleUserStatusMutation = useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ active })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Log the admin action
+      await logAdminAction({
+        userId: 'admin',
+        action: active ? 'activate_user' : 'deactivate_user',
+        details: { 
+          user_id: id,
+          active,
+        },
+        timestamp: new Date().toISOString(),
+      });
+
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast({
+        title: data.active ? 'User Activated' : 'User Blocked',
+        description: data.active 
+          ? `${data.name || data.username} has been activated and can now log in.` 
+          : `${data.name || data.username} has been blocked from accessing the system.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Operation failed',
+        description: error instanceof Error ? error.message : 'Failed to update user status',
+      });
+    },
+  });
+
   const handleEditUser = (user: UserData) => {
-    setEditingUser(user);
-    editForm.reset({
-      username: user.username,
-      name: user.name || '',
-      role: user.role,
-      active: user.active,
-    });
-    setIsEditDialogOpen(true);
+    if (user.role === 'customer') {
+      setEditingUser(user);
+      editCustomerForm.reset({
+        username: user.username,
+        name: user.name || '',
+        company_name: user.company_name || '',
+        gstin: user.gstin || '',
+        phone: user.phone || '',
+        business_type: user.business_type || '',
+        address: user.address || '',
+        business_reg_number: user.business_reg_number || '',
+        active: user.active,
+      });
+      setIsCustomerEditDialogOpen(true);
+    } else {
+      setEditingUser(user);
+      editStaffForm.reset({
+        username: user.username,
+        name: user.name || '',
+        role: user.role,
+        active: user.active,
+      });
+      setIsEditDialogOpen(true);
+    }
+  };
+
+  const handleViewUserDetails = (user: UserData) => {
+    setViewingUser(user);
+    setIsViewDetailsDialogOpen(true);
   };
   
   const handleResetPassword = (user: UserData) => {
@@ -274,16 +484,34 @@ const UsersManagement = () => {
     setIsResetPasswordDialogOpen(true);
   };
 
-  const handleCreateSubmit = (values: CreateUserFormValues) => {
-    createUserMutation.mutate(values);
+  const handleToggleUserStatus = (user: UserData) => {
+    toggleUserStatusMutation.mutate({
+      id: user.id,
+      active: !user.active
+    });
   };
 
-  const handleEditSubmit = (values: EditUserFormValues) => {
+  const handleEditStaffSubmit = (values: EditStaffFormValues) => {
     if (!editingUser) return;
 
-    updateUserMutation.mutate({
+    updateStaffMutation.mutate({
       id: editingUser.id,
       userData: values
+    });
+  };
+
+  const handleEditCustomerSubmit = (values: EditCustomerFormValues) => {
+    if (!editingUser) return;
+
+    // Ensure role remains 'customer'
+    const userData = {
+      ...values,
+      role: 'customer' as UserRole
+    };
+
+    updateCustomerMutation.mutate({
+      id: editingUser.id,
+      userData
     });
   };
   
@@ -310,10 +538,27 @@ const UsersManagement = () => {
         return 'bg-green-100 text-green-800';
       case 'sales_operator':
         return 'bg-yellow-100 text-yellow-800';
+      case 'customer':
+        return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  // Filter users based on selected role
+  const filteredUsers = users?.filter(user => {
+    if (activeTab === 'customers') {
+      return user.role === 'customer';
+    } else if (activeTab === 'staff') {
+      return user.role !== 'customer';
+    }
+    return true;
+  }).filter(user => {
+    if (roleFilter) {
+      return user.role === roleFilter;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -322,10 +567,50 @@ const UsersManagement = () => {
         description="View and manage system users"
       />
       
-      <div className="flex justify-end mb-4">
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add New User
-        </Button>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
+          <TabsList>
+            <TabsTrigger value="all">All Users</TabsTrigger>
+            <TabsTrigger value="staff">Staff</TabsTrigger>
+            <TabsTrigger value="customers">Customers</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Filter className="mr-2 h-4 w-4" /> Filter by Role
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Select Role</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setRoleFilter(null)}>
+                All Roles
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setRoleFilter('admin')}>
+                Admin
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setRoleFilter('warehouse_manager')}>
+                Warehouse Manager
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setRoleFilter('field_operator')}>
+                Field Operator
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setRoleFilter('sales_operator')}>
+                Sales Operator
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setRoleFilter('customer')}>
+                Customer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" /> Add New User
+          </Button>
+        </div>
       </div>
       
       <Card>
@@ -341,14 +626,17 @@ const UsersManagement = () => {
                   <TableHead>Username</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Role</TableHead>
+                  {activeTab === 'customers' && (
+                    <TableHead>Company</TableHead>
+                  )}
                   <TableHead>Status</TableHead>
-                  <TableHead>Created At</TableHead>
+                  <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users && users.length > 0 ? (
-                  users.map((user) => (
+                {filteredUsers && filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.username}</TableCell>
                       <TableCell>{user.name || '-'}</TableCell>
@@ -357,19 +645,49 @@ const UsersManagement = () => {
                           {user.role.replace('_', ' ')}
                         </Badge>
                       </TableCell>
+                      {activeTab === 'customers' && (
+                        <TableCell>{user.company_name || '-'}</TableCell>
+                      )}
                       <TableCell>
                         <Badge variant={user.active ? 'default' : 'secondary'}>
-                          {user.active ? 'Active' : 'Inactive'}
+                          {user.active ? 'Active' : 'Blocked'}
                         </Badge>
                       </TableCell>
                       <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="ghost" onClick={() => handleEditUser(user)}>
-                            <Edit className="h-4 w-4 mr-1" /> Edit
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleViewUserDetails(user)}
+                            title="View details"
+                          >
+                            <Eye className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleResetPassword(user)}>
-                            Reset Password
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleEditUser(user)}
+                            title="Edit user"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleResetPassword(user)}
+                            title="Reset password"
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant={user.active ? "ghost" : "outline"} 
+                            onClick={() => handleToggleUserStatus(user)}
+                            className={user.active ? "text-red-500 hover:text-red-700" : "text-green-500 hover:text-green-700"}
+                            title={user.active ? "Block user" : "Activate user"}
+                          >
+                            {user.active ? <Ban className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                           </Button>
                         </div>
                       </TableCell>
@@ -377,7 +695,7 @@ const UsersManagement = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={activeTab === 'customers' ? 7 : 6} className="text-center py-8 text-gray-500">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -388,17 +706,96 @@ const UsersManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Edit User Dialog */}
+      {/* View User Details Dialog */}
+      <Dialog open={isViewDetailsDialogOpen} onOpenChange={setIsViewDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+          </DialogHeader>
+          
+          {viewingUser && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div className="text-sm font-medium">Username:</div>
+                  <div className="text-sm">{viewingUser.username}</div>
+                  
+                  <div className="text-sm font-medium">Name:</div>
+                  <div className="text-sm">{viewingUser.name || '-'}</div>
+                  
+                  <div className="text-sm font-medium">Role:</div>
+                  <div className="text-sm">
+                    <Badge className={getRoleBadgeColor(viewingUser.role)} variant="outline">
+                      {viewingUser.role.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  
+                  <div className="text-sm font-medium">Status:</div>
+                  <div className="text-sm">
+                    <Badge variant={viewingUser.active ? 'default' : 'secondary'}>
+                      {viewingUser.active ? 'Active' : 'Blocked'}
+                    </Badge>
+                  </div>
+                  
+                  <div className="text-sm font-medium">Created:</div>
+                  <div className="text-sm">{new Date(viewingUser.created_at).toLocaleString()}</div>
+                </div>
+              </div>
+              
+              {viewingUser.role === 'customer' && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Customer Information</h3>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="text-sm font-medium">Company:</div>
+                    <div className="text-sm">{viewingUser.company_name || '-'}</div>
+                    
+                    <div className="text-sm font-medium">GSTIN:</div>
+                    <div className="text-sm">{viewingUser.gstin || '-'}</div>
+                    
+                    <div className="text-sm font-medium">Phone:</div>
+                    <div className="text-sm">{viewingUser.phone || '-'}</div>
+                    
+                    <div className="text-sm font-medium">Business Type:</div>
+                    <div className="text-sm">
+                      {viewingUser.business_type 
+                        ? businessTypes.find(t => t.value === viewingUser.business_type)?.label || viewingUser.business_type
+                        : '-'
+                      }
+                    </div>
+                    
+                    <div className="text-sm font-medium">Address:</div>
+                    <div className="text-sm">{viewingUser.address || '-'}</div>
+                    
+                    <div className="text-sm font-medium">Business Reg #:</div>
+                    <div className="text-sm">{viewingUser.business_reg_number || '-'}</div>
+                  </div>
+                </div>
+              )}
+              
+              <DialogFooter>
+                <Button
+                  onClick={() => setIsViewDetailsDialogOpen(false)}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Staff Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
           </DialogHeader>
           
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
+          <Form {...editStaffForm}>
+            <form onSubmit={editStaffForm.handleSubmit(handleEditStaffSubmit)} className="space-y-4">
               <FormField
-                control={editForm.control}
+                control={editStaffForm.control}
                 name="username"
                 render={({ field }) => (
                   <FormItem>
@@ -412,7 +809,7 @@ const UsersManagement = () => {
               />
               
               <FormField
-                control={editForm.control}
+                control={editStaffForm.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
@@ -426,7 +823,7 @@ const UsersManagement = () => {
               />
               
               <FormField
-                control={editForm.control}
+                control={editStaffForm.control}
                 name="role"
                 render={({ field }) => (
                   <FormItem>
@@ -445,6 +842,7 @@ const UsersManagement = () => {
                         <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
                         <SelectItem value="field_operator">Field Operator</SelectItem>
                         <SelectItem value="sales_operator">Sales Operator</SelectItem>
+                        <SelectItem value="customer">Customer</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -453,7 +851,7 @@ const UsersManagement = () => {
               />
               
               <FormField
-                control={editForm.control}
+                control={editStaffForm.control}
                 name="active"
                 render={({ field }) => (
                   <FormItem className="flex items-center space-x-2">
@@ -481,9 +879,9 @@ const UsersManagement = () => {
                 </Button>
                 <Button 
                   type="submit"
-                  disabled={updateUserMutation.isPending}
+                  disabled={updateStaffMutation.isPending}
                 >
-                  {updateUserMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  {updateStaffMutation.isPending ? 'Saving...' : 'Save Changes'}
                 </Button>
               </DialogFooter>
             </form>
@@ -491,76 +889,18 @@ const UsersManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Reset Password Dialog */}
-      <Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+      {/* Edit Customer Dialog */}
+      <Dialog open={isCustomerEditDialogOpen} onOpenChange={setIsCustomerEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Reset Password for {selectedUser?.username}</DialogTitle>
+            <DialogTitle>Edit Customer</DialogTitle>
           </DialogHeader>
           
-          <Form {...resetPasswordForm}>
-            <form onSubmit={resetPasswordForm.handleSubmit(handleResetPasswordSubmit)} className="space-y-4">
+          <Form {...editCustomerForm}>
+            <form onSubmit={editCustomerForm.handleSubmit(handleEditCustomerSubmit)} className="space-y-4">
               <FormField
-                control={resetPasswordForm.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>New Password</FormLabel>
-                    <div className="relative">
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type={showPassword ? "text" : "password"} 
-                          className="pr-10"
-                        />
-                      </FormControl>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={togglePasswordVisibility}
-                        className="absolute right-0 top-0 h-full"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsResetPasswordDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={resetPasswordMutation.isPending}
-                >
-                  {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create User Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New User</DialogTitle>
-          </DialogHeader>
-          
-          <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-4">
-              <FormField
-                control={createForm.control}
-                name="email"
+                control={editCustomerForm.control}
+                name="username"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
@@ -573,54 +913,11 @@ const UsersManagement = () => {
               />
               
               <FormField
-                control={createForm.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <div className="relative">
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type={showPassword ? "text" : "password"}
-                          className="pr-10" 
-                        />
-                      </FormControl>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={togglePasswordVisibility}
-                        className="absolute right-0 top-0 h-full"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={createForm.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={createForm.control}
+                control={editCustomerForm.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name (Optional)</FormLabel>
+                    <FormLabel>Full Name</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -630,25 +927,70 @@ const UsersManagement = () => {
               />
               
               <FormField
-                control={createForm.control}
-                name="role"
+                control={editCustomerForm.control}
+                name="company_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <Select
+                    <FormLabel>Company Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editCustomerForm.control}
+                  name="gstin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>GSTIN</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editCustomerForm.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={editCustomerForm.control}
+                name="business_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Business Type</FormLabel>
+                    <Select 
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      defaultValue={field.value || ''}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
+                          <SelectValue placeholder="Select business type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
-                        <SelectItem value="field_operator">Field Operator</SelectItem>
-                        <SelectItem value="sales_operator">Sales Operator</SelectItem>
+                        {businessTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -657,45 +999,32 @@ const UsersManagement = () => {
               />
               
               <FormField
-                control={createForm.control}
-                name="active"
+                control={editCustomerForm.control}
+                name="address"
                 render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
                     <FormControl>
-                      <input 
-                        type="checkbox" 
-                        className="h-4 w-4 rounded border-gray-300"
-                        checked={field.value}
-                        onChange={field.onChange}
-                      />
+                      <Input {...field} />
                     </FormControl>
-                    <FormLabel className="m-0">Active</FormLabel>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={createUserMutation.isPending}
-                >
-                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default UsersManagement;
+              <FormField
+                control={editCustomerForm.control}
+                name="business_reg_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Business Registration Number</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editCustomerForm.control}

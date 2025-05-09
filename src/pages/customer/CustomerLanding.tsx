@@ -25,6 +25,11 @@ const CustomerLanding: React.FC = () => {
                   Submit Inquiry
                 </Button>
               </Link>
+              <Link to="/customer/register">
+                <Button size="lg" variant="outline" className="bg-white text-blue-600 hover:bg-blue-50">
+                  Create Account
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -70,10 +75,15 @@ const CustomerLanding: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="mb-4">Track your inquiries and view product availability.</p>
-              <Link to="/customer/login">
-                <Button>Login</Button>
-              </Link>
+              <p className="mb-4">Sign in or register to track your inquiries and view product availability.</p>
+              <div className="flex gap-2 flex-col sm:flex-row">
+                <Link to="/customer/login">
+                  <Button>Login</Button>
+                </Link>
+                <Link to="/customer/register">
+                  <Button variant="outline">Register</Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>

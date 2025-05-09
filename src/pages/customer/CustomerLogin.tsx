@@ -1,37 +1,44 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { CustomerLayout } from '@/components/layout/CustomerLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserCircle, Mail } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, User } from 'lucide-react';
 
 const CustomerLogin: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Password login states
+  // Login states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
-  // OTP states
-  const [otpEmail, setOtpEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpStep, setOtpStep] = useState<'request' | 'verify'>('request');
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  
-  const handlePasswordLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     
     try {
+      // First clean up any existing auth state
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      // Attempt global sign out to ensure clean state
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+        console.log("Sign out before login failed:", err);
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -40,16 +47,21 @@ const CustomerLogin: React.FC = () => {
       if (error) throw error;
       
       if (data.user) {
-        // Check if user is a customer
+        // Check if user is a customer and active
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, active')
           .eq('id', data.user.id)
           .single();
           
         if (profileError) throw profileError;
         
         if (profile.role === 'customer') {
+          if (!profile.active) {
+            await supabase.auth.signOut();
+            throw new Error("Your account has been disabled by the admin. For support, contact: admin@agilewms.com");
+          }
+          
           toast({
             title: "Login successful",
             description: "Welcome to your customer portal",
@@ -73,132 +85,33 @@ const CustomerLogin: React.FC = () => {
     }
   };
   
-  const handleOtpRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!otpEmail) {
+  const handleForgotPassword = async () => {
+    if (!email) {
       toast({
         title: "Email Required",
-        description: "Please enter your email address.",
+        description: "Please enter your email address to reset your password.",
         variant: "destructive"
       });
       return;
     }
     
-    setIsSendingOtp(true);
-    
     try {
-      // First, check if email has any inquiries
-      const { data: inquiries, error: inquiryError } = await supabase
-        .from('sales_inquiries')
-        .select('id')
-        .eq('customer_email', otpEmail)
-        .limit(1);
-        
-      if (inquiryError) throw inquiryError;
-      
-      if (!inquiries || inquiries.length === 0) {
-        throw new Error("No inquiries found for this email address.");
-      }
-      
-      // Generate OTP code (6 digits)
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
-      
-      // Store OTP in database
-      const { error: otpError } = await supabase
-        .from('otp_tokens')
-        .insert({
-          email: otpEmail,
-          token: otpCode,
-          expires_at: expiresAt.toISOString(),
-          used: false
-        });
-        
-      if (otpError) throw otpError;
-      
-      // In a real app, we would send this via email service
-      // For demo purposes, we'll show it in console and UI
-      console.log(`OTP for ${otpEmail}: ${otpCode}`);
-      
-      toast({
-        title: "OTP Sent",
-        description: `For demo purposes, your OTP is: ${otpCode}`,
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/customer/reset-password`,
       });
       
-      setOtpStep('verify');
+      if (error) throw error;
+      
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Check your email for a link to reset your password.",
+      });
     } catch (error: any) {
-      console.error("OTP request error:", error);
       toast({
-        title: "OTP Request Failed",
-        description: error.message || "Failed to send OTP. Please try again.",
+        title: "Password Reset Failed",
+        description: error.message || "Failed to send password reset email.",
         variant: "destructive"
       });
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-  
-  const handleOtpVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!otpCode) {
-      toast({
-        title: "OTP Required",
-        description: "Please enter the OTP sent to your email.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsVerifyingOtp(true);
-    
-    try {
-      // Verify OTP from database
-      const { data: tokens, error: tokenError } = await supabase
-        .from('otp_tokens')
-        .select('*')
-        .eq('email', otpEmail)
-        .eq('token', otpCode)
-        .eq('used', false)
-        .gte('expires_at', new Date().toISOString())
-        .limit(1);
-        
-      if (tokenError) throw tokenError;
-      
-      if (!tokens || tokens.length === 0) {
-        throw new Error("Invalid or expired OTP. Please try again.");
-      }
-      
-      // Mark OTP as used
-      await supabase
-        .from('otp_tokens')
-        .update({ used: true })
-        .eq('id', tokens[0].id);
-      
-      // Create magic link session without password
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email: otpEmail,
-      });
-      
-      if (signInError) throw signInError;
-      
-      toast({
-        title: "OTP Verified",
-        description: "You are now logged in as a guest user.",
-      });
-      
-      // Navigate to customer portal
-      navigate('/customer/portal');
-    } catch (error: any) {
-      console.error("OTP verification error:", error);
-      toast({
-        title: "Verification Failed",
-        description: error.message || "Invalid or expired OTP. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsVerifyingOtp(false);
     }
   };
   
@@ -208,146 +121,75 @@ const CustomerLogin: React.FC = () => {
         <div className="max-w-md mx-auto">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">Customer Portal</CardTitle>
+              <CardTitle className="text-2xl">Customer Login</CardTitle>
               <CardDescription>
-                Login to track your inquiries and view product availability.
+                Sign in to your account to access your customer portal.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="password" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="password" className="flex items-center">
-                    <UserCircle className="mr-2 h-4 w-4" />
-                    Password Login
-                  </TabsTrigger>
-                  <TabsTrigger value="otp" className="flex items-center">
-                    <Mail className="mr-2 h-4 w-4" />
-                    OTP Access
-                  </TabsTrigger>
-                </TabsList>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your.email@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
                 
-                <TabsContent value="password">
-                  <form onSubmit={handlePasswordLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="your.email@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isLoggingIn}
-                    >
-                      {isLoggingIn ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Logging in...
-                        </>
-                      ) : (
-                        'Login'
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
                 
-                <TabsContent value="otp">
-                  {otpStep === 'request' ? (
-                    <form onSubmit={handleOtpRequest} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="otpEmail">Email</Label>
-                        <Input
-                          id="otpEmail"
-                          type="email"
-                          placeholder="your.email@example.com"
-                          value={otpEmail}
-                          onChange={(e) => setOtpEmail(e.target.value)}
-                          required
-                        />
-                        <p className="text-xs text-slate-500">
-                          Enter the email you used to submit an inquiry.
-                        </p>
-                      </div>
-                      
-                      <Button 
-                        type="submit" 
-                        className="w-full" 
-                        disabled={isSendingOtp}
-                      >
-                        {isSendingOtp ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Sending OTP...
-                          </>
-                        ) : (
-                          'Send OTP'
-                        )}
-                      </Button>
-                    </form>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isLoggingIn}
+                >
+                  {isLoggingIn ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Logging in...
+                    </>
                   ) : (
-                    <form onSubmit={handleOtpVerify} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="otp">Enter OTP</Label>
-                        <Input
-                          id="otp"
-                          type="text"
-                          placeholder="000000"
-                          value={otpCode}
-                          onChange={(e) => setOtpCode(e.target.value)}
-                          maxLength={6}
-                          required
-                        />
-                        <p className="text-xs text-slate-500">
-                          Enter the verification code sent to your email.
-                        </p>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setOtpStep('request')}
-                          className="flex-1"
-                        >
-                          Back
-                        </Button>
-                        <Button 
-                          type="submit" 
-                          className="flex-1" 
-                          disabled={isVerifyingOtp}
-                        >
-                          {isVerifyingOtp ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Verifying...
-                            </>
-                          ) : (
-                            'Verify OTP'
-                          )}
-                        </Button>
-                      </div>
-                    </form>
+                    'Login'
                   )}
-                </TabsContent>
-              </Tabs>
+                </Button>
+              </form>
+              
+              <div className="mt-4 text-center space-y-2">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Forgot your password?
+                </button>
+              </div>
             </CardContent>
+            <CardFooter className="flex justify-center border-t pt-4">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-2">
+                  Don't have an account?
+                </p>
+                <Button variant="outline" asChild>
+                  <Link to="/customer/register" className="flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    Register Now
+                  </Link>
+                </Button>
+              </div>
+            </CardFooter>
           </Card>
         </div>
       </div>

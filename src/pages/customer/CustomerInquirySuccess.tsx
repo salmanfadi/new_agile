@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { CustomerLayout } from '@/components/layout/CustomerLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { CheckCircle2, LogIn } from 'lucide-react';
+import { CheckCircle2, LogIn, UserPlus } from 'lucide-react';
 
 const CustomerInquirySuccess: React.FC = () => {
   return (
@@ -33,7 +33,7 @@ const CustomerInquirySuccess: React.FC = () => {
                   <div className="flex items-start">
                     <LogIn className="h-5 w-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
                     <p className="text-sm text-blue-800">
-                      <strong>Tip:</strong> You can track the status of your inquiry by creating an account or using our OTP login system.
+                      <strong>Create an account or log in</strong> to track the status of your inquiry and view detailed product availability.
                     </p>
                   </div>
                 </div>
@@ -44,7 +44,16 @@ const CustomerInquirySuccess: React.FC = () => {
                 <Link to="/customer/products">Browse More Products</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link to="/customer/login">Track Your Inquiry</Link>
+                <Link to="/customer/login" className="flex items-center">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/customer/register" className="flex items-center">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Register
+                </Link>
               </Button>
             </CardFooter>
           </Card>
