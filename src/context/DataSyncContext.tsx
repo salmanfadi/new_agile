@@ -62,9 +62,9 @@ export const DataSyncProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const channel = supabase
       .channel(`${tableName}_changes`)
       .on(
-        'postgres_changes', 
+        'postgres_changes',
         {
-          event: event,
+          event,
           schema: 'public',
           table: tableName
         },
