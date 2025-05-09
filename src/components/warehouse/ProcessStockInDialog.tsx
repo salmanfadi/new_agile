@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,6 +36,8 @@ interface StockInData {
   boxes: number;
   status: "pending" | "approved" | "rejected" | "completed" | "processing";
   created_at: string;
+  source: string;
+  notes?: string;
 }
 
 interface BoxData {
@@ -287,6 +288,14 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
                 <div className="text-sm text-gray-500">
                   Submitted By: {selectedStockIn.submitter ? `${selectedStockIn.submitter.name} (${selectedStockIn.submitter.username})` : 'Unknown'}
                 </div>
+                <div className="text-sm text-gray-500">
+                  Source: {selectedStockIn.source}
+                </div>
+                {selectedStockIn.notes && (
+                  <div className="text-sm text-gray-500">
+                    Notes: {selectedStockIn.notes}
+                  </div>
+                )}
               </div>
               
               <div className="bg-slate-50 p-4 rounded-md">

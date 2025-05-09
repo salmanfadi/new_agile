@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +21,8 @@ interface StockInData {
   boxes: number;
   status: "pending" | "approved" | "rejected" | "completed" | "processing";
   created_at: string;
+  source: string;
+  notes?: string;
 }
 
 interface StockInRequestsTableProps {
@@ -97,6 +98,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
           <TableRow>
             <TableHead>Product</TableHead>
             <TableHead>Submitted By</TableHead>
+            <TableHead>Source</TableHead>
             <TableHead>Boxes</TableHead>
             <TableHead>Submission Date</TableHead>
             <TableHead>Status</TableHead>
@@ -104,10 +106,11 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {stockInRequests.map((stockIn) => (
+          {stockInRequests?.map((stockIn) => (
             <TableRow key={stockIn.id} className="bg-green-50">
               <TableCell className="font-medium">{stockIn.product?.name || 'Unknown Product'}</TableCell>
               <TableCell>{stockIn.submitter ? `${stockIn.submitter.name} (${stockIn.submitter.username})` : 'Unknown'}</TableCell>
+              <TableCell>{stockIn.source}</TableCell>
               <TableCell>{stockIn.boxes}</TableCell>
               <TableCell>{new Date(stockIn.created_at).toLocaleString()}</TableCell>
               <TableCell>

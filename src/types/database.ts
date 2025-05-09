@@ -56,6 +56,8 @@ export interface StockIn {
   status: 'pending' | 'approved' | 'rejected' | 'completed' | 'processing';
   created_at: string;
   updated_at: string;
+  source: string;
+  notes: string | null;
   // Join fields
   product?: Product;
   submitter?: Profile;

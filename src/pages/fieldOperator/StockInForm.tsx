@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Select,
   SelectContent,
@@ -12,6 +13,14 @@ import {
   SelectTrigger,
   SelectValue, 
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ArrowLeft } from 'lucide-react';
@@ -29,7 +38,7 @@ const StockInForm: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name')
+        .select('id, name, sku')
         .order('name');
         
       if (error) throw error;
@@ -39,16 +48,28 @@ const StockInForm: React.FC = () => {
   
   const [formData, setFormData] = useState({
     productId: '',
-    numberOfBoxes: '' as string | number, // Changed to accept string for empty input
+    numberOfBoxes: '' as string | number,
+    source: '',
+    notes: '',
   });
   
   const [formErrors, setFormErrors] = useState({
     numberOfBoxes: '',
+    source: '',
   });
+  
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<{name: string, sku: string | null} | null>(null);
   
   // Create stock in mutation
   const createStockInMutation = useMutation({
-    mutationFn: async (data: { product_id: string; boxes: number; submitted_by: string }) => {
+    mutationFn: async (data: { 
+      product_id: string; 
+      boxes: number; 
+      submitted_by: string;
+      source: string;
+      notes?: string;
+    }) => {
       const { data: result, error } = await supabase
         .from('stock_in')
         .insert([data])
@@ -75,6 +96,14 @@ const StockInForm: React.FC = () => {
   
   const handleProductChange = (value: string) => {
     setFormData({ ...formData, productId: value });
+    
+    // Find product details for confirmation dialog
+    if (products) {
+      const product = products.find(p => p.id === value);
+      if (product) {
+        setSelectedProduct({ name: product.name, sku: product.sku });
+      }
+    }
   };
   
   const handleBoxesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,22 +125,72 @@ const StockInForm: React.FC = () => {
     }
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSourceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, source: value });
     
-    // Validate form before submission
+    // Validate the input
+    if (!value.trim()) {
+      setFormErrors({ ...formErrors, source: 'Source is required' });
+    } else if (value.length > 100) {
+      setFormErrors({ ...formErrors, source: 'Source must be 100 characters or less' });
+    } else {
+      setFormErrors({ ...formErrors, source: '' });
+    }
+  };
+  
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    
+    // Limit notes to 200 characters
+    if (value.length <= 200) {
+      setFormData({ ...formData, notes: value });
+    }
+  };
+  
+  const validateForm = () => {
+    let valid = true;
+    const errors = { ...formErrors };
+    
+    // Validate product
     if (!formData.productId) {
+      valid = false;
       toast({
         variant: 'destructive',
         title: 'Validation Error',
         description: 'Please select a product',
       });
-      return;
+      return valid;
     }
     
+    // Validate number of boxes
     const numBoxes = parseInt(formData.numberOfBoxes as string);
     if (isNaN(numBoxes) || numBoxes < 1) {
-      setFormErrors({ ...formErrors, numberOfBoxes: 'Quantity must be at least 1' });
+      errors.numberOfBoxes = 'Number of boxes must be at least 1';
+      valid = false;
+    } else {
+      errors.numberOfBoxes = '';
+    }
+    
+    // Validate source
+    if (!formData.source.trim()) {
+      errors.source = 'Source is required';
+      valid = false;
+    } else if (formData.source.length > 100) {
+      errors.source = 'Source must be 100 characters or less';
+      valid = false;
+    } else {
+      errors.source = '';
+    }
+    
+    setFormErrors(errors);
+    return valid;
+  };
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
       return;
     }
     
@@ -124,11 +203,24 @@ const StockInForm: React.FC = () => {
       return;
     }
     
+    // Open confirmation dialog
+    setIsConfirmDialogOpen(true);
+  };
+  
+  const handleConfirmSubmit = () => {
+    if (!user?.id) return;
+    
+    const numBoxes = parseInt(formData.numberOfBoxes as string);
+    
     createStockInMutation.mutate({
       product_id: formData.productId,
       boxes: numBoxes,
-      submitted_by: user.id
+      submitted_by: user.id,
+      source: formData.source.trim(),
+      notes: formData.notes.trim() || undefined
     });
+    
+    setIsConfirmDialogOpen(false);
   };
   
   return (
@@ -171,7 +263,7 @@ const StockInForm: React.FC = () => {
                     ) : products && products.length > 0 ? (
                       products.map(product => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name}
+                          {product.name} {product.sku ? `(SKU: ${product.sku})` : ''}
                         </SelectItem>
                       ))
                     ) : (
@@ -195,13 +287,51 @@ const StockInForm: React.FC = () => {
                   <p className="text-sm text-red-500 mt-1">{formErrors.numberOfBoxes}</p>
                 )}
               </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="source">Received From (Source)</Label>
+                <Input
+                  id="source"
+                  type="text"
+                  placeholder="e.g., Supplier XYZ"
+                  value={formData.source}
+                  onChange={handleSourceChange}
+                  required
+                  maxLength={100}
+                />
+                {formErrors.source && (
+                  <p className="text-sm text-red-500 mt-1">{formErrors.source}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Any additional information"
+                  value={formData.notes}
+                  onChange={handleNotesChange}
+                  maxLength={200}
+                  rows={3}
+                />
+                <p className="text-xs text-gray-500 text-right">
+                  {formData.notes.length}/200 characters
+                </p>
+              </div>
             </CardContent>
             
             <CardFooter>
               <Button
                 type="submit"
                 className="w-full"
-                disabled={!formData.productId || formData.numberOfBoxes === '' || !!formErrors.numberOfBoxes || createStockInMutation.isPending}
+                disabled={
+                  !formData.productId || 
+                  formData.numberOfBoxes === '' || 
+                  !!formErrors.numberOfBoxes || 
+                  !formData.source.trim() ||
+                  !!formErrors.source ||
+                  createStockInMutation.isPending
+                }
               >
                 {createStockInMutation.isPending ? 'Submitting...' : 'Submit Request'}
               </Button>
@@ -209,6 +339,48 @@ const StockInForm: React.FC = () => {
           </form>
         </Card>
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Stock In Request</DialogTitle>
+            <DialogDescription>
+              Please review the details of your stock in request before submitting.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2 py-2">
+              <p className="font-medium">Product:</p>
+              <p className="col-span-2">{selectedProduct?.name} {selectedProduct?.sku ? `(SKU: ${selectedProduct.sku})` : ''}</p>
+              
+              <p className="font-medium">Number of Boxes:</p>
+              <p className="col-span-2">{formData.numberOfBoxes}</p>
+              
+              <p className="font-medium">Received From:</p>
+              <p className="col-span-2">{formData.source}</p>
+              
+              {formData.notes && (
+                <>
+                  <p className="font-medium">Notes:</p>
+                  <p className="col-span-2 whitespace-pre-wrap">{formData.notes}</p>
+                </>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmSubmit} 
+              disabled={createStockInMutation.isPending}
+            >
+              {createStockInMutation.isPending ? 'Submitting...' : 'Confirm Submission'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

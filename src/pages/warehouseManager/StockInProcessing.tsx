@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -24,6 +23,8 @@ interface StockInData {
   boxes: number;
   status: "pending" | "approved" | "rejected" | "completed" | "processing";
   created_at: string;
+  source: string;
+  notes?: string;
 }
 
 const StockInProcessing: React.FC = () => {
@@ -45,7 +46,9 @@ const StockInProcessing: React.FC = () => {
           submitter:submitted_by(name, username),
           boxes,
           status,
-          created_at
+          created_at,
+          source,
+          notes
         `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
@@ -59,7 +62,9 @@ const StockInProcessing: React.FC = () => {
         submitter: item.submitter || { name: 'Unknown', username: 'unknown' },
         boxes: item.boxes,
         status: item.status as StockInData['status'],
-        created_at: item.created_at
+        created_at: item.created_at,
+        source: item.source || 'Unknown Source',
+        notes: item.notes
       })) as StockInData[];
     },
   });

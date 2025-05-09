@@ -258,8 +258,10 @@ export type Database = {
           boxes: number
           created_at: string
           id: string
+          notes: string | null
           processed_by: string | null
           product_id: string
+          source: string
           status: Database["public"]["Enums"]["stock_status"]
           submitted_by: string
           updated_at: string
@@ -268,8 +270,10 @@ export type Database = {
           boxes: number
           created_at?: string
           id?: string
+          notes?: string | null
           processed_by?: string | null
           product_id: string
+          source: string
           status?: Database["public"]["Enums"]["stock_status"]
           submitted_by: string
           updated_at?: string
@@ -278,8 +282,10 @@ export type Database = {
           boxes?: number
           created_at?: string
           id?: string
+          notes?: string | null
           processed_by?: string | null
           product_id?: string
+          source?: string
           status?: Database["public"]["Enums"]["stock_status"]
           submitted_by?: string
           updated_at?: string
