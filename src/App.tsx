@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
@@ -16,7 +17,7 @@ import InventoryView from '@/pages/warehouseManager/InventoryView';
 import Unauthorized from '@/pages/Unauthorized';
 import BarcodeLookup from "./pages/fieldOperator/BarcodeLookup";
 import ManagerBarcodeLookup from "./pages/warehouseManager/BarcodeLookup";
-import { Barcode } from "lucide-react";
+import BarcodeScannerPage from "./pages/BarcodeScanner";
 
 const App: React.FC = () => {
   return (
@@ -80,6 +81,16 @@ const App: React.FC = () => {
               </RequireAuth>
             }
           />
+          <Route 
+            path="/manager/barcode"
+            element={
+              <RequireAuth allowedRoles={['warehouse_manager', 'admin']}>
+                <MainLayout>
+                  <ManagerBarcodeLookup />
+                </MainLayout>
+              </RequireAuth>
+            }
+          />
 
           {/* Field Operator Routes */}
           <Route
@@ -112,26 +123,28 @@ const App: React.FC = () => {
               </RequireAuth>
             }
           />
-          {
-            path: "/operator/barcode",
-            element: (
-              <RequireAuth allowedRoles={["field_operator", "admin", "warehouse_manager"]}>
+          <Route
+            path="/operator/barcode"
+            element={
+              <RequireAuth allowedRoles={['field_operator', 'admin', 'warehouse_manager']}>
                 <MainLayout>
                   <BarcodeLookup />
                 </MainLayout>
               </RequireAuth>
-            )
-          },
-          {
-            path: "/manager/barcode",
-            element: (
-              <RequireAuth allowedRoles={["warehouse_manager", "admin"]}>
+            }
+          />
+          
+          {/* Barcode Scanner Test Page - accessible to all authenticated users */}
+          <Route
+            path="/barcode-scanner"
+            element={
+              <RequireAuth>
                 <MainLayout>
-                  <ManagerBarcodeLookup />
+                  <BarcodeScannerPage />
                 </MainLayout>
               </RequireAuth>
-            )
-          },
+            }
+          />
         </Routes>
       </Router>
     </AuthProvider>

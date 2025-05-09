@@ -1,20 +1,73 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
+
+// Mock data for testing
+const mockInventory = {
+  'BC123456789': {
+    id: 'box-001',
+    product: {
+      id: 'prod-001',
+      name: 'Test Product',
+      sku: 'TEST-001',
+      description: 'A test product description',
+    },
+    quantity: 25,
+    total_quantity: 150,
+    location: {
+      warehouse: 'Main Warehouse',
+      zone: 'Zone A',
+      position: 'Shelf 3'
+    },
+    status: 'available',
+    attributes: {
+      color: 'Blue',
+      size: 'Medium'
+    },
+    history: [
+      { action: 'Stock In', timestamp: '2025-04-30T10:30:00Z', user: 'John Doe' },
+      { action: 'Inventory Check', timestamp: '2025-05-05T14:15:00Z', user: 'Jane Smith' }
+    ]
+  },
+  'BC987654321': {
+    id: 'box-002',
+    product: {
+      id: 'prod-002',
+      name: 'Another Product',
+      sku: 'TEST-002',
+      description: 'Another test product',
+    },
+    quantity: 10,
+    total_quantity: 50,
+    location: {
+      warehouse: 'Main Warehouse',
+      zone: 'Zone B',
+      position: 'Shelf 1'
+    },
+    status: 'reserved',
+    attributes: {
+      color: 'Red',
+      size: 'Large'
+    },
+    history: [
+      { action: 'Stock In', timestamp: '2025-05-01T09:45:00Z', user: 'John Doe' },
+      { action: 'Reserved', timestamp: '2025-05-07T11:30:00Z', user: 'Mike Johnson' }
+    ]
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders, status: 204 });
+    return new Response(null, { headers: corsHeaders, status: 204 })
   }
 
   try {
-    const { barcode, user_id, role } = await req.json();
+    const { barcode, user_id, role } = await req.json()
     
     // Validate request
     if (!barcode) {
@@ -24,7 +77,7 @@ serve(async (req) => {
           error: 'Barcode is required' 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      )
     }
 
     if (!user_id) {
@@ -34,65 +87,36 @@ serve(async (req) => {
           error: 'User ID is required' 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
+      )
     }
     
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Get data from mock inventory
+    const boxData = mockInventory[barcode]
     
-    // Since we don't have a proper box table yet,
-    // let's mock the response based on barcode
-    // In a real implementation, this would query the inventory table
+    if (!boxData) {
+      return new Response(
+        JSON.stringify({ 
+          status: 'error', 
+          error: 'Barcode not found in system' 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      )
+    }
     
-    // Mock data for development purposes
-    const mockBoxData = {
-      id: 'box-' + barcode.substring(0, 8),
-      product: {
-        id: 'prod-' + Math.floor(Math.random() * 1000),
-        name: `Product ${barcode.substring(0, 4).toUpperCase()}`,
-        sku: `SKU-${barcode.substring(0, 6)}`,
-        description: 'This is a sample product description',
-      },
-      box_quantity: Math.floor(Math.random() * 50) + 1,
-      total_product_quantity: Math.floor(Math.random() * 200) + 50,
-      status: ['available', 'reserved', 'in-transit'][Math.floor(Math.random() * 3)] as 'available' | 'reserved' | 'in-transit',
-      attributes: {
-        color: ['Red', 'Blue', 'Green', 'Black'][Math.floor(Math.random() * 4)],
-        size: ['Small', 'Medium', 'Large', 'XL'][Math.floor(Math.random() * 4)],
-      },
-      location: {
-        warehouse: `Warehouse ${Math.floor(Math.random() * 3) + 1}`,
-        zone: `Zone ${String.fromCharCode(65 + Math.floor(Math.random() * 6))}`,
-        position: `Floor ${Math.floor(Math.random() * 3) + 1}`,
-      },
-      history: [
-        {
-          action: 'Stock In',
-          timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          user: 'John Doe',
-        },
-        {
-          action: 'Location Change',
-          timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          user: 'Jane Smith',
-        },
-        {
-          action: 'Inventory Count',
-          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          user: 'Admin User',
-        },
-      ],
-    };
+    // Prepare the response based on user role
+    let responseData = {
+      box_id: boxData.id,
+      product: boxData.product,
+      box_quantity: boxData.quantity,
+      status: boxData.status,
+      attributes: boxData.attributes,
+      location: boxData.location
+    }
     
-    // Prepare response based on user role
-    const responseData = { ...mockBoxData };
-    
-    // Field operators don't get to see total quantity or full history
-    if (role === 'field_operator') {
-      delete responseData.total_product_quantity;
-      responseData.history = responseData.history.slice(0, 1);
+    // Add role-specific data
+    if (role === 'admin' || role === 'warehouse_manager') {
+      responseData['total_product_quantity'] = boxData.total_quantity
+      responseData['history'] = boxData.history
     }
     
     // Return successful response
@@ -102,16 +126,16 @@ serve(async (req) => {
         data: responseData 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    );
+    )
     
   } catch (error) {
-    console.error('Request error:', error.message);
+    console.error('Request error:', error.message)
     return new Response(
       JSON.stringify({ 
         status: 'error', 
         error: 'Server error processing barcode scan' 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    );
+    )
   }
-});
+})
