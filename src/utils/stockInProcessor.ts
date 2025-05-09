@@ -7,11 +7,11 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
   try {
     console.log(`Starting stock in processing for ID: ${stockInId}`, boxes);
     
-    // First update stock in status to processing
+    // First update stock in status to approved directly (changed from "processing")
     const { error: updateError } = await supabase
       .from('stock_in')
       .update({ 
-        status: "processing",
+        status: "approved", // Changed from "processing" to "approved"
         processed_by: userId 
       })
       .eq('id', stockInId);
@@ -123,16 +123,8 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
       }
     }]);
 
-    // Finally update stock in status to approved (instead of completed)
-    const { error: completeError } = await supabase
-      .from('stock_in')
-      .update({ status: "approved" })
-      .eq('id', stockInId);
-
-    if (completeError) {
-      console.error('Error completing stock-in:', completeError);
-      throw completeError;
-    }
+    // No need for final status update since we set it directly to "approved" at the beginning
+    // The status is now "approved" which means the items are in stock and visible in inventory
 
     console.log(`Successfully processed stock-in: ${stockInId}`);
     return true;

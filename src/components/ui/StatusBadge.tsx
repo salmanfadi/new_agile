@@ -35,7 +35,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
       case 'processing':
         return {
           className: 'bg-purple-100 text-purple-800',
-          label: 'Processing'
+          label: 'In Stock' // Changed from "Processing" to "In Stock"
         };
       default:
         return {

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -92,7 +91,7 @@ export const useBatchStockIn = (userId: string) => {
             product_id: data.productId,
             submitted_by: data.submittedBy,
             boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
-            status: 'processing',
+            status: 'completed', // Changed from 'processing' to 'completed'
             source: data.source,
             notes: data.notes,
             processed_by: data.submittedBy // Since we're using the batch system, the processor is the same as submitter
@@ -242,17 +241,9 @@ export const useBatchStockIn = (userId: string) => {
           // Wait for all batch insertions to complete
           await Promise.all(batchPromises);
           
-          // Update stock_in status to completed
-          const { error: updateError } = await supabase
-            .from('stock_in')
-            .update({ status: 'completed' })
-            .eq('id', stockInId);
-            
-          if (updateError) {
-            console.error('Error updating stock_in status:', updateError);
-            throw updateError;
-          }
-          
+          // No need to update status since we set it to 'completed' at creation
+          // This ensures the inventory is immediately available after submission
+        
           console.log('Stock in process completed successfully');
           
           // Create a notification for admins
