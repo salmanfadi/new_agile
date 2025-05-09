@@ -46,13 +46,20 @@ const BatchStockInPage: React.FC = () => {
     if (!user) return;
     if (batches.length === 0) return;
 
-    // Fix for error: Check if stockInData exists and has a proper product object with an id
-    // The product can be typed as { name: string } or { id: string, name: string }
-    // We need to safely handle both cases
-    const productId = 
-      (stockInData?.product && 'id' in stockInData.product) 
-        ? stockInData.product.id 
-        : batches[0].product_id;
+    // Fix: Add proper type handling for productId
+    let productId: string;
+    
+    if (stockInData?.product && 'id' in stockInData.product) {
+      // When product has an id property, use it with string casting for safety
+      productId = stockInData.product.id as string;
+    } else if (batches.length > 0) {
+      // Fallback to the first batch's product id
+      productId = batches[0].product_id;
+    } else {
+      // Ultimate fallback (shouldn't happen due to the check above, but TypeScript needs this)
+      console.error("No product ID found in either stockInData or batches");
+      return;
+    }
     
     submitStockIn({
       stockInId: stockInId,
