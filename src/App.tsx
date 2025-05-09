@@ -11,8 +11,8 @@ import ManagerDashboard from '@/pages/warehouseManager/ManagerDashboard';
 import OperatorDashboard from '@/pages/fieldOperator/OperatorDashboard';
 import StockInProcessing from '@/pages/warehouseManager/StockInProcessing';
 import ProcessStockInPage from '@/pages/warehouseManager/ProcessStockInPage';
-import BatchStockInPage from '@/pages/warehouseManager/BatchStockInPage'; // New import
-import AdminBatchStockInPage from '@/pages/admin/BatchStockInPage'; // New import
+import BatchStockInPage from '@/pages/warehouseManager/BatchStockInPage';
+import AdminBatchStockInPage from '@/pages/admin/BatchStockInPage';
 import StockOutApproval from '@/pages/warehouseManager/StockOutApproval';
 import StockOutForm from '@/pages/fieldOperator/StockOutForm';
 import MySubmissions from '@/pages/fieldOperator/MySubmissions';
@@ -68,7 +68,8 @@ const App: React.FC = () => {
             <Route path="inventory" element={<AdminInventoryView />} />
             <Route path="barcodes" element={<BarcodeManagement />} />
             <Route path="stock-in" element={<AdminStockInManagement />} />
-            <Route path="stock-in/batch" element={<AdminBatchStockInPage />} /> {/* New route */}
+            <Route path="stock-in/batch" element={<AdminBatchStockInPage />} />
+            <Route path="stock-in/batch/:stockInId" element={<AdminBatchStockInPage />} /> {/* New route with ID */}
             <Route path="stock-out" element={<AdminStockOutManagement />} />
             <Route path="sales" element={<SalesInquiries />} />
             <Route path="users" element={<UsersManagement />} />
@@ -84,7 +85,8 @@ const App: React.FC = () => {
           }>
             <Route index element={<ManagerDashboard />} />
             <Route path="stock-in" element={<StockInProcessing />} />
-            <Route path="stock-in/batch" element={<BatchStockInPage />} /> {/* New route */}
+            <Route path="stock-in/batch" element={<BatchStockInPage />} />
+            <Route path="stock-in/batch/:stockInId" element={<BatchStockInPage />} /> {/* New route with ID */}
             <Route path="process-stock-in/:stockInId" element={<ProcessStockInPage />} />
             <Route path="stock-out-approval" element={<StockOutApproval />} />
             <Route path="inventory" element={<InventoryView />} />
