@@ -14,7 +14,6 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
-import { ProcessStockInDialog } from '@/components/warehouse/ProcessStockInDialog';
 import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
 import { RejectStockInDialog } from '@/components/warehouse/RejectStockInDialog';
 import { toast } from '@/hooks/use-toast';
@@ -36,7 +35,6 @@ const StockInProcessing: React.FC = () => {
   const { user } = useAuth();
   
   const [selectedStockIn, setSelectedStockIn] = useState<StockInData | null>(null);
-  const [isProcessingDialogOpen, setIsProcessingDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
   // Fetch stock in requests - improved query with proper error handling
@@ -99,8 +97,8 @@ const StockInProcessing: React.FC = () => {
   });
 
   const handleProcess = (stockIn: StockInData) => {
-    setSelectedStockIn(stockIn);
-    setIsProcessingDialogOpen(true);
+    // Navigate to the dedicated process page with the stock in ID
+    navigate(`/manager/process-stock-in/${stockIn.id}`);
   };
 
   const handleReject = (stockIn: StockInData) => {
@@ -148,14 +146,6 @@ const StockInProcessing: React.FC = () => {
           />
         </CardContent>
       </Card>
-
-      {/* Processing Dialog */}
-      <ProcessStockInDialog
-        open={isProcessingDialogOpen}
-        onOpenChange={setIsProcessingDialogOpen}
-        selectedStockIn={selectedStockIn}
-        userId={user?.id}
-      />
 
       {/* Rejection Dialog */}
       <RejectStockInDialog

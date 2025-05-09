@@ -39,8 +39,7 @@ export const DefaultValuesForm: React.FC<DefaultValuesFormProps> = ({
   locations
 }) => {
   return (
-    <div className="bg-slate-50 p-4 rounded-md">
-      <h3 className="text-sm font-medium mb-3">Set Default Values (Apply to All Boxes)</h3>
+    <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <Label htmlFor="default_warehouse">Warehouse</Label>
@@ -119,7 +118,7 @@ export const DefaultValuesForm: React.FC<DefaultValuesFormProps> = ({
       <Button 
         type="button" 
         onClick={applyDefaultsToAll}
-        className="mt-4"
+        className="mt-2"
         disabled={!defaultValues.warehouse || !defaultValues.location}
       >
         Apply to All Boxes
