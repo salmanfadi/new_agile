@@ -22,6 +22,12 @@ import {
 } from '@/components/ui/select';
 import { Inventory, Warehouse } from '@/types/database';
 
+interface ExtendedInventory extends Inventory {
+  product: { name: string };
+  warehouse: { name: string };
+  warehouse_location: { floor: number; zone: string };
+}
+
 const InventoryView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('');
@@ -59,11 +65,7 @@ const InventoryView: React.FC = () => {
       const { data, error } = await query;
         
       if (error) throw error;
-      return data as (Inventory & {
-        product: { name: string };
-        warehouse: { name: string };
-        warehouse_location: { floor: number; zone: string };
-      })[];
+      return data as unknown as ExtendedInventory[];
     }
   });
   
@@ -99,7 +101,7 @@ const InventoryView: React.FC = () => {
               <SelectValue placeholder="Filter by warehouse" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all-warehouses">All Warehouses</SelectItem>
+              <SelectItem value="">All Warehouses</SelectItem>
               {warehousesQuery.data?.map((warehouse) => (
                 <SelectItem key={warehouse.id} value={warehouse.id}>
                   {warehouse.name}

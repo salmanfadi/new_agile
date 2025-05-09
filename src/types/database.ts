@@ -1,4 +1,3 @@
-
 export interface Warehouse {
   id: string;
   name: string;
@@ -25,6 +24,9 @@ export interface Product {
   image_url?: string | null;
   sku?: string | null;
   specifications?: string | null;
+  is_active?: boolean;
+  in_stock_quantity?: number;
+  is_out_of_stock?: boolean;
 }
 
 export interface Inventory {
