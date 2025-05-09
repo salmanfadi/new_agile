@@ -23,7 +23,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const mockUsers: User[] = [
   { id: '1', username: 'admin', role: 'admin', name: 'Admin User' },
   { id: '2', username: 'warehouse', role: 'warehouse_manager', name: 'Warehouse Manager' },
-  { id: '3', username: 'field', role: 'field_operator', name: 'Field Operator' }
+  { id: '3', username: 'field', role: 'field_operator', name: 'Field Operator' },
+  { id: '4', username: 'sales', role: 'sales_operator', name: 'Sales Operator' }
 ];
 
 const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
@@ -190,7 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       cleanupAuthState();
       
       // For demo purposes, support both real auth and mock users
-      if (email === 'admin' || email === 'warehouse' || email === 'field') {
+      if (email === 'admin' || email === 'warehouse' || email === 'field' || email === 'sales') {
         // Use mock users for demo
         const user = mockUsers.find(u => u.username === email.toLowerCase());
         
@@ -216,7 +217,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ? '/admin' 
           : user.role === 'warehouse_manager' 
             ? '/manager' 
-            : '/operator';
+            : user.role === 'field_operator'
+              ? '/operator'
+              : '/sales';
             
         window.location.href = redirectPath;
       } else {
@@ -260,7 +263,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ? '/admin' 
           : user.role === 'warehouse_manager' 
             ? '/manager' 
-            : '/operator';
+            : user.role === 'field_operator'
+              ? '/operator'
+              : '/sales';
             
         window.location.href = redirectPath;
       }

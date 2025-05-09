@@ -13,36 +13,3 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
 }
-
-export interface RequireAuthProps {
-  children: React.ReactNode | ((props: { user: User }) => React.ReactElement);
-  allowedRoles?: UserRole[];
-}
-
-export interface ScanResponse {
-  status: 'success' | 'error';
-  data?: {
-    box_id: string;
-    product: {
-      id: string;
-      name: string;
-      sku: string;
-      description?: string;
-    };
-    box_quantity: number;
-    total_product_quantity?: number;
-    location?: {
-      warehouse: string;
-      zone: string;
-      position: string;
-    };
-    status: 'available' | 'reserved' | 'in-transit';
-    attributes?: Record<string, string>;
-    history?: Array<{
-      action: string;
-      timestamp: string;
-      user: string;
-    }>;
-  };
-  error?: string;
-}
