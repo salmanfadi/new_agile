@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -37,7 +36,7 @@ const StockInProcessing: React.FC = () => {
   const [selectedStockIn, setSelectedStockIn] = useState<StockInData | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
-  // Fetch stock in requests with improved query
+  // Fetch stock in requests with improved query to get submitter name
   const { data: stockInRequests, isLoading, error } = useQuery({
     queryKey: ['stock-in-requests'],
     queryFn: async () => {
@@ -85,11 +84,11 @@ const StockInProcessing: React.FC = () => {
             }
           }
           
-          // Get submitter details with better error handling
+          // Get submitter details with better error handling and emphasis on the name field
           let submitter = null;
           if (item.submitted_by) {
             try {
-              // Try to get submitter from profiles table first
+              // Try to get submitter name from profiles table first
               const { data: submitterData, error: submitterError } = await supabase
                 .from('profiles')
                 .select('id, name, username')
@@ -97,38 +96,20 @@ const StockInProcessing: React.FC = () => {
                 .maybeSingle();
               
               if (!submitterError && submitterData) {
-                submitter = submitterData;
-                console.log(`Found submitter in profiles: ${submitterData.name} (${submitterData.username})`);
+                submitter = {
+                  id: submitterData.id,
+                  name: submitterData.name || 'Unknown User', // Use name field or fallback
+                  username: submitterData.username
+                };
+                console.log(`Found submitter: ${submitterData.name} (${submitterData.username})`);
               } else {
-                // If not found in profiles, try to get email from auth
+                // Fallback if profile not found
                 console.warn(`No profile found for user ID: ${item.submitted_by}`, submitterError);
-                try {
-                  // Note: In production, this would require appropriate permissions
-                  const { data: userData } = await supabase.auth.admin.getUserById(item.submitted_by);
-                  
-                  if (userData && userData.user && userData.user.email) {
-                    submitter = { 
-                      id: item.submitted_by,
-                      name: userData.user.email.split('@')[0] || 'Unknown User',
-                      username: userData.user.email
-                    };
-                    console.log(`Created submitter from auth: ${submitter.name} (${submitter.username})`);
-                  } else {
-                    // Fallback option if all else fails
-                    submitter = { 
-                      id: item.submitted_by,
-                      name: 'Unknown User',
-                      username: item.submitted_by.substring(0, 8) + '...'
-                    };
-                  }
-                } catch (authError) {
-                  console.error('Error accessing user auth data:', authError);
-                  submitter = { 
-                    id: item.submitted_by,
-                    name: 'Unknown User',
-                    username: item.submitted_by.substring(0, 8) + '...'
-                  };
-                }
+                submitter = { 
+                  id: item.submitted_by,
+                  name: 'Unknown User',
+                  username: item.submitted_by.substring(0, 8) + '...'
+                };
               }
             } catch (err) {
               console.error(`Error fetching submitter for ID: ${item.submitted_by}`, err);

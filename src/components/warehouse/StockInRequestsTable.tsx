@@ -123,4 +123,3 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
     </div>
   );
 };
-

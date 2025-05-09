@@ -39,11 +39,6 @@ export const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData }) =
                   <AtSign className="h-3 w-3 mr-1" />
                   {stockInData.submitter.username}
                 </div>
-                {stockInData.submitter.id && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    ID: {stockInData.submitter.id}
-                  </div>
-                )}
               </div>
             ) : (
               <span className="ml-2 text-amber-500">Unknown</span>
