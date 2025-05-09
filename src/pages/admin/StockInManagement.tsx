@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Filter, BoxesIcon } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
 import { RejectStockInDialog } from '@/components/warehouse/RejectStockInDialog';
@@ -156,8 +155,9 @@ const AdminStockInManagement: React.FC = () => {
     },
   });
 
+  // Navigate to batch processing page with the stock in ID
   const handleProcess = (stockIn: StockInData) => {
-    navigate(`/manager/process-stock-in/${stockIn.id}`);
+    navigate(`/admin/stock-in/batch/${stockIn.id}`);
   };
 
   const handleReject = (stockIn: StockInData) => {
@@ -182,37 +182,28 @@ const AdminStockInManagement: React.FC = () => {
         Back to Dashboard
       </Button>
       
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Filter:</span>
-          <Select 
-            value={statusFilter} 
-            onValueChange={setStatusFilter}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Status</SelectLabel>
-                <SelectItem value="all">All Requests</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <Button asChild variant="default">
-          <Link to="/admin/stock-in/batch">
-            <BoxesIcon className="mr-2 h-4 w-4" />
-            Batch Processing
-          </Link>
-        </Button>
+      <div className="flex items-center gap-2">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">Filter:</span>
+        <Select 
+          value={statusFilter} 
+          onValueChange={setStatusFilter}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Status</SelectLabel>
+              <SelectItem value="all">All Requests</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
       
       <Card>

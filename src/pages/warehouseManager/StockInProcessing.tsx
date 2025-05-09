@@ -1,18 +1,16 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, BoxesIcon } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-  CardFooter,
 } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
 import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
@@ -151,9 +149,9 @@ const StockInProcessing: React.FC = () => {
     },
   });
 
+  // Navigate to batch processing page with the stock in ID
   const handleProcess = (stockIn: StockInData) => {
-    // Navigate to the dedicated process page with the stock in ID
-    navigate(`/manager/process-stock-in/${stockIn.id}`);
+    navigate(`/manager/stock-in/batch/${stockIn.id}`);
   };
 
   const handleReject = (stockIn: StockInData) => {
@@ -185,15 +183,6 @@ const StockInProcessing: React.FC = () => {
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Dashboard
       </Button>
-      
-      <div className="flex justify-end mb-4">
-        <Button asChild variant="default">
-          <Link to="/manager/stock-in/batch">
-            <BoxesIcon className="mr-2 h-4 w-4" />
-            Batch Processing
-          </Link>
-        </Button>
-      </div>
       
       <Card>
         <CardHeader>

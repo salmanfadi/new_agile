@@ -53,6 +53,18 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
     return <>{children}</>;
   }
   
+  // Special access rules for batch stock in processing
+  // Allow warehouse_manager to access batch processing pages
+  if ((location.pathname.startsWith('/manager/stock-in/batch') || 
+       location.pathname === '/manager/stock-in') && 
+      user?.role === 'warehouse_manager') {
+    console.log("Warehouse manager accessing stock-in processing, granting access");
+    if (typeof children === 'function') {
+      return children({ user });
+    }
+    return <>{children}</>;
+  }
+  
   // Special access rule for barcode management
   // Allow warehouse_manager to access barcode management
   if (location.pathname === '/admin/barcodes' && user?.role === 'warehouse_manager') {

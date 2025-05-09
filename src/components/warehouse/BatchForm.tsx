@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { BatchFormData } from '@/types/batchStockIn';
+import { BatchFormData, ProcessedBatch } from '@/types/batchStockIn';
 import { generateBarcodeString } from '@/utils/barcodeUtils';
 import { Product, Warehouse, WarehouseLocation } from '@/types/database';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,14 +10,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Plus, Package } from 'lucide-react';
+import { Loader2, Plus, Package, Save, X } from 'lucide-react';
 
 interface BatchFormProps {
   onAddBatch: (batchData: BatchFormData) => void;
   isSubmitting?: boolean;
+  editingBatch?: ProcessedBatch;
+  onCancel?: () => void;
 }
 
-export const BatchForm: React.FC<BatchFormProps> = ({ onAddBatch, isSubmitting = false }) => {
+export const BatchForm: React.FC<BatchFormProps> = ({ 
+  onAddBatch, 
+  isSubmitting = false,
+  editingBatch,
+  onCancel 
+}) => {
   const [batchData, setBatchData] = useState<BatchFormData>({
     product: null,
     warehouse: null,
@@ -27,6 +34,21 @@ export const BatchForm: React.FC<BatchFormProps> = ({ onAddBatch, isSubmitting =
     color: '',
     size: ''
   });
+
+  // Set form data when editing an existing batch
+  useEffect(() => {
+    if (editingBatch) {
+      setBatchData({
+        product: editingBatch.product || null,
+        warehouse: editingBatch.warehouse || null,
+        location: editingBatch.warehouseLocation || null,
+        boxes_count: editingBatch.boxes_count,
+        quantity_per_box: editingBatch.quantity_per_box,
+        color: editingBatch.color || '',
+        size: editingBatch.size || ''
+      });
+    }
+  }, [editingBatch]);
 
   // Fetch products
   const { data: products, isLoading: isLoadingProducts } = useQuery({
@@ -110,6 +132,19 @@ export const BatchForm: React.FC<BatchFormProps> = ({ onAddBatch, isSubmitting =
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onAddBatch(batchData);
+    
+    // Reset form if not editing
+    if (!editingBatch) {
+      setBatchData({
+        product: batchData.product, // Keep the product selected
+        warehouse: batchData.warehouse, // Keep the warehouse selected
+        location: batchData.location, // Keep the location selected
+        boxes_count: 1,
+        quantity_per_box: 10,
+        color: '',
+        size: ''
+      });
+    }
   };
 
   const isFormValid = 
@@ -124,7 +159,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ onAddBatch, isSubmitting =
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <Package className="h-5 w-5" />
-          Create New Batch
+          {editingBatch ? "Edit Batch" : "Create New Batch"}
         </CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -133,7 +168,8 @@ export const BatchForm: React.FC<BatchFormProps> = ({ onAddBatch, isSubmitting =
             <Label htmlFor="product">Product</Label>
             <Select 
               onValueChange={handleProductChange} 
-              disabled={isLoadingProducts || isSubmitting}
+              disabled={isLoadingProducts || isSubmitting || !!editingBatch}
+              value={batchData.product?.id}
             >
               <SelectTrigger id="product">
                 <SelectValue placeholder="Select product" />
@@ -185,6 +221,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ onAddBatch, isSubmitting =
             <Select 
               onValueChange={handleWarehouseChange} 
               disabled={isLoadingWarehouses || isSubmitting}
+              value={batchData.warehouse?.id}
             >
               <SelectTrigger id="warehouse">
                 <SelectValue placeholder="Select warehouse" />
@@ -211,6 +248,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ onAddBatch, isSubmitting =
             <Select 
               onValueChange={handleLocationChange} 
               disabled={!batchData.warehouse || isLoadingLocations || isSubmitting}
+              value={batchData.location?.id}
             >
               <SelectTrigger id="location">
                 <SelectValue placeholder={batchData.warehouse ? "Select location" : "Select warehouse first"} />
@@ -255,14 +293,31 @@ export const BatchForm: React.FC<BatchFormProps> = ({ onAddBatch, isSubmitting =
             </div>
           </div>
         </CardContent>
-        <CardFooter className="justify-between">
+        <CardFooter className="flex justify-between">
+          {onCancel && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Cancel
+            </Button>
+          )}
           <Button 
             type="submit" 
             disabled={!isFormValid || isSubmitting}
-            className="w-full"
+            className={onCancel ? "ml-2" : "w-full"}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Batch
+            {isSubmitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : editingBatch ? (
+              <Save className="mr-2 h-4 w-4" />
+            ) : (
+              <Plus className="mr-2 h-4 w-4" />
+            )}
+            {editingBatch ? "Update Batch" : "Add Batch"}
           </Button>
         </CardFooter>
       </form>

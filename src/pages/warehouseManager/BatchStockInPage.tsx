@@ -1,259 +1,183 @@
 
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Boxes } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useBatchStockIn } from '@/hooks/useBatchStockIn';
 import { BatchForm } from '@/components/warehouse/BatchForm';
 import { BatchCard } from '@/components/warehouse/BatchCard';
-import { useBatchStockIn } from '@/hooks/useBatchStockIn';
-import { useAuth } from '@/context/AuthContext';
-import { ArrowLeft, SendHorizontal, AlertTriangle } from 'lucide-react';
-import { BatchFormData } from '@/types/batchStockIn';
-import { supabase } from '@/integrations/supabase/client';
-import { Product } from '@/types/database';
-import { toast } from '@/hooks/use-toast';
+import { useStockInData } from '@/hooks/useStockInData';
 
 const BatchStockInPage: React.FC = () => {
-  const { user } = useAuth();
+  const { stockInId } = useParams<{ stockInId?: string }>();
   const navigate = useNavigate();
-  const userId = user?.id || '';
+  const { user } = useAuth();
+  const { stockInData, isLoadingStockIn } = useStockInData(stockInId);
 
-  const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [source, setSource] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
-  const [editFormData, setEditFormData] = useState<BatchFormData | null>(null);
 
-  const { 
-    batches, 
-    addBatch, 
-    editBatch, 
-    deleteBatch, 
-    editingIndex, 
+  const {
+    batches,
+    addBatch,
+    editBatch,
+    deleteBatch,
+    editingIndex,
     setEditingIndex,
     submitStockIn,
     isSubmitting
-  } = useBatchStockIn(userId);
+  } = useBatchStockIn(user?.id || '');
 
-  // Fetch products
-  const { data: products, isLoading: isLoadingProducts } = useQuery({
-    queryKey: ['products'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-      
-      if (error) throw error;
-      return data as Product[];
+  // Populate form with stockInData when it's loaded
+  useEffect(() => {
+    if (stockInData) {
+      setSource(stockInData.source || '');
+      setNotes(stockInData.notes || '');
     }
-  });
+  }, [stockInData]);
 
-  const handleProductChange = (productId: string) => {
-    setSelectedProductId(productId);
-  };
+  const handleBatchSubmission = () => {
+    if (!user) return;
+    if (batches.length === 0) return;
 
-  const handleEditBatch = (index: number) => {
-    const batch = editBatch(index);
-    if (!batch) return;
+    const productId = stockInData?.product?.id || batches[0].product_id;
     
-    // Prepare form data for editing
-    setEditFormData({
-      product: batch.product || null,
-      warehouse: batch.warehouse || null,
-      location: batch.warehouseLocation || null,
-      boxes_count: batch.boxes_count,
-      quantity_per_box: batch.quantity_per_box,
-      color: batch.color || '',
-      size: batch.size || '',
-    });
-  };
-
-  const handleAddBatch = (formData: BatchFormData) => {
-    addBatch(formData);
-    setEditFormData(null);
-  };
-
-  const handleSubmit = () => {
-    if (!selectedProductId) {
-      toast({
-        title: 'Missing product',
-        description: 'Please select a product for the stock-in',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (!source) {
-      toast({
-        title: 'Missing source',
-        description: 'Please enter the source of the stock-in',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (batches.length === 0) {
-      toast({
-        title: 'No batches',
-        description: 'Please add at least one batch to process',
-        variant: 'destructive'
-      });
-      return;
-    }
-
     submitStockIn({
-      productId: selectedProductId,
+      stockInId: stockInId,
+      productId,
       source,
       notes,
-      submittedBy: userId,
+      submittedBy: user.id,
       batches
     });
   };
 
-  useEffect(() => {
-    // When editing is cancelled or finished, clear the edit form data
-    if (editingIndex === null) {
-      setEditFormData(null);
-    }
-  }, [editingIndex]);
+  const goBack = () => navigate(-1);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="container p-6 space-y-6">
       <PageHeader 
-        title="Batch Stock-In Processing" 
-        description="Create and manage stock batches for efficient inventory processing"
+        title={stockInId ? "Process Stock In Request" : "Batch Stock In Processing"}
+        description={stockInId 
+          ? `Process the stock-in request with multiple batches` 
+          : "Create and process multiple batches at once"
+        }
       />
-
+      
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => navigate('/manager')}
+        onClick={goBack}
         className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Dashboard
+        Back
       </Button>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Batch Form */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Stock-In Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="product">Main Product</Label>
-                <Select onValueChange={handleProductChange} disabled={isSubmitting || batches.length > 0}>
-                  <SelectTrigger id="product">
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} {product.sku ? `(${product.sku})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {batches.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    <AlertTriangle className="h-3 w-3 inline mr-1" />
-                    Cannot change main product once batches are added
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="source">Source</Label>
-                <Input
-                  id="source"
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  placeholder="e.g. Supplier Name"
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any additional information"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <BatchForm 
-            onAddBatch={handleAddBatch} 
-            isSubmitting={isSubmitting}
-          />
-        </div>
-
-        {/* Right column - Batches List */}
-        <div className="lg:col-span-2 space-y-4">
-          <Card className="h-full flex flex-col">
-            <CardHeader>
-              <CardTitle className="text-lg">Batches ({batches.length})</CardTitle>
-            </CardHeader>
-            
-            <CardContent className="flex-grow">
-              {batches.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-center p-4 border border-dashed rounded-lg">
-                  <p className="text-muted-foreground mb-2">No batches added yet</p>
-                  <p className="text-xs text-muted-foreground">
-                    Use the form on the left to create batches for processing
-                  </p>
-                </div>
-              ) : (
-                <ScrollArea className="h-[600px] pr-4">
-                  <div className="space-y-4">
-                    {batches.map((batch, index) => (
-                      <BatchCard
-                        key={index}
-                        batch={batch}
-                        index={index}
-                        onDelete={deleteBatch}
-                        onEdit={handleEditBatch}
-                        showBarcodes={true}
-                      />
-                    ))}
+      
+      {isLoadingStockIn ? (
+        <Card>
+          <CardContent className="p-6 flex justify-center items-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {stockInData && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Boxes className="h-5 w-5" />
+                  Stock-In Request Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Product</Label>
+                    <div className="p-2 bg-muted rounded-md">
+                      {stockInData.product?.name || 'Unknown Product'}
+                    </div>
                   </div>
-                </ScrollArea>
-              )}
-            </CardContent>
+                  <div className="space-y-2">
+                    <Label>Total Boxes</Label>
+                    <div className="p-2 bg-muted rounded-md">
+                      {stockInData.boxes || 0}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="source">Source</Label>
+                  <Input 
+                    id="source" 
+                    value={source} 
+                    onChange={(e) => setSource(e.target.value)} 
+                    placeholder="Supplier or source"
+                    readOnly={!!stockInId}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea 
+                    id="notes" 
+                    value={notes} 
+                    onChange={(e) => setNotes(e.target.value)} 
+                    placeholder="Optional notes about this batch"
+                    readOnly={!!stockInId}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <BatchForm 
+                onAddBatch={addBatch} 
+                isSubmitting={isSubmitting}
+                editingBatch={editingIndex !== null ? batches[editingIndex] : undefined}
+                onCancel={editingIndex !== null ? () => setEditingIndex(null) : undefined}
+              />
+            </div>
             
-            <div className="p-4 mt-auto border-t">
-              <Button 
-                className="w-full"
-                size="lg"
-                disabled={batches.length === 0 || !selectedProductId || !source || isSubmitting}
-                onClick={handleSubmit}
-              >
-                <SendHorizontal className="mr-2 h-5 w-5" />
-                {isSubmitting ? 'Processing...' : 'Process Stock-In'}
-              </Button>
-              {batches.length > 0 && (
-                <div className="mt-2 text-sm text-muted-foreground text-center">
-                  {batches.reduce((sum, batch) => sum + batch.boxes_count, 0)} boxes in {batches.length} batches
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Batches ({batches.length})</h3>
+              
+              {batches.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center text-muted-foreground">
+                    No batches added yet. Use the form to add batches.
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {batches.map((batch, index) => (
+                    <BatchCard 
+                      key={index} 
+                      batch={batch} 
+                      onEdit={() => editBatch(index)} 
+                      onDelete={() => deleteBatch(index)} 
+                    />
+                  ))}
+                  
+                  <Button 
+                    onClick={handleBatchSubmission} 
+                    className="w-full mt-4" 
+                    disabled={batches.length === 0 || isSubmitting}
+                  >
+                    {isSubmitting ? 'Processing...' : 'Submit All Batches'}
+                  </Button>
                 </div>
               )}
             </div>
-          </Card>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

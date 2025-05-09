@@ -60,17 +60,11 @@ const ManagerDashboard: React.FC = () => {
               Review and process incoming stock requests from field operators and suppliers.
             </p>
           </CardContent>
-          <CardFooter className="flex gap-2">
+          <CardFooter>
             <Button asChild className="w-full">
               <Link to="/manager/stock-in">
                 <Package className="mr-2 h-4 w-4" />
                 Process Stock In
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/manager/stock-in/batch">
-                <BoxesIcon className="mr-2 h-4 w-4" />
-                Batch Processing
               </Link>
             </Button>
           </CardFooter>
