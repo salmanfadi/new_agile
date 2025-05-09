@@ -191,7 +191,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ adminMode
           )}
           
           <div className="grid lg:grid-cols-2 gap-6">
-            <div>
+            <div className="space-y-4">
               <BatchForm 
                 onAddBatch={handleAddBatch} 
                 isSubmitting={isSubmitting}
@@ -212,7 +212,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ adminMode
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
                   {batches.map((batch, index) => (
                     <BatchCard 
                       key={index}
