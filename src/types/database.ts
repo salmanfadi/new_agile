@@ -125,7 +125,7 @@ export interface SalesInquiry {
   status: 'new' | 'in_progress' | 'completed';
   created_at: string;
   updated_at: string;
-  items: SalesInquiryItem[];
+  items?: SalesInquiryItem[];
 }
 
 export interface SalesInquiryItem {

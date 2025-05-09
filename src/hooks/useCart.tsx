@@ -23,8 +23,10 @@ export function useCart() {
     loadCart();
     
     // Set up event listener for storage events
-    const handleStorageChange = () => {
-      loadCart();
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'cart') {
+        loadCart();
+      }
     };
     
     window.addEventListener('storage', handleStorageChange);
@@ -40,7 +42,7 @@ export function useCart() {
   }, [cartItems]);
   
   // Add a product to the cart
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, requirements?: string) => {
     setCartItems(prevItems => {
       // Check if the item is already in the cart
       const existingItemIndex = prevItems.findIndex(item => item.productId === product.id);
@@ -50,7 +52,8 @@ export function useCart() {
         const newItems = [...prevItems];
         newItems[existingItemIndex] = {
           ...newItems[existingItemIndex],
-          quantity: newItems[existingItemIndex].quantity + 1
+          quantity: newItems[existingItemIndex].quantity + 1,
+          requirements: requirements || newItems[existingItemIndex].requirements
         };
         return newItems;
       } else {
@@ -58,7 +61,8 @@ export function useCart() {
         return [...prevItems, {
           productId: product.id,
           product,
-          quantity: 1
+          quantity: 1,
+          requirements
         }];
       }
     });
@@ -87,6 +91,17 @@ export function useCart() {
     );
   };
   
+  // Update the requirements for a product in the cart
+  const updateRequirements = (productId: string, requirements: string) => {
+    setCartItems(prevItems =>
+      prevItems.map(item =>
+        item.productId === productId
+          ? { ...item, requirements }
+          : item
+      )
+    );
+  };
+  
   // Clear the cart
   const clearCart = () => {
     setCartItems([]);
@@ -97,6 +112,7 @@ export function useCart() {
     addToCart,
     removeFromCart,
     updateQuantity,
+    updateRequirements,
     clearCart
   };
 }
