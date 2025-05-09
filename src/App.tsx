@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
@@ -28,6 +29,7 @@ import UsersManagement from "./pages/admin/UsersManagement";
 import SalesOperatorDashboard from "./pages/salesOperator/SalesOperatorDashboard";
 import SalesInquiriesManagement from "./pages/salesOperator/SalesInquiriesManagement";
 import StockInForm from "./pages/fieldOperator/StockInForm";
+import BarcodeManagement from "./pages/admin/BarcodeManagement";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Create a client

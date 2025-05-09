@@ -23,6 +23,7 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import BarcodePreview from './BarcodePreview';
 import jsPDF from 'jspdf';
+import bwipjs from 'bwip-js';
 
 interface BarcodeBox {
   id: string;
@@ -146,7 +147,7 @@ const BarcodePrinter: React.FC = () => {
         // We'll use a temporary canvas
         const canvas = document.createElement('canvas');
         try {
-          const barcodeImg = bwipjs.toCanvas(canvas, {
+          bwipjs.toCanvas(canvas, {
             bcid: 'code128',
             text: box.barcode,
             scale: 2,

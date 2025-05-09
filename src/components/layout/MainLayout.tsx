@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Sidebar } from './Sidebar';
+import Sidebar from './Sidebar';
 import { Navbar } from './Navbar';
 import { cn } from '@/lib/utils';
 
