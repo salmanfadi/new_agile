@@ -12,7 +12,7 @@ const BatchStockInPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="container p-6 space-y-6">
+      <div className="container p-4 md:p-6 space-y-6">
         <Button
           variant="ghost"
           size="sm"

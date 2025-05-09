@@ -12,7 +12,7 @@ const AdminBatchStockInPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="container p-6 space-y-6">
+      <div className="container p-4 md:p-6 space-y-6">
         <Button
           variant="ghost"
           size="sm"
@@ -23,7 +23,6 @@ const AdminBatchStockInPage: React.FC = () => {
           Back to Stock In Management
         </Button>
 
-        {/* Reuse the BatchStockInComponent */}
         <BatchStockInComponent adminMode={true} />
       </div>
     </MainLayout>

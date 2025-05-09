@@ -190,7 +190,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ adminMode
             </Card>
           )}
           
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-6">
             <div>
               <BatchForm 
                 onAddBatch={handleAddBatch} 
