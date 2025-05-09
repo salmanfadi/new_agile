@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Boxes, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Boxes, AlertTriangle, ArrowLeft, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useBatchStockIn } from '@/hooks/useBatchStockIn';
 import { BatchForm } from '@/components/warehouse/BatchForm';
@@ -16,9 +17,15 @@ import { toast } from '@/hooks/use-toast';
 
 interface BatchStockInComponentProps {
   adminMode?: boolean;
+  sheetMode?: boolean;
+  onClose?: () => void;
 }
 
-const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ adminMode = false }) => {
+const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ 
+  adminMode = false, 
+  sheetMode = false,
+  onClose
+}) => {
   const { stockInId } = useParams<{ stockInId?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -29,10 +36,14 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ adminMode
   const [remainingBoxes, setRemainingBoxes] = useState<number>(0);
   
   const handleGoBack = () => {
-    if (adminMode) {
-      navigate('/admin/stock-in');
+    if (sheetMode && onClose) {
+      onClose();
     } else {
-      navigate('/manager/stock-in');
+      if (adminMode) {
+        navigate('/admin/stock-in');
+      } else {
+        navigate('/manager/stock-in');
+      }
     }
   };
 
@@ -120,25 +131,29 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ adminMode
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleGoBack}
-          className="flex items-center gap-1"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to {adminMode ? 'Stock In Management' : 'Stock In Processing'}
-        </Button>
-      </div>
+      {!sheetMode && (
+        <div className="flex items-center gap-2 mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleGoBack}
+            className="flex items-center gap-1"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to {adminMode ? 'Stock In Management' : 'Stock In Processing'}
+          </Button>
+        </div>
+      )}
       
-      <PageHeader 
-        title={stockInId ? "Process Stock In Request" : "Batch Stock In Processing"}
-        description={stockInId 
-          ? `Process the stock-in request with multiple batches` 
-          : "Create and process multiple batches at once"
-        }
-      />
+      {!sheetMode && (
+        <PageHeader 
+          title={stockInId ? "Process Stock In Request" : "Batch Stock In Processing"}
+          description={stockInId 
+            ? `Process the stock-in request with multiple batches` 
+            : "Create and process multiple batches at once"
+          }
+        />
+      )}
       
       {isLoadingStockIn ? (
         <Card>
