@@ -15,7 +15,7 @@ export interface BoxData {
 export interface StockInData {
   id: string;
   product: { name: string };
-  submitter: { name: string; username: string } | null;
+  submitter: { id?: string; name: string; username: string } | null;
   boxes: number;
   status: "pending" | "approved" | "rejected" | "completed" | "processing";
   created_at: string;

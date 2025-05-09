@@ -8,6 +8,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { StockInData } from '@/hooks/useStockInBoxes';
+import { DebugInfo } from './DebugInfo';
 
 interface StockInDetailsProps {
   stockInData: StockInData;
@@ -41,6 +42,13 @@ export const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData }) =
             </div>
           )}
         </div>
+        
+        {/* Add debug info in development mode */}
+        <DebugInfo 
+          label="Stock In Data" 
+          data={stockInData} 
+          show={false} 
+        />
       </CardContent>
     </Card>
   );
