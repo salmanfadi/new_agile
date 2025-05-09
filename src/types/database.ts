@@ -124,7 +124,7 @@ export interface SalesInquiry {
   customer_company: string;
   customer_phone: string | null;
   message: string | null;
-  status: 'new' | 'in_progress' | 'completed';
+  status: string; // Changed from restrictive union type to string
   created_at: string;
   updated_at: string;
   items?: SalesInquiryItem[];

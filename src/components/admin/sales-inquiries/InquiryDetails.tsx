@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { SalesInquiry, SalesInquiryItem } from '@/types/database';
 import {
@@ -33,7 +32,7 @@ interface InquiryDetailsProps {
   inquiry: SalesInquiry | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStatusChange: (id: string, status: InquiryStatus) => void;
+  onStatusChange: (id: string, status: string) => void;
   formatDate: (dateString: string) => string;
 }
 
@@ -55,16 +54,6 @@ export const InquiryDetails: React.FC<InquiryDetailsProps> = ({
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
-  };
-
-  // Function to validate and convert status string to InquiryStatus type
-  const validateStatus = (status: string): InquiryStatus => {
-    if (status === 'new' || status === 'in_progress' || status === 'completed') {
-      return status;
-    }
-    // Default to 'new' if the status is not a valid value
-    console.warn(`Invalid status value: ${status}, defaulting to 'new'`);
-    return 'new';
   };
 
   return (
@@ -109,7 +98,7 @@ export const InquiryDetails: React.FC<InquiryDetailsProps> = ({
                 <div className="flex items-center space-x-3">
                   <Select
                     value={inquiry.status}
-                    onValueChange={(value) => onStatusChange(inquiry.id, validateStatus(value))}
+                    onValueChange={(value) => onStatusChange(inquiry.id, value)}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue />

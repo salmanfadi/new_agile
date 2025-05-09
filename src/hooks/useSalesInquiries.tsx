@@ -29,7 +29,8 @@ export const useSalesInquiries = () => {
         throw error;
       }
 
-      setInquiries(data || []);
+      // Make sure we're setting data as SalesInquiry[]
+      setInquiries(data as SalesInquiry[] || []);
     } catch (error) {
       console.error('Error fetching inquiries:', error);
     } finally {
