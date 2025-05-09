@@ -34,6 +34,11 @@ export const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData }) =
                 <Badge variant="outline" className="ml-2 text-xs">
                   @{stockInData.submitter.username}
                 </Badge>
+                {stockInData.submitter.id && (
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    ID: {stockInData.submitter.id.substring(0, 8)}...
+                  </Badge>
+                )}
               </div>
             ) : (
               <span className="ml-2 text-amber-500">Unknown</span>

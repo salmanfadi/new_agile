@@ -70,6 +70,7 @@ const StockInForm: React.FC = () => {
       source: string;
       notes?: string;
     }) => {
+      console.log("Submitting with user ID:", data.submitted_by);
       const { data: result, error } = await supabase
         .from('stock_in')
         .insert([data])
@@ -83,6 +84,7 @@ const StockInForm: React.FC = () => {
         title: 'Stock In request submitted!',
         description: `${formData.numberOfBoxes} boxes of the selected product have been submitted for processing.`,
       });
+      // Ensure we navigate to the submissions page after success
       navigate('/operator/submissions');
     },
     onError: (error) => {
@@ -208,10 +210,18 @@ const StockInForm: React.FC = () => {
   };
   
   const handleConfirmSubmit = () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication required',
+        description: 'You must be logged in to submit stock in requests',
+      });
+      return;
+    }
     
     const numBoxes = parseInt(formData.numberOfBoxes as string);
     
+    console.log("Submitting with user ID:", user.id);
     createStockInMutation.mutate({
       product_id: formData.productId,
       boxes: numBoxes,

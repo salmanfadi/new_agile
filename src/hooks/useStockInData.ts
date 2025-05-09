@@ -70,8 +70,8 @@ export const useStockInData = (stockInId: string | undefined) => {
           // Create a fallback submitter with the ID at least
           submitter = { 
             id: data.submitted_by, 
-            name: 'Unknown', 
-            username: 'unknown' 
+            name: 'Unknown User', 
+            username: data.submitted_by.substring(0, 8) 
           };
         }
       }

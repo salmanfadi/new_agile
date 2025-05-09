@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -18,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 const MySubmissions: React.FC = () => {
   const navigate = useNavigate();
@@ -30,6 +30,8 @@ const MySubmissions: React.FC = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       
+      console.log("Fetching submissions for user ID:", user.id);
+      
       const { data, error } = await supabase
         .from('stock_in')
         .select(`
@@ -37,18 +39,31 @@ const MySubmissions: React.FC = () => {
           product:product_id(name),
           boxes,
           status,
-          created_at
+          created_at,
+          source
         `)
         .eq('submitted_by', user.id)
         .order('created_at', { ascending: false });
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching stock in submissions:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Failed to load submissions',
+          description: error.message
+        });
+        throw error;
+      }
+      
+      console.log("Stock in submissions:", data);
+      
       return data.map(item => ({
         id: item.id,
         product: item.product?.name || 'Unknown Product',
         boxes: item.boxes,
         timestamp: item.created_at,
         status: item.status,
+        source: item.source,
       }));
     },
     enabled: !!user?.id,
@@ -89,6 +104,14 @@ const MySubmissions: React.FC = () => {
     initialData: [],
   });
   
+  useEffect(() => {
+    if (user?.id) {
+      console.log("User is authenticated, user ID:", user.id);
+    } else {
+      console.log("User is not authenticated");
+    }
+  }, [user]);
+  
   return (
     <div className="space-y-6">
       <PageHeader 
@@ -121,6 +144,7 @@ const MySubmissions: React.FC = () => {
                     <TableRow>
                       <TableHead>Product</TableHead>
                       <TableHead>Boxes</TableHead>
+                      <TableHead>Source</TableHead>
                       <TableHead>Timestamp</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -128,7 +152,7 @@ const MySubmissions: React.FC = () => {
                   <TableBody>
                     {stockInLoading ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
+                        <TableCell colSpan={5} className="text-center py-8">
                           <div className="flex justify-center">
                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                           </div>
@@ -137,15 +161,16 @@ const MySubmissions: React.FC = () => {
                       </TableRow>
                     ) : stockInSubmissions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                           No stock in submissions found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      stockInSubmissions.map((item) => (
-                        <TableRow key={item.id} className="bg-green-50">
+                      stockInSubmissions.map((item: any) => (
+                        <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.product}</TableCell>
                           <TableCell>{item.boxes}</TableCell>
+                          <TableCell>{item.source}</TableCell>
                           <TableCell>{typeof item.timestamp === 'string' 
                             ? new Date(item.timestamp).toLocaleString() 
                             : item.timestamp}
