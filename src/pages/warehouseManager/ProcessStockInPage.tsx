@@ -292,25 +292,6 @@ const ProcessStockInPage: React.FC = () => {
       </form>
     </div>
   );
-
-  function handleProcessingSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stockInId || !stockInData) return;
-
-    if (isMissingRequiredData()) {
-      toast({
-        variant: 'destructive',
-        title: 'Incomplete data',
-        description: 'Please fill in all required fields for each box.',
-      });
-      return;
-    }
-
-    processStockInMutation.mutate({
-      stockInId: stockInId,
-      boxes: boxesData,
-    });
-  }
 };
 
 export default ProcessStockInPage;

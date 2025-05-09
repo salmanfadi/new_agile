@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -32,7 +32,6 @@ import SalesInquiriesManagement from "./pages/salesOperator/SalesInquiriesManage
 import SalesInventoryView from "./pages/salesOperator/InventoryView";
 import StockInForm from "./pages/fieldOperator/StockInForm";
 import BarcodeManagement from "./pages/admin/BarcodeManagement";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Customer facing routes
 import CustomerLanding from '@/pages/customer/CustomerLanding';
@@ -42,89 +41,104 @@ import CustomerInquirySuccess from '@/pages/customer/CustomerInquirySuccess';
 import CustomerLogin from '@/pages/customer/CustomerLogin';
 import CustomerPortal from '@/pages/customer/CustomerPortal';
 
-// Create a client
-const queryClient = new QueryClient();
-
-const App = () => {
+const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/unauthorized" element={<Unauthorized />} />
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
-            {/* Admin Routes */}
-            <Route path="/admin" element={<RequireAuth allowedRoles={['admin']} />}>
-              <Route element={<MainLayout />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="products" element={<ProductManagement />} />
-                <Route path="warehouses" element={<WarehouseManagement />} />
-                <Route path="inventory" element={<AdminInventoryView />} />
-                <Route path="barcodes" element={<BarcodeManagement />} />
-                <Route path="sales-inquiries" element={<SalesInquiries />} />
-                <Route path="users" element={<UsersManagement />} />
-              </Route>
-            </Route>
+          {/* Admin Routes */}
+          <Route path="/admin" element={
+            <RequireAuth allowedRoles={['admin']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<AdminDashboard />} />
+            <Route path="products" element={<ProductManagement />} />
+            <Route path="warehouses" element={<WarehouseManagement />} />
+            <Route path="inventory" element={<AdminInventoryView />} />
+            <Route path="barcodes" element={<BarcodeManagement />} />
+            <Route path="sales-inquiries" element={<SalesInquiries />} />
+            <Route path="users" element={<UsersManagement />} />
+          </Route>
 
-            {/* Warehouse Manager Routes */}
-            <Route path="/manager" element={<RequireAuth allowedRoles={['warehouse_manager']} />}>
-              <Route element={<MainLayout />}>
-                <Route index element={<ManagerDashboard />} />
-                <Route path="stock-in" element={<StockInProcessing />} />
-                <Route path="process-stock-in/:stockInId" element={<ProcessStockInPage />} />
-                <Route path="stock-out" element={<StockOutApproval />} />
-                <Route path="inventory" element={<InventoryView />} />
-                <Route path="barcode-lookup" element={<ManagerBarcodeLookup />} />
-              </Route>
-            </Route>
+          {/* Warehouse Manager Routes */}
+          <Route path="/manager" element={
+            <RequireAuth allowedRoles={['warehouse_manager']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<ManagerDashboard />} />
+            <Route path="stock-in" element={<StockInProcessing />} />
+            <Route path="process-stock-in/:stockInId" element={<ProcessStockInPage />} />
+            <Route path="stock-out" element={<StockOutApproval />} />
+            <Route path="inventory" element={<InventoryView />} />
+            <Route path="barcode-lookup" element={<ManagerBarcodeLookup />} />
+          </Route>
 
-            {/* Field Operator Routes */}
-            <Route path="/operator" element={<RequireAuth allowedRoles={['field_operator']} />}>
-              <Route element={<MainLayout />}>
-                <Route index element={<OperatorDashboard />} />
-                <Route path="stock-in" element={<StockInForm />} />
-                <Route path="stock-out" element={<StockOutForm />} />
-                <Route path="my-submissions" element={<MySubmissions />} />
-                <Route path="barcode-lookup" element={<BarcodeLookup />} />
-              </Route>
-            </Route>
+          {/* Field Operator Routes */}
+          <Route path="/operator" element={
+            <RequireAuth allowedRoles={['field_operator']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<OperatorDashboard />} />
+            <Route path="stock-in" element={<StockInForm />} />
+            <Route path="stock-out" element={<StockOutForm />} />
+            <Route path="my-submissions" element={<MySubmissions />} />
+            <Route path="barcode-lookup" element={<BarcodeLookup />} />
+          </Route>
 
-            {/* Sales Operator Routes */}
-            <Route path="/sales" element={<RequireAuth allowedRoles={['sales_operator']} />}>
-              <Route element={<MainLayout />}>
-                <Route index element={<SalesOperatorDashboard />} />
-                <Route path="inquiries" element={<SalesInquiriesManagement />} />
-                <Route path="inventory" element={<SalesInventoryView />} />
-              </Route>
-            </Route>
+          {/* Sales Operator Routes */}
+          <Route path="/sales" element={
+            <RequireAuth allowedRoles={['sales_operator']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<SalesOperatorDashboard />} />
+            <Route path="inquiries" element={<SalesInquiriesManagement />} />
+            <Route path="inventory" element={<SalesInventoryView />} />
+          </Route>
 
-            {/* Shared Route for Barcode Scanner */}
-            <Route path="/scan" element={<RequireAuth allowedRoles={['warehouse_manager', 'field_operator', 'admin']} />}>
-              <Route element={<MainLayout />}>
-                <Route index element={<BarcodeScannerPage />} />
-              </Route>
-            </Route>
+          {/* Shared Route for Barcode Scanner */}
+          <Route path="/scan" element={
+            <RequireAuth allowedRoles={['warehouse_manager', 'field_operator', 'admin']}>
+              <MainLayout>
+                <Outlet />
+              </MainLayout>
+            </RequireAuth>
+          }>
+            <Route index element={<BarcodeScannerPage />} />
+          </Route>
 
-            {/* Customer Facing Routes */}
-            <Route path="/products" element={<ProductCatalogue />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/cart" element={<Cart />} />
-            
-            {/* Customer Portal */}
-            <Route path="/customer">
-              <Route index element={<CustomerLanding />} />
-              <Route path="products" element={<CustomerProducts />} />
-              <Route path="inquiry" element={<CustomerInquiry />} />
-              <Route path="inquiry/success" element={<CustomerInquirySuccess />} />
-              <Route path="login" element={<CustomerLogin />} />
-              <Route path="portal" element={<CustomerPortal />} />
-            </Route>
-          </Routes>
-        </AuthProvider>
-      </Router>
-    </QueryClientProvider>
+          {/* Customer Facing Routes */}
+          <Route path="/products" element={<ProductCatalogue />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/cart" element={<Cart />} />
+          
+          {/* Customer Portal */}
+          <Route path="/customer">
+            <Route index element={<CustomerLanding />} />
+            <Route path="products" element={<CustomerProducts />} />
+            <Route path="inquiry" element={<CustomerInquiry />} />
+            <Route path="inquiry/success" element={<CustomerInquirySuccess />} />
+            <Route path="login" element={<CustomerLogin />} />
+            <Route path="portal" element={<CustomerPortal />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 };
 
