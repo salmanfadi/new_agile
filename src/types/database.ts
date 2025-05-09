@@ -1,3 +1,4 @@
+
 export interface Warehouse {
   id: string;
   name: string;
@@ -41,6 +42,7 @@ export interface Inventory {
   size: string | null;
   created_at: string;
   updated_at: string;
+  status: string;
   // Join fields
   product?: Product;
   warehouse?: Warehouse;
@@ -58,6 +60,7 @@ export interface StockIn {
   updated_at: string;
   source: string;
   notes: string | null;
+  rejection_reason?: string | null;
   // Join fields
   product?: Product;
   submitter?: Profile;
@@ -136,6 +139,7 @@ export interface SalesInquiry {
   status: string;
   created_at: string;
   updated_at: string;
+  response?: string | null;
   items?: SalesInquiryItem[];
 }
 
@@ -155,4 +159,51 @@ export interface CartItem {
   product: Product;
   quantity: number;
   requirements?: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  role: 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator' | 'customer';
+  action_type: string;
+  is_read: boolean;
+  metadata: any;
+  created_at: string;
+}
+
+export interface BarcodeLog {
+  id: string;
+  barcode: string;
+  action: string;
+  user_id: string;
+  timestamp: string;
+  details?: any;
+  event_type?: string;
+  batch_id?: string;
+}
+
+// These types are used for batch stock in processing
+export interface BatchFormData {
+  product: Product | null;
+  warehouse: Warehouse | null;
+  location: WarehouseLocation | null;
+  boxes_count: number;
+  quantity_per_box: number;
+  color: string;
+  size: string;
+}
+
+export interface ProcessedBatch {
+  id: string;
+  product_id: string;
+  product: Product | null;
+  warehouse_id: string;
+  warehouse: Warehouse | null;
+  location_id: string;
+  warehouseLocation: WarehouseLocation | null;
+  boxes_count: number;
+  quantity_per_box: number;
+  color?: string;
+  size?: string;
+  barcodes?: string[];
 }
