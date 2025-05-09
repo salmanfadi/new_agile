@@ -123,6 +123,13 @@ export const useBatchStockIn = (userId: string) => {
           
         if (batchError) throw batchError;
         
+        // Check if batchData exists and has an id before proceeding
+        if (!batchData) {
+          throw new Error('Failed to create batch record');
+        }
+        
+        const batchId = batchData.id;
+        
         // Create barcode details for each box in the batch
         const detailsToInsert = [];
         
@@ -131,7 +138,7 @@ export const useBatchStockIn = (userId: string) => {
           
           detailsToInsert.push({
             stock_in_id: stockInId,
-            batch_id: batchData.id,
+            batch_id: batchId, // Using the id from batchData
             barcode: barcode,
             quantity: batch.quantity_per_box,
             warehouse_id: batch.warehouse_id,
@@ -149,7 +156,7 @@ export const useBatchStockIn = (userId: string) => {
           
         if (detailsError) throw detailsError;
         
-        return batchData.id;
+        return batchId; // Return the batch ID
       });
       
       // Wait for all batch insertions to complete
