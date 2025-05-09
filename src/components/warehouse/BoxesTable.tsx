@@ -92,6 +92,7 @@ export const BoxesTable: React.FC<BoxesTableProps> = ({
                     value={box.warehouse_id} 
                     onValueChange={(value) => {
                       handleBoxUpdate(index, 'warehouse_id', value);
+                      // Reset location when warehouse changes
                       handleBoxUpdate(index, 'location_id', '');
                     }}
                     required
@@ -119,12 +120,16 @@ export const BoxesTable: React.FC<BoxesTableProps> = ({
                       <SelectValue placeholder="Location" />
                     </SelectTrigger>
                     <SelectContent>
-                      {locations?.filter(loc => loc.warehouse_id === box.warehouse_id).map(location => (
-                        <SelectItem key={location.id} value={location.id}>
-                          F{location.floor}, Z{location.zone}
+                      {locations?.filter(loc => loc.warehouse_id === box.warehouse_id).length > 0 ? (
+                        locations?.filter(loc => loc.warehouse_id === box.warehouse_id).map(location => (
+                          <SelectItem key={location.id} value={location.id}>
+                            F{location.floor}, Z{location.zone}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-locations-available" disabled>
+                          {box.warehouse_id ? 'No locations' : 'Select warehouse'}
                         </SelectItem>
-                      )) || (
-                        <SelectItem value="no-locations-available" disabled>None</SelectItem>
                       )}
                     </SelectContent>
                   </Select>

@@ -88,16 +88,23 @@ export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boole
       return;
     }
 
+    // Create a new array instead of modifying in place
     const updatedBoxes = boxesData.map(box => ({
       ...box,
       warehouse_id: defaultValues.warehouse,
       location_id: defaultValues.location,
-      color: defaultValues.color,
-      size: defaultValues.size,
-      quantity: defaultValues.quantity > 0 ? defaultValues.quantity : box.quantity // Only update if default quantity is set
+      color: defaultValues.color || box.color, // Preserve existing value if default is empty
+      size: defaultValues.size || box.size,    // Preserve existing value if default is empty
+      quantity: defaultValues.quantity > 0 ? defaultValues.quantity : box.quantity
     }));
     
+    // Update the state with the new array
     setBoxesData(updatedBoxes);
+    
+    toast({
+      title: 'Defaults Applied',
+      description: 'Default values have been applied to all boxes.',
+    });
   };
 
   const isMissingRequiredData = () => {
