@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, AuthState } from '../types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,6 +57,26 @@ const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User 
     console.error('Error mapping Supabase user:', error);
     return null;
   }
+};
+
+// Helper function to clean up auth state
+const cleanupAuthState = () => {
+  // Remove standard auth tokens
+  localStorage.removeItem('supabase.auth.token');
+  
+  // Remove all Supabase auth keys from localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  
+  // Remove from sessionStorage if in use
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -159,6 +180,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, isLoading: true }));
     
     try {
+      // Clean up existing state first
+      cleanupAuthState();
+      
       // For demo purposes, support both real auth and mock users
       if (email === 'admin' || email === 'warehouse' || email === 'field') {
         // Use mock users for demo
@@ -182,6 +206,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       } else {
         // Use Supabase auth
+        // First attempt global sign out to ensure clean state
+        try {
+          await supabase.auth.signOut({ scope: 'global' });
+        } catch (err) {
+          // Continue even if this fails
+        }
+        
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -265,6 +296,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Handle both mock and real auth
     const { user } = state;
     
+    // Clean up auth state first
+    cleanupAuthState();
+    
     if (user && mockUsers.some(mockUser => mockUser.id === user.id)) {
       // Mock logout
       localStorage.removeItem('user');
@@ -274,8 +308,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading: false,
       });
     } else {
-      // Supabase logout
-      await supabase.auth.signOut();
+      // Supabase logout - attempt global sign out for clean state
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Ignore errors
+      }
+      
       setState({
         user: null,
         isAuthenticated: false,
@@ -287,6 +326,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       title: "Logged out",
       description: "You have been successfully logged out",
     });
+    
+    // Force page reload for a clean state
+    window.location.href = '/login';
   };
 
   return (

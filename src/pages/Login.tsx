@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,21 +13,36 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  
+  // Check if we're already authenticated - redirect if so
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!username || !password) {
+      toast({
+        variant: 'destructive',
+        title: 'Login error',
+        description: 'Please enter both username and password',
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
       await login(username, password);
-      navigate('/');
-      toast({
-        title: 'Login successful',
-        description: 'Welcome to Agile Warehouse Management System',
-      });
+      // Navigation handled in the useEffect above
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -44,7 +59,7 @@ const Login: React.FC = () => {
     setIsLoading(true);
     try {
       await login(role, 'password');
-      navigate('/');
+      // Navigation handled in the useEffect above
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -61,7 +76,7 @@ const Login: React.FC = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <Warehouse className="h-10 w-10 text-warehouse-blue" />
+            <Warehouse className="h-10 w-10 text-blue-600" />
           </div>
           <CardTitle className="text-2xl font-bold">Agile Warehouse</CardTitle>
           <CardDescription>
@@ -79,6 +94,7 @@ const Login: React.FC = () => {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 placeholder="Enter your username"
+                disabled={isLoading}
               />
             </div>
             
@@ -91,6 +107,7 @@ const Login: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="Enter your password"
+                disabled={isLoading}
               />
             </div>
           </CardContent>

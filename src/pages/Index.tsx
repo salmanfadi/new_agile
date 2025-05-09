@@ -41,6 +41,7 @@ const Index: React.FC = () => {
             navigate('/login');
         }
       } else {
+        console.log("User not authenticated, redirecting to login");
         navigate('/login');
       }
     }
