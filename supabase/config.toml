@@ -1,5 +1,22 @@
 
 project_id = "kysvcexqmywyrawakwfs"
 
-[functions.scan-barcode]
-verify_jwt = true
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+
+[db]
+port = 54322
+
+[functions]
+[functions.product-stock]
+verify_jwt = false
+[functions.submit-inquiry]
+verify_jwt = false
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true

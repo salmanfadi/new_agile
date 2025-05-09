@@ -1,118 +1,112 @@
 
-import { useState, useEffect } from 'react';
-import { CartItem, Product } from '@/types/database';
+import { useState, useEffect, useCallback } from 'react';
+import { Product, CartItem } from '@/types/database';
+import { useToast } from './use-toast';
 
-export function useCart() {
+export const useCart = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  
-  // Load cart from localStorage on initial load
+  const { toast } = useToast();
+
+  // Load cart from localStorage on mount
   useEffect(() => {
-    const loadCart = () => {
-      const savedCart = localStorage.getItem('cart');
-      if (savedCart) {
-        try {
-          setCartItems(JSON.parse(savedCart));
-        } catch (error) {
-          console.error('Failed to parse cart from localStorage', error);
-          localStorage.removeItem('cart');
-        }
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
+      try {
+        setCartItems(JSON.parse(savedCart));
+      } catch (error) {
+        console.error('Error parsing cart from localStorage:', error);
       }
-    };
-    
-    // Load cart when the component mounts
-    loadCart();
-    
-    // Set up event listener for storage events
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'cart') {
-        loadCart();
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    }
   }, []);
-  
+
   // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cartItems));
   }, [cartItems]);
-  
-  // Add a product to the cart
-  const addToCart = (product: Product, requirements?: string) => {
-    setCartItems(prevItems => {
-      // Check if the item is already in the cart
-      const existingItemIndex = prevItems.findIndex(item => item.productId === product.id);
+
+  const addToCart = useCallback((product: Product, quantity: number = 1, requirements?: string) => {
+    setCartItems((currentItems) => {
+      // Check if product is already in cart
+      const existingItemIndex = currentItems.findIndex(item => item.productId === product.id);
       
-      if (existingItemIndex >= 0) {
-        // If item exists, increase its quantity
-        const newItems = [...prevItems];
-        newItems[existingItemIndex] = {
-          ...newItems[existingItemIndex],
-          quantity: newItems[existingItemIndex].quantity + 1,
-          requirements: requirements || newItems[existingItemIndex].requirements
+      if (existingItemIndex > -1) {
+        // Update existing item
+        const updatedItems = [...currentItems];
+        updatedItems[existingItemIndex] = {
+          ...updatedItems[existingItemIndex],
+          quantity: updatedItems[existingItemIndex].quantity + quantity,
+          requirements: requirements || updatedItems[existingItemIndex].requirements
         };
-        return newItems;
+        
+        toast({
+          title: "Cart updated",
+          description: `Updated quantity of ${product.name} in your cart`,
+        });
+        
+        return updatedItems;
       } else {
-        // If item doesn't exist, add it with quantity 1
-        return [...prevItems, {
+        // Add new item
+        toast({
+          title: "Added to cart",
+          description: `${product.name} has been added to your cart`,
+        });
+        
+        return [...currentItems, {
           productId: product.id,
           product,
-          quantity: 1,
+          quantity,
           requirements
         }];
       }
     });
-  };
-  
-  // Remove a product from the cart
-  const removeFromCart = (productId: string) => {
-    setCartItems(prevItems => 
-      prevItems.filter(item => item.productId !== productId)
-    );
-  };
-  
-  // Update the quantity of a product in the cart
-  const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
-      return;
-    }
-    
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.productId === productId
-          ? { ...item, quantity }
-          : item
-      )
-    );
-  };
-  
-  // Update the requirements for a product in the cart
-  const updateRequirements = (productId: string, requirements: string) => {
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.productId === productId
-          ? { ...item, requirements }
-          : item
-      )
-    );
-  };
-  
-  // Clear the cart
-  const clearCart = () => {
+  }, [toast]);
+
+  const updateCartItem = useCallback((productId: string, quantity: number, requirements?: string) => {
+    setCartItems((currentItems) => {
+      return currentItems.map(item => {
+        if (item.productId === productId) {
+          return {
+            ...item,
+            quantity: quantity,
+            requirements: requirements !== undefined ? requirements : item.requirements
+          };
+        }
+        return item;
+      });
+    });
+  }, []);
+
+  const removeFromCart = useCallback((productId: string) => {
+    setCartItems((currentItems) => {
+      const filteredItems = currentItems.filter(item => item.productId !== productId);
+      
+      toast({
+        title: "Item removed",
+        description: "Item has been removed from your cart",
+      });
+      
+      return filteredItems;
+    });
+  }, [toast]);
+
+  const clearCart = useCallback(() => {
     setCartItems([]);
-  };
+    localStorage.removeItem('cart');
+    
+    toast({
+      title: "Cart cleared",
+      description: "All items have been removed from your cart",
+    });
+  }, [toast]);
+
+  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   
   return {
     cartItems,
+    cartCount,
     addToCart,
+    updateCartItem,
     removeFromCart,
-    updateQuantity,
-    updateRequirements,
     clearCart
   };
-}
+};

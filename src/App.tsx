@@ -25,7 +25,9 @@ import ProductDetail from "./pages/public/ProductDetail";
 import Cart from "./pages/public/Cart";
 import SalesInquiries from "./pages/admin/SalesInquiries";
 import AdminInventoryView from "./pages/admin/InventoryView";
-import UsersManagement from "./pages/admin/UsersManagement"; // Import the UsersManagement component
+import UsersManagement from "./pages/admin/UsersManagement"; 
+import SalesOperatorDashboard from "./pages/salesOperator/SalesOperatorDashboard";
+import SalesInquiriesManagement from "./pages/salesOperator/SalesInquiriesManagement";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Create a client
@@ -123,6 +125,28 @@ const App: React.FC = () => {
                 <RequireAuth allowedRoles={['admin']}>
                   <MainLayout>
                     <StockOutApproval />
+                  </MainLayout>
+                </RequireAuth>
+              }
+            />
+
+            {/* Sales Operator Routes */}
+            <Route
+              path="/sales"
+              element={
+                <RequireAuth allowedRoles={['admin', 'sales_operator']}>
+                  <MainLayout>
+                    <SalesOperatorDashboard />
+                  </MainLayout>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/sales/inquiries"
+              element={
+                <RequireAuth allowedRoles={['admin', 'sales_operator']}>
+                  <MainLayout>
+                    <SalesInquiriesManagement />
                   </MainLayout>
                 </RequireAuth>
               }

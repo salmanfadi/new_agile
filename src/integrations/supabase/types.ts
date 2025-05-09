@@ -19,6 +19,7 @@ export type Database = {
           product_id: string
           quantity: number
           size: string | null
+          status: string
           updated_at: string
           warehouse_id: string
         }
@@ -31,6 +32,7 @@ export type Database = {
           product_id: string
           quantity?: number
           size?: string | null
+          status?: string
           updated_at?: string
           warehouse_id: string
         }
@@ -43,6 +45,7 @@ export type Database = {
           product_id?: string
           quantity?: number
           size?: string | null
+          status?: string
           updated_at?: string
           warehouse_id?: string
         }
@@ -70,12 +73,46 @@ export type Database = {
           },
         ]
       }
+      pricing_inquiries: {
+        Row: {
+          company: string | null
+          created_at: string
+          customer_email: string
+          customer_name: string
+          id: string
+          products: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          customer_email: string
+          customer_name: string
+          id?: string
+          products: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          customer_email?: string
+          customer_name?: string
+          id?: string
+          products?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           created_at: string
           description: string | null
           id: string
           image_url: string | null
+          is_active: boolean
           name: string
           sku: string | null
           specifications: string | null
@@ -86,6 +123,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean
           name: string
           sku?: string | null
           specifications?: string | null
@@ -96,6 +134,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          is_active?: boolean
           name?: string
           sku?: string | null
           specifications?: string | null

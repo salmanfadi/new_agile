@@ -6,7 +6,7 @@ import { InquiryList } from '@/components/admin/sales-inquiries/InquiryList';
 import { InquiryDetails } from '@/components/admin/sales-inquiries/InquiryDetails';
 import { SearchFilters } from '@/components/admin/sales-inquiries/SearchFilters';
 
-const SalesInquiries: React.FC = () => {
+const SalesInquiriesManagement: React.FC = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   
   const {
@@ -61,4 +61,4 @@ const SalesInquiries: React.FC = () => {
   );
 };
 
-export default SalesInquiries;
+export default SalesInquiriesManagement;

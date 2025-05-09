@@ -47,6 +47,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
     return <>{children}</>;
   }
 
+  // Check if the user has the required role for the page
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     console.log("User role not in allowed roles, redirecting to unauthorized");
     return <Navigate to="/unauthorized" replace />;
