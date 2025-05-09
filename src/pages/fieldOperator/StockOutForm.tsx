@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,14 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { ArrowLeft, Plus, Trash2, ScanLine } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ScanLine, Tag } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
-import { Inventory } from '@/types/database';
+import { Inventory, Product } from '@/types/database';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 interface ScannedBox {
   barcode: string;
@@ -31,6 +33,11 @@ interface ScannedBox {
   sku: string | null;
   quantity: number;
   requestedQuantity: number;
+  category?: string;
+}
+
+interface GroupedBoxes {
+  [category: string]: ScannedBox[];
 }
 
 const StockOutForm: React.FC = () => {
@@ -53,10 +60,32 @@ const StockOutForm: React.FC = () => {
   const [barcodeDestination, setBarcodeDestination] = useState('');
   const [barcodeReason, setBarcodeReason] = useState('');
   const [currentScannedBarcode, setCurrentScannedBarcode] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   
   const [formErrors, setFormErrors] = useState({
     quantity: '',
     requestedQuantity: '',
+  });
+
+  // Fetch product categories for filtering
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['product-categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('category')
+        .not('category', 'is', null)
+        .order('category');
+        
+      if (error) throw error;
+      
+      // Extract unique categories
+      const uniqueCategories = Array.from(new Set(data.map(item => item.category)))
+        .filter(Boolean)
+        .sort() as string[];
+      
+      return uniqueCategories;
+    },
   });
   
   // Handle barcode scan result
@@ -85,7 +114,8 @@ const StockOutForm: React.FC = () => {
           product_id,
           products:product_id (
             name,
-            sku
+            sku,
+            category
           )
         `)
         .eq('barcode', barcode)
@@ -103,6 +133,16 @@ const StockOutForm: React.FC = () => {
         return;
       }
       
+      // If category filter is active, check if the product matches the selected category
+      if (selectedCategory && data.products.category !== selectedCategory) {
+        toast({
+          variant: 'destructive',
+          title: 'Category mismatch',
+          description: `This box belongs to the "${data.products.category}" category, but you have filtered for "${selectedCategory}".`,
+        });
+        return;
+      }
+      
       // Add to scanned boxes list
       const newBox: ScannedBox = {
         barcode: data.barcode,
@@ -111,7 +151,8 @@ const StockOutForm: React.FC = () => {
         product_id: data.product_id,
         sku: data.products.sku,
         quantity: data.quantity,
-        requestedQuantity: data.quantity // Default to full box quantity
+        requestedQuantity: data.quantity, // Default to full box quantity
+        category: data.products.category || 'Uncategorized'
       };
       
       setScannedBoxes([...scannedBoxes, newBox]);
@@ -129,6 +170,18 @@ const StockOutForm: React.FC = () => {
         description: error instanceof Error ? error.message : 'Failed to process barcode',
       });
     }
+  };
+  
+  // Group scanned boxes by category
+  const getGroupedBoxes = (): GroupedBoxes => {
+    return scannedBoxes.reduce((groups: GroupedBoxes, box) => {
+      const category = box.category || 'Uncategorized';
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+      groups[category].push(box);
+      return groups;
+    }, {});
   };
   
   // Update requested quantity for a scanned box
@@ -177,7 +230,7 @@ const StockOutForm: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name')
+        .select('id, name, category')
         .order('name');
         
       if (error) throw error;
@@ -187,6 +240,19 @@ const StockOutForm: React.FC = () => {
   
   const handleProductChange = (value: string) => {
     setFormData({ ...formData, productId: value });
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+    // Clear scanned boxes when category filter changes
+    if (scannedBoxes.length > 0) {
+      if (confirm('Changing category filter will clear your current list of scanned boxes. Continue?')) {
+        setScannedBoxes([]);
+      } else {
+        // Revert selection if user cancels
+        setSelectedCategory('');
+      }
+    }
   };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -258,11 +324,24 @@ const StockOutForm: React.FC = () => {
         quantity: number;
       }>;
     }) => {
+      // Group boxes by product for the main stock_out record
+      const productGroups = data.boxes.reduce((acc, box) => {
+        if (!acc[box.product_id]) {
+          acc[box.product_id] = 0;
+        }
+        acc[box.product_id] += box.quantity;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      // Use the product with the highest quantity as the main product
+      const mainProductId = Object.entries(productGroups)
+        .sort((a, b) => b[1] - a[1])[0][0];
+      
       // First create the main stock_out record
       const { data: stockOutRecord, error: stockOutError } = await supabase
         .from('stock_out')
         .insert([{
-          product_id: data.boxes[0].product_id, // Use the first box's product_id as the main product
+          product_id: mainProductId,
           quantity: data.boxes.reduce((total, box) => total + box.quantity, 0),
           requested_by: data.requested_by,
           destination: data.destination,
@@ -420,6 +499,15 @@ const StockOutForm: React.FC = () => {
   const getTotalScannedQuantity = () => {
     return scannedBoxes.reduce((total, box) => total + box.requestedQuantity, 0);
   };
+
+  // Get the product associated with the selected product ID
+  const getSelectedProduct = () => {
+    if (!formData.productId || !products) return null;
+    return products.find(product => product.id === formData.productId);
+  };
+
+  const selectedProduct = getSelectedProduct();
+  const groupedBoxes = getGroupedBoxes();
   
   return (
     <div className="space-y-6">
@@ -478,6 +566,11 @@ const StockOutForm: React.FC = () => {
                         products.map(product => (
                           <SelectItem key={product.id} value={product.id}>
                             {product.name}
+                            {product.category && (
+                              <span className="ml-2 text-xs text-gray-500">
+                                {product.category}
+                              </span>
+                            )}
                           </SelectItem>
                         ))
                       ) : (
@@ -485,6 +578,14 @@ const StockOutForm: React.FC = () => {
                       )}
                     </SelectContent>
                   </Select>
+                  {selectedProduct?.category && (
+                    <div className="mt-2">
+                      <Badge variant="outline" className="text-xs">
+                        <Tag className="h-3 w-3 mr-1" />
+                        {selectedProduct.category}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
@@ -546,6 +647,49 @@ const StockOutForm: React.FC = () => {
           {isBarcodeDriven && (
             <form onSubmit={handleBarcodeDrivenSubmit}>
               <CardContent className="space-y-4">
+                {/* Category filter */}
+                <div className="space-y-2">
+                  <Label htmlFor="category">Filter by Category (Optional)</Label>
+                  <Select 
+                    value={selectedCategory} 
+                    onValueChange={handleCategoryChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All categories</SelectItem>
+                      {categoriesLoading ? (
+                        <SelectItem value="loading-categories" disabled>Loading categories...</SelectItem>
+                      ) : categories && categories.length > 0 ? (
+                        categories.map((category, index) => (
+                          <SelectItem key={index} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-categories" disabled>No categories available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {selectedCategory && (
+                    <div className="flex items-center mt-1">
+                      <Badge variant="outline">
+                        <Tag className="h-3 w-3 mr-1" />
+                        {selectedCategory}
+                      </Badge>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setSelectedCategory('')}
+                        className="h-6 ml-2 text-xs"
+                      >
+                        Clear filter
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label>Scan Box Barcodes</Label>
                   <div className="border rounded-md p-4">
@@ -561,42 +705,64 @@ const StockOutForm: React.FC = () => {
                 </div>
                 
                 {scannedBoxes.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     <Label>Scanned Boxes ({scannedBoxes.length})</Label>
-                    <div className="border rounded-md divide-y">
-                      {scannedBoxes.map((box, index) => (
-                        <div key={box.barcode} className="p-3">
-                          <div className="flex justify-between mb-1">
-                            <span className="font-medium">{box.product_name}</span>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => removeBox(index)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
+                    <div className="border rounded-md">
+                      {/* Group boxes by category */}
+                      {Object.entries(groupedBoxes).map(([category, boxes]) => (
+                        <div key={category} className="border-b last:border-b-0">
+                          <div className="p-3 bg-muted/30">
+                            <div className="flex items-center justify-between">
+                              <Badge variant="outline" className="bg-background">
+                                <Tag className="h-3 w-3 mr-1" />
+                                {category}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {boxes.length} {boxes.length === 1 ? 'box' : 'boxes'}
+                              </span>
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-500 mb-1">
-                            {box.sku ? `SKU: ${box.sku} • ` : ''}
-                            Box ID: {box.barcode}
-                          </div>
-                          <div className="flex items-center mt-2">
-                            <Label htmlFor={`box-qty-${index}`} className="mr-2 text-xs">
-                              Quantity:
-                            </Label>
-                            <Input
-                              id={`box-qty-${index}`}
-                              type="number"
-                              min="1"
-                              max={box.quantity}
-                              value={box.requestedQuantity}
-                              onChange={(e) => updateBoxQuantity(index, parseInt(e.target.value))}
-                              className="h-7 w-20 text-sm"
-                            />
-                            <span className="text-xs ml-2 text-gray-500">
-                              / {box.quantity} available
-                            </span>
+
+                          <div className="divide-y">
+                            {boxes.map((box, boxIndex) => {
+                              const index = scannedBoxes.findIndex(b => b.barcode === box.barcode);
+                              return (
+                                <div key={box.barcode} className="p-3">
+                                  <div className="flex justify-between mb-1">
+                                    <span className="font-medium">{box.product_name}</span>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => removeBox(index)}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                  </div>
+                                  <div className="text-sm text-gray-500 mb-1">
+                                    {box.sku ? `SKU: ${box.sku} • ` : ''}
+                                    Box ID: {box.barcode}
+                                  </div>
+                                  <div className="flex items-center mt-2">
+                                    <Label htmlFor={`box-qty-${index}`} className="mr-2 text-xs">
+                                      Quantity:
+                                    </Label>
+                                    <Input
+                                      id={`box-qty-${index}`}
+                                      type="number"
+                                      min="1"
+                                      max={box.quantity}
+                                      value={box.requestedQuantity}
+                                      onChange={(e) => updateBoxQuantity(index, parseInt(e.target.value))}
+                                      className="h-7 w-20 text-sm"
+                                    />
+                                    <span className="text-xs ml-2 text-gray-500">
+                                      / {box.quantity} available
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       ))}
@@ -604,8 +770,11 @@ const StockOutForm: React.FC = () => {
                     {formErrors.requestedQuantity && (
                       <p className="text-sm text-red-500 mt-1">{formErrors.requestedQuantity}</p>
                     )}
-                    <div className="bg-gray-50 p-3 rounded-md mt-2">
+                    <div className="bg-gray-50 p-3 rounded-md">
                       <div className="text-sm font-medium">Total Quantity: {getTotalScannedQuantity()} units</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {Object.keys(groupedBoxes).length} {Object.keys(groupedBoxes).length === 1 ? 'category' : 'categories'} of products
+                      </div>
                     </div>
                   </div>
                 )}
