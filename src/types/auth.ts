@@ -5,7 +5,7 @@ export interface User {
   id: string;
   username: string;
   role: UserRole;
-  name: string;
+  name: string | null;
 }
 
 export interface AuthState {

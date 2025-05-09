@@ -13,11 +13,12 @@ import {
 
 const ManagerDashboard: React.FC = () => {
   const { user } = useAuth();
+  const userName = user?.name || 'Warehouse Manager';
 
   return (
     <div className="p-6 space-y-6">
       <PageHeader 
-        title={`Welcome, ${user?.profile?.name || 'Warehouse Manager'}`} 
+        title={`Welcome, ${userName}`} 
         description="Manage warehouse operations and inventory"
       />
       

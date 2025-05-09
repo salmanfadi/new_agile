@@ -104,8 +104,9 @@ export const useBatchStockIn = (userId: string) => {
       // Create batches
       const batchPromises = data.batches.map(async (batch) => {
         // Insert batch record
+        // Using any type to work around the type issue with the new table
         const { data: batchData, error: batchError } = await supabase
-          .from('stock_in_batches')
+          .from('stock_in_batches' as any)
           .insert({
             stock_in_id: stockInId,
             product_id: batch.product_id,
@@ -116,7 +117,7 @@ export const useBatchStockIn = (userId: string) => {
             color: batch.color,
             size: batch.size,
             created_by: data.submittedBy
-          })
+          } as any)
           .select('id')
           .single();
           
