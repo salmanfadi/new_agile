@@ -1,80 +1,103 @@
 
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SalesInquiry } from '@/types/database';
-
-// Define a type for valid status values
-export type InquiryStatus = 'new' | 'in_progress' | 'completed';
+import { format } from 'date-fns';
 
 export const useSalesInquiries = () => {
+  const [inquiries, setInquiries] = useState<SalesInquiry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [selectedInquiry, setSelectedInquiry] = useState<SalesInquiry | null>(null);
 
-  // Fetch sales inquiries
-  const { data: inquiries, isLoading } = useQuery({
-    queryKey: ['sales-inquiries'],
-    queryFn: async () => {
+  const fetchInquiries = async () => {
+    setIsLoading(true);
+    try {
       const { data, error } = await supabase
         .from('sales_inquiries')
         .select(`
           *,
           items:sales_inquiry_items(
             *,
-            product:product_id(name, description)
+            product:product_id(*)
           )
         `)
         .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      return data as SalesInquiry[];
-    },
-  });
 
-  // Filter inquiries based on search term and status filter
-  const filteredInquiries = useMemo(() => {
-    if (!inquiries) return [];
-    
-    return inquiries.filter(inquiry => {
-      const matchesSearch = !searchTerm || 
-        inquiry.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inquiry.customer_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inquiry.customer_company.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = !statusFilter || inquiry.status === statusFilter;
-      
-      return matchesSearch && matchesStatus;
-    });
-  }, [inquiries, searchTerm, statusFilter]);
+      if (error) {
+        throw error;
+      }
 
-  // Handle status change
-  const updateInquiryStatus = async (id: string, status: InquiryStatus) => {
-    const { error } = await supabase
-      .from('sales_inquiries')
-      .update({ status })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error updating status:', error);
-      return;
+      setInquiries(data || []);
+    } catch (error) {
+      console.error('Error fetching inquiries:', error);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    // Update the local state
-    if (selectedInquiry && selectedInquiry.id === id) {
-      setSelectedInquiry({
-        ...selectedInquiry,
-        status: status
-      });
+  useEffect(() => {
+    fetchInquiries();
+    
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('sales_inquiries_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'sales_inquiries' },
+        (payload) => {
+          // Refresh the list when there's a change
+          fetchInquiries();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const updateInquiryStatus = async (id: string, status: 'new' | 'in_progress' | 'completed') => {
+    try {
+      const { error } = await supabase
+        .from('sales_inquiries')
+        .update({ status })
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update local state
+      setInquiries(prevInquiries =>
+        prevInquiries.map(inquiry =>
+          inquiry.id === id ? { ...inquiry, status } : inquiry
+        )
+      );
+
+      // If the currently selected inquiry was updated, update it as well
+      if (selectedInquiry && selectedInquiry.id === id) {
+        setSelectedInquiry({ ...selectedInquiry, status });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error updating inquiry status:', error);
+      return false;
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return format(new Date(dateString), 'MMM dd, yyyy h:mm a');
+  };
+
+  const refreshInquiries = () => {
+    fetchInquiries();
   };
 
   return {
-    inquiries: filteredInquiries,
+    inquiries,
     isLoading,
     searchTerm,
     setSearchTerm,
@@ -83,6 +106,7 @@ export const useSalesInquiries = () => {
     selectedInquiry,
     setSelectedInquiry,
     updateInquiryStatus,
-    formatDate
+    formatDate,
+    refreshInquiries
   };
 };
