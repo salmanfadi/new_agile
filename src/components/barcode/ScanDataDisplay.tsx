@@ -64,7 +64,7 @@ const ScanDataDisplay: React.FC<ScanDataDisplayProps> = ({ scanData }) => {
             {Object.entries(scanData.attributes).map(([key, value]) => (
               <div key={key} className="text-xs">
                 <span className="font-medium">{key}: </span>
-                <span className="text-muted-foreground">{value}</span>
+                <span className="text-muted-foreground">{String(value)}</span>
               </div>
             ))}
           </div>
