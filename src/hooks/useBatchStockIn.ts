@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { BatchFormData, BatchData, ProcessedBatch, StockInBatchSubmission } from '@/types/batchStockIn';
 import { generateBarcodeString } from '@/utils/barcodeUtils';
@@ -11,7 +11,6 @@ export const useBatchStockIn = (userId: string) => {
   const [batches, setBatches] = useState<ProcessedBatch[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const queryClient = useQueryClient();
 
   const addBatch = (formData: BatchFormData) => {
     if (!formData.product || !formData.warehouse || !formData.location) {
@@ -86,9 +85,6 @@ export const useBatchStockIn = (userId: string) => {
     mutationFn: async (data: StockInBatchSubmission) => {
       setIsProcessing(true);
       try {
-        const operationId = uuidv4().substring(0, 8); // For tracing this operation
-        console.log(`[${operationId}] Starting batch stock-in submission`);
-        
         // Start transaction
         const { data: stockInData, error: stockInError } = await supabase
           .from('stock_in')
@@ -104,22 +100,19 @@ export const useBatchStockIn = (userId: string) => {
           .select('id')
           .single();
 
-        if (stockInError) {
-          console.error(`[${operationId}] Error creating stock-in:`, stockInError);
-          throw stockInError;
-        }
-        
-        if (!stockInData || !stockInData.id) {
-          console.error(`[${operationId}] Failed to create stock-in record`);
-          throw new Error('Failed to create stock-in record');
-        }
+        if (stockInError) throw stockInError;
+        if (!stockInData || !stockInData.id) throw new Error('Failed to create stock-in record');
         
         const stockInId = stockInData.id;
-        console.log(`[${operationId}] Created stock-in record: ${stockInId}`);
         
-        // Process batches in parallel for better performance
-        const batchResults = await Promise.all(data.batches.map(async (batch) => {
+        // Log stock in creation
+        console.log('Created stock-in record:', stockInId);
+        
+        // Create batches
+        const batchPromises = data.batches.map(async (batch) => {
           try {
+            console.log('Processing batch with product_id:', batch.product_id);
+            
             // Insert batch record
             const { data: batchData, error: batchError } = await supabase
               .from('stock_in_batches' as any)
@@ -138,26 +131,34 @@ export const useBatchStockIn = (userId: string) => {
               .single();
               
             if (batchError) {
-              console.error(`[${operationId}] Error creating batch:`, batchError);
+              console.error('Error creating batch record:', batchError);
               throw batchError;
             }
             
+            // Check if batchData exists and has an id property
             if (!batchData) {
+              console.error('No data returned from batch insertion');
               throw new Error('Failed to create batch record');
             }
             
+            // Use type assertion after checking that batchData is not null
             const batchId = (batchData as unknown as { id: string }).id;
             
-            // Prepare arrays for batch inserts
+            if (!batchId) {
+              console.error('Invalid batch ID returned');
+              throw new Error('Invalid batch ID returned');
+            }
+            
+            console.log('Created batch record:', batchId);
+            
+            // Create inventory and detail records for each box in the batch
             const detailsToInsert = [];
             const inventoryToInsert = [];
-            const barcodeLogsToInsert = [];
             
-            // Create entries for each box
             for (let i = 0; i < batch.boxes_count; i++) {
               const barcode = batch.barcodes ? batch.barcodes[i] : uuidv4();
               
-              // Stock in detail
+              // Each box becomes a stock in detail
               detailsToInsert.push({
                 stock_in_id: stockInId,
                 batch_id: batchId,
@@ -170,7 +171,7 @@ export const useBatchStockIn = (userId: string) => {
                 created_by: data.submittedBy
               });
               
-              // Inventory entry
+              // Each box also becomes an inventory entry
               inventoryToInsert.push({
                 product_id: batch.product_id,
                 warehouse_id: batch.warehouse_id,
@@ -181,106 +182,111 @@ export const useBatchStockIn = (userId: string) => {
                 size: batch.size,
                 status: 'available'
               });
+            }
+            
+            // Insert all box details
+            console.log('Inserting', detailsToInsert.length, 'stock in details');
+            const { error: detailsError } = await supabase
+              .from('stock_in_details')
+              .insert(detailsToInsert);
               
-              // Barcode log
-              barcodeLogsToInsert.push({
-                barcode: barcode,
-                action: 'stock_in',
-                user_id: data.submittedBy,
-                batch_id: batchId,
-                details: {
-                  stock_in_id: stockInId,
-                  product_id: batch.product_id,
-                  quantity: batch.quantity_per_box
-                }
-              });
+            if (detailsError) {
+              console.error('Error inserting details:', detailsError);
+              throw detailsError;
             }
             
-            // Batch insert stock in details
-            if (detailsToInsert.length > 0) {
-              const { error: detailsError } = await supabase
-                .from('stock_in_details')
-                .insert(detailsToInsert);
-                
-              if (detailsError) {
-                console.error(`[${operationId}] Error inserting details:`, detailsError);
-                throw detailsError;
+            // Insert all inventory entries
+            console.log('Inserting', inventoryToInsert.length, 'inventory entries');
+            const { error: inventoryError } = await supabase
+              .from('inventory')
+              .insert(inventoryToInsert);
+              
+            if (inventoryError) {
+              console.error('Error inserting inventory:', inventoryError);
+              throw inventoryError;
+            }
+            
+            // Create barcode log entries for tracking
+            const barcodeLogEntries = batch.barcodes?.map(barcode => ({
+              barcode: barcode,
+              action: 'stock_in',
+              user_id: data.submittedBy,
+              batch_id: batchId,
+              details: {
+                stock_in_id: stockInId,
+                product_id: batch.product_id,
+                quantity: batch.quantity_per_box
               }
-            }
+            })) || [];
             
-            // Batch insert inventory entries
-            if (inventoryToInsert.length > 0) {
-              const { error: inventoryError } = await supabase
-                .from('inventory')
-                .insert(inventoryToInsert);
-                
-              if (inventoryError) {
-                console.error(`[${operationId}] Error inserting inventory:`, inventoryError);
-                throw inventoryError;
-              }
-            }
-            
-            // Batch insert barcode logs
-            if (barcodeLogsToInsert.length > 0) {
-              await supabase
+            if (barcodeLogEntries.length > 0) {
+              console.log('Creating barcode log entries:', barcodeLogEntries.length);
+              const { error: barcodeLogError } = await supabase
                 .from('barcode_logs')
-                .insert(barcodeLogsToInsert);
-              // Non-critical, so don't check for errors
+                .insert(barcodeLogEntries);
+                
+              if (barcodeLogError) {
+                console.error('Error creating barcode logs:', barcodeLogError);
+                // Non-critical error, don't throw
+              }
             }
             
-            return { success: true, batchId };
+            return batchId;
           } catch (error) {
-            console.error(`[${operationId}] Batch processing failed:`, error);
-            return { success: false, error };
+            console.error('Error processing batch:', error);
+            throw error;
           }
-        }));
+        });
         
-        // Check if all batches were processed successfully
-        const failedBatches = batchResults.filter(result => !result.success).length;
-        if (failedBatches > 0) {
-          console.warn(`[${operationId}] ${failedBatches} batches failed to process`);
-        }
-        
-        // Update stock_in status to completed
-        const { error: updateError } = await supabase
-          .from('stock_in')
-          .update({ status: 'completed' })
-          .eq('id', stockInId);
+        try {
+          // Wait for all batch insertions to complete
+          await Promise.all(batchPromises);
           
-        if (updateError) {
-          console.error(`[${operationId}] Error updating stock_in status:`, updateError);
-          throw updateError;
-        }
-        
-        // Create a notification for admins
-        let productName = 'Unknown Product';
-        if (batches.length > 0 && batches[0].product) {
-          productName = batches[0].product.name;
-        }
-        
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: data.submittedBy,
-            role: 'admin',
-            action_type: 'stock_in_batch_created',
-            metadata: {
-              stock_in_id: stockInId,
-              batches_count: data.batches.length,
-              total_boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
-              product_name: productName,
-              operation_id: operationId
-            }
-          });
+          // Update stock_in status to completed
+          const { error: updateError } = await supabase
+            .from('stock_in')
+            .update({ status: 'completed' })
+            .eq('id', stockInId);
+            
+          if (updateError) {
+            console.error('Error updating stock_in status:', updateError);
+            throw updateError;
+          }
           
-        console.log(`[${operationId}] Stock in process completed successfully`);
-        
-        // Invalidate related queries to ensure UI updates
-        queryClient.invalidateQueries({ queryKey: ['inventory'] });
-        queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-        queryClient.invalidateQueries({ queryKey: ['stock-in'] });
-        
-        return { stockInId };
+          console.log('Stock in process completed successfully');
+          
+          // Create a notification for admins
+          // Get the product name from our local state since we have access to it there
+          // rather than trying to access it from the BatchData which doesn't have it
+          let productName = 'Unknown Product';
+          if (batches.length > 0 && batches[0].product) {
+            productName = batches[0].product.name;
+          }
+          
+          const { error: notificationError } = await supabase
+            .from('notifications')
+            .insert({
+              user_id: data.submittedBy,
+              role: 'admin',
+              action_type: 'stock_in_batch_created',
+              metadata: {
+                stock_in_id: stockInId,
+                batches_count: data.batches.length,
+                total_boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
+                product_name: productName
+              }
+            });
+            
+          if (notificationError) {
+            console.error('Failed to create notification:', notificationError);
+            // Don't throw here, continue with the success flow
+          }
+          
+          return { stockInId };
+        } catch (error) {
+          console.error('Batch processing failed:', error);
+          throw error;
+        }
       } catch (error) {
         console.error('Stock in submission failed:', error);
         throw error;

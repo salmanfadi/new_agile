@@ -1,6 +1,6 @@
 
 /**
- * Generates a globally unique barcode string in the format CAT-PROD-BOX-UID
+ * Generates a barcode string in the format CAT-PROD-BOX-UID
  * 
  * @param category - Product category abbreviation (e.g., ELEC for Electronics)
  * @param sku - Product SKU or identifier
@@ -22,15 +22,8 @@ export const generateBarcodeString = (
   // Format box number with leading zeros (001, 002, etc.)
   const boxStr = boxNumber.toString().padStart(3, '0');
   
-  // Generate a more unique identifier:
-  // 1. Use timestamp for time-based uniqueness
-  const timestamp = Date.now().toString(36);
-  
-  // 2. Add random component for collision prevention
-  const randomPart = Math.random().toString(36).substring(2, 6);
-  
-  // 3. Combine them for a truly unique ID
-  const uniqueId = `${timestamp.substring(timestamp.length - 4)}${randomPart}`;
+  // Add timestamp to ensure uniqueness across batches
+  const uniqueId = Date.now().toString(36).substring(4);
   
   // Combine all parts
   return `${categoryAbbrev}-${sku}-${boxStr}-${uniqueId}`;
@@ -60,36 +53,4 @@ export const parseBarcodeString = (barcode: string): {
     boxNumber: parseInt(parts[2], 10),
     uniqueId: parts[3]
   };
-};
-
-/**
- * Validates a barcode format
- * 
- * @param barcode - Barcode string to validate
- * @returns Boolean indicating if the barcode is valid
- */
-export const isValidBarcode = (barcode: string): boolean => {
-  const parts = barcode.split('-');
-  
-  // Must have 4 parts: category, product, box number, and unique ID
-  if (parts.length !== 4) {
-    return false;
-  }
-  
-  // Category should be 1-4 uppercase letters
-  if (!/^[A-Z]{1,4}$/.test(parts[0])) {
-    return false;
-  }
-  
-  // Box number must be numeric
-  if (!/^\d+$/.test(parts[2])) {
-    return false;
-  }
-  
-  // Unique ID should be at least 4 characters
-  if (parts[3].length < 4) {
-    return false;
-  }
-  
-  return true;
 };

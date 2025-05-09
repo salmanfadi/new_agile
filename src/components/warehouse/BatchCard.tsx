@@ -3,9 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProcessedBatch } from '@/types/batchStockIn';
-import { Pencil, Trash2, EyeOff, Eye, ClipboardCopy, Check } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
+import { Pencil, Trash2, EyeOff, Eye } from 'lucide-react';
 
 interface BatchCardProps {
   batch: ProcessedBatch;
@@ -25,7 +23,6 @@ export const BatchCard: React.FC<BatchCardProps> = ({
   disabled = false
 }) => {
   const [showAllBarcodes, setShowAllBarcodes] = useState(false);
-  const [copiedBarcode, setCopiedBarcode] = useState<string | null>(null);
 
   const displayBarcodes = batch.barcodes || [];
   const initialDisplayCount = 3;
@@ -34,25 +31,9 @@ export const BatchCard: React.FC<BatchCardProps> = ({
   const barcodesToShow = showAllBarcodes 
     ? displayBarcodes 
     : displayBarcodes.slice(0, initialDisplayCount);
-    
-  const copyToClipboard = (barcode: string) => {
-    navigator.clipboard.writeText(barcode).then(() => {
-      setCopiedBarcode(barcode);
-      toast({
-        title: "Copied!",
-        description: "Barcode copied to clipboard",
-        duration: 2000,
-      });
-      
-      // Reset copy icon after 2 seconds
-      setTimeout(() => {
-        setCopiedBarcode(null);
-      }, 2000);
-    });
-  };
 
   return (
-    <Card className="apple-shadow-sm overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 transition-all duration-300 hover:shadow-md">
+    <Card className="apple-shadow-sm overflow-hidden">
       <CardContent className="p-4">
         <div className="flex justify-between items-start">
           <div>
@@ -98,15 +79,9 @@ export const BatchCard: React.FC<BatchCardProps> = ({
           )}
         </div>
 
-        <div className="mt-4 py-2">
-          <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800">
-            Total Items: {batch.boxes_count * batch.quantity_per_box}
-          </Badge>
-        </div>
-
         {showBarcodes && batch.barcodes && batch.barcodes.length > 0 && (
           <div className="mt-4">
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center">
               <p className="text-xs text-gray-500 dark:text-gray-400">Barcodes</p>
               {hasMoreBarcodes && (
                 <Button 
@@ -132,21 +107,8 @@ export const BatchCard: React.FC<BatchCardProps> = ({
             </div>
             <div className="mt-1 space-y-1">
               {barcodesToShow.map((barcode, idx) => (
-                <div key={idx} className="text-xs flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-1.5 rounded-md border border-gray-200 dark:border-gray-700">
-                  <span className="font-mono">{barcode}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => copyToClipboard(barcode)}
-                    disabled={disabled}
-                  >
-                    {copiedBarcode === barcode ? (
-                      <Check className="h-3.5 w-3.5 text-green-500" />
-                    ) : (
-                      <ClipboardCopy className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
+                <div key={idx} className="text-xs bg-gray-50 dark:bg-gray-800 p-1 rounded">
+                  {barcode}
                 </div>
               ))}
               {!showAllBarcodes && hasMoreBarcodes && (

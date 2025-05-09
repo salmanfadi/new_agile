@@ -1,5 +1,7 @@
 
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/PageHeader';
 import {
   Table,
@@ -18,24 +20,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Warehouse } from '@/types/database';
-import { useRealtimeInventory } from '@/hooks/useRealtimeInventory';
-import { DataSyncProvider, useDataSync } from '@/context/DataSyncContext';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
+import { Inventory, Warehouse, Product } from '@/types/database';
 
-const InventoryContent: React.FC = () => {
+// Define a type for the extended inventory data that comes from the query
+interface ExtendedInventory {
+  id: string;
+  product_id: string;
+  warehouse_id: string;
+  location_id: string;
+  barcode: string;
+  quantity: number;
+  color: string | null;
+  size: string | null;
+  created_at: string;
+  updated_at: string;
+  product: { name: string };
+  warehouse: { name: string };
+  warehouse_location: { floor: number; zone: string };
+}
+
+const InventoryView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('');
-  const { subscribeToTable } = useDataSync();
-  
-  // Subscribe to real-time updates for warehouses
-  React.useEffect(() => {
-    subscribeToTable('warehouses');
-  }, [subscribeToTable]);
   
   // Fetch warehouses for filter
   const warehousesQuery = useQuery({
@@ -50,19 +56,36 @@ const InventoryContent: React.FC = () => {
     }
   });
   
-  // Use the real-time inventory hook
-  const { 
-    inventory: filteredInventory,
-    isLoading,
-    isError,
-    totalItems,
-    uniqueProducts,
-    lowStockItems,
-    refresh
-  } = useRealtimeInventory({
-    warehouseId: warehouseFilter || undefined,
-    searchTerm
+  // Fetch inventory with product and location details
+  const inventoryQuery = useQuery({
+    queryKey: ['inventory', warehouseFilter],
+    queryFn: async () => {
+      let query = supabase
+        .from('inventory')
+        .select(`
+          *,
+          product:product_id(name),
+          warehouse:warehouse_id(name),
+          warehouse_location:location_id(floor, zone)
+        `);
+        
+      if (warehouseFilter) {
+        query = query.eq('warehouse_id', warehouseFilter);
+      }
+      
+      const { data, error } = await query;
+        
+      if (error) throw error;
+      return data as unknown as ExtendedInventory[];
+    }
   });
+  
+  const filteredInventory = inventoryQuery.data?.filter(item => {
+    return (
+      item.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.barcode.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }) || [];
   
   return (
     <div className="space-y-6">
@@ -70,28 +93,6 @@ const InventoryContent: React.FC = () => {
         title="Inventory" 
         description="View inventory across all warehouses"
       />
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <div className="p-6">
-            <div className="text-sm font-medium text-muted-foreground">Total Items</div>
-            <div className="text-3xl font-bold">{totalItems}</div>
-          </div>
-        </Card>
-        <Card>
-          <div className="p-6">
-            <div className="text-sm font-medium text-muted-foreground">Unique Products</div>
-            <div className="text-3xl font-bold">{uniqueProducts}</div>
-          </div>
-        </Card>
-        <Card>
-          <div className="p-6">
-            <div className="text-sm font-medium text-muted-foreground">Low Stock Items</div>
-            <div className="text-3xl font-bold text-amber-500">{lowStockItems}</div>
-          </div>
-        </Card>
-      </div>
       
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="w-full md:w-1/2">
@@ -102,7 +103,7 @@ const InventoryContent: React.FC = () => {
             className="w-full"
           />
         </div>
-        <div className="w-full md:w-1/3">
+        <div className="w-full md:w-1/2">
           <Select
             value={warehouseFilter}
             onValueChange={(value) => setWarehouseFilter(value)}
@@ -119,16 +120,6 @@ const InventoryContent: React.FC = () => {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="w-full md:w-1/6">
-          <Button 
-            variant="outline" 
-            className="w-full" 
-            onClick={() => refresh()}
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
         </div>
       </div>
       
@@ -149,7 +140,7 @@ const InventoryContent: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {inventoryQuery.isLoading ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8">
                     <div className="flex justify-center">
@@ -158,7 +149,7 @@ const InventoryContent: React.FC = () => {
                     <div className="mt-2">Loading inventory...</div>
                   </TableCell>
                 </TableRow>
-              ) : isError ? (
+              ) : inventoryQuery.isError ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8 text-red-500">
                     Error loading inventory data
@@ -175,16 +166,7 @@ const InventoryContent: React.FC = () => {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.product.name}</TableCell>
                     <TableCell>{item.barcode}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {item.quantity}
-                        {item.quantity < 5 && (
-                          <Badge variant="outline" className="text-amber-500 border-amber-500">
-                            Low
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
+                    <TableCell>{item.quantity}</TableCell>
                     <TableCell>{item.warehouse.name}</TableCell>
                     <TableCell>{item.warehouse_location.floor}</TableCell>
                     <TableCell>{item.warehouse_location.zone}</TableCell>
@@ -199,15 +181,6 @@ const InventoryContent: React.FC = () => {
         </div>
       </Card>
     </div>
-  );
-};
-
-// Wrap component with DataSyncProvider to ensure real-time updates
-const InventoryView: React.FC = () => {
-  return (
-    <DataSyncProvider>
-      <InventoryContent />
-    </DataSyncProvider>
   );
 };
 

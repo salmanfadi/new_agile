@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Boxes, AlertTriangle, ArrowLeft, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useBatchStockIn } from '@/hooks/useBatchStockIn';
@@ -16,8 +15,6 @@ import { BatchCard } from '@/components/warehouse/BatchCard';
 import { useStockInData } from '@/hooks/useStockInData';
 import { toast } from '@/hooks/use-toast';
 import { BackButton } from '@/components/warehouse/BackButton';
-import { useWarehouseData } from '@/hooks/useWarehouseData';
-import { DataSyncProvider, useDataSync } from '@/context/DataSyncContext';
 
 interface BatchStockInComponentProps {
   adminMode?: boolean;
@@ -25,7 +22,7 @@ interface BatchStockInComponentProps {
   onClose?: () => void;
 }
 
-const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({ 
+const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ 
   adminMode = false, 
   sheetMode = false,
   onClose
@@ -34,21 +31,11 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { stockInData, isLoadingStockIn } = useStockInData(stockInId);
-  const { subscribeToTable } = useDataSync();
 
   const [source, setSource] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [remainingBoxes, setRemainingBoxes] = useState<number>(0);
   const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  
-  // Subscribe to real-time updates for relevant tables
-  useEffect(() => {
-    if (stockInId) {
-      subscribeToTable('stock_in');
-    }
-    subscribeToTable('inventory');
-  }, [stockInId, subscribeToTable]);
   
   const handleGoBack = () => {
     if (sheetMode && onClose) {
@@ -70,21 +57,9 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
     editingIndex,
     setEditingIndex,
     submitStockIn,
-    isSubmitting: isMutationSubmitting,
+    isSubmitting,
     isProcessing
   } = useBatchStockIn(user?.id || '');
-
-  // Default warehouse data
-  const [defaultValues, setDefaultValues] = useState({
-    warehouse: '',
-    location: '',
-    quantity: 0,
-    color: '',
-    size: '',
-  });
-
-  // Get warehouse data
-  const { warehouses, locations } = useWarehouseData(defaultValues.warehouse);
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
   useEffect(() => {
@@ -102,7 +77,7 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
   // Custom batch add function that validates against remaining boxes
   const handleAddBatch = (formData: any) => {
     // Prevent adding new batches when we're submitting
-    if (isMutationSubmitting || isProcessing || formSubmitted || isSubmitting) {
+    if (isSubmitting || isProcessing || formSubmitted) {
       return;
     }
 
@@ -139,10 +114,8 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
       });
       return;
     }
-    
-    // Set flag to prevent double submission
+
     setFormSubmitted(true);
-    setIsSubmitting(true);
 
     // Fix: Add proper type handling for productId
     let productId: string;
@@ -167,36 +140,6 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
       submittedBy: user.id,
       batches
     });
-  };
-
-  // Function to apply default warehouse, location to all batches
-  const applyDefaultsToAll = () => {
-    if (!defaultValues.warehouse || !defaultValues.location) {
-      toast({
-        variant: 'destructive',
-        title: 'Missing defaults',
-        description: 'Please select a warehouse and location before applying to all batches.',
-      });
-      return;
-    }
-    
-    // Update all batches with default values
-    // This would need to be implemented in useBatchStockIn hook
-    // For now we'll show a success toast
-    toast({
-      title: 'Defaults Applied',
-      description: 'Default values have been applied to all batches.',
-    });
-  };
-
-  // Check if any required data is missing from batches
-  const isMissingRequiredData = () => {
-    return batches.some(batch => 
-      !batch.warehouse_id || 
-      !batch.location_id || 
-      batch.boxes_count <= 0 ||
-      batch.quantity_per_box <= 0
-    );
   };
 
   return (
@@ -265,7 +208,7 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
                     placeholder="Supplier or source"
                     readOnly={!!stockInId}
                     className="apple-shadow-sm"
-                    disabled={isSubmitting || isProcessing || formSubmitted}
+                    disabled={isSubmitting || isProcessing}
                   />
                 </div>
                 <div className="space-y-2">
@@ -277,7 +220,7 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
                     placeholder="Optional notes about this batch"
                     readOnly={!!stockInId}
                     className="apple-shadow-sm min-h-[100px]"
-                    disabled={isSubmitting || isProcessing || formSubmitted}
+                    disabled={isSubmitting || isProcessing}
                   />
                 </div>
               </CardContent>
@@ -297,71 +240,12 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
             <div className="space-y-4">
               <BatchForm 
                 onAddBatch={handleAddBatch} 
-                isSubmitting={isSubmitting || isProcessing || formSubmitted || isMutationSubmitting}
+                isSubmitting={isSubmitting || isProcessing || formSubmitted}
                 editingBatch={editingIndex !== null ? batches[editingIndex] : undefined}
                 onCancel={editingIndex !== null ? () => setEditingIndex(null) : undefined}
                 maxBoxes={remainingBoxes + (editingIndex !== null ? batches[editingIndex].boxes_count : 0)}
                 stockInData={stockInData}
               />
-              
-              {/* Default values section for warehouse/location - optional */}
-              <Card className="apple-shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">Default Values</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="default-warehouse">Default Warehouse</Label>
-                      <Select
-                        value={defaultValues.warehouse}
-                        onValueChange={(value) => setDefaultValues({...defaultValues, warehouse: value})}
-                        disabled={isSubmitting || isProcessing || formSubmitted}
-                      >
-                        <SelectTrigger id="default-warehouse" className="apple-shadow-sm">
-                          <SelectValue placeholder="Select warehouse" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {warehouses?.map(warehouse => (
-                            <SelectItem key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="default-location">Default Location</Label>
-                      <Select
-                        value={defaultValues.location}
-                        onValueChange={(value) => setDefaultValues({...defaultValues, location: value})}
-                        disabled={isSubmitting || isProcessing || formSubmitted || !defaultValues.warehouse}
-                      >
-                        <SelectTrigger id="default-location" className="apple-shadow-sm">
-                          <SelectValue placeholder="Select location" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {locations?.map(location => (
-                            <SelectItem key={location.id} value={location.id}>
-                              Floor {location.floor}, Zone {location.zone}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={applyDefaultsToAll}
-                    disabled={isSubmitting || isProcessing || formSubmitted || !defaultValues.warehouse || !defaultValues.location}
-                    className="w-full apple-shadow-sm"
-                  >
-                    Apply to All Batches
-                  </Button>
-                </CardContent>
-              </Card>
             </div>
             
             <div className="space-y-4">
@@ -380,26 +264,19 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
                       key={index}
                       batch={batch}
                       index={index}
-                      onEdit={() => !isSubmitting && !isProcessing && !formSubmitted && !isMutationSubmitting && editBatch(index)} 
-                      onDelete={() => !isSubmitting && !isProcessing && !formSubmitted && !isMutationSubmitting && deleteBatch(index)} 
+                      onEdit={() => !isSubmitting && !isProcessing && !formSubmitted && editBatch(index)} 
+                      onDelete={() => !isSubmitting && !isProcessing && !formSubmitted && deleteBatch(index)} 
                       showBarcodes={true}
-                      disabled={isSubmitting || isProcessing || formSubmitted || isMutationSubmitting}
+                      disabled={isSubmitting || isProcessing || formSubmitted}
                     />
                   ))}
                   
                   <Button 
                     onClick={handleBatchSubmission} 
                     className="w-full mt-4 apple-shadow-sm" 
-                    disabled={
-                      batches.length === 0 || 
-                      isSubmitting || 
-                      isProcessing || 
-                      formSubmitted ||
-                      isMutationSubmitting ||
-                      isMissingRequiredData()
-                    }
+                    disabled={batches.length === 0 || isSubmitting || isProcessing || formSubmitted}
                   >
-                    {isSubmitting || isProcessing || isMutationSubmitting ? (
+                    {isSubmitting || isProcessing ? (
                       <span className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Processing...
@@ -413,15 +290,6 @@ const BatchStockInContent: React.FC<BatchStockInComponentProps> = ({
         </div>
       )}
     </>
-  );
-};
-
-// Wrap the component with DataSyncProvider
-const BatchStockInComponent: React.FC<BatchStockInComponentProps> = (props) => {
-  return (
-    <DataSyncProvider>
-      <BatchStockInContent {...props} />
-    </DataSyncProvider>
   );
 };
 

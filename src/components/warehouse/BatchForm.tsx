@@ -21,22 +21,6 @@ interface BatchFormProps {
   onCancel?: () => void;
   maxBoxes?: number;
   stockInData?: StockInData | null;
-  defaultValues?: {
-    warehouse: string;
-    location: string;
-    quantity: number;
-    color: string;
-    size: string;
-  };
-  setDefaultValues?: React.Dispatch<React.SetStateAction<{
-    warehouse: string;
-    location: string;
-    quantity: number;
-    color: string;
-    size: string;
-  }>>;
-  warehouses?: Warehouse[];
-  locations?: WarehouseLocation[];
 }
 
 export const BatchForm: React.FC<BatchFormProps> = ({ 
@@ -45,11 +29,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
   editingBatch,
   onCancel,
   maxBoxes,
-  stockInData,
-  defaultValues,
-  setDefaultValues,
-  warehouses: propWarehouses,
-  locations: propLocations
+  stockInData
 }) => {
   const [batchData, setBatchData] = useState<BatchFormData>({
     product: null,
@@ -79,23 +59,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
         product: stockInData.product as Product
       }));
     }
-    
-    // Apply default values if available and not editing
-    if (defaultValues && !editingBatch && defaultValues.warehouse && defaultValues.location) {
-      const selectedWarehouse = propWarehouses?.find(w => w.id === defaultValues.warehouse) || null;
-      const selectedLocation = propLocations?.find(l => l.id === defaultValues.location) || null;
-      
-      if (selectedWarehouse && selectedLocation) {
-        setBatchData(prev => ({
-          ...prev,
-          warehouse: selectedWarehouse,
-          location: selectedLocation,
-          color: defaultValues.color || prev.color,
-          size: defaultValues.size || prev.size
-        }));
-      }
-    }
-  }, [editingBatch, stockInData, defaultValues, propWarehouses, propLocations]);
+  }, [editingBatch, stockInData]);
 
   // Fetch products
   const { data: products, isLoading: isLoadingProducts } = useQuery({
@@ -112,7 +76,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
     }
   });
 
-  // Use provided warehouses or fetch them
+  // Fetch warehouses
   const { data: warehouses, isLoading: isLoadingWarehouses } = useQuery({
     queryKey: ['warehouses'],
     queryFn: async () => {
@@ -123,14 +87,10 @@ export const BatchForm: React.FC<BatchFormProps> = ({
       
       if (error) throw error;
       return data as Warehouse[];
-    },
-    enabled: !propWarehouses
+    }
   });
 
-  const actualWarehouses = propWarehouses || warehouses;
-  const isActuallyLoadingWarehouses = !propWarehouses && isLoadingWarehouses;
-
-  // Use provided locations or fetch them
+  // Fetch locations based on selected warehouse
   const { data: locations, isLoading: isLoadingLocations } = useQuery({
     queryKey: ['locations', batchData.warehouse?.id],
     queryFn: async () => {
@@ -146,11 +106,8 @@ export const BatchForm: React.FC<BatchFormProps> = ({
       if (error) throw error;
       return data as WarehouseLocation[];
     },
-    enabled: !propLocations && !!batchData.warehouse?.id
+    enabled: !!batchData.warehouse?.id
   });
-
-  const actualLocations = propLocations || locations;
-  const isActuallyLoadingLocations = !propLocations && isLoadingLocations;
 
   const handleChange = (field: keyof BatchFormData, value: any) => {
     setBatchData(prev => ({
@@ -174,23 +131,13 @@ export const BatchForm: React.FC<BatchFormProps> = ({
   };
 
   const handleWarehouseChange = (warehouseId: string) => {
-    const selectedWarehouse = actualWarehouses?.find(w => w.id === warehouseId) || null;
+    const selectedWarehouse = warehouses?.find(w => w.id === warehouseId) || null;
     handleChange('warehouse', selectedWarehouse);
-    
-    // Update default values if available
-    if (setDefaultValues) {
-      setDefaultValues(prev => ({...prev, warehouse: warehouseId}));
-    }
   };
 
   const handleLocationChange = (locationId: string) => {
-    const selectedLocation = actualLocations?.find(l => l.id === locationId) || null;
+    const selectedLocation = locations?.find(l => l.id === locationId) || null;
     handleChange('location', selectedLocation);
-    
-    // Update default values if available
-    if (setDefaultValues) {
-      setDefaultValues(prev => ({...prev, location: locationId}));
-    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -310,20 +257,20 @@ export const BatchForm: React.FC<BatchFormProps> = ({
             <Label htmlFor="warehouse">Warehouse</Label>
             <Select 
               onValueChange={handleWarehouseChange} 
-              disabled={isActuallyLoadingWarehouses || isSubmitting}
+              disabled={isLoadingWarehouses || isSubmitting}
               value={batchData.warehouse?.id || ''}
             >
               <SelectTrigger id="warehouse">
                 <SelectValue placeholder="Select warehouse" />
               </SelectTrigger>
               <SelectContent>
-                {isActuallyLoadingWarehouses ? (
+                {isLoadingWarehouses ? (
                   <SelectItem value="loading" disabled>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Loading warehouses...
                   </SelectItem>
                 ) : (
-                  actualWarehouses?.map((warehouse) => (
+                  warehouses?.map((warehouse) => (
                     <SelectItem key={warehouse.id} value={warehouse.id}>
                       {warehouse.name}
                     </SelectItem>
@@ -337,20 +284,20 @@ export const BatchForm: React.FC<BatchFormProps> = ({
             <Label htmlFor="location">Location</Label>
             <Select 
               onValueChange={handleLocationChange} 
-              disabled={!batchData.warehouse || isActuallyLoadingLocations || isSubmitting}
+              disabled={!batchData.warehouse || isLoadingLocations || isSubmitting}
               value={batchData.location?.id || ''}
             >
               <SelectTrigger id="location">
                 <SelectValue placeholder={batchData.warehouse ? "Select location" : "Select warehouse first"} />
               </SelectTrigger>
               <SelectContent>
-                {isActuallyLoadingLocations ? (
+                {isLoadingLocations ? (
                   <SelectItem value="loading" disabled>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Loading locations...
                   </SelectItem>
                 ) : (
-                  actualLocations?.map((location) => (
+                  locations?.map((location) => (
                     <SelectItem key={location.id} value={location.id}>
                       Floor {location.floor}, Zone {location.zone}
                     </SelectItem>
@@ -366,13 +313,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
               <Input
                 id="color"
                 value={batchData.color}
-                onChange={(e) => {
-                  handleChange('color', e.target.value);
-                  // Update default values if available
-                  if (setDefaultValues) {
-                    setDefaultValues(prev => ({...prev, color: e.target.value}));
-                  }
-                }}
+                onChange={(e) => handleChange('color', e.target.value)}
                 placeholder="e.g. Red"
                 disabled={isSubmitting}
               />
@@ -382,13 +323,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
               <Input
                 id="size"
                 value={batchData.size}
-                onChange={(e) => {
-                  handleChange('size', e.target.value);
-                  // Update default values if available
-                  if (setDefaultValues) {
-                    setDefaultValues(prev => ({...prev, size: e.target.value}));
-                  }
-                }}
+                onChange={(e) => handleChange('size', e.target.value)}
                 placeholder="e.g. Large"
                 disabled={isSubmitting}
               />

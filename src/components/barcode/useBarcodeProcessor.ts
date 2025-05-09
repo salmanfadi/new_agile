@@ -3,8 +3,6 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ScanResponse } from '@/types/auth';
 import { BarcodeProcessorOptions } from './types';
-import { useQueryClient } from '@tanstack/react-query';
-import { isValidBarcode } from '@/utils/barcodeUtils';
 
 export function useBarcodeProcessor({
   user,
@@ -15,27 +13,10 @@ export function useBarcodeProcessor({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scanData, setScanData] = useState<ScanResponse['data'] | null>(null);
-  const queryClient = useQueryClient();
 
   const processScan = useCallback(async (scannedBarcode: string) => {
     if (!scannedBarcode || scannedBarcode.length < 8) {
       setError('Invalid barcode format');
-      toast({
-        variant: 'destructive',
-        title: 'Invalid Barcode',
-        description: 'The barcode format is invalid',
-      });
-      return;
-    }
-    
-    // Validate barcode format if it's one of our generated barcodes
-    if (scannedBarcode.includes('-') && !isValidBarcode(scannedBarcode)) {
-      setError('Invalid warehouse barcode format');
-      toast({
-        variant: 'destructive',
-        title: 'Invalid Barcode',
-        description: 'The warehouse barcode format is invalid',
-      });
       return;
     }
     
@@ -49,37 +30,12 @@ export function useBarcodeProcessor({
     setError(null);
     
     try {
-      // First, log the scan in barcode_logs for tracking
-      const scanTime = new Date().toISOString();
-      const operationId = Math.random().toString(36).substring(2, 8);
-      
-      // Create a log entry for this scan
-      const { error: logError } = await supabase
-        .from('barcode_logs')
-        .insert({
-          barcode: scannedBarcode,
-          action: 'scan',
-          user_id: user?.id || '',
-          details: {
-            timestamp: scanTime,
-            operation_id: operationId
-          }
-        });
-        
-      if (logError) {
-        console.warn('Warning: Failed to create barcode scan log', logError);
-        // Non-critical error, continue with processing
-      }
-      
-      console.log(`[${operationId}] Processing barcode scan: ${scannedBarcode}`);
-      
       // Call the API to get barcode information
       const { data, error } = await supabase.functions.invoke('scan-barcode', {
         body: {
           barcode: scannedBarcode,
           user_id: user?.id,
-          role: user?.role,
-          operation_id: operationId
+          role: user?.role
         }
       });
       
@@ -98,35 +54,12 @@ export function useBarcodeProcessor({
         });
       } else {
         setScanData(response.data);
-        
-        // Update barcode log with success status
-        await supabase
-          .from('barcode_logs')
-          .update({
-            details: {
-              ...response.data,
-              timestamp: scanTime,
-              operation_id: operationId,
-              status: 'success'
-            }
-          })
-          .eq('barcode', scannedBarcode)
-          .eq('action', 'scan')
-          .eq('user_id', user?.id || '');
-        
-        // Invalidate relevant queries to update UI data
-        queryClient.invalidateQueries({ queryKey: ['inventory'] });
-        queryClient.invalidateQueries({ queryKey: ['stock-in'] });
-        queryClient.invalidateQueries({ queryKey: ['stock-out'] });
-        queryClient.invalidateQueries({ queryKey: ['barcode-logs'] });
-        
         if (onScanComplete) {
           onScanComplete(response.data);
         }
-        
         toast({
           title: 'Barcode Scanned',
-          description: `Found ${response.data.product?.name || 'item'}`,
+          description: `Found ${response.data.product.name}`,
         });
       }
     } catch (err) {
@@ -140,7 +73,7 @@ export function useBarcodeProcessor({
     } finally {
       setLoading(false);
     }
-  }, [user, toast, onScanComplete, onBarcodeScanned, queryClient]);
+  }, [user, toast, onScanComplete, onBarcodeScanned]);
 
   return {
     processScan,
