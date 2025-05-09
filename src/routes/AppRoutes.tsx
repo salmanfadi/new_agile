@@ -5,8 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 
 // Layout
 import { MainLayout } from '@/components/layout/MainLayout';
-import { LoginPage } from '@/pages/auth/LoginPage';
-import { RegisterPage } from '@/pages/auth/RegisterPage';
+import LoginPage from '@/pages/auth/LoginPage';
+import RegisterPage from '@/pages/auth/RegisterPage';
 
 // Protected route component
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -48,9 +48,9 @@ import ProfilePage from '@/pages/ProfilePage';
 import NotFound from '@/pages/NotFound';
 
 export const AppRoutes = () => {
-  const { user, loading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
-  if (loading) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 
