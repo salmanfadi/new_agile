@@ -1,0 +1,195 @@
+
+import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { BatchFormData, BatchData, ProcessedBatch, StockInBatchSubmission } from '@/types/batchStockIn';
+import { generateBarcodeString } from '@/utils/barcodeUtils';
+import { toast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
+
+export const useBatchStockIn = (userId: string) => {
+  const [batches, setBatches] = useState<ProcessedBatch[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  const addBatch = (formData: BatchFormData) => {
+    if (!formData.product || !formData.warehouse || !formData.location) {
+      toast({
+        title: 'Missing data',
+        description: 'Please complete all required fields',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Generate barcodes for each box in the batch
+    const barcodes: string[] = [];
+    for (let i = 0; i < formData.boxes_count; i++) {
+      const productSku = formData.product.sku || formData.product.name.substring(0, 6).toUpperCase().replace(/\s+/g, '');
+      const category = formData.product.category || 'MISC';
+      const boxNumber = i + 1;
+      // Use our existing barcode generation function
+      const barcode = generateBarcodeString(category, productSku, boxNumber);
+      barcodes.push(barcode);
+    }
+
+    const newBatch: ProcessedBatch = {
+      product_id: formData.product.id,
+      warehouse_id: formData.warehouse.id,
+      location_id: formData.location.id,
+      boxes_count: formData.boxes_count,
+      quantity_per_box: formData.quantity_per_box,
+      color: formData.color || undefined,
+      size: formData.size || undefined,
+      created_by: userId,
+      // Include joined data for display purposes
+      product: formData.product,
+      warehouse: formData.warehouse,
+      warehouseLocation: formData.location,
+      barcodes: barcodes
+    };
+
+    if (editingIndex !== null) {
+      // Update existing batch
+      const updatedBatches = [...batches];
+      updatedBatches[editingIndex] = newBatch;
+      setBatches(updatedBatches);
+      setEditingIndex(null);
+    } else {
+      // Add new batch
+      setBatches([...batches, newBatch]);
+    }
+
+    toast({
+      title: editingIndex !== null ? 'Batch updated' : 'Batch added',
+      description: `${formData.boxes_count} boxes of ${formData.product.name} added to batch`,
+    });
+  };
+
+  const editBatch = (index: number) => {
+    setEditingIndex(index);
+    // Return the batch data for pre-filling the form
+    return batches[index];
+  };
+
+  const deleteBatch = (index: number) => {
+    const updatedBatches = batches.filter((_, i) => i !== index);
+    setBatches(updatedBatches);
+    toast({
+      title: 'Batch removed',
+      description: 'The batch has been removed from the list',
+    });
+  };
+
+  const submitStockInMutation = useMutation({
+    mutationFn: async (data: StockInBatchSubmission) => {
+      // Start transaction
+      const { data: stockInData, error: stockInError } = await supabase
+        .from('stock_in')
+        .insert({
+          product_id: data.productId,
+          submitted_by: data.submittedBy,
+          boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
+          status: 'processing',
+          source: data.source,
+          notes: data.notes,
+          processed_by: data.submittedBy // Since we're using the batch system, the processor is the same as submitter
+        })
+        .select('id')
+        .single();
+
+      if (stockInError) throw stockInError;
+      
+      const stockInId = stockInData.id;
+      
+      // Create batches
+      const batchPromises = data.batches.map(async (batch) => {
+        // Insert batch record
+        const { data: batchData, error: batchError } = await supabase
+          .from('stock_in_batches')
+          .insert({
+            stock_in_id: stockInId,
+            product_id: batch.product_id,
+            warehouse_id: batch.warehouse_id,
+            location_id: batch.location_id,
+            boxes_count: batch.boxes_count,
+            quantity_per_box: batch.quantity_per_box,
+            color: batch.color,
+            size: batch.size,
+            created_by: data.submittedBy
+          })
+          .select('id')
+          .single();
+          
+        if (batchError) throw batchError;
+        
+        // Create barcode details for each box in the batch
+        const detailsToInsert = [];
+        
+        for (let i = 0; i < batch.boxes_count; i++) {
+          const barcode = batch.barcodes ? batch.barcodes[i] : uuidv4();
+          
+          detailsToInsert.push({
+            stock_in_id: stockInId,
+            batch_id: batchData.id,
+            barcode: barcode,
+            quantity: batch.quantity_per_box,
+            warehouse_id: batch.warehouse_id,
+            location_id: batch.location_id,
+            color: batch.color,
+            size: batch.size,
+            created_by: data.submittedBy
+          });
+        }
+        
+        // Insert all box details
+        const { error: detailsError } = await supabase
+          .from('stock_in_details')
+          .insert(detailsToInsert);
+          
+        if (detailsError) throw detailsError;
+        
+        return batchData.id;
+      });
+      
+      // Wait for all batch insertions to complete
+      await Promise.all(batchPromises);
+      
+      // Update stock_in status to completed
+      const { error: updateError } = await supabase
+        .from('stock_in')
+        .update({ status: 'completed' })
+        .eq('id', stockInId);
+        
+      if (updateError) throw updateError;
+      
+      return { stockInId };
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Stock-in processed successfully',
+        description: `${batches.length} batches have been successfully processed`,
+      });
+      // Reset state
+      setBatches([]);
+      setEditingIndex(null);
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error processing stock-in',
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        variant: 'destructive'
+      });
+    }
+  });
+
+  return {
+    batches,
+    addBatch,
+    editBatch,
+    deleteBatch,
+    editingIndex,
+    setEditingIndex,
+    submitStockIn: submitStockInMutation.mutate,
+    isSubmitting: submitStockInMutation.isPending
+  };
+};

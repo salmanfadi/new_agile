@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Filter } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Filter, BoxesIcon } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
 import { RejectStockInDialog } from '@/components/warehouse/RejectStockInDialog';
@@ -206,6 +206,13 @@ const AdminStockInManagement: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
+        
+        <Button asChild variant="default">
+          <Link to="/admin/stock-in/batch">
+            <BoxesIcon className="mr-2 h-4 w-4" />
+            Batch Processing
+          </Link>
+        </Button>
       </div>
       
       <Card>
