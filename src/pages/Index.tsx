@@ -5,15 +5,16 @@ import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Barcode } from 'lucide-react';
+import { Barcode, AlertTriangle } from 'lucide-react';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user, isLoading } = useAuth();
   const [progressValue, setProgressValue] = useState(30);
   const [redirectAttempted, setRedirectAttempted] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
   
-  console.log("Index page state:", { isAuthenticated, user, isLoading, redirectAttempted });
+  console.log("Index page state:", { isAuthenticated, user, isLoading, redirectAttempted, elapsedTime });
   
   // Simulate progress while loading to improve UX
   useEffect(() => {
@@ -25,6 +26,15 @@ const Index: React.FC = () => {
     }
   }, [isLoading]);
   
+  // Track elapsed time for better user feedback
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, []);
+  
   // Safety timeout to prevent getting stuck on loading
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -32,7 +42,7 @@ const Index: React.FC = () => {
         console.log("Navigation timeout - redirecting to login");
         navigate('/login');
       }
-    }, 5000); // 5 second safety timeout
+    }, 3000); // Reduced from 5s to 3s for faster fallback
     
     return () => clearTimeout(timeoutId);
   }, [isLoading, navigate]);
@@ -75,6 +85,13 @@ const Index: React.FC = () => {
   const handleForceLogin = () => {
     console.log("Forcing login with mock user");
     try {
+      // Clear any existing auth data
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-') || key === 'user') {
+          localStorage.removeItem(key);
+        }
+      });
+      
       // Create a mock admin user and store it
       const mockAdmin = { id: '1', username: 'admin', role: 'admin', name: 'Admin User' };
       localStorage.setItem('user', JSON.stringify(mockAdmin));
@@ -83,6 +100,20 @@ const Index: React.FC = () => {
       console.error("Force login failed:", error);
       navigate('/login');
     }
+  };
+  
+  // Handle force clear auth state
+  const handleForceClearAuth = () => {
+    console.log("Clearing auth state");
+    // Clear any auth tokens in storage
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-') || key === 'user') {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Force a full page reload
+    window.location.href = '/login';
   };
   
   return (
@@ -95,9 +126,15 @@ const Index: React.FC = () => {
           <div className="space-y-2">
             <p className="text-gray-600">Loading application...</p>
             <p className="text-sm text-gray-400">Verifying access credentials</p>
+            {elapsedTime > 2 && (
+              <p className="text-sm text-amber-500 flex items-center justify-center gap-1 mt-2">
+                <AlertTriangle className="h-4 w-4" /> 
+                Taking longer than expected
+              </p>
+            )}
           </div>
           
-          {progressValue >= 80 && (
+          {progressValue >= 60 || elapsedTime >= 3 ? (
             <div className="flex flex-col gap-2">
               <Button 
                 onClick={handleManualRedirect}
@@ -107,16 +144,25 @@ const Index: React.FC = () => {
                 Continue to Login
               </Button>
               
-              <Button
-                onClick={handleForceLogin}
-                variant="secondary"
-                size="sm"
-                className="mt-2"
-              >
-                Debug: Force Login as Admin
-              </Button>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  onClick={handleForceLogin}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Debug: Force Login
+                </Button>
+                
+                <Button
+                  onClick={handleForceClearAuth}
+                  variant="destructive"
+                  size="sm"
+                >
+                  Clear Auth State
+                </Button>
+              </div>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

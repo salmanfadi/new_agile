@@ -107,12 +107,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             try {
               if (session) {
-                const user = await mapSupabaseUser(session.user);
-                setState({
-                  user,
-                  isAuthenticated: !!user,
-                  isLoading: false,
-                });
+                // Use setTimeout to prevent potential deadlocks
+                setTimeout(async () => {
+                  const user = await mapSupabaseUser(session.user);
+                  setState({
+                    user,
+                    isAuthenticated: !!user,
+                    isLoading: false,
+                  });
+                }, 0);
               } else {
                 setState({
                   user: null,
@@ -172,7 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isLoading: false
         }));
       }
-    }, 5000); // 5 second safety timeout
+    }, 3000); // Reduced from 5s to 3s for faster fallback
 
     initAuth();
 
@@ -208,10 +211,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: `Logged in as ${user.name} (${user.role})`,
         });
 
-        // Redirect based on user role
-        setTimeout(() => {
-          window.location.href = `/${user.role === 'admin' ? 'admin' : user.role === 'warehouse_manager' ? 'manager' : 'operator'}`;
-        }, 500);
+        // Direct navigation without timeout
+        const redirectPath = user.role === 'admin' 
+          ? '/admin' 
+          : user.role === 'warehouse_manager' 
+            ? '/manager' 
+            : '/operator';
+            
+        window.location.href = redirectPath;
       } else {
         // Use Supabase auth
         // First attempt global sign out to ensure clean state
@@ -248,10 +255,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: `Logged in as ${user.name}`,
         });
 
-        // Redirect based on user role
-        setTimeout(() => {
-          window.location.href = `/${user.role === 'admin' ? 'admin' : user.role === 'warehouse_manager' ? 'manager' : 'operator'}`;
-        }, 500);
+        // Direct navigation without timeout
+        const redirectPath = user.role === 'admin' 
+          ? '/admin' 
+          : user.role === 'warehouse_manager' 
+            ? '/manager' 
+            : '/operator';
+            
+        window.location.href = redirectPath;
       }
     } catch (error) {
       console.error('Login error:', error);
