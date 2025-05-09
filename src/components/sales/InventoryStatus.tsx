@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,7 +55,7 @@ export const InventoryStatus: React.FC = () => {
         data.map(async (product) => {
           const { data: inventoryData, error: inventoryError } = await supabase
             .from('inventory')
-            .select('quantity, status')
+            .select('quantity')
             .eq('product_id', product.id);
 
           if (inventoryError) {
@@ -68,10 +67,10 @@ export const InventoryStatus: React.FC = () => {
             };
           }
 
-          // Only count items with status 'available'
-          const totalQuantity = inventoryData
-            .filter(item => item.status === 'available')
-            .reduce((sum, item) => sum + (item.quantity || 0), 0);
+          const totalQuantity = inventoryData.reduce(
+            (sum, item) => sum + (item.quantity || 0), 
+            0
+          );
 
           return {
             ...product,

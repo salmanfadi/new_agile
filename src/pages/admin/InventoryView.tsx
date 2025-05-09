@@ -20,39 +20,27 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { ArrowLeft, Package, QrCode, BarChart } from 'lucide-react';
+import { ArrowLeft, Package } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Link } from 'react-router-dom';
-import { 
-  Select, 
-  SelectContent, 
-  SelectGroup, 
-  SelectItem, 
-  SelectLabel, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
 
 const AdminInventoryView = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [batchFilter, setbatchFilter] = useState("");
   const queryClient = useQueryClient();
   
   // Fetch inventory data
   const { data: inventoryItems = [], isLoading } = useQuery({
-    queryKey: ['admin-inventory-data', statusFilter],
+    queryKey: ['admin-inventory-data'],
     queryFn: async () => {
       console.log('Fetching inventory data');
-      let query = supabase
+      const { data, error } = await supabase
         .from('inventory')
         .select(`
           id,
-          product:product_id(name, description, sku, category),
+          product:product_id(name, description),
           warehouse:warehouse_id(name, location),
           location:location_id(floor, zone),
           barcode,
@@ -61,15 +49,9 @@ const AdminInventoryView = () => {
           size,
           created_at,
           updated_at,
-          status,
-          batch_id
-        `);
-        
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-      
-      const { data, error } = await query.order('updated_at', { ascending: false });
+          status
+        `)
+        .order('updated_at', { ascending: false });
         
       if (error) {
         console.error('Error fetching inventory:', error);
@@ -79,8 +61,6 @@ const AdminInventoryView = () => {
       return data.map(item => ({
         id: item.id,
         productName: item.product?.name || 'Unknown Product',
-        productSku: item.product?.sku || 'N/A',
-        productCategory: item.product?.category || 'Uncategorized',
         warehouseName: item.warehouse?.name || 'Unknown Warehouse',
         warehouseLocation: item.warehouse?.location || '',
         locationDetails: item.location ? `Floor ${item.location.floor}, Zone ${item.location.zone}` : 'Unknown Location',
@@ -89,7 +69,6 @@ const AdminInventoryView = () => {
         color: item.color || '-',
         size: item.size || '-',
         status: item.status || 'available',
-        batchId: item.batch_id || null,
         lastUpdated: new Date(item.updated_at).toLocaleString(),
       }));
     }
@@ -134,9 +113,7 @@ const AdminInventoryView = () => {
     ? inventoryItems.filter(item => 
         item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.warehouseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.barcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.productSku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.productCategory.toLowerCase().includes(searchTerm.toLowerCase())
+        item.barcode.toLowerCase().includes(searchTerm.toLowerCase())
       )
     : inventoryItems;
 
@@ -147,62 +124,24 @@ const AdminInventoryView = () => {
         description="View and manage current inventory across all warehouses"
       />
       
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="flex justify-between items-center">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate('/admin')}
+          className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
         </Button>
         
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <Button asChild variant="outline">
-            <Link to="/admin/barcodes">
-              <QrCode className="mr-2 h-4 w-4" />
-              Barcode Management
-            </Link>
-          </Button>
-          
-          <Button asChild>
-            <Link to="/admin/stock-in/batch">
-              <BarChart className="mr-2 h-4 w-4" />
-              Batch Processing
-            </Link>
-          </Button>
-        </div>
-      </div>
-      
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="col-span-2">
+        <div className="w-1/3">
           <Input
-            placeholder="Search by product, SKU, category, warehouse, or barcode..."
+            placeholder="Search by product, warehouse, or barcode..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full"
           />
-        </div>
-        
-        <div>
-          <Select
-            value={statusFilter}
-            onValueChange={setStatusFilter}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Status</SelectLabel>
-                <SelectItem value="">All Statuses</SelectItem>
-                <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="reserved">Reserved</SelectItem>
-                <SelectItem value="shipped">Shipped</SelectItem>
-                <SelectItem value="damaged">Damaged</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
         </div>
       </div>
       
@@ -224,7 +163,7 @@ const AdminInventoryView = () => {
             </div>
           ) : filteredInventory.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              {searchTerm || statusFilter ? 'No inventory items match your search criteria.' : 'No inventory items found.'}
+              {searchTerm ? 'No inventory items match your search criteria.' : 'No inventory items found.'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -232,45 +171,30 @@ const AdminInventoryView = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Barcode</TableHead>
                     <TableHead>Warehouse</TableHead>
                     <TableHead>Location</TableHead>
+                    <TableHead>Barcode</TableHead>
                     <TableHead>Quantity</TableHead>
-                    <TableHead>Details</TableHead>
+                    <TableHead>Color</TableHead>
+                    <TableHead>Size</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Last Updated</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredInventory.map((item) => (
-                    <TableRow key={item.id} className="group hover:bg-slate-50">
+                    <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.productName}</TableCell>
-                      <TableCell>{item.productSku}</TableCell>
-                      <TableCell>{item.productCategory}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">{item.barcode}</span>
-                        </div>
-                      </TableCell>
                       <TableCell>{item.warehouseName}</TableCell>
                       <TableCell>{item.locationDetails}</TableCell>
+                      <TableCell>{item.barcode}</TableCell>
                       <TableCell>{item.quantity}</TableCell>
-                      <TableCell>
-                        {item.color !== '-' || item.size !== '-' ? (
-                          <div className="text-xs">
-                            {item.color !== '-' && <span className="mr-1">Color: {item.color}</span>}
-                            {item.size !== '-' && <span>Size: {item.size}</span>}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </TableCell>
+                      <TableCell>{item.color}</TableCell>
+                      <TableCell>{item.size}</TableCell>
                       <TableCell>
                         <StatusBadge status={item.status} />
                       </TableCell>
-                      <TableCell className="text-right text-sm text-slate-500">{item.lastUpdated}</TableCell>
+                      <TableCell className="text-right">{item.lastUpdated}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
