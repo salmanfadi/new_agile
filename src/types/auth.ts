@@ -1,6 +1,4 @@
 
-import { User as SupabaseUser } from '@supabase/supabase-js';
-
 export type UserRole = 'admin' | 'warehouse_manager' | 'field_operator';
 
 export interface User {

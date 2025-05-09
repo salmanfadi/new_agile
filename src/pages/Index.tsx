@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Barcode } from 'lucide-react';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();

@@ -1,1 +1,5 @@
+
 project_id = "kysvcexqmywyrawakwfs"
+
+[functions.scan-barcode]
+verify_jwt = true

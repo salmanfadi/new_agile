@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -12,7 +11,8 @@ import {
   Users, 
   LogIn, 
   LogOut,
-  Database
+  Database,
+  Barcode
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -128,6 +128,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
             icon: Database,
             label: 'Inventory',
             isActive: isActive('/manager/inventory')
+          },
+          {
+            title: "Barcode Lookup",
+            href: "/manager/barcode",
+            icon: Barcode,
           }
         ];
       
@@ -151,6 +156,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
             icon: PackageCheck,
             label: 'My Submissions',
             isActive: isActive('/operator/submissions')
+          },
+          {
+            title: "Barcode Lookup",
+            href: "/operator/barcode",
+            icon: Barcode,
           }
         ];
       
