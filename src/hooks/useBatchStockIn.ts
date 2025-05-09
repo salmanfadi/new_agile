@@ -177,6 +177,13 @@ export const useBatchStockIn = (userId: string) => {
         if (updateError) throw updateError;
         
         // Create a notification for admins
+        // Get the product name from our local state since we have access to it there
+        // rather than trying to access it from the BatchData which doesn't have it
+        let productName = 'Unknown Product';
+        if (batches.length > 0 && batches[0].product) {
+          productName = batches[0].product.name;
+        }
+        
         const { error: notificationError } = await supabase
           .from('notifications')
           .insert({
@@ -187,7 +194,7 @@ export const useBatchStockIn = (userId: string) => {
               stock_in_id: stockInId,
               batches_count: data.batches.length,
               total_boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
-              product_name: data.batches[0]?.product?.name || 'Unknown Product'
+              product_name: productName
             }
           });
           
