@@ -32,14 +32,8 @@ import SalesInquiriesManagement from "./pages/salesOperator/SalesInquiriesManage
 import SalesInventoryView from "./pages/salesOperator/InventoryView";
 import StockInForm from "./pages/fieldOperator/StockInForm";
 import BarcodeManagement from "./pages/admin/BarcodeManagement";
-
-// Customer facing routes
-import CustomerLanding from '@/pages/customer/CustomerLanding';
-import CustomerProducts from '@/pages/customer/CustomerProducts';
-import CustomerInquiry from '@/pages/customer/CustomerInquiry';
-import CustomerInquirySuccess from '@/pages/customer/CustomerInquirySuccess';
-import CustomerLogin from '@/pages/customer/CustomerLogin';
-import CustomerPortal from '@/pages/customer/CustomerPortal';
+import AdminStockInManagement from "./pages/admin/StockInManagement";
+import AdminStockOutManagement from "./pages/admin/StockOutManagement";
 
 const App: React.FC = () => {
   return (
@@ -63,7 +57,9 @@ const App: React.FC = () => {
             <Route path="warehouses" element={<WarehouseManagement />} />
             <Route path="inventory" element={<AdminInventoryView />} />
             <Route path="barcodes" element={<BarcodeManagement />} />
-            <Route path="sales-inquiries" element={<SalesInquiries />} />
+            <Route path="stock-in" element={<AdminStockInManagement />} />
+            <Route path="stock-out" element={<AdminStockOutManagement />} />
+            <Route path="sales" element={<SalesInquiries />} />
             <Route path="users" element={<UsersManagement />} />
           </Route>
 
@@ -78,9 +74,9 @@ const App: React.FC = () => {
             <Route index element={<ManagerDashboard />} />
             <Route path="stock-in" element={<StockInProcessing />} />
             <Route path="process-stock-in/:stockInId" element={<ProcessStockInPage />} />
-            <Route path="stock-out" element={<StockOutApproval />} />
+            <Route path="stock-out-approval" element={<StockOutApproval />} />
             <Route path="inventory" element={<InventoryView />} />
-            <Route path="barcode-lookup" element={<ManagerBarcodeLookup />} />
+            <Route path="barcode" element={<ManagerBarcodeLookup />} />
           </Route>
 
           {/* Field Operator Routes */}
@@ -94,7 +90,7 @@ const App: React.FC = () => {
             <Route index element={<OperatorDashboard />} />
             <Route path="stock-in" element={<StockInForm />} />
             <Route path="stock-out" element={<StockOutForm />} />
-            <Route path="my-submissions" element={<MySubmissions />} />
+            <Route path="submissions" element={<MySubmissions />} />
             <Route path="barcode-lookup" element={<BarcodeLookup />} />
           </Route>
 
