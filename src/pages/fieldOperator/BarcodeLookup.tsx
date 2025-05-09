@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import BarcodeScanner from '@/components/BarcodeScanner';
+import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 
 const BarcodeLookup: React.FC = () => {
   return (

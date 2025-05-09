@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -19,7 +20,7 @@ import { ArrowLeft, Plus, Trash2, ScanLine } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import BarcodeScanner from '@/components/BarcodeScanner';
+import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 import { Inventory } from '@/types/database';
 
 interface ScannedBox {
