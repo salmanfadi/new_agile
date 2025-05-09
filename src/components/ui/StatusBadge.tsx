@@ -2,7 +2,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-export type StatusType = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing' | 'available' | string;
+export type StatusType = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing' | 'available' | 'reserved' | 'shipped' | 'damaged' | string;
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -42,10 +42,25 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
           className: 'bg-emerald-100 text-emerald-800',
           label: 'In Stock'
         };
+      case 'reserved':
+        return {
+          className: 'bg-orange-100 text-orange-800',
+          label: 'Reserved'
+        };
+      case 'shipped':
+        return {
+          className: 'bg-sky-100 text-sky-800',
+          label: 'Shipped'
+        };
+      case 'damaged':
+        return {
+          className: 'bg-rose-100 text-rose-800',
+          label: 'Damaged'
+        };
       default:
         return {
           className: 'bg-gray-100 text-gray-800',
-          label: status
+          label: status.charAt(0).toUpperCase() + status.slice(1)
         };
     }
   };
