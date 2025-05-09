@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/types/database';
@@ -37,7 +37,9 @@ export const InventoryStatus: React.FC = () => {
           sku,
           category,
           image_url,
-          is_active
+          is_active,
+          created_at,
+          updated_at
         `)
         .eq('is_active', true)
         .order('name');
@@ -90,9 +92,9 @@ export const InventoryStatus: React.FC = () => {
     if (product.is_out_of_stock) {
       return <Badge variant="destructive">Out of Stock</Badge>;
     } else if (product.in_stock_quantity <= 5) {
-      return <Badge variant="warning" className="bg-amber-500">Low Stock ({product.in_stock_quantity})</Badge>;
+      return <Badge variant="default" className="bg-amber-500">Low Stock ({product.in_stock_quantity})</Badge>;
     } else {
-      return <Badge variant="success" className="bg-green-500">In Stock ({product.in_stock_quantity})</Badge>;
+      return <Badge variant="default" className="bg-green-500">In Stock ({product.in_stock_quantity})</Badge>;
     }
   };
 
@@ -154,7 +156,7 @@ export const InventoryStatus: React.FC = () => {
                       </TableCell>
                       <TableCell>{product.sku || 'N/A'}</TableCell>
                       <TableCell>{product.category || 'Uncategorized'}</TableCell>
-                      <TableCell>{getStockStatus(product)}</TableCell>
+                      <TableCell>{getStockStatus(product as ProductInventory)}</TableCell>
                     </TableRow>
                   ))
                 ) : (
