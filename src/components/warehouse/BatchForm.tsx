@@ -10,20 +10,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Plus, Package, Save, X } from 'lucide-react';
+import { Loader2, Plus, Package, Save, X, InfoIcon } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { StockInData } from '@/hooks/useStockInBoxes';
 
 interface BatchFormProps {
   onAddBatch: (batchData: BatchFormData) => void;
   isSubmitting?: boolean;
   editingBatch?: ProcessedBatch;
   onCancel?: () => void;
+  maxBoxes?: number;
+  stockInData?: StockInData | null;
 }
 
 export const BatchForm: React.FC<BatchFormProps> = ({ 
   onAddBatch, 
   isSubmitting = false,
   editingBatch,
-  onCancel 
+  onCancel,
+  maxBoxes,
+  stockInData
 }) => {
   const [batchData, setBatchData] = useState<BatchFormData>({
     product: null,
@@ -35,7 +41,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
     size: ''
   });
 
-  // Set form data when editing an existing batch
+  // Set form data when editing an existing batch or when stockInData is available
   useEffect(() => {
     if (editingBatch) {
       setBatchData({
@@ -47,8 +53,13 @@ export const BatchForm: React.FC<BatchFormProps> = ({
         color: editingBatch.color || '',
         size: editingBatch.size || ''
       });
+    } else if (stockInData?.product && !batchData.product) {
+      setBatchData(prev => ({
+        ...prev,
+        product: stockInData.product as Product
+      }));
     }
-  }, [editingBatch]);
+  }, [editingBatch, stockInData]);
 
   // Fetch products
   const { data: products, isLoading: isLoadingProducts } = useQuery({
@@ -131,12 +142,23 @@ export const BatchForm: React.FC<BatchFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate box count if maxBoxes is provided
+    if (maxBoxes !== undefined && batchData.boxes_count > maxBoxes && !editingBatch) {
+      toast({
+        title: 'Box count exceeds limit',
+        description: `You can only add up to ${maxBoxes} boxes. Please adjust the quantity.`,
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     onAddBatch(batchData);
     
     // Reset form if not editing
     if (!editingBatch) {
       setBatchData({
-        product: batchData.product, // Keep the product selected
+        product: stockInData?.product as Product || batchData.product, // Keep the product selected
         warehouse: batchData.warehouse, // Keep the warehouse selected
         location: batchData.location, // Keep the location selected
         boxes_count: 1,
@@ -168,8 +190,8 @@ export const BatchForm: React.FC<BatchFormProps> = ({
             <Label htmlFor="product">Product</Label>
             <Select 
               onValueChange={handleProductChange} 
-              disabled={isLoadingProducts || isSubmitting || !!editingBatch}
-              value={batchData.product?.id}
+              disabled={isLoadingProducts || isSubmitting || !!stockInData?.product || !!editingBatch}
+              value={batchData.product?.id || ''}
             >
               <SelectTrigger id="product">
                 <SelectValue placeholder="Select product" />
@@ -193,15 +215,30 @@ export const BatchForm: React.FC<BatchFormProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="boxes_count">Number of Boxes</Label>
+              <div className="flex justify-between">
+                <Label htmlFor="boxes_count">Number of Boxes</Label>
+                {maxBoxes !== undefined && (
+                  <span className="text-xs text-muted-foreground">
+                    Max: {maxBoxes}
+                  </span>
+                )}
+              </div>
               <Input
                 id="boxes_count"
                 type="number"
                 min={1}
+                max={maxBoxes !== undefined ? maxBoxes : undefined}
                 value={batchData.boxes_count}
                 onChange={(e) => handleChange('boxes_count', parseInt(e.target.value) || 1)}
                 disabled={isSubmitting}
+                className={maxBoxes !== undefined && batchData.boxes_count > maxBoxes ? "border-red-500" : ""}
               />
+              {maxBoxes !== undefined && batchData.boxes_count > maxBoxes && !editingBatch && (
+                <div className="text-xs text-red-500 flex items-center mt-1">
+                  <InfoIcon className="h-3 w-3 mr-1" />
+                  Exceeds available box count
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="quantity_per_box">Quantity per Box</Label>
@@ -221,7 +258,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
             <Select 
               onValueChange={handleWarehouseChange} 
               disabled={isLoadingWarehouses || isSubmitting}
-              value={batchData.warehouse?.id}
+              value={batchData.warehouse?.id || ''}
             >
               <SelectTrigger id="warehouse">
                 <SelectValue placeholder="Select warehouse" />
@@ -248,7 +285,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
             <Select 
               onValueChange={handleLocationChange} 
               disabled={!batchData.warehouse || isLoadingLocations || isSubmitting}
-              value={batchData.location?.id}
+              value={batchData.location?.id || ''}
             >
               <SelectTrigger id="location">
                 <SelectValue placeholder={batchData.warehouse ? "Select location" : "Select warehouse first"} />

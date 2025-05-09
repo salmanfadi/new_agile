@@ -82,137 +82,218 @@ export const useBatchStockIn = (userId: string) => {
 
   const submitStockInMutation = useMutation({
     mutationFn: async (data: StockInBatchSubmission) => {
-      // Start transaction
-      const { data: stockInData, error: stockInError } = await supabase
-        .from('stock_in')
-        .insert({
-          product_id: data.productId,
-          submitted_by: data.submittedBy,
-          boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
-          status: 'processing',
-          source: data.source,
-          notes: data.notes,
-          processed_by: data.submittedBy // Since we're using the batch system, the processor is the same as submitter
-        })
-        .select('id')
-        .single();
+      try {
+        // Start transaction
+        const { data: stockInData, error: stockInError } = await supabase
+          .from('stock_in')
+          .insert({
+            product_id: data.productId,
+            submitted_by: data.submittedBy,
+            boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
+            status: 'processing',
+            source: data.source,
+            notes: data.notes,
+            processed_by: data.submittedBy // Since we're using the batch system, the processor is the same as submitter
+          })
+          .select('id')
+          .single();
 
-      if (stockInError) throw stockInError;
-      if (!stockInData || !stockInData.id) throw new Error('Failed to create stock-in record');
-      
-      const stockInId = stockInData.id;
-      
-      // Create batches
-      const batchPromises = data.batches.map(async (batch) => {
-        try {
-          // Insert batch record using any type to work around the TypeScript issue
-          const { data: batchData, error: batchError } = await supabase
-            .from('stock_in_batches' as any)
-            .insert({
-              stock_in_id: stockInId,
-              product_id: batch.product_id,
-              warehouse_id: batch.warehouse_id,
-              location_id: batch.location_id,
-              boxes_count: batch.boxes_count,
-              quantity_per_box: batch.quantity_per_box,
-              color: batch.color,
-              size: batch.size,
-              created_by: data.submittedBy
-            } as any)
-            .select('id')
-            .single();
+        if (stockInError) throw stockInError;
+        if (!stockInData || !stockInData.id) throw new Error('Failed to create stock-in record');
+        
+        const stockInId = stockInData.id;
+        
+        // Log stock in creation
+        console.log('Created stock-in record:', stockInId);
+        
+        // Create batches
+        const batchPromises = data.batches.map(async (batch) => {
+          try {
+            console.log('Processing batch with product_id:', batch.product_id);
             
-          if (batchError) throw batchError;
-          // Check if batchData exists and has an id property
-          if (!batchData) throw new Error('Failed to create batch record');
-          
-          // Use type assertion after checking that batchData is not null
-          const batchId = (batchData as unknown as { id: string }).id;
-          
-          if (!batchId) throw new Error('Invalid batch ID returned');
-          
-          // Create barcode details for each box in the batch
-          const detailsToInsert = [];
-          
-          for (let i = 0; i < batch.boxes_count; i++) {
-            const barcode = batch.barcodes ? batch.barcodes[i] : uuidv4();
+            // Insert batch record
+            const { data: batchData, error: batchError } = await supabase
+              .from('stock_in_batches' as any)
+              .insert({
+                stock_in_id: stockInId,
+                product_id: batch.product_id,
+                warehouse_id: batch.warehouse_id,
+                location_id: batch.location_id,
+                boxes_count: batch.boxes_count,
+                quantity_per_box: batch.quantity_per_box,
+                color: batch.color,
+                size: batch.size,
+                created_by: data.submittedBy
+              } as any)
+              .select('id')
+              .single();
+              
+            if (batchError) {
+              console.error('Error creating batch record:', batchError);
+              throw batchError;
+            }
             
-            detailsToInsert.push({
-              stock_in_id: stockInId,
-              batch_id: batchId,
+            // Check if batchData exists and has an id property
+            if (!batchData) {
+              console.error('No data returned from batch insertion');
+              throw new Error('Failed to create batch record');
+            }
+            
+            // Use type assertion after checking that batchData is not null
+            const batchId = (batchData as unknown as { id: string }).id;
+            
+            if (!batchId) {
+              console.error('Invalid batch ID returned');
+              throw new Error('Invalid batch ID returned');
+            }
+            
+            console.log('Created batch record:', batchId);
+            
+            // Create inventory and detail records for each box in the batch
+            const detailsToInsert = [];
+            const inventoryToInsert = [];
+            
+            for (let i = 0; i < batch.boxes_count; i++) {
+              const barcode = batch.barcodes ? batch.barcodes[i] : uuidv4();
+              
+              // Each box becomes a stock in detail
+              detailsToInsert.push({
+                stock_in_id: stockInId,
+                batch_id: batchId,
+                barcode: barcode,
+                quantity: batch.quantity_per_box,
+                warehouse_id: batch.warehouse_id,
+                location_id: batch.location_id,
+                color: batch.color,
+                size: batch.size,
+                created_by: data.submittedBy
+              });
+              
+              // Each box also becomes an inventory entry
+              inventoryToInsert.push({
+                product_id: batch.product_id,
+                warehouse_id: batch.warehouse_id,
+                location_id: batch.location_id,
+                barcode: barcode,
+                quantity: batch.quantity_per_box,
+                color: batch.color,
+                size: batch.size,
+                status: 'available'
+              });
+            }
+            
+            // Insert all box details
+            console.log('Inserting', detailsToInsert.length, 'stock in details');
+            const { error: detailsError } = await supabase
+              .from('stock_in_details')
+              .insert(detailsToInsert);
+              
+            if (detailsError) {
+              console.error('Error inserting details:', detailsError);
+              throw detailsError;
+            }
+            
+            // Insert all inventory entries
+            console.log('Inserting', inventoryToInsert.length, 'inventory entries');
+            const { error: inventoryError } = await supabase
+              .from('inventory')
+              .insert(inventoryToInsert);
+              
+            if (inventoryError) {
+              console.error('Error inserting inventory:', inventoryError);
+              throw inventoryError;
+            }
+            
+            // Create barcode log entries for tracking
+            const barcodeLogEntries = batch.barcodes?.map(barcode => ({
               barcode: barcode,
-              quantity: batch.quantity_per_box,
-              warehouse_id: batch.warehouse_id,
-              location_id: batch.location_id,
-              color: batch.color,
-              size: batch.size,
-              created_by: data.submittedBy
-            });
+              action: 'stock_in',
+              user_id: data.submittedBy,
+              batch_id: batchId,
+              details: {
+                stock_in_id: stockInId,
+                product_id: batch.product_id,
+                quantity: batch.quantity_per_box
+              }
+            })) || [];
+            
+            if (barcodeLogEntries.length > 0) {
+              console.log('Creating barcode log entries:', barcodeLogEntries.length);
+              const { error: barcodeLogError } = await supabase
+                .from('barcode_logs')
+                .insert(barcodeLogEntries);
+                
+              if (barcodeLogError) {
+                console.error('Error creating barcode logs:', barcodeLogError);
+                // Non-critical error, don't throw
+              }
+            }
+            
+            return batchId;
+          } catch (error) {
+            console.error('Error processing batch:', error);
+            throw error;
+          }
+        });
+        
+        try {
+          // Wait for all batch insertions to complete
+          await Promise.all(batchPromises);
+          
+          // Update stock_in status to completed
+          const { error: updateError } = await supabase
+            .from('stock_in')
+            .update({ status: 'completed' })
+            .eq('id', stockInId);
+            
+          if (updateError) {
+            console.error('Error updating stock_in status:', updateError);
+            throw updateError;
           }
           
-          // Insert all box details
-          const { error: detailsError } = await supabase
-            .from('stock_in_details')
-            .insert(detailsToInsert);
-            
-          if (detailsError) throw detailsError;
+          console.log('Stock in process completed successfully');
           
-          return batchId;
+          // Create a notification for admins
+          // Get the product name from our local state since we have access to it there
+          // rather than trying to access it from the BatchData which doesn't have it
+          let productName = 'Unknown Product';
+          if (batches.length > 0 && batches[0].product) {
+            productName = batches[0].product.name;
+          }
+          
+          const { error: notificationError } = await supabase
+            .from('notifications')
+            .insert({
+              user_id: data.submittedBy,
+              role: 'admin',
+              action_type: 'stock_in_batch_created',
+              metadata: {
+                stock_in_id: stockInId,
+                batches_count: data.batches.length,
+                total_boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
+                product_name: productName
+              }
+            });
+            
+          if (notificationError) {
+            console.error('Failed to create notification:', notificationError);
+            // Don't throw here, continue with the success flow
+          }
+          
+          return { stockInId };
         } catch (error) {
-          console.error('Error processing batch:', error);
+          console.error('Batch processing failed:', error);
           throw error;
         }
-      });
-      
-      try {
-        // Wait for all batch insertions to complete
-        await Promise.all(batchPromises);
-        
-        // Update stock_in status to completed
-        const { error: updateError } = await supabase
-          .from('stock_in')
-          .update({ status: 'completed' })
-          .eq('id', stockInId);
-          
-        if (updateError) throw updateError;
-        
-        // Create a notification for admins
-        // Get the product name from our local state since we have access to it there
-        // rather than trying to access it from the BatchData which doesn't have it
-        let productName = 'Unknown Product';
-        if (batches.length > 0 && batches[0].product) {
-          productName = batches[0].product.name;
-        }
-        
-        const { error: notificationError } = await supabase
-          .from('notifications')
-          .insert({
-            user_id: data.submittedBy,
-            role: 'admin',
-            action_type: 'stock_in_batch_created',
-            metadata: {
-              stock_in_id: stockInId,
-              batches_count: data.batches.length,
-              total_boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
-              product_name: productName
-            }
-          });
-          
-        if (notificationError) {
-          console.error('Failed to create notification:', notificationError);
-          // Don't throw here, continue with the success flow
-        }
-        
-        return { stockInId };
       } catch (error) {
-        console.error('Batch processing failed:', error);
+        console.error('Stock in submission failed:', error);
         throw error;
       }
     },
     onSuccess: () => {
       toast({
         title: 'Stock-in processed successfully',
-        description: `${batches.length} batches have been successfully processed`,
+        description: `${batches.length} batches have been successfully processed and added to inventory`,
       });
       // Reset state
       setBatches([]);

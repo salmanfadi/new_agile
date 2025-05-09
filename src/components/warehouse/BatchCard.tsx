@@ -4,8 +4,9 @@ import { ProcessedBatch } from '@/types/batchStockIn';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Warehouse, Package2, MapPin, Boxes, Box, Palette, Ruler, Trash2, Edit } from 'lucide-react';
+import { Warehouse, Package2, MapPin, Boxes, Box, Palette, Ruler, Trash2, Edit, Barcode } from 'lucide-react';
 import BarcodePreview from '@/components/barcode/BarcodePreview';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface BatchCardProps {
   batch: ProcessedBatch;
@@ -87,10 +88,29 @@ export const BatchCard: React.FC<BatchCardProps> = ({
           
           {showBarcodes && batch.barcodes && batch.barcodes.length > 0 && (
             <div className="mt-4 pt-4 border-t">
-              <p className="text-sm font-medium mb-2">First box barcode preview:</p>
-              <div className="flex justify-center p-2 bg-white rounded">
-                <BarcodePreview barcode={batch.barcodes[0]} width={180} height={50} />
+              <div className="flex items-center mb-2">
+                <Barcode className="h-4 w-4 text-muted-foreground mr-1" />
+                <p className="text-sm font-medium">Box Barcodes ({batch.barcodes.length})</p>
               </div>
+              
+              {batch.barcodes.length > 1 ? (
+                <ScrollArea className="h-20">
+                  <div className="space-y-2">
+                    {batch.barcodes.map((barcode, i) => (
+                      <div key={i} className="flex flex-col p-2 bg-muted rounded-md">
+                        <span className="text-xs text-muted-foreground mb-1">Box {i+1}</span>
+                        <div className="bg-white p-1 rounded">
+                          <BarcodePreview barcode={barcode} width={160} height={40} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="flex justify-center p-2 bg-white rounded border">
+                  <BarcodePreview barcode={batch.barcodes[0]} width={180} height={45} />
+                </div>
+              )}
             </div>
           )}
         </div>
