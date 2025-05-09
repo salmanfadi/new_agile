@@ -17,13 +17,14 @@ import {
 
 interface StockInData {
   id: string;
-  product: { name: string };
-  submitter: { name: string; username: string } | null;
+  product: { name: string; id?: string | null };
+  submitter: { name: string; username: string; id?: string | null } | null;
   boxes: number;
   status: "pending" | "approved" | "rejected" | "completed" | "processing";
   created_at: string;
   source: string;
   notes?: string;
+  rejection_reason?: string;
 }
 
 interface RejectStockInDialogProps {
@@ -54,31 +55,47 @@ export const RejectStockInDialog: React.FC<RejectStockInDialogProps> = ({
   // Reject stock in mutation
   const rejectStockInMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      // Create a notification for the rejection
-      await supabase.from('notifications').insert([{
-        user_id: userId,
-        role: 'warehouse_manager', 
-        action_type: 'stock_in_rejected',
-        metadata: {
-          stock_in_id: id,
-          reason: reason,
-          product_id: selectedStockIn?.product?.name
-        }
-      }]);
+      console.log('Rejecting stock in request:', id, 'with reason:', reason);
       
-      // Update stock in status to rejected
-      const { data, error } = await supabase
-        .from('stock_in')
-        .update({ 
-          status: 'rejected',
-          processed_by: userId,
-          rejection_reason: reason
-        })
-        .eq('id', id)
-        .select();
+      try {
+        // Create a notification for the rejection
+        const notifResult = await supabase.from('notifications').insert([{
+          user_id: selectedStockIn?.submitter?.id || null,
+          role: 'field_operator', 
+          action_type: 'stock_in_rejected',
+          metadata: {
+            stock_in_id: id,
+            reason: reason,
+            product_name: selectedStockIn?.product?.name
+          }
+        }]);
+        
+        if (notifResult.error) {
+          console.error('Error creating notification:', notifResult.error);
+        }
+        
+        // Update stock in status to rejected
+        const { data, error } = await supabase
+          .from('stock_in')
+          .update({ 
+            status: 'rejected',
+            processed_by: userId,
+            rejection_reason: reason
+          })
+          .eq('id', id)
+          .select();
 
-      if (error) throw error;
-      return data;
+        if (error) {
+          console.error('Error rejecting stock in:', error);
+          throw error;
+        }
+        
+        console.log('Stock in rejected successfully:', data);
+        return data;
+      } catch (error) {
+        console.error('Failed to reject stock in:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       onOpenChange(false);
@@ -89,6 +106,7 @@ export const RejectStockInDialog: React.FC<RejectStockInDialogProps> = ({
       });
     },
     onError: (error) => {
+      console.error('Error in rejection mutation:', error);
       toast({
         variant: 'destructive',
         title: 'Rejection failed',

@@ -38,40 +38,51 @@ const StockInProcessing: React.FC = () => {
   const [isProcessingDialogOpen, setIsProcessingDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
-  // Fetch pending stock in requests
-  const { data: stockInRequests, isLoading } = useQuery({
+  // Fetch stock in requests - improved query with proper error handling
+  const { data: stockInRequests, isLoading, error } = useQuery({
     queryKey: ['stock-in-requests'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_in')
-        .select(`
-          id,
-          product:product_id(name),
-          submitter:submitted_by(name, username),
-          boxes,
-          status,
-          created_at,
-          source,
-          notes,
-          rejection_reason
-        `)
-        .in('status', ['pending', 'rejected'])
-        .order('created_at', { ascending: false });
+      console.log('Fetching stock in requests...');
+      try {
+        const { data, error } = await supabase
+          .from('stock_in')
+          .select(`
+            id,
+            product:product_id(id, name),
+            submitter:submitted_by(id, name, username),
+            boxes,
+            status,
+            created_at,
+            source,
+            notes,
+            rejection_reason
+          `)
+          .in('status', ['pending', 'rejected'])
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
-      // Transform the data to handle potential embedding errors
-      return (data as any[]).map(item => ({
-        id: item.id,
-        product: item.product || { name: 'Unknown Product' },
-        submitter: item.submitter || { name: 'Unknown', username: 'unknown' },
-        boxes: item.boxes,
-        status: item.status as StockInData['status'],
-        created_at: item.created_at,
-        source: item.source || 'Unknown Source',
-        notes: item.notes,
-        rejection_reason: item.rejection_reason
-      })) as StockInData[];
+        if (error) {
+          console.error('Error fetching stock in requests:', error);
+          throw error;
+        }
+        
+        console.log('Stock in data fetched:', data);
+        
+        // Transform the data to handle potential embedding errors
+        return (data || []).map(item => ({
+          id: item.id,
+          product: item.product || { name: 'Unknown Product', id: null },
+          submitter: item.submitter || { name: 'Unknown', username: 'unknown', id: null },
+          boxes: item.boxes,
+          status: item.status as StockInData['status'],
+          created_at: item.created_at,
+          source: item.source || 'Unknown Source',
+          notes: item.notes,
+          rejection_reason: item.rejection_reason
+        })) as StockInData[];
+      } catch (error) {
+        console.error('Failed to fetch stock in requests:', error);
+        throw error;
+      }
     },
   });
 
@@ -84,6 +95,14 @@ const StockInProcessing: React.FC = () => {
     setSelectedStockIn(stockIn);
     setIsRejectDialogOpen(true);
   };
+
+  if (error) {
+    return (
+      <div className="p-4 text-red-500">
+        Error loading stock in requests. Please try again.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

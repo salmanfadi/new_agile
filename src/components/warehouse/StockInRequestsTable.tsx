@@ -16,8 +16,8 @@ import {
 
 interface StockInData {
   id: string;
-  product: { name: string };
-  submitter: { name: string; username: string } | null;
+  product: { name: string; id?: string | null };
+  submitter: { name: string; username: string; id?: string | null } | null;
   boxes: number;
   status: "pending" | "approved" | "rejected" | "completed" | "processing";
   created_at: string;
