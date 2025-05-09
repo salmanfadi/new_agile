@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -11,18 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DefaultValues } from '@/hooks/useStockInBoxes';
-
-interface Warehouse {
-  id: string;
-  name: string;
-}
-
-interface Location {
-  id: string;
-  floor: number;
-  zone: string;
-  warehouse_id: string;
-}
+import { Warehouse, Location } from '@/hooks/useWarehouseData';
 
 interface DefaultValuesFormProps {
   defaultValues: DefaultValues;

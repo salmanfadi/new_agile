@@ -1,24 +1,21 @@
 
-import React, { useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
-import { DefaultValuesForm } from '@/components/warehouse/DefaultValuesForm';
-import { BoxesTable } from '@/components/warehouse/BoxesTable';
 import { processStockIn } from '@/utils/stockInProcessor';
 import { toast } from '@/hooks/use-toast';
-import { useStockInBoxes, StockInData } from '@/hooks/useStockInBoxes';
+import { useStockInBoxes } from '@/hooks/useStockInBoxes';
+import { useStockInData } from '@/hooks/useStockInData';
+import { useWarehouseData } from '@/hooks/useWarehouseData';
+import { StockInDetails } from '@/components/warehouse/StockInDetails';
+import { DefaultValuesSection } from '@/components/warehouse/DefaultValuesSection';
+import { BoxDetailsSection } from '@/components/warehouse/BoxDetailsSection';
+import { ProcessingActions } from '@/components/warehouse/ProcessingActions';
+import { LoadingState } from '@/components/warehouse/LoadingState';
+import { ErrorState } from '@/components/warehouse/ErrorState';
+import { BackButton } from '@/components/warehouse/BackButton';
 
 const ProcessStockInPage: React.FC = () => {
   const navigate = useNavigate();
@@ -26,7 +23,8 @@ const ProcessStockInPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId: string }>();
   const { user } = useAuth();
 
-  const [stockInData, setStockInData] = React.useState<StockInData | null>(null);
+  // Fetch stock in data
+  const { stockInData, isLoadingStockIn } = useStockInData(stockInId);
   
   // Initialize box data with the hook
   const {
@@ -38,91 +36,8 @@ const ProcessStockInPage: React.FC = () => {
     isMissingRequiredData
   } = useStockInBoxes(stockInData, true);
 
-  // Fetch stock in data
-  const { isLoading: isLoadingStockIn } = useQuery({
-    queryKey: ['stock-in', stockInId],
-    queryFn: async () => {
-      if (!stockInId) return null;
-      
-      const { data, error } = await supabase
-        .from('stock_in')
-        .select(`
-          id,
-          product:product_id(id, name),
-          submitted_by,
-          boxes,
-          status,
-          created_at,
-          source,
-          notes,
-          rejection_reason
-        `)
-        .eq('id', stockInId)
-        .single();
-
-      if (error) throw error;
-      
-      // Fetch submitter information separately to avoid the relationship error
-      let submitter = null;
-      if (data && data.submitted_by) {
-        const { data: submitterData, error: submitterError } = await supabase
-          .from('profiles')
-          .select('id, name, username')
-          .eq('id', data.submitted_by)
-          .single();
-          
-        if (!submitterError && submitterData) {
-          submitter = submitterData;
-        } else {
-          submitter = { name: 'Unknown', username: 'unknown' };
-        }
-      }
-      
-      if (data) {
-        setStockInData({
-          id: data.id,
-          product: data.product || { name: 'Unknown Product' },
-          submitter: submitter,
-          boxes: data.boxes,
-          status: data.status,
-          created_at: data.created_at,
-          source: data.source || 'Unknown Source',
-          notes: data.notes,
-          rejection_reason: data.rejection_reason
-        });
-      }
-      
-      return data;
-    },
-    enabled: !!stockInId,
-  });
-
-  // Fetch warehouses for the dropdown
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('warehouses').select('*').order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch warehouse locations based on selected warehouse
-  const { data: locations } = useQuery({
-    queryKey: ['warehouse-locations', defaultValues.warehouse],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('warehouse_locations')
-        .select('*')
-        .eq('warehouse_id', defaultValues.warehouse)
-        .order('floor')
-        .order('zone');
-        
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!defaultValues.warehouse,
-  });
+  // Fetch warehouse data
+  const { warehouses, locations } = useWarehouseData(defaultValues.warehouse);
 
   // Process stock in mutation
   const processStockInMutation = useMutation({
@@ -167,36 +82,14 @@ const ProcessStockInPage: React.FC = () => {
     });
   };
 
+  const navigateBack = () => navigate('/manager/stock-in');
+
   if (isLoadingStockIn) {
-    return (
-      <div className="p-6">
-        <PageHeader 
-          title="Processing Stock In" 
-          description="Loading stock in details..." 
-        />
-        <div className="mt-8 text-center">Loading...</div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (!stockInData) {
-    return (
-      <div className="p-6">
-        <PageHeader 
-          title="Error" 
-          description="Stock in not found" 
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/manager/stock-in')}
-          className="mt-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Stock In Processing
-        </Button>
-      </div>
-    );
+    return <ErrorState onNavigateBack={navigateBack} />;
   }
 
   return (
@@ -206,88 +99,32 @@ const ProcessStockInPage: React.FC = () => {
         description={`Processing stock for ${stockInData.product?.name}`} 
       />
       
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate('/manager/stock-in')}
-        className="mb-4"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Stock In Processing
-      </Button>
+      <BackButton onClick={navigateBack} className="mb-4" />
       
       <form onSubmit={handleProcessingSubmit}>
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Stock In Details</CardTitle>
-              <CardDescription>Review the details of this stock in request</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-2">
-                <div className="font-medium">Product: {stockInData.product?.name}</div>
-                <div className="text-sm text-gray-500">Total Boxes: {stockInData.boxes}</div>
-                <div className="text-sm text-gray-500">
-                  Submitted By: {stockInData.submitter ? `${stockInData.submitter.name} (${stockInData.submitter.username})` : 'Unknown'}
-                </div>
-                <div className="text-sm text-gray-500">
-                  Source: {stockInData.source}
-                </div>
-                {stockInData.notes && (
-                  <div className="text-sm text-gray-500">
-                    Notes: {stockInData.notes}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <StockInDetails stockInData={stockInData} />
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Default Values</CardTitle>
-              <CardDescription>Set default values for all boxes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DefaultValuesForm 
-                defaultValues={defaultValues}
-                setDefaultValues={setDefaultValues}
-                applyDefaultsToAll={applyDefaultsToAll}
-                warehouses={warehouses}
-                locations={locations}
-              />
-            </CardContent>
-          </Card>
+          <DefaultValuesSection 
+            defaultValues={defaultValues}
+            setDefaultValues={setDefaultValues}
+            applyDefaultsToAll={applyDefaultsToAll}
+            warehouses={warehouses}
+            locations={locations}
+          />
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Box Details</CardTitle>
-              <CardDescription>Specify details for individual boxes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BoxesTable 
-                boxesData={boxesData}
-                handleBoxUpdate={handleBoxUpdate}
-                warehouses={warehouses}
-                locations={locations}
-              />
-            </CardContent>
-          </Card>
+          <BoxDetailsSection 
+            boxesData={boxesData}
+            handleBoxUpdate={handleBoxUpdate}
+            warehouses={warehouses}
+            locations={locations}
+          />
           
-          <div className="flex justify-end space-x-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => navigate('/manager/stock-in')}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit"
-              disabled={isMissingRequiredData() || processStockInMutation.isPending}
-            >
-              {processStockInMutation.isPending ? 'Processing...' : 'Accept & Process Stock In'}
-            </Button>
-          </div>
+          <ProcessingActions 
+            onCancel={navigateBack} 
+            isSubmitting={processStockInMutation.isPending} 
+            isDisabled={isMissingRequiredData()} 
+          />
         </div>
       </form>
     </div>
