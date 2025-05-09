@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -64,8 +63,54 @@ const Login: React.FC = () => {
     
     try {
       console.log("Attempting login with:", username);
-      await login(username, password);
-      // Navigation handled by login function directly
+      
+      // Handle mock users (development mode)
+      if (mockUsers.some(u => u.username === username || u.username === username.toLowerCase())) {
+        // Mock login logic
+        await login(username, password);
+      } else {
+        // Real Supabase auth login
+        // Clean up existing state first
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Attempt global sign out first
+        try {
+          await supabase.auth.signOut({ scope: 'global' });
+        } catch (err) {
+          // Continue even if this fails
+          console.log("Sign out before login failed:", err);
+        }
+        
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: username,
+          password,
+        });
+        
+        if (error) throw error;
+        
+        if (data.user) {
+          // Check if account is active
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role, active')
+            .eq('id', data.user.id)
+            .single();
+            
+          if (profileError) throw profileError;
+          
+          if (!profile.active) {
+            await supabase.auth.signOut();
+            throw new Error("Your account has been disabled by the admin. For support, contact: admin@agilewms.com");
+          }
+          
+          // Continue with login through the context
+          await login(username, password);
+        }
+      }
     } catch (error) {
       console.error("Login submission error:", error);
       toast({

@@ -113,11 +113,17 @@ export interface StockOutDetail {
 export interface Profile {
   id: string;
   username: string;
-  role: 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator';
+  role: 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator' | 'customer';
   name: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
+  company_name?: string | null;
+  gstin?: string | null;
+  phone?: string | null;
+  business_type?: string | null;
+  address?: string | null;
+  business_reg_number?: string | null;
 }
 
 export interface SalesInquiry {

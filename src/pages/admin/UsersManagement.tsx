@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
@@ -112,9 +111,29 @@ const resetPasswordSchema = z.object({
   password: z.string().min(8, { message: "Password must be at least 8 characters" }),
 });
 
+// Define form schema for user creation
+const createUserSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+  password: z.string().min(8, { 
+    message: "Password must be at least 8 characters" 
+  }),
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
+  name: z.string().min(2, { message: "Name is required" }),
+  role: z.enum(['admin', 'warehouse_manager', 'field_operator', 'sales_operator', 'customer'] as const),
+  active: z.boolean().default(true),
+  // Customer fields (optional based on role)
+  company_name: z.string().optional(),
+  gstin: z.string().optional(),
+  phone: z.string().optional(),
+  business_type: z.string().optional(),
+  address: z.string().optional(),
+  business_reg_number: z.string().optional(),
+});
+
 type EditStaffFormValues = z.infer<typeof editStaffSchema>;
 type EditCustomerFormValues = z.infer<typeof editCustomerSchema>;
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
 // This is for audit logging
 interface AuditLogEntry {
@@ -137,6 +156,7 @@ const UsersManagement = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [showCustomerFields, setShowCustomerFields] = useState(false);
 
   // Edit staff form
   const editStaffForm = useForm<EditStaffFormValues>({
@@ -170,6 +190,25 @@ const UsersManagement = () => {
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
       password: '',
+    },
+  });
+
+  // Create user form
+  const createUserForm = useForm<CreateUserFormValues>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      username: '',
+      name: '',
+      role: 'field_operator',
+      active: true,
+      company_name: '',
+      gstin: '',
+      phone: '',
+      business_type: '',
+      address: '',
+      business_reg_number: '',
     },
   });
 
@@ -220,7 +259,7 @@ const UsersManagement = () => {
 
   // Create user mutation
   const createUserMutation = useMutation({
-    mutationFn: async (userData: any) => {
+    mutationFn: async (userData: CreateUserFormValues) => {
       // First create the user in auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
@@ -237,14 +276,26 @@ const UsersManagement = () => {
       if (authError) throw authError;
       
       // The profile should automatically be created via the trigger
-      // But we'll update it to ensure the role is set correctly
+      // But we'll update it to ensure the role and additional fields are set correctly
       if (authData.user) {
+        const profileData: any = {
+          role: userData.role,
+          active: userData.active,
+        };
+        
+        // Add customer-specific fields if role is customer
+        if (userData.role === 'customer') {
+          profileData.company_name = userData.company_name || null;
+          profileData.gstin = userData.gstin || null;
+          profileData.phone = userData.phone || null;
+          profileData.business_type = userData.business_type || null;
+          profileData.address = userData.address || null;
+          profileData.business_reg_number = userData.business_reg_number || null;
+        }
+
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({
-            role: userData.role,
-            active: userData.active,
-          })
+          .update(profileData)
           .eq('id', authData.user.id);
 
         if (profileError) throw profileError;
@@ -266,6 +317,7 @@ const UsersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsCreateDialogOpen(false);
+      createUserForm.reset(); // Reset the form
       toast({
         title: 'User created',
         description: 'New user has been created successfully.',
@@ -447,6 +499,16 @@ const UsersManagement = () => {
       });
     },
   });
+
+  // Watch the role field to show/hide customer fields
+  useEffect(() => {
+    const subscription = createUserForm.watch((value, { name }) => {
+      if (name === 'role' || name === undefined) {
+        setShowCustomerFields(value.role === 'customer');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [createUserForm.watch]);
 
   const handleEditUser = (user: UserData) => {
     if (user.role === 'customer') {
@@ -1132,25 +1194,250 @@ const UsersManagement = () => {
 
       {/* Create User Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Create a new user account in the system.
+            </DialogDescription>
           </DialogHeader>
           
-          {/* Add form here... */}
-          <p>User creation form to be implemented</p>
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsCreateDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button>
-              Create User
-            </Button>
-          </DialogFooter>
+          <Form {...createUserForm}>
+            <form onSubmit={createUserForm.handleSubmit(handleCreateUserSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={createUserForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" placeholder="user@example.com" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={createUserForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" placeholder="Minimum 8 characters" />
+                      </FormControl>
+                      <FormDescription>
+                        Password must be at least 8 characters.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={createUserForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Username" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={createUserForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Full Name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={createUserForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
+                        <SelectItem value="field_operator">Field Operator</SelectItem>
+                        <SelectItem value="sales_operator">Sales Operator</SelectItem>
+                        <SelectItem value="customer">Customer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={createUserForm.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <input 
+                        type="checkbox" 
+                        className="h-4 w-4 rounded border-gray-300"
+                        checked={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="m-0">Active</FormLabel>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Customer-specific fields */}
+              {showCustomerFields && (
+                <div className="border border-gray-200 rounded-md p-4 space-y-4">
+                  <h3 className="font-medium text-gray-700">Customer Information</h3>
+                  
+                  <FormField
+                    control={createUserForm.control}
+                    name="company_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Company name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={createUserForm.control}
+                      name="gstin"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GSTIN</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="GSTIN number" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={createUserForm.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Phone number" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={createUserForm.control}
+                    name="business_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Business Type</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select business type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {businessTypes.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={createUserForm.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Address</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Business address" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={createUserForm.control}
+                    name="business_reg_number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Business Registration Number</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Business registration number" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsCreateDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={createUserMutation.isPending}
+                >
+                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
