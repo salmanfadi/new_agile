@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 export const useBatchStockIn = (userId: string) => {
   const [batches, setBatches] = useState<ProcessedBatch[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   const addBatch = (formData: BatchFormData) => {
     if (!formData.product || !formData.warehouse || !formData.location) {
@@ -27,7 +28,7 @@ export const useBatchStockIn = (userId: string) => {
       const productSku = formData.product.sku || formData.product.name.substring(0, 6).toUpperCase().replace(/\s+/g, '');
       const category = formData.product.category || 'MISC';
       const boxNumber = i + 1;
-      // Use our existing barcode generation function
+      // Use the improved barcode generation function
       const barcode = generateBarcodeString(category, productSku, boxNumber);
       barcodes.push(barcode);
     }
@@ -82,6 +83,7 @@ export const useBatchStockIn = (userId: string) => {
 
   const submitStockInMutation = useMutation({
     mutationFn: async (data: StockInBatchSubmission) => {
+      setIsProcessing(true);
       try {
         // Start transaction
         const { data: stockInData, error: stockInError } = await supabase
@@ -288,6 +290,8 @@ export const useBatchStockIn = (userId: string) => {
       } catch (error) {
         console.error('Stock in submission failed:', error);
         throw error;
+      } finally {
+        setIsProcessing(false);
       }
     },
     onSuccess: () => {
@@ -316,6 +320,7 @@ export const useBatchStockIn = (userId: string) => {
     editingIndex,
     setEditingIndex,
     submitStockIn: submitStockInMutation.mutate,
-    isSubmitting: submitStockInMutation.isPending
+    isSubmitting: submitStockInMutation.isPending,
+    isProcessing
   };
 };

@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Boxes, AlertTriangle, ArrowLeft, X } from 'lucide-react';
+import { Boxes, AlertTriangle, ArrowLeft, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useBatchStockIn } from '@/hooks/useBatchStockIn';
 import { BatchForm } from '@/components/warehouse/BatchForm';
 import { BatchCard } from '@/components/warehouse/BatchCard';
 import { useStockInData } from '@/hooks/useStockInData';
 import { toast } from '@/hooks/use-toast';
+import { BackButton } from '@/components/warehouse/BackButton';
 
 interface BatchStockInComponentProps {
   adminMode?: boolean;
@@ -34,6 +35,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   const [source, setSource] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [remainingBoxes, setRemainingBoxes] = useState<number>(0);
+  const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
   
   const handleGoBack = () => {
     if (sheetMode && onClose) {
@@ -55,7 +57,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     editingIndex,
     setEditingIndex,
     submitStockIn,
-    isSubmitting
+    isSubmitting,
+    isProcessing
   } = useBatchStockIn(user?.id || '');
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
@@ -73,6 +76,11 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
 
   // Custom batch add function that validates against remaining boxes
   const handleAddBatch = (formData: any) => {
+    // Prevent adding new batches when we're submitting
+    if (isSubmitting || isProcessing || formSubmitted) {
+      return;
+    }
+
     // If editing, we need to account for the current batch's boxes
     const currentEditingBoxes = editingIndex !== null ? batches[editingIndex].boxes_count : 0;
     const effectiveNewBoxes = editingIndex !== null 
@@ -93,7 +101,10 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     addBatch(formData);
   };
 
-  const handleBatchSubmission = () => {
+  const handleBatchSubmission = (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent form submission
+    e.stopPropagation(); // Stop event propagation
+    
     if (!user) return;
     if (batches.length === 0) {
       toast({
@@ -103,6 +114,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       });
       return;
     }
+
+    setFormSubmitted(true);
 
     // Fix: Add proper type handling for productId
     let productId: string;
@@ -133,15 +146,10 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     <>
       {!sheetMode && (
         <div className="flex items-center gap-2 mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleGoBack}
-            className="flex items-center gap-1 hover-lift"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to {adminMode ? 'Stock In Management' : 'Stock In Processing'}
-          </Button>
+          <BackButton 
+            onClick={handleGoBack} 
+            className="hover-lift" 
+          />
         </div>
       )}
       
@@ -200,6 +208,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                     placeholder="Supplier or source"
                     readOnly={!!stockInId}
                     className="apple-shadow-sm"
+                    disabled={isSubmitting || isProcessing}
                   />
                 </div>
                 <div className="space-y-2">
@@ -211,6 +220,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                     placeholder="Optional notes about this batch"
                     readOnly={!!stockInId}
                     className="apple-shadow-sm min-h-[100px]"
+                    disabled={isSubmitting || isProcessing}
                   />
                 </div>
               </CardContent>
@@ -230,7 +240,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
             <div className="space-y-4">
               <BatchForm 
                 onAddBatch={handleAddBatch} 
-                isSubmitting={isSubmitting}
+                isSubmitting={isSubmitting || isProcessing || formSubmitted}
                 editingBatch={editingIndex !== null ? batches[editingIndex] : undefined}
                 onCancel={editingIndex !== null ? () => setEditingIndex(null) : undefined}
                 maxBoxes={remainingBoxes + (editingIndex !== null ? batches[editingIndex].boxes_count : 0)}
@@ -254,18 +264,24 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                       key={index}
                       batch={batch}
                       index={index}
-                      onEdit={() => editBatch(index)} 
-                      onDelete={() => deleteBatch(index)} 
+                      onEdit={() => !isSubmitting && !isProcessing && !formSubmitted && editBatch(index)} 
+                      onDelete={() => !isSubmitting && !isProcessing && !formSubmitted && deleteBatch(index)} 
                       showBarcodes={true}
+                      disabled={isSubmitting || isProcessing || formSubmitted}
                     />
                   ))}
                   
                   <Button 
                     onClick={handleBatchSubmission} 
                     className="w-full mt-4 apple-shadow-sm" 
-                    disabled={batches.length === 0 || isSubmitting}
+                    disabled={batches.length === 0 || isSubmitting || isProcessing || formSubmitted}
                   >
-                    {isSubmitting ? 'Processing...' : 'Submit All Batches'}
+                    {isSubmitting || isProcessing ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </span>
+                    ) : 'Submit All Batches'}
                   </Button>
                 </div>
               )}

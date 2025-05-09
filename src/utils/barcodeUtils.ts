@@ -1,6 +1,6 @@
 
 /**
- * Generates a barcode string in the format CAT-PROD-BOX
+ * Generates a barcode string in the format CAT-PROD-BOX-UID
  * 
  * @param category - Product category abbreviation (e.g., ELEC for Electronics)
  * @param sku - Product SKU or identifier
@@ -22,30 +22,35 @@ export const generateBarcodeString = (
   // Format box number with leading zeros (001, 002, etc.)
   const boxStr = boxNumber.toString().padStart(3, '0');
   
+  // Add timestamp to ensure uniqueness across batches
+  const uniqueId = Date.now().toString(36).substring(4);
+  
   // Combine all parts
-  return `${categoryAbbrev}-${sku}-${boxStr}`;
+  return `${categoryAbbrev}-${sku}-${boxStr}-${uniqueId}`;
 };
 
 /**
  * Extracts information from a barcode string
  * 
- * @param barcode - Barcode string in format CAT-PROD-BOX
+ * @param barcode - Barcode string in format CAT-PROD-BOX-UID
  * @returns Object with category abbreviation, product code, and box number
  */
 export const parseBarcodeString = (barcode: string): { 
   categoryAbbrev: string;
   productCode: string; 
   boxNumber: number;
+  uniqueId?: string;
 } | null => {
   const parts = barcode.split('-');
   
-  if (parts.length !== 3) {
+  if (parts.length < 3) {
     return null;
   }
   
   return {
     categoryAbbrev: parts[0],
     productCode: parts[1],
-    boxNumber: parseInt(parts[2], 10)
+    boxNumber: parseInt(parts[2], 10),
+    uniqueId: parts[3]
   };
 };
