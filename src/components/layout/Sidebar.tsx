@@ -13,7 +13,9 @@ import {
   LogIn, 
   LogOut,
   Database,
-  Barcode
+  Barcode,
+  ShoppingCart,
+  Tag
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -96,6 +98,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
             isActive: isActive('/admin/inventory')
           },
           {
+            href: '/admin/products',
+            icon: Package,
+            label: 'Products',
+            isActive: isActive('/admin/products')
+          },
+          {
+            href: '/admin/sales',
+            icon: ShoppingCart,
+            label: 'Sales Inquiries',
+            isActive: isActive('/admin/sales')
+          },
+          {
             href: '/admin/stock-in',
             icon: LogIn,
             label: 'Stock In',
@@ -135,6 +149,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
             icon: Barcode,
             label: "Barcode Lookup",
             isActive: isActive('/manager/barcode')
+          },
+          {
+            href: '/admin/products',
+            icon: Tag,
+            label: 'Products',
+            isActive: isActive('/admin/products')
           }
         ];
       

@@ -25,7 +25,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Edit, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Trash2, Package, Image } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -39,11 +39,17 @@ interface Product {
   name: string;
   description: string | null;
   created_at: string;
+  sku: string | null;
+  specifications: string | null;
+  image_url: string | null;
 }
 
 interface ProductFormData {
   name: string;
   description: string;
+  sku: string;
+  specifications: string;
+  image_file: File | null;
 }
 
 const ProductManagement: React.FC = () => {
@@ -57,7 +63,11 @@ const ProductManagement: React.FC = () => {
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
+    sku: '',
+    specifications: '',
+    image_file: null
   });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   // Fetch products
   const { data: products, isLoading } = useQuery({
@@ -73,19 +83,65 @@ const ProductManagement: React.FC = () => {
     },
   });
   
+  // Upload image to Supabase storage
+  const uploadImage = async (file: File, productId: string): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${productId}-${Date.now()}.${fileExt}`;
+    const filePath = `products/${fileName}`;
+    
+    const { data, error } = await supabase.storage
+      .from('product-images')
+      .upload(filePath, file);
+      
+    if (error) {
+      throw error;
+    }
+    
+    // Get the public URL for the uploaded file
+    const { data: urlData } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(filePath);
+      
+    return urlData?.publicUrl || null;
+  };
+  
   // Create product mutation
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
-      const { data: result, error } = await supabase
+      // First insert the product to get the ID
+      const { data: insertResult, error } = await supabase
         .from('products')
         .insert([{
           name: data.name,
-          description: data.description || null
+          description: data.description || null,
+          sku: data.sku || null,
+          specifications: data.specifications || null
         }])
         .select();
         
       if (error) throw error;
-      return result;
+      
+      if (!insertResult || insertResult.length === 0) {
+        throw new Error('Failed to insert product');
+      }
+      
+      const newProduct = insertResult[0] as Product;
+      
+      // If there's an image file, upload it and update the product
+      if (data.image_file) {
+        const imageUrl = await uploadImage(data.image_file, newProduct.id);
+        
+        if (imageUrl) {
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({ image_url: imageUrl })
+            .eq('id', newProduct.id);
+            
+          if (updateError) throw updateError;
+        }
+      }
+      
+      return insertResult;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
@@ -108,12 +164,24 @@ const ProductManagement: React.FC = () => {
   // Update product mutation
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductFormData }) => {
+      // Check if we need to update the image
+      let imageUrl = null;
+      if (data.image_file) {
+        imageUrl = await uploadImage(data.image_file, id);
+      }
+      
+      // Update the product
+      const updateData = {
+        name: data.name,
+        description: data.description || null,
+        sku: data.sku || null,
+        specifications: data.specifications || null,
+        ...(imageUrl ? { image_url: imageUrl } : {})
+      };
+      
       const { data: result, error } = await supabase
         .from('products')
-        .update({
-          name: data.name,
-          description: data.description || null
-        })
+        .update(updateData)
         .eq('id', id)
         .select();
         
@@ -170,6 +238,21 @@ const ProductManagement: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null;
+    
+    if (file) {
+      setFormData(prev => ({ ...prev, image_file: file }));
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -197,7 +280,11 @@ const ProductManagement: React.FC = () => {
     setFormData({
       name: product.name,
       description: product.description || '',
+      sku: product.sku || '',
+      specifications: product.specifications || '',
+      image_file: null
     });
+    setPreviewUrl(product.image_url);
     setIsDialogOpen(true);
   };
   
@@ -222,7 +309,11 @@ const ProductManagement: React.FC = () => {
     setFormData({
       name: '',
       description: '',
+      sku: '',
+      specifications: '',
+      image_file: null
     });
+    setPreviewUrl(null);
   };
   
   return (
@@ -271,7 +362,9 @@ const ProductManagement: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Image</TableHead>
                     <TableHead>Name</TableHead>
+                    <TableHead>SKU</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Created At</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -280,8 +373,22 @@ const ProductManagement: React.FC = () => {
                 <TableBody>
                   {products.map((product) => (
                     <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="h-10 w-10 bg-gray-100 rounded-md flex items-center justify-center">
+                          {product.image_url ? (
+                            <img 
+                              src={product.image_url} 
+                              alt={product.name} 
+                              className="h-full w-full object-cover rounded-md"
+                            />
+                          ) : (
+                            <Package className="h-5 w-5 text-gray-400" />
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{product.description || '-'}</TableCell>
+                      <TableCell>{product.sku || '-'}</TableCell>
+                      <TableCell className="max-w-xs truncate">{product.description || '-'}</TableCell>
                       <TableCell>{new Date(product.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button 
@@ -311,7 +418,7 @@ const ProductManagement: React.FC = () => {
       
       {/* Add/Edit Product Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editingProduct ? 'Edit Product' : 'Add New Product'}
@@ -331,9 +438,20 @@ const ProductManagement: React.FC = () => {
                   required
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
+                <Input 
+                  id="sku"
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleInputChange}
+                  placeholder="Enter product SKU"
+                />
+              </div>
               
               <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
+                <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
                   name="description"
@@ -342,6 +460,46 @@ const ProductManagement: React.FC = () => {
                   placeholder="Enter product description"
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="specifications">Specifications</Label>
+                <Textarea
+                  id="specifications"
+                  name="specifications"
+                  value={formData.specifications}
+                  onChange={handleInputChange}
+                  placeholder="Enter product specifications"
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="image">Product Image</Label>
+                <div className="flex items-center space-x-4">
+                  <div className="h-24 w-24 bg-gray-100 rounded-md flex items-center justify-center">
+                    {previewUrl ? (
+                      <img 
+                        src={previewUrl} 
+                        alt="Product preview" 
+                        className="h-full w-full object-cover rounded-md"
+                      />
+                    ) : (
+                      <Image className="h-10 w-10 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <Input 
+                      id="image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Upload a product image (JPEG, PNG, or GIF)
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -355,7 +513,11 @@ const ProductManagement: React.FC = () => {
               </Button>
               <Button 
                 type="submit"
-                disabled={!formData.name.trim() || createProductMutation.isPending || updateProductMutation.isPending}
+                disabled={
+                  !formData.name.trim() || 
+                  createProductMutation.isPending || 
+                  updateProductMutation.isPending
+                }
               >
                 {createProductMutation.isPending || updateProductMutation.isPending ? 
                   'Saving...' : 

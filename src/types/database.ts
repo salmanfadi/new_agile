@@ -22,6 +22,9 @@ export interface Product {
   description: string | null;
   created_at: string;
   updated_at: string;
+  image_url?: string | null;
+  sku?: string | null;
+  specifications?: string | null;
 }
 
 export interface Inventory {
@@ -110,4 +113,35 @@ export interface Profile {
   active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface SalesInquiry {
+  id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_company: string;
+  customer_phone: string | null;
+  message: string | null;
+  status: 'new' | 'in_progress' | 'completed';
+  created_at: string;
+  updated_at: string;
+  items: SalesInquiryItem[];
+}
+
+export interface SalesInquiryItem {
+  id: string;
+  inquiry_id: string;
+  product_id: string;
+  quantity: number;
+  specific_requirements: string | null;
+  created_at: string;
+  updated_at: string;
+  product?: Product;
+}
+
+export interface CartItem {
+  productId: string;
+  product: Product;
+  quantity: number;
+  requirements?: string;
 }
