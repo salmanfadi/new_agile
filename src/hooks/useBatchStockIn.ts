@@ -98,79 +98,107 @@ export const useBatchStockIn = (userId: string) => {
         .single();
 
       if (stockInError) throw stockInError;
+      if (!stockInData || !stockInData.id) throw new Error('Failed to create stock-in record');
       
       const stockInId = stockInData.id;
       
       // Create batches
       const batchPromises = data.batches.map(async (batch) => {
-        // Insert batch record
-        // Using any type to work around the type issue with the new table
-        const { data: batchData, error: batchError } = await supabase
-          .from('stock_in_batches' as any)
-          .insert({
-            stock_in_id: stockInId,
-            product_id: batch.product_id,
-            warehouse_id: batch.warehouse_id,
-            location_id: batch.location_id,
-            boxes_count: batch.boxes_count,
-            quantity_per_box: batch.quantity_per_box,
-            color: batch.color,
-            size: batch.size,
-            created_by: data.submittedBy
-          } as any)
-          .select('id')
-          .single();
+        try {
+          // Insert batch record using any type to work around the TypeScript issue
+          const { data: batchData, error: batchError } = await supabase
+            .from('stock_in_batches' as any)
+            .insert({
+              stock_in_id: stockInId,
+              product_id: batch.product_id,
+              warehouse_id: batch.warehouse_id,
+              location_id: batch.location_id,
+              boxes_count: batch.boxes_count,
+              quantity_per_box: batch.quantity_per_box,
+              color: batch.color,
+              size: batch.size,
+              created_by: data.submittedBy
+            } as any)
+            .select('id')
+            .single();
+            
+          if (batchError) throw batchError;
+          // Explicitly check if batchData exists and has an id property
+          if (!batchData) throw new Error('Failed to create batch record');
           
-        if (batchError) throw batchError;
-        
-        // Check if batchData exists and has an id before proceeding
-        if (!batchData) {
-          throw new Error('Failed to create batch record');
+          // Safely access the id property
+          const batchId = (batchData as { id: string }).id; 
+          
+          // Create barcode details for each box in the batch
+          const detailsToInsert = [];
+          
+          for (let i = 0; i < batch.boxes_count; i++) {
+            const barcode = batch.barcodes ? batch.barcodes[i] : uuidv4();
+            
+            detailsToInsert.push({
+              stock_in_id: stockInId,
+              batch_id: batchId,
+              barcode: barcode,
+              quantity: batch.quantity_per_box,
+              warehouse_id: batch.warehouse_id,
+              location_id: batch.location_id,
+              color: batch.color,
+              size: batch.size,
+              created_by: data.submittedBy
+            });
+          }
+          
+          // Insert all box details
+          const { error: detailsError } = await supabase
+            .from('stock_in_details')
+            .insert(detailsToInsert);
+            
+          if (detailsError) throw detailsError;
+          
+          return batchId;
+        } catch (error) {
+          console.error('Error processing batch:', error);
+          throw error;
         }
-        
-        const batchId = batchData.id;
-        
-        // Create barcode details for each box in the batch
-        const detailsToInsert = [];
-        
-        for (let i = 0; i < batch.boxes_count; i++) {
-          const barcode = batch.barcodes ? batch.barcodes[i] : uuidv4();
-          
-          detailsToInsert.push({
-            stock_in_id: stockInId,
-            batch_id: batchId, // Using the id from batchData
-            barcode: barcode,
-            quantity: batch.quantity_per_box,
-            warehouse_id: batch.warehouse_id,
-            location_id: batch.location_id,
-            color: batch.color,
-            size: batch.size,
-            created_by: data.submittedBy
-          });
-        }
-        
-        // Insert all box details
-        const { error: detailsError } = await supabase
-          .from('stock_in_details')
-          .insert(detailsToInsert);
-          
-        if (detailsError) throw detailsError;
-        
-        return batchId; // Return the batch ID
       });
       
-      // Wait for all batch insertions to complete
-      await Promise.all(batchPromises);
-      
-      // Update stock_in status to completed
-      const { error: updateError } = await supabase
-        .from('stock_in')
-        .update({ status: 'completed' })
-        .eq('id', stockInId);
+      try {
+        // Wait for all batch insertions to complete
+        await Promise.all(batchPromises);
         
-      if (updateError) throw updateError;
-      
-      return { stockInId };
+        // Update stock_in status to completed
+        const { error: updateError } = await supabase
+          .from('stock_in')
+          .update({ status: 'completed' })
+          .eq('id', stockInId);
+          
+        if (updateError) throw updateError;
+        
+        // Create a notification for admins
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: data.submittedBy,
+            role: 'admin',
+            action_type: 'stock_in_batch_created',
+            metadata: {
+              stock_in_id: stockInId,
+              batches_count: data.batches.length,
+              total_boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
+              product_name: data.batches[0].product?.name || 'Unknown Product'
+            }
+          });
+          
+        if (notificationError) {
+          console.error('Failed to create notification:', notificationError);
+          // Don't throw here, continue with the success flow
+        }
+        
+        return { stockInId };
+      } catch (error) {
+        console.error('Batch processing failed:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
