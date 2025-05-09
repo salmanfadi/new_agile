@@ -2,11 +2,22 @@
 import { supabase } from '@/integrations/supabase/client';
 import { BoxData, StockInData } from '@/hooks/useStockInBoxes';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from '@/hooks/use-toast';
 
+/**
+ * Process a stock in request by updating the status and creating inventory entries
+ * 
+ * @param stockInId - ID of the stock in request
+ * @param boxes - Array of box data to process
+ * @param userId - ID of the user processing the request
+ * @returns Promise resolving to true if successful
+ */
 export const processStockIn = async (stockInId: string, boxes: BoxData[], userId?: string) => {
+  const traceId = uuidv4().substring(0, 8); // For tracing this operation in logs
+  
+  console.log(`[${traceId}] Starting stock in processing for ID: ${stockInId}`, boxes);
+  
   try {
-    console.log(`Starting stock in processing for ID: ${stockInId}`, boxes);
-    
     // First update stock in status to processing
     const { error: updateError } = await supabase
       .from('stock_in')
@@ -17,7 +28,7 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
       .eq('id', stockInId);
 
     if (updateError) {
-      console.error('Error updating stock-in status:', updateError);
+      console.error(`[${traceId}] Error updating stock-in status:`, updateError);
       throw updateError;
     }
 
@@ -29,85 +40,103 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
       .single();
 
     if (stockInFetchError) {
-      console.error('Error fetching stock-in data:', stockInFetchError);
+      console.error(`[${traceId}] Error fetching stock-in data:`, stockInFetchError);
       throw stockInFetchError;
     }
 
     if (!stockInData) {
-      console.error('Stock in not found');
+      console.error(`[${traceId}] Stock in not found`);
       throw new Error('Stock in not found');
     }
 
-    console.log(`Processing ${boxes.length} boxes for product_id: ${stockInData.product_id}`);
+    console.log(`[${traceId}] Processing ${boxes.length} boxes for product_id: ${stockInData.product_id}`);
 
-    // Create stock in details for each box and inventory entries
+    // Create inventory entries and details in a batch for better performance
+    const detailsToInsert = [];
+    const inventoryToInsert = [];
+    const barcodeLogsToInsert = [];
+    
+    // Prepare all data for batch insertions
     for (const box of boxes) {
       try {
         // Ensure box has a valid barcode
         const boxBarcode = box.barcode || uuidv4();
         
-        // Create a stock in detail entry
-        const { data: detailData, error: detailError } = await supabase
-          .from('stock_in_details')
-          .insert([{
+        // Prepare stock in detail entry
+        detailsToInsert.push({
+          stock_in_id: stockInId,
+          warehouse_id: box.warehouse_id,
+          location_id: box.location_id,
+          barcode: boxBarcode,
+          quantity: box.quantity,
+          color: box.color || null,
+          size: box.size || null,
+        });
+        
+        // Prepare inventory entry
+        inventoryToInsert.push({
+          product_id: stockInData.product_id,
+          warehouse_id: box.warehouse_id,
+          location_id: box.location_id,
+          barcode: boxBarcode,
+          quantity: box.quantity,
+          color: box.color || null,
+          size: box.size || null,
+          status: 'available'
+        });
+        
+        // Prepare barcode log entry
+        barcodeLogsToInsert.push({
+          barcode: boxBarcode,
+          action: 'stock_in_processed',
+          user_id: userId || '',
+          details: {
             stock_in_id: stockInId,
-            warehouse_id: box.warehouse_id,
-            location_id: box.location_id,
-            barcode: boxBarcode,
-            quantity: box.quantity,
-            color: box.color || null,
-            size: box.size || null,
-          }])
-          .select('id')
-          .single();
-        
-        if (detailError) {
-          console.error('Error creating stock_in_detail:', detailError);
-          throw detailError;
-        }
-        
-        // Create an inventory entry for this box
-        const { error: inventoryError } = await supabase
-          .from('inventory')
-          .insert([{
             product_id: stockInData.product_id,
-            warehouse_id: box.warehouse_id,
-            location_id: box.location_id,
-            barcode: boxBarcode,
             quantity: box.quantity,
-            color: box.color || null,
-            size: box.size || null,
-            status: 'available'
-          }]);
+            trace_id: traceId
+          }
+        });
         
-        if (inventoryError) {
-          console.error('Error creating inventory entry:', inventoryError);
-          throw inventoryError;
-        }
-
-        // Create a barcode log entry
-        const { error: logError } = await supabase
-          .from('barcode_logs')
-          .insert([{
-            barcode: boxBarcode,
-            action: 'stock_in_processed',
-            user_id: userId || '',
-            details: {
-              stock_in_id: stockInId,
-              product_id: stockInData.product_id,
-              quantity: box.quantity
-            }
-          }]);
-        
-        if (logError) {
-          console.warn('Warning: Failed to create barcode log:', logError);
-          // Don't throw for log failures, just warn
-        }
-        
-        console.log(`Processed box with barcode: ${boxBarcode}`);
       } catch (boxError) {
-        console.error('Error processing individual box:', boxError);
-        throw boxError;
+        console.error(`[${traceId}] Error processing individual box:`, boxError);
+        // Continue processing other boxes
+      }
+    }
+
+    // Batch insert all stock in details
+    if (detailsToInsert.length > 0) {
+      const { error: detailsError } = await supabase
+        .from('stock_in_details')
+        .insert(detailsToInsert);
+        
+      if (detailsError) {
+        console.error(`[${traceId}] Error creating stock_in_details:`, detailsError);
+        throw detailsError;
+      }
+    }
+    
+    // Batch insert all inventory entries
+    if (inventoryToInsert.length > 0) {
+      const { error: inventoryError } = await supabase
+        .from('inventory')
+        .insert(inventoryToInsert);
+        
+      if (inventoryError) {
+        console.error(`[${traceId}] Error creating inventory entries:`, inventoryError);
+        throw inventoryError;
+      }
+    }
+    
+    // Batch insert all barcode logs
+    if (barcodeLogsToInsert.length > 0) {
+      const { error: logError } = await supabase
+        .from('barcode_logs')
+        .insert(barcodeLogsToInsert);
+        
+      if (logError) {
+        console.warn(`[${traceId}] Warning: Failed to create barcode logs:`, logError);
+        // Don't throw for log failures, just warn
       }
     }
 
@@ -119,25 +148,42 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
       metadata: {
         stock_in_id: stockInId,
         boxes_count: boxes.length,
-        product_id: stockInData.product_id
+        product_id: stockInData.product_id,
+        trace_id: traceId
       }
     }]);
 
-    // Finally update stock in status to approved (instead of completed)
+    // Finally update stock in status to approved
     const { error: completeError } = await supabase
       .from('stock_in')
       .update({ status: "approved" })
       .eq('id', stockInId);
 
     if (completeError) {
-      console.error('Error completing stock-in:', completeError);
+      console.error(`[${traceId}] Error completing stock-in:`, completeError);
       throw completeError;
     }
 
-    console.log(`Successfully processed stock-in: ${stockInId}`);
+    console.log(`[${traceId}] Successfully processed stock-in: ${stockInId}`);
+    
+    // Show success toast
+    toast({
+      title: "Stock-In Processed Successfully",
+      description: `${boxes.length} boxes have been added to inventory`,
+      variant: "success"
+    });
+    
     return true;
   } catch (error) {
-    console.error('Stock-in processing failed:', error);
+    console.error(`[${traceId}] Stock-in processing failed:`, error);
+    
+    // Show error toast
+    toast({
+      title: "Stock-In Processing Failed",
+      description: error instanceof Error ? error.message : "An unexpected error occurred",
+      variant: "destructive"
+    });
+    
     throw error;
   }
 };
