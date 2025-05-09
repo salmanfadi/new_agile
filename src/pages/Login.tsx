@@ -41,6 +41,7 @@ const Login: React.FC = () => {
       else if (user.role === 'field_operator') targetRoute = '/operator';
       else if (user.role === 'sales_operator') targetRoute = '/sales';
       
+      console.log("Redirecting authenticated user to:", targetRoute);
       // Use navigate for smoother transition
       navigate(targetRoute, { replace: true });
     }
@@ -147,7 +148,7 @@ const Login: React.FC = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                placeholder="Enter your username"
+                placeholder="Enter your username or email"
                 disabled={isLoading || authLoading}
                 className="h-11 dark:bg-slate-700 dark:border-slate-600 dark:placeholder:text-slate-400"
               />

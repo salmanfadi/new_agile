@@ -26,6 +26,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
   const { user } = useAuth();
+  
+  console.log("Sidebar rendering with user role:", user?.role);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
@@ -207,7 +209,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
               {!collapsed && <p className={sectionHeadingClass}>Sales Operations</p>}
               <ul className="space-y-1 mt-2">
                 <li>
-                  <NavLink to="/sales" className={navLinkClass}>
+                  <NavLink to="/sales" className={navLinkClass} end>
                     <BarChart4 className="h-4 w-4 flex-shrink-0" />
                     {!collapsed && <span>Dashboard</span>}
                   </NavLink>
@@ -219,7 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
                   </NavLink>
                 </li>
                 <li>
-                  <NavLink to="/admin/products" className={navLinkClass}>
+                  <NavLink to="/products" className={navLinkClass}>
                     <Package className="h-4 w-4 flex-shrink-0" />
                     {!collapsed && <span>Product Catalogue</span>}
                   </NavLink>

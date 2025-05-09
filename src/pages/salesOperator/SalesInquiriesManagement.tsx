@@ -3,7 +3,6 @@ import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useSalesInquiries } from '@/hooks/useSalesInquiries';
 import { InquiryManagement } from '@/components/sales/InquiryManagement';
-import { Card } from '@/components/ui/card';
 
 const SalesInquiriesManagement: React.FC = () => {
   const {
@@ -19,25 +18,23 @@ const SalesInquiriesManagement: React.FC = () => {
   } = useSalesInquiries();
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6">
       <PageHeader 
         title="Customer Inquiries" 
-        description="View and respond to customer pricing inquiries"
+        description="Manage and respond to customer inquiries"
       />
       
-      <Card className="border-0 shadow-sm overflow-hidden">
-        <InquiryManagement
-          inquiries={inquiries}
-          isLoading={isLoading}
-          searchTerm={searchTerm}
-          statusFilter={statusFilter}
-          setSearchTerm={setSearchTerm}
-          setStatusFilter={setStatusFilter}
-          updateInquiryStatus={updateInquiryStatus}
-          formatDate={formatDate}
-          refreshInquiries={refreshInquiries}
-        />
-      </Card>
+      <InquiryManagement
+        inquiries={inquiries}
+        isLoading={isLoading}
+        searchTerm={searchTerm}
+        statusFilter={statusFilter}
+        setSearchTerm={setSearchTerm}
+        setStatusFilter={setStatusFilter}
+        updateInquiryStatus={updateInquiryStatus}
+        formatDate={formatDate}
+        refreshInquiries={refreshInquiries}
+      />
     </div>
   );
 };

@@ -12,7 +12,13 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
   const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
   
-  console.log("RequireAuth state:", { isLoading, isAuthenticated, user, allowedRoles });
+  console.log("RequireAuth state:", { 
+    isLoading, 
+    isAuthenticated, 
+    user, 
+    allowedRoles,
+    currentPath: location.pathname 
+  });
 
   // Show loading state but make it more informative
   if (isLoading) {
@@ -49,7 +55,10 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
 
   // Check if the user has the required role for the page
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    console.log("User role not in allowed roles, redirecting to unauthorized");
+    console.log("User role not in allowed roles, redirecting to unauthorized", {
+      userRole: user.role,
+      allowedRoles
+    });
     return <Navigate to="/unauthorized" replace />;
   }
 

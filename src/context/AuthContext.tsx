@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, AuthState } from '../types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,7 +23,8 @@ const mockUsers: User[] = [
   { id: '1', username: 'admin', role: 'admin', name: 'Admin User' },
   { id: '2', username: 'warehouse', role: 'warehouse_manager', name: 'Warehouse Manager' },
   { id: '3', username: 'field', role: 'field_operator', name: 'Field Operator' },
-  { id: '4', username: 'sales', role: 'sales_operator', name: 'Sales Operator' }
+  { id: '4', username: 'sales', role: 'sales_operator', name: 'Sales Operator' },
+  { id: '5', username: 'salesoperator@gmail.com', role: 'sales_operator', name: 'Sales Operator' }
 ];
 
 const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
@@ -185,20 +185,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     setState(prev => ({ ...prev, isLoading: true }));
+    console.log("Login attempt with:", email);
     
     try {
       // Clean up existing state first
       cleanupAuthState();
       
       // For demo purposes, support both real auth and mock users
-      if (email === 'admin' || email === 'warehouse' || email === 'field' || email === 'sales') {
+      // Normalize email for comparison
+      const normalizedEmail = email.toLowerCase();
+      
+      // Check if this is a mock user login (either by username or email)
+      if (email === 'admin' || 
+          email === 'warehouse' || 
+          email === 'field' || 
+          email === 'sales' ||
+          normalizedEmail === 'salesoperator@gmail.com') {
         // Use mock users for demo
-        const user = mockUsers.find(u => u.username === email.toLowerCase());
+        // First try to find by username
+        let user = mockUsers.find(u => u.username === email.toLowerCase());
+        
+        // If not found by username, try by email (for salesoperator@gmail.com)
+        if (!user) {
+          user = mockUsers.find(u => u.username === normalizedEmail);
+        }
         
         if (!user) {
+          console.error(`Mock user not found for: ${email}`);
           throw new Error('Invalid username or password');
         }
         
+        console.log(`Mock user found: ${user.username} with role: ${user.role}`);
         localStorage.setItem('user', JSON.stringify(user));
         
         setState({
