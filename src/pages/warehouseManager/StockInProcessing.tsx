@@ -37,18 +37,19 @@ const StockInProcessing: React.FC = () => {
   const [selectedStockIn, setSelectedStockIn] = useState<StockInData | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
-  // Fetch stock in requests - improved query with proper error handling
+  // Fetch stock in requests - improved query to properly fetch submitter info
   const { data: stockInRequests, isLoading, error } = useQuery({
     queryKey: ['stock-in-requests'],
     queryFn: async () => {
       console.log('Fetching stock in requests...');
       try {
-        const { data, error } = await supabase
+        // Get stock in records first
+        const { data: stockData, error: stockError } = await supabase
           .from('stock_in')
           .select(`
             id,
-            product:product_id(id, name),
-            submitter:submitted_by(id, name, username),
+            product_id,
+            submitted_by,
             boxes,
             status,
             created_at,
@@ -59,30 +60,67 @@ const StockInProcessing: React.FC = () => {
           .in('status', ['pending', 'rejected'])
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching stock in requests:', error);
-          toast({
-            variant: 'destructive',
-            title: 'Error loading data',
-            description: error.message,
-          });
-          throw error;
+        if (stockError) {
+          console.error('Error fetching stock in requests:', stockError);
+          throw stockError;
+        }
+
+        if (!stockData || stockData.length === 0) {
+          return [];
         }
         
-        console.log('Stock in data fetched:', data);
+        // Process each stock in record to fetch related data
+        const processedData = await Promise.all(stockData.map(async (item) => {
+          // Get product details
+          let product = { name: 'Unknown Product', id: null };
+          if (item.product_id) {
+            const { data: productData } = await supabase
+              .from('products')
+              .select('id, name')
+              .eq('id', item.product_id)
+              .single();
+            
+            if (productData) {
+              product = productData;
+            }
+          }
+          
+          // Get submitter details
+          let submitter = null;
+          if (item.submitted_by) {
+            const { data: submitterData } = await supabase
+              .from('profiles')
+              .select('id, name, username')
+              .eq('id', item.submitted_by)
+              .maybeSingle(); // Use maybeSingle instead of single to prevent errors
+            
+            if (submitterData) {
+              submitter = submitterData;
+            } else {
+              console.log(`No submitter found for ID: ${item.submitted_by}`);
+              submitter = { 
+                id: item.submitted_by,
+                name: 'Unknown',
+                username: 'unknown'
+              };
+            }
+          }
+          
+          return {
+            id: item.id,
+            product,
+            submitter,
+            boxes: item.boxes,
+            status: item.status,
+            created_at: item.created_at,
+            source: item.source || 'Unknown Source',
+            notes: item.notes,
+            rejection_reason: item.rejection_reason
+          };
+        }));
         
-        // Transform the data to handle potential embedding errors
-        return (data || []).map(item => ({
-          id: item.id,
-          product: item.product || { name: 'Unknown Product', id: null },
-          submitter: item.submitter || { name: 'Unknown', username: 'unknown', id: null },
-          boxes: item.boxes,
-          status: item.status as StockInData['status'],
-          created_at: item.created_at,
-          source: item.source || 'Unknown Source',
-          notes: item.notes,
-          rejection_reason: item.rejection_reason
-        })) as StockInData[];
+        console.log('Processed stock in data:', processedData);
+        return processedData;
       } catch (error) {
         console.error('Failed to fetch stock in requests:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

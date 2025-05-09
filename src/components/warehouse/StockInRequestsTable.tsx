@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 interface StockInData {
   id: string;
@@ -73,7 +74,19 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
           {stockInRequests.map((stockIn) => (
             <TableRow key={stockIn.id} className={stockIn.status === 'pending' ? "bg-green-50" : undefined}>
               <TableCell className="font-medium">{stockIn.product?.name || 'Unknown Product'}</TableCell>
-              <TableCell>{stockIn.submitter ? `${stockIn.submitter.name} (${stockIn.submitter.username})` : 'Unknown'}</TableCell>
+              <TableCell>
+                {stockIn.submitter ? (
+                  <div className="flex flex-col">
+                    <span className="font-medium">{stockIn.submitter.name}</span>
+                    <span className="text-xs text-gray-500">@{stockIn.submitter.username}</span>
+                    {stockIn.submitter.id && (
+                      <Badge variant="outline" className="text-xs mt-1">ID: {stockIn.submitter.id.substring(0, 8)}...</Badge>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-amber-500">Unknown Submitter</span>
+                )}
+              </TableCell>
               <TableCell>{stockIn.source}</TableCell>
               <TableCell>{stockIn.boxes}</TableCell>
               <TableCell>{new Date(stockIn.created_at).toLocaleString()}</TableCell>

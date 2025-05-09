@@ -12,11 +12,12 @@ export const useStockInData = (stockInId: string | undefined) => {
     queryFn: async () => {
       if (!stockInId) return null;
       
+      // First, get the stock in record
       const { data, error } = await supabase
         .from('stock_in')
         .select(`
           id,
-          product:product_id(id, name),
+          product_id,
           submitted_by,
           boxes,
           status,
@@ -28,42 +29,69 @@ export const useStockInData = (stockInId: string | undefined) => {
         .eq('id', stockInId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching stock in:", error);
+        throw error;
+      }
       
-      // Fetch submitter information separately to avoid the relationship error
+      if (!data) return null;
+      
+      // Fetch product information
+      let product = { name: 'Unknown Product', id: null };
+      if (data.product_id) {
+        const { data: productData, error: productError } = await supabase
+          .from('products')
+          .select('id, name')
+          .eq('id', data.product_id)
+          .single();
+          
+        if (!productError && productData) {
+          product = productData;
+        } else {
+          console.error("Error fetching product:", productError);
+        }
+      }
+      
+      // Fetch submitter information
       let submitter = null;
-      if (data && data.submitted_by) {
+      if (data.submitted_by) {
+        console.log("Fetching submitter with ID:", data.submitted_by);
         const { data: submitterData, error: submitterError } = await supabase
           .from('profiles')
           .select('id, name, username')
           .eq('id', data.submitted_by)
-          .single();
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors
           
         if (!submitterError && submitterData) {
           submitter = submitterData;
+          console.log("Found submitter:", submitter);
         } else {
-          submitter = { name: 'Unknown', username: 'unknown' };
+          console.error("Error fetching submitter profile:", submitterError);
+          // Create a fallback submitter with the ID at least
+          submitter = { 
+            id: data.submitted_by, 
+            name: 'Unknown', 
+            username: 'unknown' 
+          };
         }
       }
       
-      if (data) {
-        const stockInDataObject = {
-          id: data.id,
-          product: data.product || { name: 'Unknown Product' },
-          submitter: submitter,
-          boxes: data.boxes,
-          status: data.status,
-          created_at: data.created_at,
-          source: data.source || 'Unknown Source',
-          notes: data.notes,
-          rejection_reason: data.rejection_reason
-        };
-        
-        setStockInData(stockInDataObject);
-        return stockInDataObject;
-      }
+      // Construct the complete stockInData object
+      const stockInDataObject = {
+        id: data.id,
+        product: product,
+        submitter: submitter,
+        boxes: data.boxes,
+        status: data.status,
+        created_at: data.created_at,
+        source: data.source || 'Unknown Source',
+        notes: data.notes,
+        rejection_reason: data.rejection_reason
+      };
       
-      return null;
+      console.log("Final stock in data:", stockInDataObject);
+      setStockInData(stockInDataObject);
+      return stockInDataObject;
     },
     enabled: !!stockInId,
   });
