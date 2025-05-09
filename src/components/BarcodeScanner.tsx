@@ -44,6 +44,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const quaggaInitializedRef = useRef<boolean>(false);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -230,6 +231,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       
       // Start QuaggaJS
       Quagga.start();
+      quaggaInitializedRef.current = true;
       
       // Listen for detected barcodes
       Quagga.onDetected((result) => {
@@ -238,16 +240,12 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
         const code = result.codeResult.code;
         if (code) {
           setIsCameraActive(false);
+          quaggaInitializedRef.current = false;
           Quagga.stop();
           processScan(code);
         }
       });
     });
-    
-    // Cleanup function
-    return () => {
-      Quagga.stop();
-    };
   }, [isCameraActive, processScan]);
 
   // Handle camera activation/deactivation
@@ -261,8 +259,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
         streamRef.current = null;
       }
       
-      // Stop QuaggaJS if it's running
-      Quagga.stop();
+      // Only stop QuaggaJS if it was initialized
+      if (quaggaInitializedRef.current) {
+        Quagga.stop();
+        quaggaInitializedRef.current = false;
+      }
     }
     
     return () => {
@@ -270,7 +271,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
-      Quagga.stop();
+      // Only stop QuaggaJS if it was initialized
+      if (quaggaInitializedRef.current) {
+        Quagga.stop();
+        quaggaInitializedRef.current = false;
+      }
     };
   }, [isCameraActive, initBarcodeDetection]);
 
