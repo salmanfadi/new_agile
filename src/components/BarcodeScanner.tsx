@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ScanResponse } from '@/types/auth';
 import { 
   Card, 
   CardContent, 
@@ -16,36 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Barcode, Search, Camera, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Types for the barcode scanner response
-export interface ScanResponse {
-  status: 'success' | 'error';
-  data?: {
-    box_id: string;
-    product: {
-      id: string;
-      name: string;
-      sku: string;
-      description?: string;
-    };
-    box_quantity: number;
-    total_product_quantity?: number;
-    location?: {
-      warehouse: string;
-      zone: string;
-      position: string;
-    };
-    status: 'available' | 'reserved' | 'in-transit';
-    attributes?: Record<string, string>;
-    history?: Array<{
-      action: string;
-      timestamp: string;
-      user: string;
-    }>;
-  };
-  error?: string;
-}
-
-export interface BarcodeScannerProps {
+interface BarcodeScannerProps {
   onScanComplete?: (data: ScanResponse['data']) => void;
   embedded?: boolean;
   allowManualEntry?: boolean;

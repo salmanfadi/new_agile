@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -118,10 +119,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
             isActive: isActive('/manager/stock-in')
           },
           {
-            href: '/manager/stock-out',
+            href: '/manager/stock-out-approval',
             icon: LogOut,
             label: 'Stock Out Approvals',
-            isActive: isActive('/manager/stock-out')
+            isActive: isActive('/manager/stock-out-approval')
           },
           {
             href: '/manager/inventory',
@@ -130,9 +131,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
             isActive: isActive('/manager/inventory')
           },
           {
-            title: "Barcode Lookup",
             href: "/manager/barcode",
             icon: Barcode,
+            label: "Barcode Lookup",
+            isActive: isActive('/manager/barcode')
           }
         ];
       
@@ -158,9 +160,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar }) => {
             isActive: isActive('/operator/submissions')
           },
           {
-            title: "Barcode Lookup",
             href: "/operator/barcode",
             icon: Barcode,
+            label: "Barcode Lookup",
+            isActive: isActive('/operator/barcode')
           }
         ];
       

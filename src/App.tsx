@@ -12,7 +12,7 @@ import OperatorDashboard from '@/pages/fieldOperator/OperatorDashboard';
 import StockInProcessing from '@/pages/warehouseManager/StockInProcessing';
 import StockOutApproval from '@/pages/warehouseManager/StockOutApproval';
 import StockOutForm from '@/pages/fieldOperator/StockOutForm';
-import StockOutSubmissions from '@/pages/fieldOperator/StockOutSubmissions';
+import MySubmissions from '@/pages/fieldOperator/MySubmissions';
 import InventoryView from '@/pages/warehouseManager/InventoryView';
 import Unauthorized from '@/pages/Unauthorized';
 import BarcodeLookup from "./pages/fieldOperator/BarcodeLookup";
@@ -81,7 +81,7 @@ const App: React.FC = () => {
               </RequireAuth>
             }
           />
-          <Route 
+          <Route
             path="/manager/barcode"
             element={
               <RequireAuth allowedRoles={['warehouse_manager', 'admin']}>
@@ -118,7 +118,7 @@ const App: React.FC = () => {
             element={
               <RequireAuth allowedRoles={['field_operator', 'admin', 'warehouse_manager']}>
                 <MainLayout>
-                  <StockOutSubmissions />
+                  <MySubmissions />
                 </MainLayout>
               </RequireAuth>
             }
