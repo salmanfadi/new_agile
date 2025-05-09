@@ -623,6 +623,11 @@ const UsersManagement = () => {
     return true;
   });
 
+  // Add the missing handleCreateUserSubmit function
+  const handleCreateUserSubmit = (values: CreateUserFormValues) => {
+    createUserMutation.mutate(values);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader 

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, AuthState } from '../types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +20,8 @@ const initialState: AuthState = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // For development/demo purposes only - in a real app, remove this
-const mockUsers: User[] = [
+// Now we export mockUsers so we can import it in Login.tsx
+export const mockUsers: User[] = [
   { id: '1', username: 'admin', role: 'admin', name: 'Admin User' },
   { id: '2', username: 'warehouse', role: 'warehouse_manager', name: 'Warehouse Manager' },
   { id: '3', username: 'field', role: 'field_operator', name: 'Field Operator' },

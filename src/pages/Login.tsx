@@ -8,6 +8,10 @@ import { Warehouse } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { supabase } from '@/integrations/supabase/client';
+
+// Import mockUsers from the AuthContext
+import { mockUsers } from '@/context/AuthContext';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
