@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { processStockIn } from '@/utils/stockInProcessor';
 import { toast } from '@/hooks/use-toast';
 import { useStockInBoxes } from '@/hooks/useStockInBoxes';
-import { useStockInData } from '@/hooks/useStockInData';
+import { useStockInData, StockInData as StockInDataType } from '@/hooks/useStockInData';
 import { useWarehouseData } from '@/hooks/useWarehouseData';
 import { StockInDetails } from '@/components/warehouse/StockInDetails';
 import { DefaultValuesSection } from '@/components/warehouse/DefaultValuesSection';
@@ -24,8 +24,15 @@ const ProcessStockInPage: React.FC = () => {
   const { user } = useAuth();
 
   // Fetch stock in data
-  const { stockInData, isLoadingStockIn } = useStockInData(stockInId);
+  const { stockInData: originalStockInData, isLoadingStockIn } = useStockInData(stockInId);
   
+  // Make sure stockInData conforms to the expected structure for useStockInBoxes
+  const stockInData = originalStockInData ? {
+    ...originalStockInData,
+    // Ensure product is defined if it's not
+    product: originalStockInData.product || { name: 'Unknown Product' }
+  } : null;
+
   // Initialize box data with the hook
   const {
     boxesData,
@@ -96,7 +103,7 @@ const ProcessStockInPage: React.FC = () => {
     <div className="p-6 space-y-6">
       <PageHeader 
         title="Process Stock In" 
-        description={`Processing stock for ${stockInData.product?.name}`} 
+        description={`Processing stock for ${stockInData.product?.name || 'Unknown Product'}`} 
       />
       
       <BackButton onClick={navigateBack} className="mb-4" />

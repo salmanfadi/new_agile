@@ -14,7 +14,7 @@ export interface BoxData {
 
 export interface StockInData {
   id: string;
-  product: { name: string };
+  product?: { name: string; id?: string; sku?: string; }; // Made product optional to match useStockInData
   submitter: { 
     name: string; 
     username: string;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -122,12 +123,12 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
 
     setFormSubmitted(true);
 
-    // Fix: Add proper type handling for productId
+    // Fixed type handling for productId
     let productId: string;
     
-    if (stockInData?.product && 'id' in stockInData.product) {
-      // When product has an id property, use it with string casting for safety
-      productId = stockInData.product.id as string;
+    // First check if stockInData exists and has a product with an id
+    if (stockInData?.product && 'id' in stockInData.product && stockInData.product.id) {
+      productId = stockInData.product.id;
     } else if (batches.length > 0) {
       // Fallback to the first batch's product id
       productId = batches[0].product_id;
