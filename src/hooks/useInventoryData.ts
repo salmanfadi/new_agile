@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
-import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface InventoryItem {
   id: string;
@@ -21,25 +21,6 @@ export interface InventoryItem {
   batchId: string | null;
   lastUpdated: string;
   source?: string;
-}
-
-// Define interfaces for real-time payload types
-interface StockInPayload extends RealtimePostgresChangesPayload<{
-  [key: string]: any;
-}> {
-  new?: {
-    status: string;
-    [key: string]: any;
-  };
-}
-
-interface StockOutPayload extends RealtimePostgresChangesPayload<{
-  [key: string]: any;
-}> {
-  new?: {
-    status: string;
-    [key: string]: any;
-  };
 }
 
 export const useInventoryData = (
@@ -85,7 +66,7 @@ export const useInventoryData = (
       .channel('stock-in-changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'stock_in' },
-        (payload: StockInPayload) => {
+        (payload) => {
           console.log('Stock in change detected:', payload);
           
           // If stock in is completed or processing, refresh inventory data
@@ -107,7 +88,7 @@ export const useInventoryData = (
       .channel('stock-out-changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'stock_out' },
-        (payload: StockOutPayload) => {
+        (payload) => {
           console.log('Stock out change detected:', payload);
           
           // If stock out status changes, refresh inventory
@@ -132,9 +113,9 @@ export const useInventoryData = (
   
   // Fetch inventory data with consistent structure across roles
   const inventoryQuery = useQuery({
-    queryKey: ['inventory-data', warehouseFilter, batchFilter, statusFilter],
+    queryKey: ['inventory-data', warehouseFilter, batchFilter, statusFilter, searchTerm],
     queryFn: async () => {
-      console.log('Fetching inventory data with filters:', { warehouseFilter, batchFilter, statusFilter });
+      console.log('Fetching inventory data with filters:', { warehouseFilter, batchFilter, statusFilter, searchTerm });
       
       try {
         // Build the base query
@@ -155,16 +136,19 @@ export const useInventoryData = (
             batch_id
           `);
           
-        // Apply filters
-        if (warehouseFilter) {
+        // Apply filters - make sure they work when the filter exists
+        if (warehouseFilter && warehouseFilter.trim() !== '') {
+          console.log(`Applying warehouse filter: ${warehouseFilter}`);
           query = query.eq('warehouse_id', warehouseFilter);
         }
         
-        if (batchFilter) {
+        if (batchFilter && batchFilter.trim() !== '') {
+          console.log(`Applying batch filter: ${batchFilter}`);
           query = query.eq('batch_id', batchFilter);
         }
         
-        if (statusFilter) {
+        if (statusFilter && statusFilter.trim() !== '') {
+          console.log(`Applying status filter: ${statusFilter}`);
           query = query.eq('status', statusFilter);
         }
         
@@ -178,6 +162,8 @@ export const useInventoryData = (
           console.error('Error fetching inventory:', inventoryError);
           throw inventoryError;
         }
+
+        console.log(`Found ${inventoryData?.length || 0} inventory items before fetching related data`);
 
         // Fetch related data in parallel for better performance
         const [productsResponse, warehousesResponse, locationsResponse, stockInResponse] = await Promise.all([
@@ -209,7 +195,7 @@ export const useInventoryData = (
         }, {} as Record<string, string>) : {};
         
         // Map the inventory data with the related entities
-        return inventoryData?.map(item => ({
+        const mappedInventory = inventoryData?.map(item => ({
           id: item.id,
           productName: productMap[item.product_id]?.name || 'Unknown Product',
           productId: item.product_id,
@@ -229,6 +215,10 @@ export const useInventoryData = (
           source: item.batch_id ? batchSourceMap[item.batch_id] : undefined,
           lastUpdated: new Date(item.updated_at).toLocaleString(),
         })) as InventoryItem[];
+
+        console.log(`Mapped ${mappedInventory?.length || 0} inventory items with relationship data`);
+        
+        return mappedInventory || [];
       } catch (error) {
         console.error('Error in inventory query:', error);
         throw error;
@@ -237,19 +227,26 @@ export const useInventoryData = (
     staleTime: 10000, // Consider data fresh for 10 seconds to reduce API calls
   });
 
-  // Apply search filter locally to reduce database load
-  const filteredInventory = searchTerm && inventoryQuery.data
-    ? inventoryQuery.data.filter(item => 
-        item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.warehouseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.barcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.batchId && item.batchId.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (item.source && item.source.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    : inventoryQuery.data || [];
+  // Apply search filter locally if there's a search term
+  let filteredResults = inventoryQuery.data || [];
+  
+  if (searchTerm && searchTerm.trim() !== '') {
+    console.log(`Applying client-side search filter: ${searchTerm}`);
+    const normalizedSearchTerm = searchTerm.toLowerCase().trim();
+    
+    filteredResults = filteredResults.filter(item => 
+      item.productName.toLowerCase().includes(normalizedSearchTerm) ||
+      item.warehouseName.toLowerCase().includes(normalizedSearchTerm) ||
+      item.barcode.toLowerCase().includes(normalizedSearchTerm) ||
+      (item.batchId && item.batchId.toLowerCase().includes(normalizedSearchTerm)) ||
+      (item.source && item.source.toLowerCase().includes(normalizedSearchTerm))
+    );
+    
+    console.log(`Found ${filteredResults.length} items after search filtering`);
+  }
 
   return {
-    inventoryItems: filteredInventory,
+    inventoryItems: filteredResults,
     isLoading: inventoryQuery.isLoading,
     error: inventoryQuery.error,
     refetch: inventoryQuery.refetch,

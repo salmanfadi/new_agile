@@ -20,6 +20,7 @@ const InventoryView: React.FC = () => {
     setWarehouseFilter,
     setBatchFilter,
     setStatusFilter,
+    resetFilters,
     warehouses,
     batchIds,
     availableStatuses
@@ -41,6 +42,10 @@ const InventoryView: React.FC = () => {
   // Handle barcode scanned
   const handleBarcodeScanned = async (barcode: string) => {
     setHighlightedBarcode(barcode);
+    
+    // Clear existing filters to ensure we see the item
+    resetFilters();
+    setSearchTerm(barcode);
     
     // Invalidate query to ensure we have the latest data
     await queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
@@ -91,6 +96,7 @@ const InventoryView: React.FC = () => {
         warehouses={warehouses}
         batchIds={batchIds}
         availableStatuses={availableStatuses}
+        onResetFilters={resetFilters}
       />
       
       <Card>

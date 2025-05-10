@@ -2,7 +2,7 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, Scan, RefreshCcw } from 'lucide-react';
+import { Search, Filter, Scan, RefreshCcw, X } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -19,9 +19,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
-import { useInventoryFilters } from '@/hooks/useInventoryFilters';
-import { toast } from '@/hooks/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
+import { Badge } from '@/components/ui/badge';
 
 interface InventoryFiltersPanelProps {
   onBarcodeScanned: (barcode: string) => void;
@@ -35,8 +33,9 @@ interface InventoryFiltersPanelProps {
   statusFilter: string;
   setStatusFilter: (status: string) => void;
   warehouses: any[];
-  batchIds: string[];
+  batchIds: any[];
   availableStatuses: { value: string, label: string }[];
+  onResetFilters?: () => void;
 }
 
 export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
@@ -52,7 +51,8 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
   setStatusFilter,
   warehouses,
   batchIds,
-  availableStatuses
+  availableStatuses,
+  onResetFilters
 }) => {
   const [isScannerOpen, setIsScannerOpen] = React.useState(false);
   
@@ -60,6 +60,9 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
     setIsScannerOpen(false);
     onBarcodeScanned(barcode);
   };
+
+  // Check if there are any active filters
+  const hasActiveFilters = searchTerm || warehouseFilter || batchFilter || statusFilter;
 
   return (
     <>
@@ -72,6 +75,16 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9"
           />
+          {searchTerm && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0" 
+              onClick={() => setSearchTerm('')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         
         <div className="w-full lg:w-1/6">
@@ -103,9 +116,9 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Batches</SelectItem>
-              {batchIds.map((batchId: string) => (
-                <SelectItem key={batchId} value={batchId}>
-                  Batch: {batchId.substring(0, 8)}...
+              {batchIds.map((batch) => (
+                <SelectItem key={batch.id} value={batch.id}>
+                  {batch.source ? `${batch.source.substring(0, 8)}...` : `Batch: ${batch.id.substring(0, 8)}...`}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -158,8 +171,53 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
           <Button variant="ghost" onClick={onRefresh} title="Refresh data">
             <RefreshCcw className="h-4 w-4" />
           </Button>
+          
+          {hasActiveFilters && onResetFilters && (
+            <Button variant="ghost" onClick={onResetFilters} title="Clear all filters">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
+      
+      {/* Display active filters as badges */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {searchTerm && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Search: {searchTerm}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setSearchTerm('')} />
+            </Badge>
+          )}
+          
+          {warehouseFilter && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Warehouse: {warehouses.find(w => w.id === warehouseFilter)?.name || warehouseFilter}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setWarehouseFilter('')} />
+            </Badge>
+          )}
+          
+          {batchFilter && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Batch: {batchIds.find(b => b.id === batchFilter)?.source || batchFilter.substring(0, 8)}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setBatchFilter('')} />
+            </Badge>
+          )}
+          
+          {statusFilter && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Status: {availableStatuses.find(s => s.value === statusFilter)?.label || statusFilter}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => setStatusFilter('')} />
+            </Badge>
+          )}
+          
+          {onResetFilters && (
+            <Button variant="link" size="sm" className="text-xs" onClick={onResetFilters}>
+              Clear all
+            </Button>
+          )}
+        </div>
+      )}
     </>
   );
 };

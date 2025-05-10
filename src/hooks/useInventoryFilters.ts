@@ -13,9 +13,10 @@ export const useInventoryFilters = () => {
   const batchIdsQuery = useQuery({
     queryKey: ['batch-ids'],
     queryFn: async () => {
+      console.log('Fetching batch IDs for filter');
       const { data, error } = await supabase
         .from('stock_in')
-        .select('id')
+        .select('id, created_at, source')
         .order('created_at', { ascending: false });
         
       if (error) {
@@ -23,7 +24,8 @@ export const useInventoryFilters = () => {
         return [];
       }
       
-      return data.map(d => d.id);
+      console.log(`Found ${data?.length || 0} batch IDs`);
+      return data;
     }
   });
 
@@ -31,11 +33,18 @@ export const useInventoryFilters = () => {
   const warehousesQuery = useQuery({
     queryKey: ['warehouses'],
     queryFn: async () => {
+      console.log('Fetching warehouses for filter');
       const { data, error } = await supabase
         .from('warehouses')
-        .select('*');
+        .select('*')
+        .order('name', { ascending: true });
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching warehouses:', error);
+        throw error;
+      }
+      
+      console.log(`Found ${data?.length || 0} warehouses`);
       return data;
     }
   });
@@ -49,6 +58,14 @@ export const useInventoryFilters = () => {
     { value: 'damaged', label: 'Damaged' }
   ];
 
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setWarehouseFilter('');
+    setBatchFilter('');
+    setStatusFilter('');
+  };
+
   return {
     filters: {
       searchTerm,
@@ -60,6 +77,7 @@ export const useInventoryFilters = () => {
     setWarehouseFilter,
     setBatchFilter,
     setStatusFilter,
+    resetFilters,
     warehouses: warehousesQuery.data || [],
     batchIds: batchIdsQuery.data || [],
     availableStatuses,
