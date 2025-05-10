@@ -5,6 +5,7 @@ import { ProcessedBatch, BatchFormData } from '@/types/batchStockIn';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { generateBarcodeString } from '@/utils/barcodeUtils';
 
 interface StockInSubmissionData {
   stockInId?: string;
@@ -25,6 +26,22 @@ export const useBatchStockIn = (userId: string) => {
   const [barcodeErrors, setBarcodeErrors] = useState<{ barcode: string; error: string; }[]>([]);
 
   const addBatch = useCallback((batchData: BatchFormData) => {
+    let generatedBarcodes: string[] = [];
+    
+    // If we have product data with category, generate better barcodes
+    if (batchData.product) {
+      const category = batchData.product.category || 'PROD';
+      const sku = batchData.product.sku || batchData.product.id.substring(0, 6);
+      
+      // Generate unique barcodes for each box
+      generatedBarcodes = Array.from({ length: batchData.boxes_count }, (_, index) => 
+        generateBarcodeString(category, sku, index + 1)
+      );
+    } else {
+      // Fallback to simple UUIDs if no product data available
+      generatedBarcodes = Array.from({ length: batchData.boxes_count }, () => uuidv4());
+    }
+    
     const newBatch: ProcessedBatch = {
       id: uuidv4(),
       product_id: batchData.product?.id || '',
@@ -37,9 +54,10 @@ export const useBatchStockIn = (userId: string) => {
       quantity_per_box: batchData.quantity_per_box,
       color: batchData.color || '',
       size: batchData.size || '',
-      barcodes: Array.from({ length: batchData.boxes_count }, () => uuidv4()),
+      barcodes: generatedBarcodes,
       created_by: userId,
     };
+    
     setBatches(prevBatches => [...prevBatches, newBatch]);
   }, [userId]);
 
@@ -75,7 +93,7 @@ export const useBatchStockIn = (userId: string) => {
           size: batch.size || null,
           warehouse_id: batch.warehouse_id,
           location_id: batch.location_id,
-          product_id: batch.product_id, // Added product_id to ensure consistency
+          product_id: batch.product_id, 
         });
       }
     }
@@ -162,6 +180,15 @@ export const useBatchStockIn = (userId: string) => {
       
       return { success: true };
     } catch (error) {
+      // If anything fails, try to revert the stock_in status to 'pending'
+      await supabase
+        .from('stock_in')
+        .update({ 
+          status: 'pending',
+          processed_by: null
+        })
+        .eq('id', stockInId);
+        
       console.error('Error in processStockIn transaction:', error);
       throw error;
     }
@@ -211,46 +238,48 @@ export const useBatchStockIn = (userId: string) => {
         
         setBarcodeErrors([]);
         setIsSuccess(true);
-        
-        // Force an immediate refresh of the inventory data
-        queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       }
       
-      // Create the notification if we have a product ID
-      if (data.productId) {
-        await supabase.from('barcode_logs').insert([{
-          barcode: 'batch-submission',
-          action: 'batch_stock_in_completed',
-          user_id: data.submittedBy,
-          details: {
-            stock_in_id: data.stockInId,
-            product_id: data.productId,
-            batch_count: data.batches.length,
-            total_items: processedBoxes.length,
-            source: data.source,
-            completed_at: new Date().toISOString()
-          }
-        }]);
-        
-        // Add a notification for inventory system
-        await supabase.from('notifications').insert([{
-          user_id: data.submittedBy,
-          role: 'warehouse_manager',
-          action_type: 'inventory_updated',
-          metadata: {
-            source: 'batch_stock_in',
-            stock_in_id: data.stockInId,
-            items_count: processedBoxes.length,
-            product_id: data.productId,
-            completed_at: new Date().toISOString()
-          }
-        }]);
-      }
+      // Create a detailed barcode log entry
+      await supabase.from('barcode_logs').insert([{
+        barcode: 'batch-submission',
+        action: 'batch_stock_in_completed',
+        user_id: data.submittedBy,
+        details: {
+          stock_in_id: data.stockInId,
+          product_id: data.productId,
+          batch_count: data.batches.length,
+          total_items: processedBoxes.length,
+          source: data.source,
+          processed_boxes: processedBoxes.map(box => ({
+            barcode: box.barcode,
+            product_id: box.product_id,
+            quantity: box.quantity
+          })),
+          completed_at: new Date().toISOString()
+        }
+      }]);
       
-      // Invalidate queries to refresh data
+      // Add detailed notification for inventory system
+      await supabase.from('notifications').insert([{
+        user_id: data.submittedBy,
+        role: 'warehouse_manager',
+        action_type: 'inventory_updated',
+        metadata: {
+          source: 'batch_stock_in',
+          stock_in_id: data.stockInId,
+          items_count: processedBoxes.length,
+          product_id: data.productId,
+          product_name: data.batches?.[0]?.product?.name || 'Unknown Product',
+          completed_at: new Date().toISOString()
+        }
+      }]);
+      
+      // Force an immediate refresh of related data
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
       queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       
     } catch (error) {
       console.error('Error submitting batch stock in:', error);
@@ -270,21 +299,8 @@ export const useBatchStockIn = (userId: string) => {
     batches,
     addBatch,
     editBatch,
-    updateBatch: useCallback((index: number, updatedBatchData: Partial<ProcessedBatch>) => {
-      setBatches(prevBatches => {
-        const newBatches = [...prevBatches];
-        newBatches[index] = { ...newBatches[index], ...updatedBatchData };
-        return newBatches;
-      });
-      setEditingIndex(null);
-    }, []),
-    deleteBatch: useCallback((index: number) => {
-      setBatches(prevBatches => {
-        const newBatches = [...prevBatches];
-        newBatches.splice(index, 1);
-        return newBatches;
-      });
-    }, []),
+    updateBatch,
+    deleteBatch,
     editingIndex,
     setEditingIndex,
     submitStockIn,

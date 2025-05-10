@@ -11,7 +11,7 @@ import {
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { InventoryItem } from '@/hooks/useInventoryData';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Package, Search, Info, ExternalLink } from 'lucide-react';
+import { AlertTriangle, Package, Search, Info, ExternalLink, History, Truck } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 interface InventoryTableProps {
   inventoryItems: InventoryItem[];
@@ -42,6 +43,10 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   const [showBatchDetails, setShowBatchDetails] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<any>(null);
   const [isBatchLoading, setIsBatchLoading] = useState(false);
+  const [showItemHistory, setShowItemHistory] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [itemHistory, setItemHistory] = useState<any[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   useEffect(() => {
     // Scroll to highlighted row when it changes
@@ -56,7 +61,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   const fetchBatchDetails = async (batchId: string) => {
     setIsBatchLoading(true);
     try {
-      // Fetch the stock-in record
+      // Fetch the stock-in record with related data
       const { data: stockInData, error: stockInError } = await supabase
         .from('stock_in')
         .select(`
@@ -98,11 +103,46 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     }
   };
 
+  const fetchItemHistory = async (itemId: string) => {
+    setIsHistoryLoading(true);
+    try {
+      // Fetch barcode logs related to this inventory item
+      const { data: inventoryItem } = await supabase
+        .from('inventory')
+        .select('barcode')
+        .eq('id', itemId)
+        .single();
+
+      if (!inventoryItem) throw new Error("Item not found");
+
+      const { data: logs, error: logsError } = await supabase
+        .from('barcode_logs')
+        .select('*')
+        .eq('barcode', inventoryItem.barcode)
+        .order('timestamp', { ascending: false });
+
+      if (logsError) throw logsError;
+
+      setItemHistory(logs || []);
+    } catch (error) {
+      console.error('Error fetching item history:', error);
+      setItemHistory([]);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
   const viewBatchDetails = (batchId: string | null) => {
     if (batchId) {
       setShowBatchDetails(true);
       fetchBatchDetails(batchId);
     }
+  };
+
+  const viewItemHistory = (itemId: string) => {
+    setSelectedItem(itemId);
+    setShowItemHistory(true);
+    fetchItemHistory(itemId);
   };
 
   if (isLoading) {
@@ -147,7 +187,8 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             <TableHead>Status</TableHead>
             <TableHead>Color</TableHead>
             <TableHead>Size</TableHead>
-            <TableHead>Batch</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead>Actions</TableHead>
             <TableHead className="text-right">Last Updated</TableHead>
           </TableRow>
         </TableHeader>
@@ -175,31 +216,57 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
               <TableCell>{item.color || '-'}</TableCell>
               <TableCell>{item.size || '-'}</TableCell>
               <TableCell>
-                {item.batchId ? (
+                {item.source ? (
+                  <Badge variant="outline" className="text-xs">
+                    <Truck className="h-3 w-3 mr-1" />
+                    {item.source}
+                  </Badge>
+                ) : '-'}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  {item.batchId && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => viewBatchDetails(item.batchId)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Info className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p>View batch details</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          className="text-xs font-mono px-2 py-1 h-auto"
-                          onClick={() => viewBatchDetails(item.batchId)}
+                          onClick={() => viewItemHistory(item.id)}
+                          className="h-7 w-7 p-0"
                         >
-                          <Info className="h-3 w-3 mr-1" />
-                          {item.batchId.substring(0, 8)}...
+                          <History className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
-                        <p>Batch ID: {item.batchId}</p>
-                        <p className="text-xs text-slate-400">Click to view batch details</p>
+                        <p>View item history</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                ) : (
-                  '-'
-                )}
+                </div>
               </TableCell>
-              <TableCell className="text-right">{item.lastUpdated}</TableCell>
+              <TableCell className="text-right text-sm text-muted-foreground">
+                {item.lastUpdated}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -224,7 +291,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 <div className="text-sm font-medium">Batch ID:</div>
-                <div className="text-sm text-slate-600">{selectedBatch.id}</div>
+                <div className="text-sm text-slate-600 font-mono">{selectedBatch.id}</div>
                 
                 <div className="text-sm font-medium">Product:</div>
                 <div className="text-sm text-slate-600">{selectedBatch.products?.name || 'Unknown'}</div>
@@ -276,6 +343,62 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             </div>
           ) : (
             <div className="text-center py-4">No batch information available</div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Item History Dialog */}
+      <Dialog open={showItemHistory} onOpenChange={setShowItemHistory}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Item History</DialogTitle>
+            <DialogDescription>
+              Activity history for this inventory item
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isHistoryLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              <div className="ml-2">Loading item history...</div>
+            </div>
+          ) : itemHistory.length > 0 ? (
+            <div className="space-y-4">
+              <div className="max-h-[400px] overflow-y-auto pr-2">
+                {itemHistory.map((log, index) => (
+                  <div key={index} className="mb-3 border-b pb-3 last:border-b-0">
+                    <div className="flex justify-between items-start">
+                      <div className="font-medium">
+                        {log.action.replace(/_/g, ' ')}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(log.timestamp), 'MMM d, yyyy h:mm a')}
+                      </div>
+                    </div>
+                    {log.details && (
+                      <div className="mt-1 text-sm text-slate-600">
+                        <pre className="font-mono text-xs bg-slate-50 p-2 rounded overflow-x-auto">
+                          {JSON.stringify(log.details, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <div className="pt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowItemHistory(false)}
+                  className="w-full"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4">No history records found for this item</div>
           )}
         </DialogContent>
       </Dialog>

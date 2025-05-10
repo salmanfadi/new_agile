@@ -54,3 +54,69 @@ export const parseBarcodeString = (barcode: string): {
     uniqueId: parts[3]
   };
 };
+
+/**
+ * Validates whether a barcode is in the correct format
+ * 
+ * @param barcode - Barcode string to validate
+ * @returns Boolean indicating if barcode is valid
+ */
+export const isValidBarcode = (barcode: string): boolean => {
+  // Accept UUID format barcodes (legacy)
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(barcode)) {
+    return true;
+  }
+  
+  // Accept structured barcode format
+  const parts = barcode.split('-');
+  
+  if (parts.length !== 4) {
+    return false;
+  }
+  
+  // Category should be 2-4 chars
+  if (parts[0].length < 2 || parts[0].length > 4) {
+    return false;
+  }
+  
+  // Product code should be at least 3 chars
+  if (parts[1].length < 3) {
+    return false;
+  }
+  
+  // Box number should be 3 digits
+  if (!/^\d{3}$/.test(parts[2])) {
+    return false;
+  }
+  
+  // Unique ID should be at least 4 chars
+  if (parts[3].length < 4) {
+    return false;
+  }
+  
+  return true;
+};
+
+/**
+ * Formats a barcode for display (shortens if necessary)
+ * 
+ * @param barcode - Full barcode string
+ * @param maxLength - Maximum display length before truncation
+ * @returns Formatted barcode string for display
+ */
+export const formatBarcodeForDisplay = (barcode: string, maxLength: number = 16): string => {
+  if (!barcode) return '';
+  
+  if (barcode.length <= maxLength) {
+    return barcode;
+  }
+  
+  // For structured barcodes (CAT-PROD-BOX-UID format)
+  const parts = barcode.split('-');
+  if (parts.length === 4) {
+    return `${parts[0]}-${parts[1]}-${parts[2]}...`;
+  }
+  
+  // For UUID-style barcodes
+  return barcode.substring(0, 8) + '...';
+};

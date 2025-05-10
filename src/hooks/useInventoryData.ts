@@ -20,16 +20,22 @@ export interface InventoryItem {
   status: string;
   batchId: string | null;
   lastUpdated: string;
+  source?: string;
 }
 
-export const useInventoryData = (warehouseFilter: string = '', batchFilter: string = '', searchTerm: string = '') => {
+export const useInventoryData = (
+  warehouseFilter: string = '', 
+  batchFilter: string = '', 
+  statusFilter: string = '',
+  searchTerm: string = ''
+) => {
   const queryClient = useQueryClient();
 
   // Set up real-time subscription for inventory changes
   useEffect(() => {
-    console.log('Setting up realtime inventory channel');
+    console.log('Setting up realtime inventory channels');
     
-    // Subscribe to inventory and related tables
+    // Subscribe to inventory table for any changes
     const inventoryChannel: RealtimeChannel = supabase
       .channel('inventory-changes')
       .on('postgres_changes', 
@@ -59,18 +65,37 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
     const stockInChannel: RealtimeChannel = supabase
       .channel('stock-in-changes')
       .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'stock_in' },
+        { event: '*', schema: 'public', table: 'stock_in' },
         (payload) => {
-          console.log('Stock in status change detected:', payload);
+          console.log('Stock in change detected:', payload);
           
           // If stock in is completed or processing, refresh inventory data
-          if (payload.new && (payload.new.status === 'completed' || payload.new.status === 'processing')) {
-            console.log('Stock in status changed to completed/processing, refreshing inventory');
+          if (payload.new && ['completed', 'processing'].includes(payload.new.status)) {
+            console.log(`Stock in status changed to ${payload.new.status}, refreshing inventory`);
             toast({
               title: `Stock In ${payload.new.status}`,
               description: payload.new.status === 'completed' 
                 ? 'New inventory has been added from stock-in processing' 
                 : 'Stock-in items are being processed',
+            });
+            queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
+          }
+        })
+      .subscribe();
+      
+    // Subscribe to stock_out table for status changes
+    const stockOutChannel: RealtimeChannel = supabase
+      .channel('stock-out-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'stock_out' },
+        (payload) => {
+          console.log('Stock out change detected:', payload);
+          
+          // If stock out status changes, refresh inventory
+          if (payload.new && ['approved', 'completed'].includes(payload.new.status)) {
+            toast({
+              title: `Stock Out ${payload.new.status}`,
+              description: `Stock out request has been ${payload.new.status}`,
             });
             queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
           }
@@ -82,45 +107,15 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
       console.log('Cleaning up realtime inventory channels');
       inventoryChannel.unsubscribe();
       stockInChannel.unsubscribe();
+      stockOutChannel.unsubscribe();
     };
   }, [queryClient]);
-
-  // Fetch batch IDs for filter
-  const batchIdsQuery = useQuery({
-    queryKey: ['batch-ids'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_in')
-        .select('id')
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        console.error('Error fetching batch IDs:', error);
-        return [];
-      }
-      
-      return data.map(d => d.id);
-    }
-  });
-
-  // Fetch warehouses for filter
-  const warehousesQuery = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('warehouses')
-        .select('*');
-        
-      if (error) throw error;
-      return data;
-    }
-  });
   
   // Fetch inventory data with consistent structure across roles
   const inventoryQuery = useQuery({
-    queryKey: ['inventory-data', warehouseFilter, batchFilter],
+    queryKey: ['inventory-data', warehouseFilter, batchFilter, statusFilter],
     queryFn: async () => {
-      console.log('Fetching inventory data with filters:', { warehouseFilter, batchFilter });
+      console.log('Fetching inventory data with filters:', { warehouseFilter, batchFilter, statusFilter });
       
       try {
         // Build the base query
@@ -150,6 +145,10 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
           query = query.eq('batch_id', batchFilter);
         }
         
+        if (statusFilter) {
+          query = query.eq('status', statusFilter);
+        }
+        
         // Order by most recently updated first
         query = query.order('updated_at', { ascending: false });
           
@@ -162,10 +161,11 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
         }
 
         // Fetch related data in parallel for better performance
-        const [productsResponse, warehousesResponse, locationsResponse] = await Promise.all([
+        const [productsResponse, warehousesResponse, locationsResponse, stockInResponse] = await Promise.all([
           supabase.from('products').select('id, name, description'),
           supabase.from('warehouses').select('id, name, location'),
-          supabase.from('warehouse_locations').select('id, floor, zone')
+          supabase.from('warehouse_locations').select('id, floor, zone'),
+          supabase.from('stock_in').select('id, source')
         ]);
         
         // Create lookup maps
@@ -183,6 +183,11 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
           map[item.id] = item;
           return map;
         }, {} as Record<string, any>) : {};
+        
+        const batchSourceMap = stockInResponse.data ? stockInResponse.data.reduce((map, item) => {
+          map[item.id] = item.source;
+          return map;
+        }, {} as Record<string, string>) : {};
         
         // Map the inventory data with the related entities
         return inventoryData?.map(item => ({
@@ -202,6 +207,7 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
           size: item.size || '-',
           status: item.status || 'available',
           batchId: item.batch_id,
+          source: item.batch_id ? batchSourceMap[item.batch_id] : undefined,
           lastUpdated: new Date(item.updated_at).toLocaleString(),
         })) as InventoryItem[];
       } catch (error) {
@@ -218,7 +224,8 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
         item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.warehouseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.barcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.batchId && item.batchId.toLowerCase().includes(searchTerm.toLowerCase()))
+        (item.batchId && item.batchId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.source && item.source.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     : inventoryQuery.data || [];
 
@@ -226,8 +233,6 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
     inventoryItems: filteredInventory,
     isLoading: inventoryQuery.isLoading,
     error: inventoryQuery.error,
-    batchIds: batchIdsQuery.data || [],
-    warehouses: warehousesQuery.data || [],
     refetch: inventoryQuery.refetch,
   };
 };
