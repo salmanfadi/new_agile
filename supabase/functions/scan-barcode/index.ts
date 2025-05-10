@@ -1,141 +1,229 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Mock data for testing
-const mockInventory = {
-  'BC123456789': {
-    id: 'box-001',
-    product: {
-      id: 'prod-001',
-      name: 'Test Product',
-      sku: 'TEST-001',
-      description: 'A test product description',
-    },
-    quantity: 25,
-    total_quantity: 150,
-    location: {
-      warehouse: 'Main Warehouse',
-      zone: 'Zone A',
-      position: 'Shelf 3'
-    },
-    status: 'available',
-    attributes: {
-      color: 'Blue',
-      size: 'Medium'
-    },
-    history: [
-      { action: 'Stock In', timestamp: '2025-04-30T10:30:00Z', user: 'John Doe' },
-      { action: 'Inventory Check', timestamp: '2025-05-05T14:15:00Z', user: 'Jane Smith' }
-    ]
-  },
-  'BC987654321': {
-    id: 'box-002',
-    product: {
-      id: 'prod-002',
-      name: 'Another Product',
-      sku: 'TEST-002',
-      description: 'Another test product',
-    },
-    quantity: 10,
-    total_quantity: 50,
-    location: {
-      warehouse: 'Main Warehouse',
-      zone: 'Zone B',
-      position: 'Shelf 1'
-    },
-    status: 'reserved',
-    attributes: {
-      color: 'Red',
-      size: 'Large'
-    },
-    history: [
-      { action: 'Stock In', timestamp: '2025-05-01T09:45:00Z', user: 'John Doe' },
-      { action: 'Reserved', timestamp: '2025-05-07T11:30:00Z', user: 'Mike Johnson' }
-    ]
-  }
-}
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders, status: 204 })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { barcode, user_id, role } = await req.json()
+    // Create a Supabase client with the Auth context of the logged in user
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
+    );
+
+    // Get request body
+    const requestData = await req.json();
+    const { barcode, user_id, role } = requestData;
     
-    // Validate request
     if (!barcode) {
       return new Response(
         JSON.stringify({ 
           status: 'error', 
           error: 'Barcode is required' 
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      )
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      );
     }
 
-    if (!user_id) {
+    console.log(`Processing barcode scan: ${barcode} by user ${user_id} with role ${role}`);
+
+    // Try to find the inventory using our new database function
+    const { data: inventoryItems, error: inventoryError } = await supabaseClient.rpc(
+      'find_inventory_by_barcode',
+      { search_barcode: barcode }
+    );
+
+    if (inventoryError) {
+      console.error('Error finding inventory by barcode:', inventoryError);
+      throw new Error(`Database error: ${inventoryError.message}`);
+    }
+
+    // If we found the item directly, format and return it
+    if (inventoryItems && inventoryItems.length > 0) {
+      const item = inventoryItems[0];
+      
+      // Log the scan for tracking
+      await supabaseClient.from('barcode_logs').insert({
+        barcode: barcode,
+        user_id: user_id || 'anonymous',
+        action: 'edge-function-lookup',
+        event_type: 'scan',
+        details: { 
+          inventory_id: item.inventory_id,
+          product_name: item.product_name,
+          location: `${item.warehouse_name} - Floor ${item.floor} - Zone ${item.zone}`
+        }
+      });
+      
+      // Return formatted response
       return new Response(
-        JSON.stringify({ 
-          status: 'error', 
-          error: 'User ID is required' 
+        JSON.stringify({
+          status: 'success',
+          data: {
+            box_id: item.barcode,
+            product: {
+              id: item.inventory_id,
+              name: item.product_name,
+              sku: item.product_sku || '',
+              description: item.product_sku ? `Product SKU: ${item.product_sku}` : undefined
+            },
+            box_quantity: item.quantity,
+            total_product_quantity: item.quantity,
+            location: {
+              warehouse: item.warehouse_name,
+              zone: item.zone,
+              position: `Floor ${item.floor}`
+            },
+            status: item.status || 'available',
+            attributes: {
+              color: item.color,
+              size: item.size,
+              batch_id: item.batch_id
+            },
+            history: [
+              {
+                action: 'Scan',
+                timestamp: new Date().toLocaleString()
+              }
+            ]
+          }
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      )
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
     }
-    
-    // Get data from mock inventory
-    const boxData = mockInventory[barcode]
-    
-    if (!boxData) {
+
+    // If not in inventory, look for it in stock_in_details
+    const { data: stockInData, error: stockInError } = await supabaseClient
+      .from('stock_in_details')
+      .select(`
+        id, 
+        barcode,
+        quantity,
+        color,
+        size,
+        warehouse_id,
+        location_id,
+        stock_in_id,
+        stock_in:stock_in_id(product_id, product:product_id(name, sku, description)),
+        warehouse:warehouse_id(name, location),
+        location:location_id(floor, zone)
+      `)
+      .eq('barcode', barcode)
+      .limit(1);
+
+    if (stockInError) {
+      console.error('Error finding barcode in stock_in_details:', stockInError);
+      throw new Error(`Database error: ${stockInError.message}`);
+    }
+
+    if (stockInData && stockInData.length > 0) {
+      const item = stockInData[0];
+      
+      // Log the scan
+      await supabaseClient.from('barcode_logs').insert({
+        barcode: barcode,
+        user_id: user_id || 'anonymous',
+        action: 'stock-in-details-lookup',
+        event_type: 'scan',
+        batch_id: item.id,
+        details: {
+          stock_in_id: item.stock_in_id,
+          product_name: item.stock_in?.product?.name || 'Unknown Product',
+          location: `${item.warehouse?.name || 'Unknown'} - Floor ${item.location?.floor || '?'} - Zone ${item.location?.zone || '?'}`
+        }
+      });
+
       return new Response(
-        JSON.stringify({ 
-          status: 'error', 
-          error: 'Barcode not found in system' 
+        JSON.stringify({
+          status: 'success',
+          data: {
+            box_id: item.barcode,
+            product: {
+              id: item.stock_in?.product_id || '',
+              name: item.stock_in?.product?.name || 'Unknown Product',
+              sku: item.stock_in?.product?.sku || '',
+              description: item.stock_in?.product?.description || undefined
+            },
+            box_quantity: item.quantity,
+            location: {
+              warehouse: item.warehouse?.name || 'Unknown Warehouse',
+              zone: item.location?.zone || 'Unknown Zone',
+              position: `Floor ${item.location?.floor || '?'}`
+            },
+            status: 'in-transit', // It's in stock_in_details but not in inventory yet
+            attributes: {
+              color: item.color,
+              size: item.size,
+              batch_id: item.id
+            },
+            history: [
+              {
+                action: 'Stock In Processing',
+                timestamp: new Date().toLocaleString()
+              }
+            ]
+          }
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      )
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
     }
-    
-    // Prepare the response based on user role
-    let responseData = {
-      box_id: boxData.id,
-      product: boxData.product,
-      box_quantity: boxData.quantity,
-      status: boxData.status,
-      attributes: boxData.attributes,
-      location: boxData.location
-    }
-    
-    // Add role-specific data
-    if (role === 'admin' || role === 'warehouse_manager') {
-      responseData['total_product_quantity'] = boxData.total_quantity
-      responseData['history'] = boxData.history
-    }
-    
-    // Return successful response
+
+    // If we get here, the barcode was not found
+    // We'll return a "not found" response but still log the attempted scan
+    await supabaseClient.from('barcode_logs').insert({
+      barcode: barcode,
+      user_id: user_id || 'anonymous',
+      action: 'not-found',
+      event_type: 'scan',
+      details: { error: 'Barcode not found in any table' }
+    });
+
     return new Response(
-      JSON.stringify({ 
-        status: 'success', 
-        data: responseData 
+      JSON.stringify({
+        status: 'error',
+        error: 'Barcode not found in inventory or processing'
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
-    
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 404
+      }
+    );
+
   } catch (error) {
-    console.error('Request error:', error.message)
+    console.error('Error processing barcode:', error);
+    
     return new Response(
-      JSON.stringify({ 
-        status: 'error', 
-        error: 'Server error processing barcode scan' 
+      JSON.stringify({
+        status: 'error',
+        error: error.message || 'An unexpected error occurred'
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    )
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      }
+    );
   }
-})
+});

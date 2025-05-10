@@ -30,37 +30,106 @@ export function useBarcodeProcessor({
     setError(null);
     
     try {
-      // Call the API to get barcode information
-      const { data, error } = await supabase.functions.invoke('scan-barcode', {
-        body: {
-          barcode: scannedBarcode,
-          user_id: user?.id,
-          role: user?.role
-        }
-      });
+      // First try to find the inventory item directly using our new database function
+      const { data: inventoryData, error: inventoryError } = await supabase.rpc(
+        'find_inventory_by_barcode',
+        { search_barcode: scannedBarcode }
+      );
       
-      if (error) {
-        throw new Error(error.message);
+      if (inventoryError) {
+        console.error('Error finding inventory by barcode:', inventoryError);
       }
       
-      const response = data as ScanResponse;
-      
-      if (response.status === 'error' || !response.data) {
-        setError(response.error || 'Failed to retrieve product information');
+      // If we found the item directly, process it
+      if (inventoryData && inventoryData.length > 0) {
+        const item = inventoryData[0];
+        
+        // Log the scan for tracking purposes
+        await supabase.from('barcode_logs').insert({
+          barcode: scannedBarcode,
+          user_id: user?.id || 'anonymous',
+          action: 'direct-lookup',
+          event_type: 'scan',
+          details: { 
+            inventory_id: item.inventory_id,
+            product_name: item.product_name,
+            location: `${item.warehouse_name} - Floor ${item.floor} - Zone ${item.zone}`
+          }
+        });
+        
+        // Format response for the UI
+        const formattedResponse: ScanResponse = {
+          status: 'success',
+          data: {
+            box_id: item.barcode,
+            product: {
+              id: item.inventory_id,
+              name: item.product_name,
+              sku: item.product_sku || '',
+              description: 'Product from inventory'
+            },
+            box_quantity: item.quantity,
+            total_product_quantity: item.quantity,
+            location: {
+              warehouse: item.warehouse_name,
+              zone: item.zone,
+              position: `Floor ${item.floor}`
+            },
+            status: (item.status as any) || 'available',
+            attributes: {
+              color: item.color,
+              size: item.size,
+              batch_id: item.batch_id
+            },
+            history: [{
+              action: 'Lookup',
+              timestamp: new Date().toLocaleString()
+            }]
+          }
+        };
+        
+        setScanData(formattedResponse.data);
+        if (onScanComplete) {
+          onScanComplete(formattedResponse.data);
+        }
+        
         toast({
-          variant: 'destructive',
-          title: 'Scan Failed',
-          description: response.error || 'Failed to retrieve product information',
+          title: 'Item Found',
+          description: `Found ${item.product_name} in ${item.warehouse_name}`,
         });
       } else {
-        setScanData(response.data);
-        if (onScanComplete) {
-          onScanComplete(response.data);
-        }
-        toast({
-          title: 'Barcode Scanned',
-          description: `Found ${response.data.product.name}`,
+        // If no direct match, try the serverless function for more complex lookup logic
+        const { data, error } = await supabase.functions.invoke('scan-barcode', {
+          body: {
+            barcode: scannedBarcode,
+            user_id: user?.id,
+            role: user?.role
+          }
         });
+        
+        if (error) {
+          throw new Error(error.message);
+        }
+        
+        const response = data as ScanResponse;
+        
+        if (response.status === 'error' || !response.data) {
+          setError(response.error || 'Failed to retrieve product information');
+          toast({
+            variant: 'destructive',
+            title: 'Scan Failed',
+            description: response.error || 'Failed to retrieve product information',
+          });
+        } else {
+          setScanData(response.data);
+          if (onScanComplete) {
+            onScanComplete(response.data);
+          }
+          toast({
+            title: 'Barcode Scanned',
+            description: `Found ${response.data.product.name}`,
+          });
+        }
       }
     } catch (err) {
       console.error('Scan error:', err);

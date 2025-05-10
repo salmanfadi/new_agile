@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { InventoryItem } from '@/hooks/useInventoryData';
+import { Badge } from '@/components/ui/badge';
 
 interface InventoryTableProps {
   inventoryItems: InventoryItem[];
@@ -26,6 +27,16 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
 }) => {
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
 
+  useEffect(() => {
+    // Scroll to highlighted row when it changes
+    if (highlightedRowRef.current) {
+      highlightedRowRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [highlightedBarcode]);
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
@@ -38,7 +49,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   if (error) {
     return (
       <div className="text-center py-8 text-red-500">
-        Error loading inventory data
+        Error loading inventory data: {error.message}
       </div>
     );
   }
@@ -77,16 +88,20 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             >
               <TableCell className="font-medium">{item.productName}</TableCell>
               <TableCell>
-                <span className={item.barcode === highlightedBarcode ? "font-bold text-blue-600" : ""}>
-                  {item.barcode}
-                </span>
+                {item.barcode === highlightedBarcode ? (
+                  <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
+                    {item.barcode}
+                  </Badge>
+                ) : (
+                  item.barcode
+                )}
               </TableCell>
               <TableCell>{item.quantity}</TableCell>
               <TableCell>{item.warehouseName}</TableCell>
               <TableCell>{item.locationDetails}</TableCell>
               <TableCell><StatusBadge status={item.status} /></TableCell>
-              <TableCell>{item.color}</TableCell>
-              <TableCell>{item.size}</TableCell>
+              <TableCell>{item.color || '-'}</TableCell>
+              <TableCell>{item.size || '-'}</TableCell>
               <TableCell>
                 {item.batchId ? (
                   <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded">

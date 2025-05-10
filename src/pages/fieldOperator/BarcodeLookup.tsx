@@ -7,6 +7,7 @@ import { ScanResponse } from '@/types/auth';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import ScanDataDisplay from '@/components/barcode/ScanDataDisplay';
 
 const BarcodeLookup: React.FC = () => {
   const [lastScan, setLastScan] = useState<ScanResponse['data'] | null>(null);
@@ -28,7 +29,7 @@ const BarcodeLookup: React.FC = () => {
     <div className="space-y-6">
       <PageHeader 
         title="Barcode Lookup" 
-        description="Scan barcodes to view product information"
+        description="Scan barcodes to view product information and location details"
       />
       
       <div className="max-w-3xl mx-auto">
@@ -55,10 +56,13 @@ const BarcodeLookup: React.FC = () => {
         />
         
         {lastScan && (
-          <div className="flex justify-end mt-4">
-            <Button variant="outline" onClick={viewInInventory} className="text-sm">
-              View in Inventory
-            </Button>
+          <div className="mt-6">
+            <ScanDataDisplay scanData={lastScan} />
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" onClick={viewInInventory} className="text-sm">
+                View in Inventory
+              </Button>
+            </div>
           </div>
         )}
       </div>

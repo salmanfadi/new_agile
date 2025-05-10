@@ -87,10 +87,31 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_inventory_location"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventory_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_inventory_stock_in_details"
             columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "stock_in_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventory_warehouse"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
           {
@@ -484,6 +505,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_stock_in_details_stock_in"
+            columns: ["stock_in_id"]
+            isOneToOne: false
+            referencedRelation: "stock_in"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "stock_in_details_inventory_id_fkey"
             columns: ["inventory_id"]
             isOneToOne: false
@@ -495,13 +523,6 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "warehouse_locations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_in_details_stock_in_id_fkey"
-            columns: ["stock_in_id"]
-            isOneToOne: false
-            referencedRelation: "stock_in"
             referencedColumns: ["id"]
           },
           {
@@ -655,7 +676,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "warehouse_locations_warehouse_id_fkey"
+            foreignKeyName: "fk_warehouse_locations_warehouse"
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
@@ -692,6 +713,42 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      find_inventory_by_barcode: {
+        Args: { search_barcode: string }
+        Returns: {
+          inventory_id: string
+          product_name: string
+          product_sku: string
+          warehouse_name: string
+          warehouse_location: string
+          floor: number
+          zone: string
+          quantity: number
+          barcode: string
+          color: string
+          size: string
+          batch_id: string
+          status: string
+        }[]
+      }
+      get_inventory_details: {
+        Args: { item_id: string }
+        Returns: {
+          inventory_id: string
+          product_name: string
+          product_sku: string
+          warehouse_name: string
+          warehouse_location: string
+          floor: number
+          zone: string
+          quantity: number
+          barcode: string
+          color: string
+          size: string
+          batch_id: string
+          status: string
+        }[]
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]

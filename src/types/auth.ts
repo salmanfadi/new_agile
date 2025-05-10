@@ -1,4 +1,3 @@
-
 export type UserRole = 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator' | 'customer';
 
 export interface User {
@@ -36,13 +35,12 @@ export interface ScanResponse {
       zone: string;
       position: string;
     };
-    status: 'available' | 'reserved' | 'in-transit';
-    attributes?: Record<string, string>;
-    history?: Array<{
+    status: 'available' | 'reserved' | 'out-of-stock' | 'in-transit';
+    attributes?: Record<string, string | number | null>;
+    history?: {
       action: string;
       timestamp: string;
-      user: string;
-    }>;
+    }[];
   };
   error?: string;
 }

@@ -4,19 +4,29 @@ project_id = "kysvcexqmywyrawakwfs"
 [api]
 enabled = true
 port = 54321
-schemas = ["public", "storage"]
+schemas = ["public", "storage", "graphql_public"]
 
 [db]
 port = 54322
 
-[functions]
-[functions.product-stock]
-verify_jwt = false
-[functions.submit-inquiry]
-verify_jwt = false
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
 
 [realtime]
 enabled = true
 
-[storage]
-enabled = true
+[functions]
+[functions.scan-barcode]
+verify_jwt = true
