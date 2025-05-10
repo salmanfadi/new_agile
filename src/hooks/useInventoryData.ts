@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 export interface InventoryItem {
   id: string;
@@ -21,6 +21,25 @@ export interface InventoryItem {
   batchId: string | null;
   lastUpdated: string;
   source?: string;
+}
+
+// Define interfaces for real-time payload types
+interface StockInPayload extends RealtimePostgresChangesPayload<{
+  [key: string]: any;
+}> {
+  new?: {
+    status: string;
+    [key: string]: any;
+  };
+}
+
+interface StockOutPayload extends RealtimePostgresChangesPayload<{
+  [key: string]: any;
+}> {
+  new?: {
+    status: string;
+    [key: string]: any;
+  };
 }
 
 export const useInventoryData = (
@@ -66,7 +85,7 @@ export const useInventoryData = (
       .channel('stock-in-changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'stock_in' },
-        (payload) => {
+        (payload: StockInPayload) => {
           console.log('Stock in change detected:', payload);
           
           // If stock in is completed or processing, refresh inventory data
@@ -88,7 +107,7 @@ export const useInventoryData = (
       .channel('stock-out-changes')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'stock_out' },
-        (payload) => {
+        (payload: StockOutPayload) => {
           console.log('Stock out change detected:', payload);
           
           // If stock out status changes, refresh inventory
