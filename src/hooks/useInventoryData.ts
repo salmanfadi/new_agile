@@ -132,9 +132,9 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
         .select(`
           id,
           product_id,
-          products:product_id (id, name, description),
-          warehouses:warehouse_id (id, name, location),
-          warehouse_locations:location_id (id, floor, zone),
+          products:product_id(id, name, description),
+          warehouses:warehouse_id(id, name, location),
+          warehouse_locations:location_id(id, floor, zone),
           warehouse_id,
           location_id,
           barcode,
@@ -164,7 +164,7 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
         throw error;
       }
       
-      return (data as InventoryResponse[]).map(item => ({
+      return (data as unknown as InventoryResponse[]).map(item => ({
         id: item.id,
         productName: item.products && item.products[0] ? item.products[0].name : 'Unknown Product',
         productId: item.product_id,
