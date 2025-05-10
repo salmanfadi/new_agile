@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 export const useInventoryFilters = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -11,6 +12,8 @@ export const useInventoryFilters = () => {
 
   // Reset filters if URL changes
   useEffect(() => {
+    console.log('Initializing inventory filters');
+    
     // Listen for route changes, then clear filters when on a new page
     return () => {
       // No cleanup needed in this case
@@ -22,23 +25,45 @@ export const useInventoryFilters = () => {
     queryKey: ['batch-ids'],
     queryFn: async () => {
       console.log('Fetching batch IDs for filter');
-      const { data, error } = await supabase
-        .from('stock_in')
-        .select('id, created_at, source, status')
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('stock_in')
+          .select('id, created_at, source, status')
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          console.error('Error fetching batch IDs:', error);
+          throw error;
+        }
         
-      if (error) {
-        console.error('Error fetching batch IDs:', error);
+        console.log(`Found ${data?.length || 0} batch IDs`);
+        
+        // Map the data to include formatted dates for better readability
+        const formattedData = data?.map(batch => ({
+          id: batch.id,
+          formattedDate: new Date(batch.created_at).toLocaleDateString(),
+          displayDate: new Date(batch.created_at).toLocaleDateString('en-US', { 
+            month: '2-digit', 
+            day: '2-digit', 
+            year: 'numeric' 
+          }),
+          source: batch.source || 'Unknown Source',
+          status: batch.status,
+          created_at: batch.created_at
+        })) || [];
+        
+        console.log('Formatted batch data:', formattedData.slice(0, 3)); // Log a sample to debug
+        
+        return formattedData;
+      } catch (error) {
+        console.error('Failed to fetch batch data:', error);
+        toast({
+          title: 'Error',
+          description: 'Could not load batch filter data',
+          variant: 'destructive'
+        });
         return [];
       }
-      
-      console.log(`Found ${data?.length || 0} batch IDs`);
-      
-      // Map the data to include formatted dates for better readability
-      return data?.map(batch => ({
-        ...batch,
-        formattedDate: new Date(batch.created_at).toLocaleDateString()
-      })) || [];
     }
   });
 
@@ -47,18 +72,28 @@ export const useInventoryFilters = () => {
     queryKey: ['warehouses'],
     queryFn: async () => {
       console.log('Fetching warehouses for filter');
-      const { data, error } = await supabase
-        .from('warehouses')
-        .select('*')
-        .order('name', { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from('warehouses')
+          .select('*')
+          .order('name', { ascending: true });
+          
+        if (error) {
+          console.error('Error fetching warehouses:', error);
+          throw error;
+        }
         
-      if (error) {
-        console.error('Error fetching warehouses:', error);
-        throw error;
+        console.log(`Found ${data?.length || 0} warehouses`);
+        return data || [];
+      } catch (error) {
+        console.error('Failed to fetch warehouse data:', error);
+        toast({
+          title: 'Error',
+          description: 'Could not load warehouse filter data',
+          variant: 'destructive'
+        });
+        return [];
       }
-      
-      console.log(`Found ${data?.length || 0} warehouses`);
-      return data;
     }
   });
 
@@ -94,6 +129,8 @@ export const useInventoryFilters = () => {
     resetFilters,
     warehouses: warehousesQuery.data || [],
     batchIds: batchIdsQuery.data || [],
+    isLoadingBatches: batchIdsQuery.isLoading,
+    isLoadingWarehouses: warehousesQuery.isLoading,
     availableStatuses,
     isLoading: warehousesQuery.isLoading || batchIdsQuery.isLoading
   };

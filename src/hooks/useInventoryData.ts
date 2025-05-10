@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
-// Define proper types for the payload objects with more specific typing
+// Define proper types for the payload objects
 type StockInPayload = {
   eventType: string;
   schema: string;
@@ -18,7 +18,7 @@ type StockInPayload = {
   old?: {
     status?: string;
     [key: string]: any;
-  };
+  } | null;
 };
 
 type StockOutPayload = {
@@ -33,7 +33,7 @@ type StockOutPayload = {
   old?: {
     status?: string;
     [key: string]: any;
-  };
+  } | null;
 };
 
 export interface InventoryItem {
@@ -52,6 +52,8 @@ export interface InventoryItem {
   batchId: string | null;
   lastUpdated: string;
   source?: string;
+  productDescription?: string;
+  productSku?: string;
 }
 
 export const useInventoryData = (
@@ -210,12 +212,20 @@ export const useInventoryData = (
           return [];
         }
 
+        // Extract unique IDs for batch querying
+        const productIds = [...new Set(inventoryData.map(item => item.product_id))];
+        const warehouseIds = [...new Set(inventoryData.map(item => item.warehouse_id))];
+        const locationIds = [...new Set(inventoryData.map(item => item.location_id))];
+        const batchIds = [...new Set(inventoryData.filter(item => item.batch_id).map(item => item.batch_id))];
+        
+        console.log(`Fetching related data for ${productIds.length} products, ${warehouseIds.length} warehouses, ${locationIds.length} locations, and ${batchIds.length} batches`);
+
         // Fetch related data in parallel for better performance
         const [productsResponse, warehousesResponse, locationsResponse, stockInResponse] = await Promise.all([
-          supabase.from('products').select('id, name, description'),
-          supabase.from('warehouses').select('id, name, location'),
-          supabase.from('warehouse_locations').select('id, floor, zone'),
-          supabase.from('stock_in').select('id, source')
+          supabase.from('products').select('id, name, description, sku').in('id', productIds),
+          supabase.from('warehouses').select('id, name, location').in('id', warehouseIds),
+          supabase.from('warehouse_locations').select('id, floor, zone').in('id', locationIds),
+          batchIds.length > 0 ? supabase.from('stock_in').select('id, source').in('id', batchIds) : { data: [] }
         ]);
         
         // Create lookup maps
@@ -240,36 +250,43 @@ export const useInventoryData = (
         }, {} as Record<string, string>) : {};
         
         // Map the inventory data with the related entities
-        const mappedInventory = inventoryData?.map(item => ({
-          id: item.id,
-          productName: productMap[item.product_id]?.name || 'Unknown Product',
-          productId: item.product_id,
-          warehouseName: warehouseMap[item.warehouse_id]?.name || 'Unknown Warehouse',
-          warehouseId: item.warehouse_id,
-          warehouseLocation: warehouseMap[item.warehouse_id]?.location || '',
-          locationId: item.location_id,
-          locationDetails: locationMap[item.location_id] 
-            ? `Floor ${locationMap[item.location_id].floor}, Zone ${locationMap[item.location_id].zone}`
-            : 'Unknown Location',
-          barcode: item.barcode,
-          quantity: item.quantity,
-          color: item.color || '-',
-          size: item.size || '-',
-          status: item.status || 'available',
-          batchId: item.batch_id,
-          source: item.batch_id ? batchSourceMap[item.batch_id] : undefined,
-          lastUpdated: new Date(item.updated_at).toLocaleString(),
-        })) as InventoryItem[];
+        const mappedInventory = inventoryData.map(item => {
+          const product = productMap[item.product_id] || { name: 'Unknown Product', description: '', sku: '' };
+          const warehouse = warehouseMap[item.warehouse_id] || { name: 'Unknown Warehouse', location: '' };
+          const location = locationMap[item.location_id];
+          
+          return {
+            id: item.id,
+            productName: product.name,
+            productId: item.product_id,
+            productDescription: product.description,
+            productSku: product.sku,
+            warehouseName: warehouse.name,
+            warehouseId: item.warehouse_id,
+            warehouseLocation: warehouse.location || '',
+            locationId: item.location_id,
+            locationDetails: location 
+              ? `Floor ${location.floor}, Zone ${location.zone}`
+              : 'Unknown Location',
+            barcode: item.barcode,
+            quantity: item.quantity,
+            color: item.color || '-',
+            size: item.size || '-',
+            status: item.status || 'available',
+            batchId: item.batch_id,
+            source: item.batch_id ? batchSourceMap[item.batch_id] : undefined,
+            lastUpdated: new Date(item.updated_at).toLocaleString(),
+          };
+        }) as InventoryItem[];
 
-        console.log(`Mapped ${mappedInventory?.length || 0} inventory items with relationship data`);
+        console.log(`Mapped ${mappedInventory.length || 0} inventory items with relationship data`);
         
-        return mappedInventory || [];
+        return mappedInventory;
       } catch (error) {
         console.error('Error in inventory query:', error);
         throw error;
       }
-    },
-    staleTime: 10000, // Consider data fresh for 10 seconds to reduce API calls
+    }
   });
 
   // Apply search filter locally if there's a search term
@@ -283,6 +300,7 @@ export const useInventoryData = (
       (item.productName && item.productName.toLowerCase().includes(normalizedSearchTerm)) ||
       (item.warehouseName && item.warehouseName.toLowerCase().includes(normalizedSearchTerm)) ||
       (item.barcode && item.barcode.toLowerCase().includes(normalizedSearchTerm)) ||
+      (item.productSku && item.productSku.toLowerCase().includes(normalizedSearchTerm)) ||
       (item.batchId && item.batchId.toLowerCase().includes(normalizedSearchTerm)) ||
       (item.source && item.source.toLowerCase().includes(normalizedSearchTerm)) ||
       (item.color && item.color.toLowerCase() !== '-' && item.color.toLowerCase().includes(normalizedSearchTerm)) ||

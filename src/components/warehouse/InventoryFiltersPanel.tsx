@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, Scan, RefreshCcw, X } from 'lucide-react';
+import { Search, Filter, Scan, RefreshCcw, X, ChevronDown } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -18,8 +18,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface InventoryFiltersPanelProps {
   onBarcodeScanned: (barcode: string) => void;
@@ -36,6 +42,8 @@ interface InventoryFiltersPanelProps {
   batchIds: any[];
   availableStatuses: { value: string, label: string }[];
   onResetFilters?: () => void;
+  isLoadingBatches?: boolean;
+  isLoadingWarehouses?: boolean;
 }
 
 export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
@@ -52,17 +60,35 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
   warehouses,
   batchIds,
   availableStatuses,
-  onResetFilters
+  onResetFilters,
+  isLoadingBatches = false,
+  isLoadingWarehouses = false
 }) => {
-  const [isScannerOpen, setIsScannerOpen] = React.useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [batchPopoverOpen, setBatchPopoverOpen] = useState(false);
   
   const handleBarcodeScanned = (barcode: string) => {
     setIsScannerOpen(false);
     onBarcodeScanned(barcode);
   };
 
+  // Get the selected batch name for display
+  const getSelectedBatchName = () => {
+    if (!batchFilter) return "All Batches";
+    
+    const selectedBatch = batchIds.find(b => b.id === batchFilter);
+    if (!selectedBatch) return "Unknown Batch";
+    
+    return `${selectedBatch.displayDate}: ${selectedBatch.source.substring(0, 15)}${selectedBatch.source.length > 15 ? '...' : ''}`;
+  };
+
   // Check if there are any active filters
   const hasActiveFilters = searchTerm || warehouseFilter || batchFilter || statusFilter;
+
+  useEffect(() => {
+    // Log filters for debugging
+    console.log("Current filters:", { searchTerm, warehouseFilter, batchFilter, statusFilter });
+  }, [searchTerm, warehouseFilter, batchFilter, statusFilter]);
 
   return (
     <>
@@ -70,7 +96,7 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
         <div className="w-full lg:w-1/3 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by product, barcode, source, color or size"
+            placeholder="Search by product, SKU, barcode, source, color or size"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9"
@@ -91,9 +117,10 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
           <Select
             value={warehouseFilter}
             onValueChange={setWarehouseFilter}
+            disabled={isLoadingWarehouses}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by warehouse" />
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={isLoadingWarehouses ? "Loading..." : "All Warehouses"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Warehouses</SelectItem>
@@ -107,26 +134,52 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
         </div>
         
         <div className="w-full lg:w-1/6">
-          <Select
-            value={batchFilter}
-            onValueChange={setBatchFilter}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by batch" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Batches</SelectItem>
-              {batchIds.map((batch) => (
-                <SelectItem key={batch.id} value={batch.id}>
-                  {batch.source ? (
-                    `${batch.formattedDate}: ${batch.source.substring(0, 15)}${batch.source.length > 15 ? '...' : ''}`
-                  ) : (
-                    `Batch: ${batch.id.substring(0, 8)}...`
-                  )}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Use Popover for batch selection when there are many batches */}
+          <Popover open={batchPopoverOpen} onOpenChange={setBatchPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                role="combobox" 
+                className="w-full justify-between"
+                disabled={isLoadingBatches}
+              >
+                {isLoadingBatches ? "Loading..." : getSelectedBatchName()}
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0" align="start">
+              <ScrollArea className="h-[300px]">
+                <div className="p-1">
+                  <div 
+                    className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                    onClick={() => {
+                      setBatchFilter('');
+                      setBatchPopoverOpen(false);
+                    }}
+                  >
+                    All Batches
+                  </div>
+                  {batchIds.map((batch) => (
+                    <div
+                      key={batch.id}
+                      className={`relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 ${
+                        batch.id === batchFilter ? "bg-accent text-accent-foreground" : ""
+                      }`}
+                      onClick={() => {
+                        setBatchFilter(batch.id);
+                        setBatchPopoverOpen(false);
+                      }}
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-medium">{batch.displayDate}</span>
+                        <span className="text-xs text-muted-foreground">{batch.source || "Unknown Source"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
         </div>
         
         <div className="w-full lg:w-1/6">

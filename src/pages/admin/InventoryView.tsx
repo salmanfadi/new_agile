@@ -23,7 +23,7 @@ const AdminInventoryView = () => {
   const [highlightedBarcode, setHighlightedBarcode] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  // Get filters 
+  // Get filters with enhanced hook
   const {
     filters,
     setSearchTerm,
@@ -33,12 +33,17 @@ const AdminInventoryView = () => {
     resetFilters,
     warehouses,
     batchIds,
-    availableStatuses
+    availableStatuses,
+    isLoadingBatches,
+    isLoadingWarehouses
   } = useInventoryFilters();
   
   useEffect(() => {
     // Log initial inventory state for debugging
     console.log("Mounted AdminInventoryView with filters:", filters);
+    
+    // Force a refetch when component mounts to ensure fresh data
+    queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
   }, []);
   
   // Use shared inventory hook with filters
@@ -79,12 +84,19 @@ const AdminInventoryView = () => {
         description: `No inventory item with barcode ${barcode} was found.`,
         variant: 'destructive'
       });
+      
+      // After a brief delay, refresh again to make sure we check database
+      setTimeout(() => {
+        refetch();
+      }, 1000);
     }
   };
   
   const handleRefresh = () => {
     console.log("Refreshing inventory data...");
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
+    queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
     toast({
       title: 'Refreshing Inventory',
       description: 'Getting the latest inventory data...'
@@ -108,6 +120,15 @@ const AdminInventoryView = () => {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
         </Button>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          className="w-full sm:w-auto"
+        >
+          Refresh All Data
+        </Button>
       </div>
       
       <InventoryFiltersPanel
@@ -125,6 +146,8 @@ const AdminInventoryView = () => {
         batchIds={batchIds}
         availableStatuses={availableStatuses}
         onResetFilters={resetFilters}
+        isLoadingBatches={isLoadingBatches}
+        isLoadingWarehouses={isLoadingWarehouses}
       />
       
       <Card>
@@ -134,7 +157,10 @@ const AdminInventoryView = () => {
             Current Inventory
           </CardTitle>
           <CardDescription>
-            Total items: {inventoryItems.length}
+            {isLoading 
+              ? "Loading inventory items..." 
+              : `Total items: ${inventoryItems.length}`
+            }
           </CardDescription>
         </CardHeader>
         
