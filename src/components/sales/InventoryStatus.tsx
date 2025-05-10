@@ -71,16 +71,18 @@ export const InventoryStatus: React.FC = () => {
             };
           }
 
-          const totalQuantity = inventoryData.reduce(
-            (sum, item) => sum + (item.quantity || 0), 
+          const totalQuantity = inventoryData?.reduce(
+            (sum, item) => sum + (item?.quantity || 0), 
             0
-          );
+          ) || 0;
           
           // Count unique batches
           const uniqueBatches = new Set();
-          inventoryData.forEach(item => {
-            if (item.batch_id) uniqueBatches.add(item.batch_id);
-          });
+          if (inventoryData) {
+            inventoryData.forEach(item => {
+              if (item && item.batch_id) uniqueBatches.add(item.batch_id);
+            });
+          }
 
           return {
             ...product,

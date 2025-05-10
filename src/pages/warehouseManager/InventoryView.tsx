@@ -83,17 +83,15 @@ const InventoryView: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stock_in_details')
-        .select('batch_id')
-        .is('batch_id', 'not.null')
-        .order('batch_id')
-        .distinct();
+        .select('id')  // Select the id column which is referenced by batch_id
+        .order('id');
         
       if (error) {
         console.error('Error fetching batch IDs:', error);
         return [];
       }
       
-      return data.map(d => d.batch_id).filter(Boolean);
+      return data.map(d => d.id);
     }
   });
   

@@ -1,3 +1,4 @@
+
 export interface Warehouse {
   id: string;
   name: string;
@@ -41,6 +42,8 @@ export interface Inventory {
   size: string | null;
   created_at: string;
   updated_at: string;
+  status: string;
+  batch_id: string | null;
   // Join fields
   product?: Product;
   warehouse?: Warehouse;

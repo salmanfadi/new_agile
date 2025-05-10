@@ -45,6 +45,7 @@ export type Database = {
       inventory: {
         Row: {
           barcode: string
+          batch_id: string | null
           color: string | null
           created_at: string
           id: string
@@ -58,6 +59,7 @@ export type Database = {
         }
         Insert: {
           barcode: string
+          batch_id?: string | null
           color?: string | null
           created_at?: string
           id?: string
@@ -71,6 +73,7 @@ export type Database = {
         }
         Update: {
           barcode?: string
+          batch_id?: string | null
           color?: string | null
           created_at?: string
           id?: string
@@ -83,6 +86,13 @@ export type Database = {
           warehouse_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_inventory_stock_in_details"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "stock_in_details"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventory_location_id_fkey"
             columns: ["location_id"]
