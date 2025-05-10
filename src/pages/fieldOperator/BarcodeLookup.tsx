@@ -17,10 +17,10 @@ const BarcodeLookup: React.FC = () => {
     console.log('Scan completed:', data);
   };
 
-  // For demonstration, navigate to inventory with the barcode as a search parameter
+  // For demonstration, navigate to inventory with the box_id as a search parameter
   const viewInInventory = () => {
     if (lastScan) {
-      navigate(`/operator/submissions?search=${lastScan.barcode || lastScan.box_id}`);
+      navigate(`/operator/submissions?search=${lastScan.box_id}`);
     }
   };
 
