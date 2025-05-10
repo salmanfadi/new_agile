@@ -6,14 +6,22 @@ import { Button } from '@/components/ui/button';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/context/AuthContext';
+import { useManagerDashboardData } from '@/hooks/useManagerDashboardData';
 import { 
   Package, BoxesIcon, ArrowDownToLine, ArrowUpFromLine, 
-  Truck, Warehouse, Barcode, LayoutDashboard 
+  Truck, Warehouse, Barcode, LayoutDashboard, Loader2
 } from 'lucide-react';
 
 const ManagerDashboard: React.FC = () => {
   const { user } = useAuth();
   const userName = user?.name || 'Warehouse Manager';
+  const { 
+    pendingStockIn, 
+    pendingStockOut, 
+    activeInventory, 
+    warehouses,
+    isLoading 
+  } = useManagerDashboardData();
 
   return (
     <div className="p-6 space-y-6">
@@ -25,25 +33,25 @@ const ManagerDashboard: React.FC = () => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Pending Stock In"
-          value="5"
+          value={isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : pendingStockIn}
           description="Awaiting processing"
           icon={<ArrowDownToLine />}
         />
         <StatsCard
           title="Pending Stock Out"
-          value="3"
+          value={isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : pendingStockOut}
           description="Awaiting approval"
           icon={<ArrowUpFromLine />}
         />
         <StatsCard
           title="Active Inventory"
-          value="1,234"
+          value={isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : activeInventory.toLocaleString()}
           description="Items in stock"
           icon={<BoxesIcon />}
         />
         <StatsCard
           title="Warehouses"
-          value="2"
+          value={isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : warehouses}
           description="Under management"
           icon={<Warehouse />}
         />
