@@ -22,6 +22,37 @@ export interface InventoryItem {
   lastUpdated: string;
 }
 
+// Define TypeScript interface for Supabase response
+interface InventoryResponse {
+  id: string;
+  product_id: string;
+  products: { 
+    id: string; 
+    name: string; 
+    description: string | null 
+  }[] | null;
+  warehouses: { 
+    id: string; 
+    name: string; 
+    location: string | null 
+  }[] | null;
+  warehouse_locations: { 
+    id: string; 
+    floor: number; 
+    zone: string 
+  }[] | null;
+  warehouse_id: string;
+  location_id: string;
+  barcode: string;
+  quantity: number;
+  color: string | null;
+  size: string | null;
+  created_at: string;
+  updated_at: string;
+  status: string;
+  batch_id: string | null;
+}
+
 export const useInventoryData = (warehouseFilter: string = '', batchFilter: string = '', searchTerm: string = '') => {
   const queryClient = useQueryClient();
 
@@ -133,15 +164,15 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
         throw error;
       }
       
-      return data.map(item => ({
+      return (data as InventoryResponse[]).map(item => ({
         id: item.id,
-        productName: item.products?.[0]?.name || 'Unknown Product',
+        productName: item.products && item.products[0] ? item.products[0].name : 'Unknown Product',
         productId: item.product_id,
-        warehouseName: item.warehouses?.[0]?.name || 'Unknown Warehouse',
+        warehouseName: item.warehouses && item.warehouses[0] ? item.warehouses[0].name : 'Unknown Warehouse',
         warehouseId: item.warehouse_id,
-        warehouseLocation: item.warehouses?.[0]?.location || '',
+        warehouseLocation: item.warehouses && item.warehouses[0] ? item.warehouses[0].location || '' : '',
         locationId: item.location_id,
-        locationDetails: item.warehouse_locations?.[0] 
+        locationDetails: item.warehouse_locations && item.warehouse_locations[0]
           ? `Floor ${item.warehouse_locations[0].floor}, Zone ${item.warehouse_locations[0].zone}` 
           : 'Unknown Location',
         barcode: item.barcode,
