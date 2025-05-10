@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +53,8 @@ export const BatchForm: React.FC<BatchFormProps> = ({
         size: editingBatch.size || ''
       });
     } else if (stockInData?.product && !batchData.product) {
+      // Set product from stockInData if available and product is not already set
+      console.log('Setting product from stockInData:', stockInData.product);
       setBatchData(prev => ({
         ...prev,
         product: stockInData.product as Product
@@ -211,6 +212,11 @@ export const BatchForm: React.FC<BatchFormProps> = ({
                 )}
               </SelectContent>
             </Select>
+            {stockInData?.product && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Using product from stock-in request: {stockInData.product.name}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

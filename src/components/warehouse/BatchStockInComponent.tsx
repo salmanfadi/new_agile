@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -37,6 +36,11 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   const [remainingBoxes, setRemainingBoxes] = useState<number>(0);
   const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
   
+  // Log stockInData to debug
+  useEffect(() => {
+    console.log("StockInData loaded:", stockInData);
+  }, [stockInData]);
+  
   const handleGoBack = () => {
     if (sheetMode && onClose) {
       onClose();
@@ -64,6 +68,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   // Populate form with stockInData when it's loaded and initialize remaining boxes
   useEffect(() => {
     if (stockInData) {
+      console.log("Setting source and notes from stockInData", stockInData);
       setSource(stockInData.source || '');
       setNotes(stockInData.notes || '');
       
@@ -185,6 +190,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                     <Label>Product</Label>
                     <div className="p-2 bg-muted rounded-lg">
                       {stockInData.product?.name || 'Unknown Product'}
+                      {stockInData.product?.sku && ` (SKU: ${stockInData.product.sku})`}
                     </div>
                   </div>
                   <div className="space-y-2">
