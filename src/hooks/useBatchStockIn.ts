@@ -176,7 +176,7 @@ export const useBatchStockIn = (userId: string) => {
         toast({
           title: `Stock In Processed with Warnings`,
           description: `${result.barcodeErrors.length} barcode(s) were found to be duplicates and were skipped.`,
-          variant: "destructive", // Change from "warning" to "destructive" since "warning" is not a valid variant
+          variant: "destructive",
         });
         
         console.warn('Barcode validation errors:', result.barcodeErrors);
@@ -191,6 +191,9 @@ export const useBatchStockIn = (userId: string) => {
         
         setBarcodeErrors([]);
         setIsSuccess(true);
+        
+        // Force an immediate refresh of the inventory data
+        queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       }
       
       setIsProcessing(false);
@@ -211,11 +214,26 @@ export const useBatchStockIn = (userId: string) => {
             completed_at: new Date().toISOString()
           }
         }]);
+        
+        // Add a notification for inventory system
+        await supabase.from('notifications').insert([{
+          user_id: data.submittedBy,
+          role: 'warehouse_manager',
+          action_type: 'inventory_updated',
+          metadata: {
+            source: 'batch_stock_in',
+            stock_in_id: data.stockInId,
+            items_count: processedBoxes.length,
+            product_id: data.productId,
+            completed_at: new Date().toISOString()
+          }
+        }]);
       }
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
       
     } catch (error) {
       console.error('Error submitting batch stock in:', error);

@@ -11,7 +11,9 @@ import {
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { InventoryItem } from '@/hooks/useInventoryData';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Package, Search } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useNavigate } from 'react-router-dom';
 
 interface InventoryTableProps {
   inventoryItems: InventoryItem[];
@@ -27,6 +29,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   highlightedBarcode,
 }) => {
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Scroll to highlighted row when it changes
@@ -65,6 +68,15 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
       </div>
     );
   }
+
+  const viewBatchDetails = (batchId: string | null) => {
+    if (batchId) {
+      // Navigate to the batch details page or show in modal
+      console.log(`Viewing batch ${batchId} details`);
+      // Note: Uncomment if you have a batch details page
+      // navigate(`/admin/batch/${batchId}`);
+    }
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -108,9 +120,22 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
               <TableCell>{item.size || '-'}</TableCell>
               <TableCell>
                 {item.batchId ? (
-                  <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded">
-                    {item.batchId.substring(0, 8)}...
-                  </span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span 
+                          className="text-xs font-mono bg-slate-100 px-2 py-1 rounded cursor-pointer hover:bg-slate-200 transition-colors"
+                          onClick={() => viewBatchDetails(item.batchId)}
+                        >
+                          {item.batchId.substring(0, 8)}...
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p>Batch ID: {item.batchId}</p>
+                        <p className="text-xs text-slate-400">Click to view batch details</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 ) : (
                   '-'
                 )}
