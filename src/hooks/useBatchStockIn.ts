@@ -38,7 +38,7 @@ export const useBatchStockIn = (userId: string) => {
       color: batchData.color || '',
       size: batchData.size || '',
       barcodes: Array.from({ length: batchData.boxes_count }, () => uuidv4()),
-      created_by: userId, // Add the missing required field
+      created_by: userId,
     };
     setBatches(prevBatches => [...prevBatches, newBatch]);
   }, [userId]);
@@ -75,13 +75,14 @@ export const useBatchStockIn = (userId: string) => {
           size: batch.size || null,
           warehouse_id: batch.warehouse_id,
           location_id: batch.location_id,
+          product_id: batch.product_id, // Added product_id to ensure consistency
         });
       }
     }
     return boxes;
   }, []);
 
-  // Implementation for processStockIn function that was missing
+  // Implementation for processStockIn function
   const processStockIn = async (
     stockInId: string,
     processedBoxes: any[],
@@ -110,58 +111,77 @@ export const useBatchStockIn = (userId: string) => {
       return { success: false, barcodeErrors };
     }
     
-    // Update stock_in status to 'processing'
-    const { error: updateError } = await supabase
-      .from('stock_in')
-      .update({ 
-        status: 'processing',
-        processed_by: submittedBy
-      })
-      .eq('id', stockInId);
-    
-    if (updateError) {
-      console.error('Error updating stock in status:', updateError);
-      throw new Error('Failed to update stock in status');
-    }
-    
-    // Insert boxes into inventory
-    const { error: insertError } = await supabase
-      .from('inventory')
-      .insert(
-        processedBoxes.map(box => ({
-          ...box,
-          product_id: processedBoxes[0].product_id, // Assuming all boxes have the same product_id
-          batch_id: stockInId, // Link to the stock_in batch
-          status: 'available'
-        }))
-      );
-    
-    if (insertError) {
-      console.error('Error inserting inventory items:', insertError);
-      throw new Error('Failed to add items to inventory');
-    }
-    
-    // Update stock_in status to 'completed'
-    const { error: completeError } = await supabase
-      .from('stock_in')
-      .update({ status: 'completed' })
-      .eq('id', stockInId);
+    try {
+      // Start a transaction to ensure data consistency
+      // Update stock_in status to 'processing'
+      const { error: updateError } = await supabase
+        .from('stock_in')
+        .update({ 
+          status: 'processing',
+          processed_by: submittedBy
+        })
+        .eq('id', stockInId);
       
-    if (completeError) {
-      console.error('Error completing stock in:', completeError);
-      throw new Error('Failed to complete stock in process');
+      if (updateError) {
+        console.error('Error updating stock in status:', updateError);
+        throw new Error('Failed to update stock in status');
+      }
+      
+      // Insert boxes into inventory
+      const { error: insertError } = await supabase
+        .from('inventory')
+        .insert(
+          processedBoxes.map(box => ({
+            product_id: box.product_id,
+            warehouse_id: box.warehouse_id,
+            location_id: box.location_id, 
+            barcode: box.barcode,
+            quantity: box.quantity,
+            color: box.color,
+            size: box.size,
+            batch_id: stockInId, // Link to the stock_in batch
+            status: 'available'
+          }))
+        );
+      
+      if (insertError) {
+        console.error('Error inserting inventory items:', insertError);
+        throw new Error('Failed to add items to inventory');
+      }
+      
+      // Update stock_in status to 'completed'
+      const { error: completeError } = await supabase
+        .from('stock_in')
+        .update({ status: 'completed' })
+        .eq('id', stockInId);
+        
+      if (completeError) {
+        console.error('Error completing stock in:', completeError);
+        throw new Error('Failed to complete stock in process');
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error in processStockIn transaction:', error);
+      throw error;
     }
-    
-    return { success: true };
   };
 
-  // Add to the submitStockIn function to handle barcode validation errors
+  // Submit stock in function
   const submitStockIn = async (data: StockInSubmissionData) => {
     setIsSubmitting(true);
+    setIsProcessing(true);
     
     try {
       console.log('Submitting batch stock in:', data);
       const processedBoxes = await prepareBoxData(data.batches);
+      
+      // Add product_id to each box if not already present
+      processedBoxes.forEach(box => {
+        if (!box.product_id) {
+          box.product_id = data.productId;
+        }
+      });
       
       // Process the stock-in request
       const result = await processStockIn(
@@ -196,9 +216,6 @@ export const useBatchStockIn = (userId: string) => {
         queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       }
       
-      setIsProcessing(false);
-      setIsSubmitting(false);
-      
       // Create the notification if we have a product ID
       if (data.productId) {
         await supabase.from('barcode_logs').insert([{
@@ -232,7 +249,7 @@ export const useBatchStockIn = (userId: string) => {
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
       
     } catch (error) {
@@ -242,9 +259,10 @@ export const useBatchStockIn = (userId: string) => {
         description: error instanceof Error ? error.message : 'Something went wrong',
         variant: 'destructive',
       });
+      setIsSuccess(false);
+    } finally {
       setIsProcessing(false);
       setIsSubmitting(false);
-      setIsSuccess(false);
     }
   };
 
@@ -252,8 +270,21 @@ export const useBatchStockIn = (userId: string) => {
     batches,
     addBatch,
     editBatch,
-    updateBatch,
-    deleteBatch,
+    updateBatch: useCallback((index: number, updatedBatchData: Partial<ProcessedBatch>) => {
+      setBatches(prevBatches => {
+        const newBatches = [...prevBatches];
+        newBatches[index] = { ...newBatches[index], ...updatedBatchData };
+        return newBatches;
+      });
+      setEditingIndex(null);
+    }, []),
+    deleteBatch: useCallback((index: number) => {
+      setBatches(prevBatches => {
+        const newBatches = [...prevBatches];
+        newBatches.splice(index, 1);
+        return newBatches;
+      });
+    }, []),
     editingIndex,
     setEditingIndex,
     submitStockIn,

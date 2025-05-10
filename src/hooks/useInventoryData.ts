@@ -27,9 +27,11 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
 
   // Set up real-time subscription for inventory changes
   useEffect(() => {
-    // Subscribe to both inventory and stock_in_details tables
+    console.log('Setting up realtime inventory channel');
+    
+    // Subscribe to inventory and related tables
     const inventoryChannel: RealtimeChannel = supabase
-      .channel('inventory-and-stockin-changes')
+      .channel('inventory-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'inventory' },
         (payload) => {
@@ -50,35 +52,36 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
           
           // Invalidate the query to refresh inventory data
           queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
-          queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
         })
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'stock_in_details' },
-        (payload) => {
-          console.log('Stock in details change detected:', payload);
-          
-          // Invalidate the query to refresh batch IDs
-          queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
-        })
+      .subscribe();
+      
+    // Subscribe to stock_in table for status changes
+    const stockInChannel: RealtimeChannel = supabase
+      .channel('stock-in-changes')
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'stock_in' },
         (payload) => {
           console.log('Stock in status change detected:', payload);
           
-          // If stock in is completed, refresh inventory
-          if (payload.new && payload.new.status === 'completed') {
+          // If stock in is completed or processing, refresh inventory data
+          if (payload.new && (payload.new.status === 'completed' || payload.new.status === 'processing')) {
+            console.log('Stock in status changed to completed/processing, refreshing inventory');
             toast({
-              title: 'Stock In Completed',
-              description: 'New inventory has been added from stock-in processing',
+              title: `Stock In ${payload.new.status}`,
+              description: payload.new.status === 'completed' 
+                ? 'New inventory has been added from stock-in processing' 
+                : 'Stock-in items are being processed',
             });
             queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
           }
         })
       .subscribe();
 
-    // Clean up channel subscription when component unmounts
+    // Clean up channel subscriptions when component unmounts
     return () => {
+      console.log('Cleaning up realtime inventory channels');
       inventoryChannel.unsubscribe();
+      stockInChannel.unsubscribe();
     };
   }, [queryClient]);
 
@@ -87,9 +90,9 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
     queryKey: ['batch-ids'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('stock_in_details')
+        .from('stock_in')
         .select('id')
-        .order('id');
+        .order('created_at', { ascending: false });
         
       if (error) {
         console.error('Error fetching batch IDs:', error);
@@ -205,7 +208,8 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
         console.error('Error in inventory query:', error);
         throw error;
       }
-    }
+    },
+    staleTime: 10000, // Consider data fresh for 10 seconds to reduce API calls
   });
 
   // Apply search filter locally to reduce database load
@@ -224,5 +228,6 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
     error: inventoryQuery.error,
     batchIds: batchIdsQuery.data || [],
     warehouses: warehousesQuery.data || [],
+    refetch: inventoryQuery.refetch,
   };
 };
