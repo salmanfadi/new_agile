@@ -11,6 +11,7 @@ import { BackButton } from '@/components/warehouse/BackButton';
 import { StockInRequestDetails } from '@/components/warehouse/StockInRequestDetails';
 import { BatchList } from '@/components/warehouse/BatchList';
 import { BatchStockInLoading } from '@/components/warehouse/BatchStockInLoading';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface BatchStockInComponentProps {
   adminMode?: boolean;
@@ -27,6 +28,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { stockInData, isLoadingStockIn } = useStockInData(stockInId);
+  const queryClient = useQueryClient();
 
   const [source, setSource] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
@@ -64,21 +66,35 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     barcodeErrors
   } = useBatchStockIn(user?.id || '');
 
-  // Navigate to inventory page after successful submission
+  // Navigate to inventory page after successful submission with improved navigation reliability
   useEffect(() => {
     if (isSuccess && !isProcessing && !isSubmitting) {
+      // Force refresh inventory data before navigation
+      queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
+      
+      console.log("Stock in processing successful, preparing to navigate to inventory view");
+      toast({
+        title: 'Processing Complete',
+        description: 'Navigating to inventory view to see your processed items...',
+      });
+      
+      // Use a short delay to ensure state updates and query invalidation have time to complete
       const timer = setTimeout(() => {
+        console.log("Navigating to inventory view now");
+        
         if (adminMode) {
           navigate('/admin/inventory');
         } else {
           navigate('/manager/inventory');
         }
+        
+        // If we're in sheet mode, close the sheet
         if (onClose) onClose();
-      }, 2000); // Give the user 2 seconds to see the success message
+      }, 1500); // Give the user 1.5 seconds to see the success message
       
       return () => clearTimeout(timer);
     }
-  }, [isSuccess, isProcessing, isSubmitting, navigate, adminMode, onClose]);
+  }, [isSuccess, isProcessing, isSubmitting, navigate, adminMode, onClose, queryClient]);
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
   useEffect(() => {
@@ -143,15 +159,21 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     // First check if stockInData exists and has a product with an id
     if (stockInData?.product && 'id' in stockInData.product && stockInData.product.id) {
       productId = stockInData.product.id;
-    } else if (batches.length > 0) {
+    } else if (batches.length > 0 && batches[0].product_id) {
       // Fallback to the first batch's product id
       productId = batches[0].product_id;
     } else {
       // Ultimate fallback (shouldn't happen due to the check above, but TypeScript needs this)
       console.error("No product ID found in either stockInData or batches");
+      toast({
+        title: 'Error',
+        description: 'Could not determine product ID for batch submission',
+        variant: 'destructive'
+      });
       return;
     }
     
+    console.log("Submitting with product ID:", productId);
     submitStockIn({
       stockInId: stockInId,
       productId,

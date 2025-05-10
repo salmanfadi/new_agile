@@ -28,7 +28,7 @@ export const useInventoryFilters = () => {
       try {
         const { data, error } = await supabase
           .from('stock_in')
-          .select('id, created_at, source, status')
+          .select('id, created_at, source, status, product_id')
           .order('created_at', { ascending: false });
           
         if (error) {
@@ -38,19 +38,50 @@ export const useInventoryFilters = () => {
         
         console.log(`Found ${data?.length || 0} batch IDs`);
         
-        // Map the data to include formatted dates for better readability
-        const formattedData = data?.map(batch => ({
-          id: batch.id,
-          formattedDate: new Date(batch.created_at).toLocaleDateString(),
-          displayDate: new Date(batch.created_at).toLocaleDateString('en-US', { 
-            month: '2-digit', 
-            day: '2-digit', 
-            year: 'numeric' 
-          }),
-          source: batch.source || 'Unknown Source',
-          status: batch.status,
-          created_at: batch.created_at
-        })) || [];
+        if (!data || data.length === 0) {
+          return [];
+        }
+        
+        // Get product names for the batches
+        const productIds = [...new Set(data.map(batch => batch.product_id))];
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('id, name')
+          .in('id', productIds);
+          
+        if (productsError) {
+          console.error('Error fetching products for batches:', productsError);
+        }
+        
+        // Create a map of product ids to names
+        const productMap: Record<string, string> = {};
+        if (productsData) {
+          productsData.forEach(product => {
+            productMap[product.id] = product.name;
+          });
+        }
+        
+        // Map the data to include formatted dates and product names for better readability
+        const formattedData = data.map(batch => {
+          const createdDate = new Date(batch.created_at);
+          const productName = batch.product_id && productMap[batch.product_id] 
+            ? productMap[batch.product_id] 
+            : 'Unknown Product';
+            
+          return {
+            id: batch.id,
+            formattedDate: createdDate.toLocaleDateString(),
+            displayDate: createdDate.toLocaleDateString('en-US', { 
+              month: '2-digit', 
+              day: '2-digit', 
+              year: 'numeric' 
+            }),
+            source: batch.source || 'Unknown Source',
+            status: batch.status,
+            created_at: batch.created_at,
+            productName
+          };
+        });
         
         console.log('Formatted batch data:', formattedData.slice(0, 3)); // Log a sample to debug
         

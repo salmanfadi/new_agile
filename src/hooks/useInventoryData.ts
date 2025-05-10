@@ -108,7 +108,8 @@ export const useInventoryData = (
           console.log('Stock in change detected:', typedPayload);
           
           // If stock in is completed or processing, refresh inventory data
-          if (typedPayload.new && ['completed', 'processing'].includes(typedPayload.new.status)) {
+          if (typedPayload.new && typedPayload.new.status && 
+              ['completed', 'processing'].includes(typedPayload.new.status)) {
             console.log(`Stock in status changed to ${typedPayload.new.status}, refreshing inventory`);
             toast({
               title: `Stock In ${typedPayload.new.status}`,
@@ -133,7 +134,8 @@ export const useInventoryData = (
           console.log('Stock out change detected:', typedPayload);
           
           // If stock out status changes, refresh inventory
-          if (typedPayload.new && ['approved', 'completed'].includes(typedPayload.new.status)) {
+          if (typedPayload.new && typedPayload.new.status && 
+              ['approved', 'completed'].includes(typedPayload.new.status)) {
             toast({
               title: `Stock Out ${typedPayload.new.status}`,
               description: `Stock out request has been ${typedPayload.new.status}`,
@@ -244,10 +246,15 @@ export const useInventoryData = (
           return map;
         }, {} as Record<string, any>) : {};
         
-        const batchSourceMap = stockInResponse.data ? stockInResponse.data.reduce((map, item) => {
-          map[item.id] = item.source || '';
-          return map;
-        }, {} as Record<string, string>) : {};
+        // Create a map for batch sources with proper type safety
+        const batchSourceMap: Record<string, string> = {};
+        if (stockInResponse.data) {
+          stockInResponse.data.forEach(item => {
+            if (item && item.id) {
+              batchSourceMap[item.id] = item.source || '';
+            }
+          });
+        }
         
         // Map the inventory data with the related entities
         const mappedInventory = inventoryData.map(item => {
@@ -274,7 +281,7 @@ export const useInventoryData = (
             size: item.size || '-',
             status: item.status || 'available',
             batchId: item.batch_id,
-            source: item.batch_id ? batchSourceMap[item.batch_id] : undefined,
+            source: item.batch_id && batchSourceMap[item.batch_id] ? batchSourceMap[item.batch_id] : undefined,
             lastUpdated: new Date(item.updated_at).toLocaleString(),
           };
         }) as InventoryItem[];
