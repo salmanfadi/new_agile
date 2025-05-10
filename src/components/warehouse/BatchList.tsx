@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Check } from 'lucide-react';
 import { BatchCard } from '@/components/warehouse/BatchCard';
 import { ProcessedBatch } from '@/types/batchStockIn';
 import { 
@@ -91,13 +91,18 @@ export const BatchList: React.FC<BatchListProps> = ({
                 <div className="w-full">
                   <Button 
                     onClick={handleBatchSubmission} 
-                    className="w-full mt-4 apple-shadow-sm" 
-                    disabled={batches.length === 0 || isSubmitting || isProcessing || formSubmitted || hasDuplicateBarcodes}
+                    className={`w-full mt-4 apple-shadow-sm ${formSubmitted && !barcodeValidationErrors.length ? "bg-green-600 hover:bg-green-700" : ""}`}
+                    disabled={batches.length === 0 || isSubmitting || isProcessing || (formSubmitted && !barcodeValidationErrors.length) || hasDuplicateBarcodes}
                   >
                     {isSubmitting || isProcessing ? (
                       <span className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Processing...
+                      </span>
+                    ) : formSubmitted && !barcodeValidationErrors.length ? (
+                      <span className="flex items-center gap-2">
+                        <Check className="h-4 w-4" />
+                        Submitted! Navigating to Inventory...
                       </span>
                     ) : 'Submit All Batches'}
                   </Button>
@@ -108,6 +113,8 @@ export const BatchList: React.FC<BatchListProps> = ({
                   <p>Please add at least one batch before submitting</p>
                 ) : hasDuplicateBarcodes ? (
                   <p>Please resolve duplicate barcodes before submitting</p>
+                ) : formSubmitted && !barcodeValidationErrors.length ? (
+                  <p>Successfully submitted. Redirecting to inventory...</p>
                 ) : (
                   <p>Submit {batches.length} batch(es) to inventory</p>
                 )}

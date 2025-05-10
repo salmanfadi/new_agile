@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessedBatch, BatchFormData } from '@/types/batchStockIn';
@@ -37,9 +38,10 @@ export const useBatchStockIn = (userId: string) => {
       color: batchData.color || '',
       size: batchData.size || '',
       barcodes: Array.from({ length: batchData.boxes_count }, () => uuidv4()),
+      created_by: userId, // Add the missing required field
     };
     setBatches(prevBatches => [...prevBatches, newBatch]);
-  }, []);
+  }, [userId]);
 
   const editBatch = useCallback((index: number) => {
     setEditingIndex(index);
@@ -79,6 +81,80 @@ export const useBatchStockIn = (userId: string) => {
     return boxes;
   }, []);
 
+  // Implementation for processStockIn function that was missing
+  const processStockIn = async (
+    stockInId: string,
+    processedBoxes: any[],
+    submittedBy: string
+  ) => {
+    console.log("Processing stock in with ID:", stockInId);
+    
+    // Check for duplicate barcodes by comparing with existing inventory
+    const { data: existingBarcodes, error: barcodeCheckError } = await supabase
+      .from('inventory')
+      .select('barcode')
+      .in('barcode', processedBoxes.map(box => box.barcode));
+      
+    if (barcodeCheckError) {
+      console.error('Error checking existing barcodes:', barcodeCheckError);
+      throw new Error('Failed to validate barcodes');
+    }
+    
+    // If we found any duplicates, return them as errors
+    if (existingBarcodes && existingBarcodes.length > 0) {
+      const barcodeErrors = existingBarcodes.map(item => ({
+        barcode: item.barcode,
+        error: 'Barcode already exists in inventory'
+      }));
+      
+      return { success: false, barcodeErrors };
+    }
+    
+    // Update stock_in status to 'processing'
+    const { error: updateError } = await supabase
+      .from('stock_in')
+      .update({ 
+        status: 'processing',
+        processed_by: submittedBy
+      })
+      .eq('id', stockInId);
+    
+    if (updateError) {
+      console.error('Error updating stock in status:', updateError);
+      throw new Error('Failed to update stock in status');
+    }
+    
+    // Insert boxes into inventory
+    const { error: insertError } = await supabase
+      .from('inventory')
+      .insert(
+        processedBoxes.map(box => ({
+          ...box,
+          product_id: processedBoxes[0].product_id, // Assuming all boxes have the same product_id
+          batch_id: stockInId, // Link to the stock_in batch
+          status: 'available'
+        }))
+      );
+    
+    if (insertError) {
+      console.error('Error inserting inventory items:', insertError);
+      throw new Error('Failed to add items to inventory');
+    }
+    
+    // Update stock_in status to 'completed'
+    const { error: completeError } = await supabase
+      .from('stock_in')
+      .update({ status: 'completed' })
+      .eq('id', stockInId);
+      
+    if (completeError) {
+      console.error('Error completing stock in:', completeError);
+      throw new Error('Failed to complete stock in process');
+    }
+    
+    return { success: true };
+  };
+
   // Add to the submitStockIn function to handle barcode validation errors
   const submitStockIn = async (data: StockInSubmissionData) => {
     setIsSubmitting(true);
@@ -100,11 +176,12 @@ export const useBatchStockIn = (userId: string) => {
         toast({
           title: `Stock In Processed with Warnings`,
           description: `${result.barcodeErrors.length} barcode(s) were found to be duplicates and were skipped.`,
-          variant: 'warning',
+          variant: "destructive", // Change from "warning" to "destructive" since "warning" is not a valid variant
         });
         
         console.warn('Barcode validation errors:', result.barcodeErrors);
         setBarcodeErrors(result.barcodeErrors);
+        setIsSuccess(false); // Set to false because of errors
       } else {
         // No barcode errors, complete success
         toast({
@@ -113,11 +190,11 @@ export const useBatchStockIn = (userId: string) => {
         });
         
         setBarcodeErrors([]);
+        setIsSuccess(true);
       }
       
       setIsProcessing(false);
       setIsSubmitting(false);
-      setIsSuccess(true);
       
       // Create the notification if we have a product ID
       if (data.productId) {
@@ -149,6 +226,7 @@ export const useBatchStockIn = (userId: string) => {
       });
       setIsProcessing(false);
       setIsSubmitting(false);
+      setIsSuccess(false);
     }
   };
 

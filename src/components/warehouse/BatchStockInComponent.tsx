@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -59,8 +60,25 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     submitStockIn,
     isSubmitting,
     isProcessing,
-    barcodeErrors // New state for tracking barcode validation errors
+    isSuccess,
+    barcodeErrors
   } = useBatchStockIn(user?.id || '');
+
+  // Navigate to inventory page after successful submission
+  useEffect(() => {
+    if (isSuccess && !isProcessing && !isSubmitting) {
+      const timer = setTimeout(() => {
+        if (adminMode) {
+          navigate('/admin/inventory');
+        } else {
+          navigate('/manager/inventory');
+        }
+        if (onClose) onClose();
+      }, 2000); // Give the user 2 seconds to see the success message
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, isProcessing, isSubmitting, navigate, adminMode, onClose]);
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
   useEffect(() => {
@@ -202,7 +220,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                 isSubmitting={isSubmitting}
                 isProcessing={isProcessing}
                 formSubmitted={formSubmitted}
-                barcodeValidationErrors={barcodeErrors} // Pass barcode errors to BatchList
+                barcodeValidationErrors={barcodeErrors}
               />
             </div>
           </div>
