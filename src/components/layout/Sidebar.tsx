@@ -198,7 +198,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
                   </NavLink>
                 </li>
                 <li>
-                  <NavLink to="/operator/barcode" className={navLinkClass}>
+                  <NavLink to="/operator/barcode-lookup" className={navLinkClass}>
                     <ScanLine className="h-4 w-4 flex-shrink-0" />
                     {!collapsed && <span>Barcode Lookup</span>}
                   </NavLink>

@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Barcode, Search, Camera, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Import our new components and hooks
+// Import our components and hooks
 import { BarcodeScannerProps } from './types';
 import { useBarcodeProcessor } from './useBarcodeProcessor';
 import { useBarcodeDetection } from './useBarcodeDetection';
@@ -35,7 +35,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   scanButtonLabel = 'Search',
 }) => {
   const [barcode, setBarcode] = useState(inputValue || '');
-  const [isScanning, setIsScanning] = useState(false);
+  const [isScanning, setIsScanning] = useState(true); // Auto start scanning
   const [isCameraActive, setIsCameraActive] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
@@ -94,14 +94,28 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     return cleanupResources;
   }, [isCameraActive, initBarcodeDetection, cleanupResources]);
 
+  // Focus input on mount
+  useEffect(() => {
+    if (isScanning && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isScanning]);
+
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (barcode) {
       processScan(barcode);
       // Only reset barcode if not controlled externally
-      if (inputValue === undefined) {
+      if (inputValue === undefined && !scanData) {
         setBarcode('');
       }
+    } else {
+      setError('Please enter a barcode');
+      toast({
+        variant: 'destructive',
+        title: 'Input Required',
+        description: 'Please enter a barcode to search',
+      });
     }
   };
 
@@ -150,7 +164,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
         </CardTitle>
         <CardDescription>
           {isScanning 
-            ? 'Ready to scan. Use a barcode scanner or enter manually.' 
+            ? 'Enter a barcode manually or use a hardware scanner' 
             : 'Click Start Scanning to begin.'}
         </CardDescription>
       </CardHeader>
@@ -164,14 +178,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
                 type="text"
                 value={barcode}
                 onChange={handleInputChange}
-                placeholder="Scan or enter barcode"
+                placeholder="Enter barcode (e.g. ELEC-LAP123-003)"
                 className="flex-1"
                 autoFocus
                 disabled={loading}
               />
               
               {allowManualEntry && (
-                <Button type="submit" disabled={!barcode || loading}>
+                <Button type="submit" disabled={loading}>
                   <Search className="h-4 w-4 mr-2" />
                   {loading ? 'Searching...' : scanButtonLabel || 'Search'}
                 </Button>
