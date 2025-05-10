@@ -66,6 +66,9 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
           throw detailError;
         }
         
+        // Save the detail ID to use as batch_id in the inventory entry
+        const batchId = detailData?.id;
+        
         // Create an inventory entry for this box
         const { error: inventoryError } = await supabase
           .from('inventory')
@@ -77,7 +80,8 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
             quantity: box.quantity,
             color: box.color || null,
             size: box.size || null,
-            status: 'available'
+            status: 'available',
+            batch_id: batchId  // Link to the batch ID
           }]);
         
         if (inventoryError) {
@@ -95,7 +99,8 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
             details: {
               stock_in_id: stockInId,
               product_id: stockInData.product_id,
-              quantity: box.quantity
+              quantity: box.quantity,
+              batch_id: batchId
             }
           }]);
         
@@ -104,7 +109,7 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
           // Don't throw for log failures, just warn
         }
         
-        console.log(`Processed box with barcode: ${boxBarcode}`);
+        console.log(`Processed box with barcode: ${boxBarcode}, batch_id: ${batchId}`);
       } catch (boxError) {
         console.error('Error processing individual box:', boxError);
         throw boxError;

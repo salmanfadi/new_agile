@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -177,6 +178,11 @@ export const BatchForm: React.FC<BatchFormProps> = ({
     batchData.boxes_count > 0 && 
     batchData.quantity_per_box > 0;
 
+  // Debugging logs to trace product selection
+  console.log('Current batch data product:', batchData.product);
+  console.log('StockInData product:', stockInData?.product);
+  console.log('Is product field disabled:', isLoadingProducts || isSubmitting || !!stockInData?.product || !!editingBatch);
+
   return (
     <Card>
       <CardHeader>
@@ -193,8 +199,9 @@ export const BatchForm: React.FC<BatchFormProps> = ({
               onValueChange={handleProductChange} 
               disabled={isLoadingProducts || isSubmitting || !!stockInData?.product || !!editingBatch}
               value={batchData.product?.id || ''}
+              defaultValue={stockInData?.product?.id}
             >
-              <SelectTrigger id="product">
+              <SelectTrigger id="product" className={!batchData.product && !!stockInData?.product ? "border-blue-500 ring-1 ring-blue-500" : ""}>
                 <SelectValue placeholder="Select product" />
               </SelectTrigger>
               <SelectContent>
