@@ -85,7 +85,7 @@ const StockInForm: React.FC = () => {
         description: `${formData.numberOfBoxes} boxes of the selected product have been submitted for processing.`,
       });
       // Fix navigation path to match route in App.tsx
-      navigate('/operator/my-submissions');
+      navigate('/operator/submissions');
     },
     onError: (error) => {
       toast({
