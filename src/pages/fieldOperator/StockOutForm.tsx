@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -113,6 +112,7 @@ const StockOutForm: React.FC = () => {
           quantity,
           product_id,
           products:product_id (
+            id,
             name,
             sku,
             category

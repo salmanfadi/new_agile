@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -124,9 +123,13 @@ serve(async (req) => {
         warehouse_id,
         location_id,
         stock_in_id,
-        stock_in:stock_in_id(product_id, product:product_id(name, sku, description)),
-        warehouse:warehouse_id(name, location),
-        location:location_id(floor, zone)
+        stock_in:stock_in_id(
+          id,
+          product_id, 
+          products:product_id(id, name, sku, description)
+        ),
+        warehouses:warehouse_id(id, name, location),
+        warehouse_locations:location_id(id, floor, zone)
       `)
       .eq('barcode', barcode)
       .limit(1);
