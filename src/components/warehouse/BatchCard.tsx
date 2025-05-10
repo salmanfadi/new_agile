@@ -7,6 +7,7 @@ import { ProcessedBatch } from '@/types/batchStockIn';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Update the BatchCard component to show validation errors:
 export const BatchCard: React.FC<{
@@ -65,8 +66,17 @@ export const BatchCard: React.FC<{
         <CardTitle className="text-lg flex items-center gap-2">
           <Package className="h-5 w-5 text-blue-600" />
           <span>Batch #{index + 1} | {batch.boxes_count} Boxes</span>
-          {/* Audit Log Indicator */}
-          <ClipboardCheck className="h-4 w-4 ml-auto text-green-600" title="Activity Logged" />
+          {/* Audit Log Indicator with tooltip */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <ClipboardCheck className="h-4 w-4 ml-auto text-green-600" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Activity Logged</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </CardTitle>
       </CardHeader>
       

@@ -31,6 +31,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
   maxBoxes,
   stockInData
 }) => {
+  // Initialize batch data with default values
   const [batchData, setBatchData] = useState<BatchFormData>({
     product: null,
     warehouse: null,
@@ -53,7 +54,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
         color: editingBatch.color || '',
         size: editingBatch.size || ''
       });
-    } else if (stockInData?.product && !batchData.product) {
+    } else if (stockInData?.product && (!batchData.product || Object.keys(batchData.product).length === 0)) {
       // Set product from stockInData if available and product is not already set
       console.log('Setting product from stockInData:', stockInData.product);
       setBatchData(prev => ({
@@ -61,7 +62,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
         product: stockInData.product as Product
       }));
     }
-  }, [editingBatch, stockInData]);
+  }, [editingBatch, stockInData, batchData.product]);
 
   // Fetch products
   const { data: products, isLoading: isLoadingProducts } = useQuery({
@@ -181,7 +182,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
   // Debugging logs to trace product selection
   console.log('Current batch data product:', batchData.product);
   console.log('StockInData product:', stockInData?.product);
-  console.log('Is product field disabled:', isLoadingProducts || isSubmitting || !!stockInData?.product || !!editingBatch);
+  console.log('Is product field disabled:', isLoadingProducts || isSubmitting || !!stockInData?.product?.id || !!editingBatch);
 
   return (
     <Card>
@@ -197,7 +198,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
             <Label htmlFor="product">Product</Label>
             <Select 
               onValueChange={handleProductChange} 
-              disabled={isLoadingProducts || isSubmitting || !!stockInData?.product || !!editingBatch}
+              disabled={isLoadingProducts || isSubmitting || !!stockInData?.product?.id || !!editingBatch}
               value={batchData.product?.id || ''}
               defaultValue={stockInData?.product?.id}
             >
