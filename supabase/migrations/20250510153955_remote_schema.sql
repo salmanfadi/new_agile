@@ -797,6 +797,8 @@ set check_function_bodies = off;
 CREATE OR REPLACE FUNCTION public.find_inventory_by_barcode(search_barcode text)
  RETURNS TABLE(inventory_id uuid, product_name text, product_sku text, warehouse_name text, warehouse_location text, floor integer, zone text, quantity integer, barcode text, color text, size text, batch_id uuid, status text)
  LANGUAGE plpgsql
+ SECURITY INVOKER
+ SET search_path = public
 AS $function$
 BEGIN
   RETURN QUERY
@@ -822,12 +824,13 @@ BEGIN
   WHERE 
     i.barcode = search_barcode;
 END;
-$function$
-;
+$function$;
 
 CREATE OR REPLACE FUNCTION public.get_inventory_details(item_id uuid)
  RETURNS TABLE(inventory_id uuid, product_name text, product_sku text, warehouse_name text, warehouse_location text, floor integer, zone text, quantity integer, barcode text, color text, size text, batch_id uuid, status text)
  LANGUAGE plpgsql
+ SECURITY INVOKER
+ SET search_path = public
 AS $function$
 BEGIN
   RETURN QUERY
@@ -853,8 +856,7 @@ BEGIN
   WHERE 
     i.id = item_id;
 END;
-$function$
-;
+$function$;
 
 CREATE OR REPLACE FUNCTION public.get_user_role(user_id uuid)
  RETURNS user_role
