@@ -1,145 +1,94 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Edit, Trash2, Box, AlertCircle } from 'lucide-react';
 import { ProcessedBatch } from '@/types/batchStockIn';
-import { Pencil, Trash2, EyeOff, Eye } from 'lucide-react';
 
-interface BatchCardProps {
+// Update the BatchCard component to show validation errors:
+export const BatchCard: React.FC<{
   batch: ProcessedBatch;
   index: number;
   onEdit: () => void;
   onDelete: () => void;
   showBarcodes?: boolean;
   disabled?: boolean;
-}
-
-export const BatchCard: React.FC<BatchCardProps> = ({
-  batch,
-  index,
-  onEdit,
-  onDelete,
+  hasError?: boolean;
+}> = ({ 
+  batch, 
+  index, 
+  onEdit, 
+  onDelete, 
   showBarcodes = false,
-  disabled = false
+  disabled = false,
+  hasError = false
 }) => {
-  const [showAllBarcodes, setShowAllBarcodes] = useState(false);
-
-  const displayBarcodes = batch.barcodes || [];
-  const initialDisplayCount = 3;
-  const hasMoreBarcodes = displayBarcodes.length > initialDisplayCount;
-  
-  const barcodesToShow = showAllBarcodes 
-    ? displayBarcodes 
-    : displayBarcodes.slice(0, initialDisplayCount);
-
   return (
-    <Card className="apple-shadow-sm overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <h4 className="font-medium text-lg">Batch {index + 1}</h4>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {batch.product?.name || 'Unknown Product'}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="font-medium">{batch.boxes_count} boxes</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {batch.quantity_per_box} items per box
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-3 grid md:grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Warehouse</p>
-            <p className="text-sm">{batch.warehouse?.name || 'Unknown Warehouse'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Location</p>
-            <p className="text-sm">
-              {batch.warehouseLocation 
-                ? `Floor ${batch.warehouseLocation.floor}, Zone ${batch.warehouseLocation.zone}` 
-                : 'Unknown Location'}
-            </p>
-          </div>
-
-          {batch.color && (
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Color</p>
-              <p className="text-sm">{batch.color}</p>
-            </div>
-          )}
-
-          {batch.size && (
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Size</p>
-              <p className="text-sm">{batch.size}</p>
-            </div>
-          )}
-        </div>
-
+    <Card className={`apple-shadow-sm overflow-hidden ${hasError ? 'border-red-300 bg-red-50' : ''}`}>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Box className="h-5 w-5" />
+          Batch #{index + 1}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Product: {batch.product?.name}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Warehouse: {batch.warehouse?.name}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Location: Floor {batch.warehouseLocation?.floor}, Zone {batch.warehouseLocation?.zone}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Boxes: {batch.boxes_count}, Quantity per Box: {batch.quantity_per_box}
+        </p>
+        {batch.color && (
+          <p className="text-sm text-muted-foreground">
+            Color: {batch.color}
+          </p>
+        )}
+        {batch.size && (
+          <p className="text-sm text-muted-foreground">
+            Size: {batch.size}
+          </p>
+        )}
         {showBarcodes && batch.barcodes && batch.barcodes.length > 0 && (
-          <div className="mt-4">
-            <div className="flex justify-between items-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Barcodes</p>
-              {hasMoreBarcodes && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 text-xs"
-                  onClick={() => setShowAllBarcodes(!showAllBarcodes)}
-                  disabled={disabled}
-                >
-                  {showAllBarcodes ? (
-                    <>
-                      <EyeOff className="h-3 w-3 mr-1" />
-                      Show Less
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="h-3 w-3 mr-1" />
-                      Show All ({displayBarcodes.length})
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-            <div className="mt-1 space-y-1">
-              {barcodesToShow.map((barcode, idx) => (
-                <div key={idx} className="text-xs bg-gray-50 dark:bg-gray-800 p-1 rounded">
-                  {barcode}
-                </div>
+          <div className="mt-2">
+            <p className="text-xs font-medium">Barcodes:</p>
+            <ul className="list-disc list-inside text-xs">
+              {batch.barcodes.map((barcode, i) => (
+                <li key={i}>{barcode}</li>
               ))}
-              {!showAllBarcodes && hasMoreBarcodes && (
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  + {displayBarcodes.length - initialDisplayCount} more
-                </div>
-              )}
-            </div>
+            </ul>
           </div>
         )}
       </CardContent>
       
-      <CardFooter className="px-4 py-2 bg-gray-50 dark:bg-gray-800 flex justify-end gap-2">
+      {hasError && (
+        <div className="px-6 py-2 bg-red-100 text-red-800 text-xs flex items-center">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          One or more barcodes in this batch already exist in inventory
+        </div>
+      )}
+
+      <CardFooter className="flex justify-end gap-2">
         <Button 
+          variant="outline" 
           size="sm" 
-          variant="outline"
-          className="h-8" 
           onClick={onEdit}
           disabled={disabled}
         >
-          <Pencil className="h-3.5 w-3.5 mr-1" />
+          <Edit className="mr-2 h-4 w-4" />
           Edit
         </Button>
         <Button 
+          variant="destructive" 
           size="sm" 
-          variant="outline" 
-          className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
           onClick={onDelete}
           disabled={disabled}
         >
-          <Trash2 className="h-3.5 w-3.5 mr-1" />
+          <Trash2 className="mr-2 h-4 w-4" />
           Delete
         </Button>
       </CardFooter>

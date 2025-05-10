@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -59,7 +58,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     setEditingIndex,
     submitStockIn,
     isSubmitting,
-    isProcessing
+    isProcessing,
+    barcodeErrors // New state for tracking barcode validation errors
   } = useBatchStockIn(user?.id || '');
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
@@ -202,6 +202,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                 isSubmitting={isSubmitting}
                 isProcessing={isProcessing}
                 formSubmitted={formSubmitted}
+                barcodeValidationErrors={barcodeErrors} // Pass barcode errors to BatchList
               />
             </div>
           </div>

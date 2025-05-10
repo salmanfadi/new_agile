@@ -1,317 +1,169 @@
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { BatchFormData, BatchData, ProcessedBatch, StockInBatchSubmission } from '@/types/batchStockIn';
-import { generateBarcodeString } from '@/utils/barcodeUtils';
-import { toast } from '@/hooks/use-toast';
+import { ProcessedBatch, BatchFormData } from '@/types/batchStockIn';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+
+interface StockInSubmissionData {
+  stockInId?: string;
+  productId: string;
+  source: string;
+  notes: string;
+  submittedBy: string;
+  batches: ProcessedBatch[];
+}
 
 export const useBatchStockIn = (userId: string) => {
+  const queryClient = useQueryClient();
   const [batches, setBatches] = useState<ProcessedBatch[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [barcodeErrors, setBarcodeErrors] = useState<{ barcode: string; error: string; }[]>([]);
 
-  const addBatch = (formData: BatchFormData) => {
-    if (!formData.product || !formData.warehouse || !formData.location) {
-      toast({
-        title: 'Missing data',
-        description: 'Please complete all required fields',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    // Generate barcodes for each box in the batch
-    const barcodes: string[] = [];
-    for (let i = 0; i < formData.boxes_count; i++) {
-      const productSku = formData.product.sku || formData.product.name.substring(0, 6).toUpperCase().replace(/\s+/g, '');
-      const category = formData.product.category || 'MISC';
-      const boxNumber = i + 1;
-      // Use the improved barcode generation function
-      const barcode = generateBarcodeString(category, productSku, boxNumber);
-      barcodes.push(barcode);
-    }
-
+  const addBatch = useCallback((batchData: BatchFormData) => {
     const newBatch: ProcessedBatch = {
-      product_id: formData.product.id,
-      warehouse_id: formData.warehouse.id,
-      location_id: formData.location.id,
-      boxes_count: formData.boxes_count,
-      quantity_per_box: formData.quantity_per_box,
-      color: formData.color || undefined,
-      size: formData.size || undefined,
-      created_by: userId,
-      // Include joined data for display purposes
-      product: formData.product,
-      warehouse: formData.warehouse,
-      warehouseLocation: formData.location,
-      barcodes: barcodes
+      id: uuidv4(),
+      product_id: batchData.product?.id || '',
+      product: batchData.product || null,
+      warehouse_id: batchData.warehouse?.id || '',
+      warehouse: batchData.warehouse || null,
+      location_id: batchData.location?.id || '',
+      warehouseLocation: batchData.location || null,
+      boxes_count: batchData.boxes_count,
+      quantity_per_box: batchData.quantity_per_box,
+      color: batchData.color || '',
+      size: batchData.size || '',
+      barcodes: Array.from({ length: batchData.boxes_count }, () => uuidv4()),
     };
+    setBatches(prevBatches => [...prevBatches, newBatch]);
+  }, []);
 
-    if (editingIndex !== null) {
-      // Update existing batch
-      const updatedBatches = [...batches];
-      updatedBatches[editingIndex] = newBatch;
-      setBatches(updatedBatches);
-      setEditingIndex(null);
-    } else {
-      // Add new batch
-      setBatches([...batches, newBatch]);
-    }
-
-    toast({
-      title: editingIndex !== null ? 'Batch updated' : 'Batch added',
-      description: `${formData.boxes_count} boxes of ${formData.product.name} added to batch`,
-    });
-  };
-
-  const editBatch = (index: number) => {
+  const editBatch = useCallback((index: number) => {
     setEditingIndex(index);
-    // Return the batch data for pre-filling the form
-    return batches[index];
-  };
+  }, []);
 
-  const deleteBatch = (index: number) => {
-    const updatedBatches = batches.filter((_, i) => i !== index);
-    setBatches(updatedBatches);
-    toast({
-      title: 'Batch removed',
-      description: 'The batch has been removed from the list',
+  const updateBatch = useCallback((index: number, updatedBatchData: Partial<ProcessedBatch>) => {
+    setBatches(prevBatches => {
+      const newBatches = [...prevBatches];
+      newBatches[index] = { ...newBatches[index], ...updatedBatchData };
+      return newBatches;
     });
-  };
+    setEditingIndex(null);
+  }, []);
 
-  const submitStockInMutation = useMutation({
-    mutationFn: async (data: StockInBatchSubmission) => {
-      setIsProcessing(true);
-      try {
-        // Start transaction
-        const { data: stockInData, error: stockInError } = await supabase
-          .from('stock_in')
-          .insert({
-            product_id: data.productId,
-            submitted_by: data.submittedBy,
-            boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
-            status: 'completed', // Changed from 'processing' to 'completed'
-            source: data.source,
-            notes: data.notes,
-            processed_by: data.submittedBy // Since we're using the batch system, the processor is the same as submitter
-          })
-          .select('id')
-          .single();
+  const deleteBatch = useCallback((index: number) => {
+    setBatches(prevBatches => {
+      const newBatches = [...prevBatches];
+      newBatches.splice(index, 1);
+      return newBatches;
+    });
+  }, []);
 
-        if (stockInError) throw stockInError;
-        if (!stockInData || !stockInData.id) throw new Error('Failed to create stock-in record');
-        
-        const stockInId = stockInData.id;
-        
-        // Log stock in creation
-        console.log('Created stock-in record:', stockInId);
-        
-        // Create batches
-        const batchPromises = data.batches.map(async (batch) => {
-          try {
-            console.log('Processing batch with product_id:', batch.product_id);
-            
-            // Insert batch record
-            const { data: batchData, error: batchError } = await supabase
-              .from('stock_in_batches' as any)
-              .insert({
-                stock_in_id: stockInId,
-                product_id: batch.product_id,
-                warehouse_id: batch.warehouse_id,
-                location_id: batch.location_id,
-                boxes_count: batch.boxes_count,
-                quantity_per_box: batch.quantity_per_box,
-                color: batch.color,
-                size: batch.size,
-                created_by: data.submittedBy
-              } as any)
-              .select('id')
-              .single();
-              
-            if (batchError) {
-              console.error('Error creating batch record:', batchError);
-              throw batchError;
-            }
-            
-            // Check if batchData exists and has an id property
-            if (!batchData) {
-              console.error('No data returned from batch insertion');
-              throw new Error('Failed to create batch record');
-            }
-            
-            // Use type assertion after checking that batchData is not null
-            const batchId = (batchData as unknown as { id: string }).id;
-            
-            if (!batchId) {
-              console.error('Invalid batch ID returned');
-              throw new Error('Invalid batch ID returned');
-            }
-            
-            console.log('Created batch record:', batchId);
-            
-            // Create inventory and detail records for each box in the batch
-            const detailsToInsert = [];
-            const inventoryToInsert = [];
-            
-            for (let i = 0; i < batch.boxes_count; i++) {
-              const barcode = batch.barcodes ? batch.barcodes[i] : uuidv4();
-              
-              // Each box becomes a stock in detail
-              detailsToInsert.push({
-                stock_in_id: stockInId,
-                batch_id: batchId,
-                barcode: barcode,
-                quantity: batch.quantity_per_box,
-                warehouse_id: batch.warehouse_id,
-                location_id: batch.location_id,
-                color: batch.color,
-                size: batch.size,
-                created_by: data.submittedBy
-              });
-              
-              // Each box also becomes an inventory entry
-              inventoryToInsert.push({
-                product_id: batch.product_id,
-                warehouse_id: batch.warehouse_id,
-                location_id: batch.location_id,
-                barcode: barcode,
-                quantity: batch.quantity_per_box,
-                color: batch.color,
-                size: batch.size,
-                status: 'available'
-              });
-            }
-            
-            // Insert all box details
-            console.log('Inserting', detailsToInsert.length, 'stock in details');
-            const { error: detailsError } = await supabase
-              .from('stock_in_details')
-              .insert(detailsToInsert);
-              
-            if (detailsError) {
-              console.error('Error inserting details:', detailsError);
-              throw detailsError;
-            }
-            
-            // Insert all inventory entries
-            console.log('Inserting', inventoryToInsert.length, 'inventory entries');
-            const { error: inventoryError } = await supabase
-              .from('inventory')
-              .insert(inventoryToInsert);
-              
-            if (inventoryError) {
-              console.error('Error inserting inventory:', inventoryError);
-              throw inventoryError;
-            }
-            
-            // Create barcode log entries for tracking
-            const barcodeLogEntries = batch.barcodes?.map(barcode => ({
-              barcode: barcode,
-              action: 'stock_in',
-              user_id: data.submittedBy,
-              batch_id: batchId,
-              details: {
-                stock_in_id: stockInId,
-                product_id: batch.product_id,
-                quantity: batch.quantity_per_box
-              }
-            })) || [];
-            
-            if (barcodeLogEntries.length > 0) {
-              console.log('Creating barcode log entries:', barcodeLogEntries.length);
-              const { error: barcodeLogError } = await supabase
-                .from('barcode_logs')
-                .insert(barcodeLogEntries);
-                
-              if (barcodeLogError) {
-                console.error('Error creating barcode logs:', barcodeLogError);
-                // Non-critical error, don't throw
-              }
-            }
-            
-            return batchId;
-          } catch (error) {
-            console.error('Error processing batch:', error);
-            throw error;
-          }
+  const prepareBoxData = useCallback(async (batches: ProcessedBatch[]) => {
+    const boxes = [];
+    for (const batch of batches) {
+      for (let i = 0; i < batch.boxes_count; i++) {
+        boxes.push({
+          barcode: batch.barcodes?.[i] || uuidv4(),
+          quantity: batch.quantity_per_box,
+          color: batch.color || null,
+          size: batch.size || null,
+          warehouse_id: batch.warehouse_id,
+          location_id: batch.location_id,
+        });
+      }
+    }
+    return boxes;
+  }, []);
+
+  // Add to the submitStockIn function to handle barcode validation errors
+  const submitStockIn = async (data: StockInSubmissionData) => {
+    setIsSubmitting(true);
+    
+    try {
+      console.log('Submitting batch stock in:', data);
+      const processedBoxes = await prepareBoxData(data.batches);
+      
+      // Process the stock-in request
+      const result = await processStockIn(
+        data.stockInId as string,
+        processedBoxes,
+        data.submittedBy
+      );
+      
+      // Check for barcode validation errors
+      if (result && result.barcodeErrors && result.barcodeErrors.length > 0) {
+        // Handle barcode errors - still count as success but warn the user
+        toast({
+          title: `Stock In Processed with Warnings`,
+          description: `${result.barcodeErrors.length} barcode(s) were found to be duplicates and were skipped.`,
+          variant: 'warning',
         });
         
-        try {
-          // Wait for all batch insertions to complete
-          await Promise.all(batchPromises);
-          
-          // No need to update status since we set it to 'completed' at creation
-          // This ensures the inventory is immediately available after submission
+        console.warn('Barcode validation errors:', result.barcodeErrors);
+        setBarcodeErrors(result.barcodeErrors);
+      } else {
+        // No barcode errors, complete success
+        toast({
+          title: 'Stock In Processed Successfully',
+          description: 'All items have been added to inventory',
+        });
         
-          console.log('Stock in process completed successfully');
-          
-          // Create a notification for admins
-          // Get the product name from our local state since we have access to it there
-          // rather than trying to access it from the BatchData which doesn't have it
-          let productName = 'Unknown Product';
-          if (batches.length > 0 && batches[0].product) {
-            productName = batches[0].product.name;
-          }
-          
-          const { error: notificationError } = await supabase
-            .from('notifications')
-            .insert({
-              user_id: data.submittedBy,
-              role: 'admin',
-              action_type: 'stock_in_batch_created',
-              metadata: {
-                stock_in_id: stockInId,
-                batches_count: data.batches.length,
-                total_boxes: data.batches.reduce((sum, batch) => sum + batch.boxes_count, 0),
-                product_name: productName
-              }
-            });
-            
-          if (notificationError) {
-            console.error('Failed to create notification:', notificationError);
-            // Don't throw here, continue with the success flow
-          }
-          
-          return { stockInId };
-        } catch (error) {
-          console.error('Batch processing failed:', error);
-          throw error;
-        }
-      } catch (error) {
-        console.error('Stock in submission failed:', error);
-        throw error;
-      } finally {
-        setIsProcessing(false);
+        setBarcodeErrors([]);
       }
-    },
-    onSuccess: () => {
+      
+      setIsProcessing(false);
+      setIsSubmitting(false);
+      setIsSuccess(true);
+      
+      // Create the notification if we have a product ID
+      if (data.productId) {
+        await supabase.from('barcode_logs').insert([{
+          barcode: 'batch-submission',
+          action: 'batch_stock_in_completed',
+          user_id: data.submittedBy,
+          details: {
+            stock_in_id: data.stockInId,
+            product_id: data.productId,
+            batch_count: data.batches.length,
+            total_items: processedBoxes.length,
+            source: data.source,
+            completed_at: new Date().toISOString()
+          }
+        }]);
+      }
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      
+    } catch (error) {
+      console.error('Error submitting batch stock in:', error);
       toast({
-        title: 'Stock-in processed successfully',
-        description: `${batches.length} batches have been successfully processed and added to inventory`,
+        title: 'Error Processing Stock In',
+        description: error instanceof Error ? error.message : 'Something went wrong',
+        variant: 'destructive',
       });
-      // Reset state
-      setBatches([]);
-      setEditingIndex(null);
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error processing stock-in',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
-        variant: 'destructive'
-      });
+      setIsProcessing(false);
+      setIsSubmitting(false);
     }
-  });
+  };
 
   return {
     batches,
     addBatch,
     editBatch,
+    updateBatch,
     deleteBatch,
     editingIndex,
     setEditingIndex,
-    submitStockIn: submitStockInMutation.mutate,
-    isSubmitting: submitStockInMutation.isPending,
-    isProcessing
+    submitStockIn,
+    isSubmitting,
+    isProcessing,
+    isSuccess,
+    barcodeErrors
   };
 };
