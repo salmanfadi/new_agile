@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessedBatch, BatchFormData } from '@/types/batchStockIn';
@@ -24,6 +23,7 @@ export const useBatchStockIn = (userId: string) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [barcodeErrors, setBarcodeErrors] = useState<{ barcode: string; error: string; }[]>([]);
+  const [formSubmitted, setFormSubmitted] = useState(false);
 
   const addBatch = useCallback((batchData: BatchFormData) => {
     let generatedBarcodes: string[] = [];
@@ -145,26 +145,112 @@ export const useBatchStockIn = (userId: string) => {
         throw new Error('Failed to update stock in status');
       }
       
-      // Insert boxes into inventory
-      const { error: insertError } = await supabase
-        .from('inventory')
-        .insert(
-          processedBoxes.map(box => ({
+      // 1. Insert each box into stock_in_details and collect the returned id
+      const stockInDetailsResults = [];
+      for (const box of processedBoxes) {
+        const { data: detailData, error: detailError } = await supabase
+          .from('stock_in_details')
+          .insert({
+            stock_in_id: stockInId,
             product_id: box.product_id,
-            warehouse_id: box.warehouse_id,
-            location_id: box.location_id, 
-            barcode: box.barcode,
             quantity: box.quantity,
-            color: box.color,
-            size: box.size,
-            batch_id: stockInId, // Link to the stock_in batch
-            status: 'available'
-          }))
-        );
-      
+          })
+          .select('id')
+          .single();
+        if (detailError) {
+          console.error('Error inserting stock_in_details:', JSON.stringify(detailError, null, 2), 'Box:', box);
+          throw new Error('Failed to add stock_in_details');
+        }
+        stockInDetailsResults.push(detailData.id);
+      }
+
+      // 2. Insert into inventory using the correct stock_in_detail_id for each box
+      const inventoryInsertPayload = processedBoxes.map((box, idx) => ({
+        product_id: box.product_id,
+        warehouse_id: box.warehouse_id,
+        location_id: box.location_id, 
+        barcode: box.barcode,
+        quantity: box.quantity,
+        color: box.color,
+        size: box.size,
+        batch_id: stockInId, // Link to the stock_in batch
+        stock_in_detail_id: stockInDetailsResults[idx],
+        status: 'available'
+      }));
+      const { data: inventoryInsertResult, error: insertError } = await supabase
+        .from('inventory')
+        .insert(inventoryInsertPayload)
+        .select();
+      console.log('Inventory insert payload:', inventoryInsertPayload);
+      console.log('Inventory insert result:', inventoryInsertResult, 'Error:', insertError);
       if (insertError) {
         console.error('Error inserting inventory items:', insertError);
         throw new Error('Failed to add items to inventory');
+      }
+      
+      // 3. Insert into batch_inventory_items for each box
+      if (inventoryInsertResult && Array.isArray(inventoryInsertResult)) {
+        const batchInventoryItems = inventoryInsertResult.map((inv, idx) => ({
+          batch_id: stockInId,
+          inventory_id: inv.id,
+          product_id: inv.product_id,
+          warehouse_location_id: inv.location_id,
+          stock_in_detail_id: stockInDetailsResults[idx],
+          quantity: inv.quantity
+        }));
+        const { error: batchInsertError } = await supabase
+          .from('batch_inventory_items')
+          .insert(batchInventoryItems);
+        console.log('Batch inventory items insert payload:', batchInventoryItems);
+        if (batchInsertError) {
+          console.error('Error inserting batch_inventory_items:', batchInsertError);
+          throw new Error('Failed to add items to batch_inventory_items');
+        }
+        // Insert barcode logs for each barcode
+        const barcodeLogRows = inventoryInsertResult.map((inv, idx) => ({
+          barcode: inv.barcode,
+          action: 'stock_in',
+          user_id: submittedBy,
+          details: {
+            batch_id: stockInId,
+            product_id: inv.product_id,
+            product_name: processedBoxes[idx]?.product_name || '',
+            warehouse: processedBoxes[idx]?.warehouse_id || '',
+            location: processedBoxes[idx]?.location_id || '',
+            created_by: submittedBy,
+            created_at: inv.created_at || new Date().toISOString(),
+          }
+        }));
+        if (barcodeLogRows.length > 0) {
+          const { error: barcodeLogError } = await supabase
+            .from('barcode_logs')
+            .insert(barcodeLogRows);
+          console.log('Barcode log insert payload:', barcodeLogRows);
+          if (barcodeLogError) {
+            console.error('Error inserting barcode logs:', barcodeLogError);
+          }
+        }
+        // Insert into barcodes table for real-time inventory
+        const barcodeRows = inventoryInsertResult.map((inv, idx) => ({
+          barcode: inv.barcode,
+          batch_id: stockInId,
+          product_id: inv.product_id,
+          warehouse_id: inv.warehouse_id,
+          location_id: inv.location_id,
+          quantity: inv.quantity,
+          created_by: submittedBy,
+          created_at: inv.created_at || new Date().toISOString(),
+          status: 'active'
+        }));
+        if (barcodeRows.length > 0) {
+          const { error: barcodeInsertError } = await supabase
+            .from('barcodes')
+            .insert(barcodeRows);
+          console.log('Barcodes table insert payload:', barcodeRows);
+          if (barcodeInsertError) {
+            console.error('Error inserting into barcodes table:', barcodeInsertError);
+          }
+        }
       }
       
       // Update stock_in status to 'completed'
@@ -178,6 +264,8 @@ export const useBatchStockIn = (userId: string) => {
         throw new Error('Failed to complete stock in process');
       }
       
+      // Invalidate stock-in-requests query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
       return { success: true };
     } catch (error) {
       // If anything fails, try to revert the stock_in status to 'pending'
@@ -295,6 +383,13 @@ export const useBatchStockIn = (userId: string) => {
     }
   };
 
+  const resetBatches = () => {
+    setBatches([]);
+    setEditingIndex(null);
+    setIsSuccess(false);
+    setFormSubmitted(false);
+  };
+
   return {
     batches,
     addBatch,
@@ -307,6 +402,7 @@ export const useBatchStockIn = (userId: string) => {
     isSubmitting,
     isProcessing,
     isSuccess,
-    barcodeErrors
+    barcodeErrors,
+    resetBatches,
   };
 };

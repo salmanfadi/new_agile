@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -21,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import BarcodeInventoryTable from '@/components/barcode/BarcodeInventoryTable';
 
 interface Product {
   id: string;
@@ -109,6 +109,7 @@ const BarcodeManagement: React.FC = () => {
         <TabsList className="mb-4">
           <TabsTrigger value="generator">Single Barcode Generator</TabsTrigger>
           <TabsTrigger value="printer">Bulk Generate by Category</TabsTrigger>
+          <TabsTrigger value="inventory">Barcode Inventory</TabsTrigger>
           {user?.role === 'admin' && (
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
           )}
@@ -154,6 +155,10 @@ const BarcodeManagement: React.FC = () => {
         
         <TabsContent value="printer">
           <BarcodePrinter />
+        </TabsContent>
+        
+        <TabsContent value="inventory">
+          <BarcodeInventoryTable />
         </TabsContent>
         
         {user?.role === 'admin' && (

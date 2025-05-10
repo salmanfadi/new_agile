@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,7 +35,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
     product: null,
     warehouse: null,
     location: null,
-    boxes_count: 1,
+    boxes_count: editingBatch ? editingBatch.boxes_count : undefined,
     quantity_per_box: 10,
     color: '',
     size: ''
@@ -147,10 +146,16 @@ export const BatchForm: React.FC<BatchFormProps> = ({
     e.preventDefault();
 
     // Validate box count if maxBoxes is provided
-    if (maxBoxes !== undefined && batchData.boxes_count > maxBoxes && !editingBatch) {
+    if (
+      batchData.boxes_count === undefined ||
+      batchData.boxes_count === null ||
+      isNaN(Number(batchData.boxes_count)) ||
+      batchData.boxes_count < 1 ||
+      (maxBoxes !== undefined && batchData.boxes_count > maxBoxes && !editingBatch)
+    ) {
       toast({
-        title: 'Box count exceeds limit',
-        description: `You can only add up to ${maxBoxes} boxes. Please adjust the quantity.`,
+        title: 'Invalid box count',
+        description: `Please enter a valid number of boxes (1 or more, up to ${maxBoxes ?? 'N/A'}).`,
         variant: 'destructive'
       });
       return;
@@ -164,7 +169,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
         product: stockInData?.product as Product || batchData.product, // Keep the product selected
         warehouse: batchData.warehouse, // Keep the warehouse selected
         location: batchData.location, // Keep the location selected
-        boxes_count: 1,
+        boxes_count: undefined,
         quantity_per_box: 10,
         color: '',
         size: ''
@@ -242,9 +247,13 @@ export const BatchForm: React.FC<BatchFormProps> = ({
                 type="number"
                 min={1}
                 max={maxBoxes !== undefined ? maxBoxes : undefined}
-                value={batchData.boxes_count}
-                onChange={(e) => handleChange('boxes_count', parseInt(e.target.value) || 1)}
+                value={batchData.boxes_count === undefined ? '' : batchData.boxes_count}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  handleChange('boxes_count', val === '' ? undefined : parseInt(val));
+                }}
                 disabled={isSubmitting}
+                placeholder="Enter number of boxes"
                 className={maxBoxes !== undefined && batchData.boxes_count > maxBoxes ? "border-red-500" : ""}
               />
               {maxBoxes !== undefined && batchData.boxes_count > maxBoxes && !editingBatch && (

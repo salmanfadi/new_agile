@@ -1,73 +1,199 @@
-# Welcome to your Lovable project
+# Agile Warehouse Management System
 
-## Project info
+A modern, real-time warehouse management system built with React, TypeScript, and Supabase.
 
-**URL**: https://lovable.dev/projects/80cef0c9-2392-40ba-a30d-f3c6e9711f3c
+## 🚀 Features
 
-## How can I edit this code?
+### User Roles & Permissions
+- **Administrator**: Full system access, user management, and audit capabilities
+- **Warehouse Manager**: Inventory management, stock operations, and batch processing
+- **Field Operator**: Stock movement operations and inventory updates
+- **Sales Operator**: Sales inquiry management and customer interactions
 
-There are several ways of editing your application.
+### Core Functionality
+- Real-time inventory tracking
+- Stock in/out operations with approval workflow
+- Batch processing for bulk operations
+- Barcode-based inventory management
+- Audit trail for all inventory movements
+- Multi-warehouse support with location tracking
+- Role-based access control (RBAC)
 
-**Use Lovable**
+## 🏗️ Architecture
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/80cef0c9-2392-40ba-a30d-f3c6e9711f3c) and start prompting.
+### Frontend
+- **Framework**: React with TypeScript
+- **State Management**: React Query for server state
+- **UI Components**: Custom components with responsive design
+- **Real-time Updates**: Supabase real-time subscriptions
+- **Routing**: React Router for navigation
+- **Form Handling**: React Hook Form with validation
 
-Changes made via Lovable will be committed automatically to this repo.
+### Backend (Supabase)
+- **Database**: PostgreSQL with Row Level Security
+- **Authentication**: Supabase Auth
+- **Real-time**: Supabase Realtime
+- **Storage**: Supabase Storage for documents
+- **API**: RESTful endpoints with RLS policies
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+### Database Schema
+```mermaid
+erDiagram
+    profiles ||--o{ inventory : manages
+    profiles ||--o{ stock_in : creates
+    profiles ||--o{ stock_out : creates
+    warehouses ||--o{ warehouse_locations : contains
+    warehouse_locations ||--o{ inventory : stores
+    products ||--o{ inventory : has
+    stock_in ||--o{ stock_in_details : contains
+    stock_out ||--o{ stock_out_details : contains
+    batch_operations ||--o{ batch_inventory_items : processes
+    inventory ||--o{ stock_movement_audit : tracks
 ```
 
-**Edit a file directly in GitHub**
+## 🛠️ Setup & Installation
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Prerequisites
+- Node.js (v16 or higher)
+- Docker Desktop
+- Supabase CLI
+- Git
 
-**Use GitHub Codespaces**
+### Local Development Setup
+1. Clone the repository:
+   ```bash
+   git clone [repository-url]
+   cd agile-warehouse-ui
+   ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## What technologies are used for this project?
+3. Set up environment variables:
+   Create a `.env` file with:
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-This project is built with:
+4. Start local Supabase:
+   ```bash
+   supabase start
+   ```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+5. Apply database migrations:
+   ```bash
+   supabase db reset
+   ```
 
-## How can I deploy this project?
+6. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-Simply open [Lovable](https://lovable.dev/projects/80cef0c9-2392-40ba-a30d-f3c6e9711f3c) and click on Share -> Publish.
+## 📦 Database Schema Details
 
-## Can I connect a custom domain to my Lovable project?
+### Core Tables
+- **profiles**: User profiles and roles
+- **warehouses**: Warehouse information
+- **warehouse_locations**: Storage locations within warehouses
+- **products**: Product catalog
+- **inventory**: Current stock levels
+- **stock_in**: Stock receipt records
+- **stock_in_details**: Stock receipt line items
+- **stock_out**: Stock issue records
+- **stock_out_details**: Stock issue line items
 
-Yes, you can!
+### Audit & Processing
+- **stock_movement_audit**: Tracks all inventory changes
+- **batch_operations**: Manages bulk operations
+- **batch_inventory_items**: Links batch operations to inventory
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Security
+- Row Level Security (RLS) policies for all tables
+- Role-based access control
+- Audit trail for all operations
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## 🔄 Data Flow
+
+### Stock In Process
+1. Field Operator creates stock in record
+2. Warehouse Manager reviews and approves
+3. Inventory is updated automatically
+4. Audit trail is created
+
+### Stock Out Process
+1. Field Operator creates stock out request
+2. Warehouse Manager approves
+3. Inventory is reduced
+4. Audit record is created
+
+### Batch Operations
+1. Create batch operation
+2. Add items to batch
+3. Process batch
+4. Update inventory automatically
+5. Create audit records
+
+## 🧪 Testing
+
+### Frontend Testing
+- Unit tests for components
+- Integration tests for workflows
+- E2E tests for critical paths
+
+### Backend Testing
+- Database function tests
+- RLS policy tests
+- Trigger tests
+
+## 📚 API Documentation
+
+### Authentication
+- JWT-based authentication
+- Role-based access control
+- Session management
+
+### Real-time Subscriptions
+- Inventory updates
+- Stock movement notifications
+- Batch operation status
+
+## 🔒 Security Features
+
+- Row Level Security (RLS)
+- Role-based access control
+- Audit logging
+- Input validation
+- XSS protection
+- CSRF protection
+
+## 🚀 Deployment
+
+### Frontend Deployment
+- Build process
+- Environment configuration
+- CDN setup
+
+### Backend Deployment
+- Supabase project setup
+- Database migrations
+- Security policies
+
+## 📝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🤝 Support
+
+For support, please open an issue in the repository or contact the development team.

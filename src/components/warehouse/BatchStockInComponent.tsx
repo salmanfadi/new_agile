@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -12,6 +11,8 @@ import { StockInRequestDetails } from '@/components/warehouse/StockInRequestDeta
 import { BatchList } from '@/components/warehouse/BatchList';
 import { BatchStockInLoading } from '@/components/warehouse/BatchStockInLoading';
 import { useQueryClient } from '@tanstack/react-query';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface BatchStockInComponentProps {
   adminMode?: boolean;
@@ -34,6 +35,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   const [notes, setNotes] = useState<string>('');
   const [remainingBoxes, setRemainingBoxes] = useState<number>(0);
   const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   // Log stockInData to debug
   useEffect(() => {
@@ -63,38 +65,67 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     isSubmitting,
     isProcessing,
     isSuccess,
-    barcodeErrors
+    barcodeErrors,
+    resetBatches
   } = useBatchStockIn(user?.id || '');
 
   // Navigate to inventory page after successful submission with improved navigation reliability
   useEffect(() => {
     if (isSuccess && !isProcessing && !isSubmitting) {
-      // Force refresh inventory data before navigation
       queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
-      
-      console.log("Stock in processing successful, preparing to navigate to inventory view");
-      toast({
-        title: 'Processing Complete',
-        description: 'Navigating to inventory view to see your processed items...',
-      });
-      
-      // Use a short delay to ensure state updates and query invalidation have time to complete
+      queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+      setShowSuccessModal(true);
       const timer = setTimeout(() => {
-        console.log("Navigating to inventory view now");
-        
-        if (adminMode) {
+        let role = user?.role;
+        let path = window.location.pathname;
+        console.log('Redirecting after batch submission:', { role, path });
+        if (onClose) {
+          console.log('Calling onClose() to close panel/sheet');
+          onClose();
+        }
+        if (role === 'admin') {
+          console.log('Navigating to /admin/inventory');
+          navigate('/admin/inventory');
+        } else if (role === 'warehouse_manager') {
+          console.log('Navigating to /manager/inventory');
+          navigate('/manager/inventory');
+        } else if (path.includes('/admin')) {
+          console.log('Fallback: Navigating to /admin/inventory');
           navigate('/admin/inventory');
         } else {
+          console.log('Fallback: Navigating to /manager/inventory');
           navigate('/manager/inventory');
         }
-        
-        // If we're in sheet mode, close the sheet
-        if (onClose) onClose();
-      }, 1500); // Give the user 1.5 seconds to see the success message
-      
+        resetBatches();
+      }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [isSuccess, isProcessing, isSubmitting, navigate, adminMode, onClose, queryClient]);
+  }, [isSuccess, isProcessing, isSubmitting, user, navigate, onClose, resetBatches, queryClient]);
+
+  const handleNavigateToInventory = () => {
+    setShowSuccessModal(false);
+    let role = user?.role;
+    let path = window.location.pathname;
+    console.log('Manual redirect after modal:', { role, path });
+    if (onClose) {
+      console.log('Calling onClose() to close panel/sheet');
+      onClose();
+    }
+    if (role === 'admin') {
+      console.log('Navigating to /admin/inventory');
+      navigate('/admin/inventory');
+    } else if (role === 'warehouse_manager') {
+      console.log('Navigating to /manager/inventory');
+      navigate('/manager/inventory');
+    } else if (path.includes('/admin')) {
+      console.log('Fallback: Navigating to /admin/inventory');
+      navigate('/admin/inventory');
+    } else {
+      console.log('Fallback: Navigating to /manager/inventory');
+      navigate('/manager/inventory');
+    }
+    resetBatches();
+  };
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
   useEffect(() => {
@@ -223,14 +254,20 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
           
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <BatchForm 
-                onAddBatch={handleAddBatch} 
-                isSubmitting={isSubmitting || isProcessing || formSubmitted}
-                editingBatch={editingIndex !== null ? batches[editingIndex] : undefined}
-                onCancel={editingIndex !== null ? () => setEditingIndex(null) : undefined}
-                maxBoxes={remainingBoxes + (editingIndex !== null ? batches[editingIndex].boxes_count : 0)}
-                stockInData={stockInData}
-              />
+              {remainingBoxes === 0 ? (
+                <div className="p-4 bg-green-50 border border-green-200 rounded text-green-700 text-center">
+                  All boxes for this stock-in request have been processed.
+                </div>
+              ) : (
+                <BatchForm 
+                  onAddBatch={handleAddBatch} 
+                  isSubmitting={isSubmitting || isProcessing || formSubmitted}
+                  editingBatch={editingIndex !== null ? batches[editingIndex] : undefined}
+                  onCancel={editingIndex !== null ? () => setEditingIndex(null) : undefined}
+                  maxBoxes={remainingBoxes + (editingIndex !== null ? batches[editingIndex].boxes_count : 0)}
+                  stockInData={stockInData}
+                />
+              )}
             </div>
             
             <div className="space-y-4">
@@ -248,6 +285,17 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
           </div>
         </div>
       )}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Batch Processed!</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">Your batch has been processed successfully. You will be redirected to Inventory shortly.</div>
+          <DialogFooter>
+            <Button onClick={handleNavigateToInventory} className="w-full">View Inventory Now</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
