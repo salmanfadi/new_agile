@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -35,6 +35,11 @@ const AdminInventoryView = () => {
     batchIds,
     availableStatuses
   } = useInventoryFilters();
+  
+  useEffect(() => {
+    // Log initial inventory state for debugging
+    console.log("Mounted AdminInventoryView with filters:", filters);
+  }, []);
   
   // Use shared inventory hook with filters
   const { 
@@ -78,6 +83,7 @@ const AdminInventoryView = () => {
   };
   
   const handleRefresh = () => {
+    console.log("Refreshing inventory data...");
     refetch();
     toast({
       title: 'Refreshing Inventory',

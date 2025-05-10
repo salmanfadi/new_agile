@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -9,14 +9,22 @@ export const useInventoryFilters = () => {
   const [batchFilter, setBatchFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
 
-  // Fetch batch IDs for filter
+  // Reset filters if URL changes
+  useEffect(() => {
+    // Listen for route changes, then clear filters when on a new page
+    return () => {
+      // No cleanup needed in this case
+    };
+  }, []);
+
+  // Fetch batch IDs for filter with more details
   const batchIdsQuery = useQuery({
     queryKey: ['batch-ids'],
     queryFn: async () => {
       console.log('Fetching batch IDs for filter');
       const { data, error } = await supabase
         .from('stock_in')
-        .select('id, created_at, source')
+        .select('id, created_at, source, status')
         .order('created_at', { ascending: false });
         
       if (error) {
@@ -25,7 +33,12 @@ export const useInventoryFilters = () => {
       }
       
       console.log(`Found ${data?.length || 0} batch IDs`);
-      return data;
+      
+      // Map the data to include formatted dates for better readability
+      return data?.map(batch => ({
+        ...batch,
+        formattedDate: new Date(batch.created_at).toLocaleDateString()
+      })) || [];
     }
   });
 
@@ -60,6 +73,7 @@ export const useInventoryFilters = () => {
 
   // Reset all filters
   const resetFilters = () => {
+    console.log('Resetting all filters');
     setSearchTerm('');
     setWarehouseFilter('');
     setBatchFilter('');

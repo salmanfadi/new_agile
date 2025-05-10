@@ -70,7 +70,7 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
         <div className="w-full lg:w-1/3 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by product, barcode or source"
+            placeholder="Search by product, barcode, source, color or size"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9"
@@ -118,7 +118,11 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
               <SelectItem value="">All Batches</SelectItem>
               {batchIds.map((batch) => (
                 <SelectItem key={batch.id} value={batch.id}>
-                  {batch.source ? `${batch.source.substring(0, 8)}...` : `Batch: ${batch.id.substring(0, 8)}...`}
+                  {batch.source ? (
+                    `${batch.formattedDate}: ${batch.source.substring(0, 15)}${batch.source.length > 15 ? '...' : ''}`
+                  ) : (
+                    `Batch: ${batch.id.substring(0, 8)}...`
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -168,12 +172,12 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
             </SheetContent>
           </Sheet>
           
-          <Button variant="ghost" onClick={onRefresh} title="Refresh data">
+          <Button variant="ghost" onClick={onRefresh} title="Refresh data" className="h-10 w-10 p-0">
             <RefreshCcw className="h-4 w-4" />
           </Button>
           
           {hasActiveFilters && onResetFilters && (
-            <Button variant="ghost" onClick={onResetFilters} title="Clear all filters">
+            <Button variant="ghost" onClick={onResetFilters} title="Clear all filters" className="h-10 w-10 p-0">
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -192,7 +196,7 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
           
           {warehouseFilter && (
             <Badge variant="secondary" className="flex items-center gap-1">
-              Warehouse: {warehouses.find(w => w.id === warehouseFilter)?.name || warehouseFilter}
+              Warehouse: {warehouses.find(w => w.id === warehouseFilter)?.name || 'Unknown'}
               <X className="h-3 w-3 cursor-pointer" onClick={() => setWarehouseFilter('')} />
             </Badge>
           )}
