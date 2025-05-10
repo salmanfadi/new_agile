@@ -11,6 +11,7 @@ import {
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { InventoryItem } from '@/hooks/useInventoryData';
 import { Badge } from '@/components/ui/badge';
+import { AlertTriangle } from 'lucide-react';
 
 interface InventoryTableProps {
   inventoryItems: InventoryItem[];
@@ -39,7 +40,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-8">
+      <div className="flex justify-center items-center py-8">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
         <div className="ml-2">Loading inventory data...</div>
       </div>
@@ -49,7 +50,9 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   if (error) {
     return (
       <div className="text-center py-8 text-red-500">
-        Error loading inventory data: {error.message}
+        <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+        <p>Error loading inventory data: {error.message}</p>
+        <p className="text-sm mt-2 text-slate-500">Please try refreshing the page or contact support if the issue persists.</p>
       </div>
     );
   }
@@ -57,7 +60,8 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   if (inventoryItems.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No inventory items found
+        <p className="mb-2">No inventory items found</p>
+        <p className="text-sm text-slate-400">Try adjusting your filters or search criteria</p>
       </div>
     );
   }

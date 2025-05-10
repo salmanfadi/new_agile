@@ -127,62 +127,94 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
     queryFn: async () => {
       console.log('Fetching inventory data with filters:', { warehouseFilter, batchFilter });
       
-      let query = supabase
-        .from('inventory')
-        .select(`
-          id,
-          product_id,
-          products:product_id(id, name, description),
-          warehouses:warehouse_id(id, name, location),
-          warehouse_locations:location_id(id, floor, zone),
-          warehouse_id,
-          location_id,
-          barcode,
-          quantity,
-          color,
-          size,
-          created_at,
-          updated_at,
-          status,
-          batch_id
-        `);
+      try {
+        let query = supabase
+          .from('inventory')
+          .select(`
+            id,
+            product_id,
+            warehouse_id,
+            location_id,
+            barcode,
+            quantity,
+            color,
+            size,
+            created_at,
+            updated_at,
+            status,
+            batch_id
+          `);
+          
+        if (warehouseFilter) {
+          query = query.eq('warehouse_id', warehouseFilter);
+        }
         
-      if (warehouseFilter) {
-        query = query.eq('warehouse_id', warehouseFilter);
-      }
-      
-      if (batchFilter) {
-        query = query.eq('batch_id', batchFilter);
-      }
-      
-      query = query.order('updated_at', { ascending: false });
+        if (batchFilter) {
+          query = query.eq('batch_id', batchFilter);
+        }
         
-      const { data, error } = await query;
+        query = query.order('updated_at', { ascending: false });
+          
+        const { data: inventoryData, error: inventoryError } = await query;
+          
+        if (inventoryError) {
+          console.error('Error fetching inventory:', inventoryError);
+          throw inventoryError;
+        }
+
+        // Fetch products, warehouses, and locations data separately
+        const { data: products } = await supabase
+          .from('products')
+          .select('id, name, description');
         
-      if (error) {
-        console.error('Error fetching inventory:', error);
+        const { data: warehouses } = await supabase
+          .from('warehouses')
+          .select('id, name, location');
+        
+        const { data: locations } = await supabase
+          .from('warehouse_locations')
+          .select('id, floor, zone');
+        
+        // Create lookup maps
+        const productMap = products ? products.reduce((map, item) => {
+          map[item.id] = item;
+          return map;
+        }, {} as Record<string, any>) : {};
+        
+        const warehouseMap = warehouses ? warehouses.reduce((map, item) => {
+          map[item.id] = item;
+          return map;
+        }, {} as Record<string, any>) : {};
+        
+        const locationMap = locations ? locations.reduce((map, item) => {
+          map[item.id] = item;
+          return map;
+        }, {} as Record<string, any>) : {};
+        
+        // Map the inventory data with the related entities
+        return inventoryData?.map(item => ({
+          id: item.id,
+          productName: productMap[item.product_id]?.name || 'Unknown Product',
+          productId: item.product_id,
+          warehouseName: warehouseMap[item.warehouse_id]?.name || 'Unknown Warehouse',
+          warehouseId: item.warehouse_id,
+          warehouseLocation: warehouseMap[item.warehouse_id]?.location || '',
+          locationId: item.location_id,
+          locationDetails: locationMap[item.location_id] 
+            ? `Floor ${locationMap[item.location_id].floor}, Zone ${locationMap[item.location_id].zone}`
+            : 'Unknown Location',
+          barcode: item.barcode,
+          quantity: item.quantity,
+          color: item.color || '-',
+          size: item.size || '-',
+          status: item.status || 'available',
+          batchId: item.batch_id,
+          lastUpdated: new Date(item.updated_at).toLocaleString(),
+        })) as InventoryItem[];
+      } catch (error) {
+        console.error('Error in inventory query:', error);
         throw error;
       }
-      
-      return (data as unknown as InventoryResponse[]).map(item => ({
-        id: item.id,
-        productName: item.products && item.products[0] ? item.products[0].name : 'Unknown Product',
-        productId: item.product_id,
-        warehouseName: item.warehouses && item.warehouses[0] ? item.warehouses[0].name : 'Unknown Warehouse',
-        warehouseId: item.warehouse_id,
-        warehouseLocation: item.warehouses && item.warehouses[0] ? item.warehouses[0].location || '' : '',
-        locationId: item.location_id,
-        locationDetails: item.warehouse_locations && item.warehouse_locations[0]
-          ? `Floor ${item.warehouse_locations[0].floor}, Zone ${item.warehouse_locations[0].zone}` 
-          : 'Unknown Location',
-        barcode: item.barcode,
-        quantity: item.quantity,
-        color: item.color || '-',
-        size: item.size || '-',
-        status: item.status || 'available',
-        batchId: item.batch_id,
-        lastUpdated: new Date(item.updated_at).toLocaleString(),
-      })) as InventoryItem[];
     }
   });
 
