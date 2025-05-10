@@ -100,9 +100,9 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
         .select(`
           id,
           product_id,
-          products:product_id(id, name, description),
-          warehouses:warehouse_id(id, name, location),
-          warehouse_locations:location_id(id, floor, zone),
+          products(id, name, description),
+          warehouses(id, name, location),
+          warehouse_locations(id, floor, zone),
           warehouse_id,
           location_id,
           barcode,
@@ -134,13 +134,15 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
       
       return data.map(item => ({
         id: item.id,
-        productName: item.products?.name || 'Unknown Product',
+        productName: item.products?.[0]?.name || 'Unknown Product',
         productId: item.product_id,
-        warehouseName: item.warehouses?.name || 'Unknown Warehouse',
+        warehouseName: item.warehouses?.[0]?.name || 'Unknown Warehouse',
         warehouseId: item.warehouse_id,
-        warehouseLocation: item.warehouses?.location || '',
+        warehouseLocation: item.warehouses?.[0]?.location || '',
         locationId: item.location_id,
-        locationDetails: item.warehouse_locations ? `Floor ${item.warehouse_locations.floor}, Zone ${item.warehouse_locations.zone}` : 'Unknown Location',
+        locationDetails: item.warehouse_locations?.[0] 
+          ? `Floor ${item.warehouse_locations[0].floor}, Zone ${item.warehouse_locations[0].zone}` 
+          : 'Unknown Location',
         barcode: item.barcode,
         quantity: item.quantity,
         color: item.color || '-',
