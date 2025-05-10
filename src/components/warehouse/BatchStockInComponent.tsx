@@ -2,19 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Boxes, AlertTriangle, ArrowLeft, X, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useBatchStockIn } from '@/hooks/useBatchStockIn';
 import { BatchForm } from '@/components/warehouse/BatchForm';
-import { BatchCard } from '@/components/warehouse/BatchCard';
 import { useStockInData } from '@/hooks/useStockInData';
 import { toast } from '@/hooks/use-toast';
 import { BackButton } from '@/components/warehouse/BackButton';
+import { StockInRequestDetails } from '@/components/warehouse/StockInRequestDetails';
+import { BatchList } from '@/components/warehouse/BatchList';
+import { BatchStockInLoading } from '@/components/warehouse/BatchStockInLoading';
 
 interface BatchStockInComponentProps {
   adminMode?: boolean;
@@ -170,83 +166,20 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       )}
       
       {isLoadingStockIn ? (
-        <Card className="apple-shadow-sm">
-          <CardContent className="p-6 flex justify-center items-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </CardContent>
-        </Card>
+        <BatchStockInLoading />
       ) : (
         <div className="space-y-6">
-          {stockInData && (
-            <Card className="apple-shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Boxes className="h-5 w-5" />
-                  Stock-In Request Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Product</Label>
-                    <div className="p-2 bg-muted rounded-lg">
-                      {stockInData.product?.name || 'Unknown Product'}
-                      {stockInData.product?.sku && (
-                        <span className="block text-sm text-muted-foreground mt-1">
-                          SKU: {stockInData.product.sku}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Total Boxes</Label>
-                    <div className="p-2 bg-muted rounded-lg flex justify-between items-center">
-                      <span>{stockInData.boxes || 0}</span>
-                      <span className={`text-sm font-medium ${remainingBoxes < 0 ? 'text-red-500' : remainingBoxes === 0 ? 'text-green-500' : 'text-yellow-500'}`}>
-                        {remainingBoxes < 0 ? `Exceeded by ${Math.abs(remainingBoxes)}` : 
-                         remainingBoxes === 0 ? 'All boxes allocated' : 
-                         `${remainingBoxes} remaining`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="source">Source</Label>
-                  <Input 
-                    id="source" 
-                    value={source} 
-                    onChange={(e) => setSource(e.target.value)} 
-                    placeholder="Supplier or source"
-                    readOnly={!!stockInId}
-                    className="apple-shadow-sm"
-                    disabled={isSubmitting || isProcessing}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea 
-                    id="notes" 
-                    value={notes} 
-                    onChange={(e) => setNotes(e.target.value)} 
-                    placeholder="Optional notes about this batch"
-                    readOnly={!!stockInId}
-                    className="apple-shadow-sm min-h-[100px]"
-                    disabled={isSubmitting || isProcessing}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {remainingBoxes < 0 && (
-            <Card className="border-red-300 bg-red-50 dark:bg-red-900/20 apple-shadow-sm">
-              <CardContent className="p-4 flex items-center gap-2 text-red-600 dark:text-red-400">
-                <AlertTriangle size={16} />
-                <span>Warning: You've allocated more boxes than are available in the original request.</span>
-              </CardContent>
-            </Card>
-          )}
+          <StockInRequestDetails
+            stockInData={stockInData}
+            source={source}
+            setSource={setSource}
+            notes={notes}
+            setNotes={setNotes}
+            remainingBoxes={remainingBoxes}
+            isSubmitting={isSubmitting}
+            isProcessing={isProcessing}
+            stockInId={stockInId}
+          />
           
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -261,42 +194,15 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
             </div>
             
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Batches ({batches.length})</h3>
-              
-              {batches.length === 0 ? (
-                <Card className="apple-shadow-sm">
-                  <CardContent className="p-6 text-center text-muted-foreground">
-                    No batches added yet. Use the form to add batches.
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4 max-h-[600px] overflow-y-auto scrollbar-thin pr-1">
-                  {batches.map((batch, index) => (
-                    <BatchCard 
-                      key={index}
-                      batch={batch}
-                      index={index}
-                      onEdit={() => !isSubmitting && !isProcessing && !formSubmitted && editBatch(index)} 
-                      onDelete={() => !isSubmitting && !isProcessing && !formSubmitted && deleteBatch(index)} 
-                      showBarcodes={true}
-                      disabled={isSubmitting || isProcessing || formSubmitted}
-                    />
-                  ))}
-                  
-                  <Button 
-                    onClick={handleBatchSubmission} 
-                    className="w-full mt-4 apple-shadow-sm" 
-                    disabled={batches.length === 0 || isSubmitting || isProcessing || formSubmitted}
-                  >
-                    {isSubmitting || isProcessing ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Processing...
-                      </span>
-                    ) : 'Submit All Batches'}
-                  </Button>
-                </div>
-              )}
+              <BatchList 
+                batches={batches}
+                editBatch={editBatch}
+                deleteBatch={deleteBatch}
+                handleBatchSubmission={handleBatchSubmission}
+                isSubmitting={isSubmitting}
+                isProcessing={isProcessing}
+                formSubmitted={formSubmitted}
+              />
             </div>
           </div>
         </div>
