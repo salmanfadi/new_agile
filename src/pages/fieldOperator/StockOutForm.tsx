@@ -103,6 +103,20 @@ const StockOutForm: React.FC = () => {
     }
     
     try {
+      // Define the expected response type
+      interface InventoryWithProduct {
+        id: string;
+        barcode: string;
+        quantity: number;
+        product_id: string;
+        products: {
+          id: string;
+          name: string;
+          sku: string | null;
+          category: string | null;
+        }[];
+      }
+      
       // Fetch inventory details for the scanned barcode
       const { data, error } = await supabase
         .from('inventory')
@@ -128,26 +142,28 @@ const StockOutForm: React.FC = () => {
         return;
       }
       
+      const typedData = data as unknown as InventoryWithProduct;
+      
       // If category filter is active, check if the product matches the selected category
-      if (selectedCategory && data.products[0]?.category !== selectedCategory) {
+      if (selectedCategory && typedData.products[0]?.category !== selectedCategory) {
         toast({
           variant: 'destructive',
           title: 'Category mismatch',
-          description: `This box belongs to the "${data.products[0]?.category}" category, but you have filtered for "${selectedCategory}".`,
+          description: `This box belongs to the "${typedData.products[0]?.category}" category, but you have filtered for "${selectedCategory}".`,
         });
         return;
       }
       
       // Add to scanned boxes list
       const newBox: ScannedBox = {
-        barcode: data.barcode,
-        inventory_id: data.id,
-        product_name: data.products[0]?.name || 'Unknown Product',
-        product_id: data.product_id,
-        sku: data.products[0]?.sku,
-        quantity: data.quantity,
-        requestedQuantity: data.quantity, // Default to full box quantity
-        category: data.products[0]?.category || 'Uncategorized'
+        barcode: typedData.barcode,
+        inventory_id: typedData.id,
+        product_name: typedData.products[0]?.name || 'Unknown Product',
+        product_id: typedData.product_id,
+        sku: typedData.products[0]?.sku,
+        quantity: typedData.quantity,
+        requestedQuantity: typedData.quantity, // Default to full box quantity
+        category: typedData.products[0]?.category || 'Uncategorized'
       };
       
       setScannedBoxes([...scannedBoxes, newBox]);
@@ -155,7 +171,7 @@ const StockOutForm: React.FC = () => {
       
       toast({
         title: 'Box added',
-        description: `Added ${data.products[0]?.name || 'Unknown Product'} (${data.quantity} units)`,
+        description: `Added ${typedData.products[0]?.name || 'Unknown Product'} (${typedData.quantity} units)`,
       });
     } catch (error) {
       console.error('Error fetching barcode details:', error);

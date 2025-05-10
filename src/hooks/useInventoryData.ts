@@ -95,6 +95,26 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
     queryKey: ['inventory-data', warehouseFilter, batchFilter],
     queryFn: async () => {
       console.log('Fetching inventory data with filters:', { warehouseFilter, batchFilter });
+      
+      // Define our response type from Supabase to aid with TypeScript
+      interface InventoryResponse {
+        id: string;
+        product_id: string;
+        products: { id: string; name: string; description: string | null }[];
+        warehouses: { id: string; name: string; location: string | null }[];
+        warehouse_locations: { id: string; floor: number; zone: string }[];
+        warehouse_id: string;
+        location_id: string;
+        barcode: string;
+        quantity: number;
+        color: string | null;
+        size: string | null;
+        created_at: string;
+        updated_at: string;
+        status: string;
+        batch_id: string | null;
+      }
+      
       let query = supabase
         .from('inventory')
         .select(`
@@ -132,7 +152,7 @@ export const useInventoryData = (warehouseFilter: string = '', batchFilter: stri
         throw error;
       }
       
-      return data.map(item => ({
+      return (data as InventoryResponse[]).map(item => ({
         id: item.id,
         productName: item.products?.[0]?.name || 'Unknown Product',
         productId: item.product_id,
