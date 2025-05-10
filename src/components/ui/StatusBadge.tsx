@@ -42,10 +42,30 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className }) =
           className: 'bg-emerald-100 text-emerald-800',
           label: 'In Stock'
         };
+      case 'reserved':
+        return {
+          className: 'bg-orange-100 text-orange-800',
+          label: 'Reserved'
+        };
+      case 'allocated':
+        return {
+          className: 'bg-blue-100 text-blue-800',
+          label: 'Allocated'
+        };
+      case 'packed':
+        return {
+          className: 'bg-indigo-100 text-indigo-800',
+          label: 'Packed'
+        };
+      case 'shipped':
+        return {
+          className: 'bg-teal-100 text-teal-800',
+          label: 'Shipped'
+        };
       default:
         return {
           className: 'bg-gray-100 text-gray-800',
-          label: status
+          label: status.charAt(0).toUpperCase() + status.slice(1)
         };
     }
   };

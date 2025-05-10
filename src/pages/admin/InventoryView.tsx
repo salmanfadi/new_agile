@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -20,23 +20,79 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { ArrowLeft, Package } from 'lucide-react';
+import { ArrowLeft, Package, Search, Scan, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import BarcodeScanner from '@/components/barcode/BarcodeScanner';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+// Define interface for inventory item data
+interface InventoryItem {
+  id: string;
+  productName: string;
+  warehouseName: string;
+  warehouseLocation: string;
+  locationDetails: string;
+  barcode: string;
+  quantity: number;
+  color: string;
+  size: string;
+  status: string;
+  batchId: string | null;
+  lastUpdated: string;
+}
 
 const AdminInventoryView = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [highlightedBarcode, setHighlightedBarcode] = useState<string | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [batchFilter, setBatchFilter] = useState<string>("");
   const queryClient = useQueryClient();
+  const highlightedRowRef = useRef<HTMLTableRowElement>(null);
+  
+  // Fetch batch IDs for filter
+  const { data: batchIds = [] } = useQuery({
+    queryKey: ['batch-ids'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_in_details')
+        .select('batch_id')
+        .is('batch_id', 'not.null')
+        .order('batch_id')
+        .distinct();
+        
+      if (error) {
+        console.error('Error fetching batch IDs:', error);
+        return [];
+      }
+      
+      return data.map(d => d.batch_id).filter(Boolean);
+    }
+  });
   
   // Fetch inventory data
   const { data: inventoryItems = [], isLoading } = useQuery({
-    queryKey: ['admin-inventory-data'],
+    queryKey: ['admin-inventory-data', batchFilter],
     queryFn: async () => {
-      console.log('Fetching inventory data');
-      const { data, error } = await supabase
+      console.log('Fetching inventory data with batch filter:', batchFilter);
+      let query = supabase
         .from('inventory')
         .select(`
           id,
@@ -49,9 +105,17 @@ const AdminInventoryView = () => {
           size,
           created_at,
           updated_at,
-          status
-        `)
-        .order('updated_at', { ascending: false });
+          status,
+          batch_id
+        `);
+        
+      if (batchFilter) {
+        query = query.eq('batch_id', batchFilter);
+      }
+      
+      query = query.order('updated_at', { ascending: false });
+        
+      const { data, error } = await query;
         
       if (error) {
         console.error('Error fetching inventory:', error);
@@ -69,6 +133,7 @@ const AdminInventoryView = () => {
         color: item.color || '-',
         size: item.size || '-',
         status: item.status || 'available',
+        batchId: item.batch_id,
         lastUpdated: new Date(item.updated_at).toLocaleString(),
       }));
     }
@@ -76,7 +141,6 @@ const AdminInventoryView = () => {
 
   // Set up real-time subscription for inventory changes
   useEffect(() => {
-    // Create and subscribe to the Supabase channel
     const channel: RealtimeChannel = supabase
       .channel('inventory-changes')
       .on('postgres_changes', 
@@ -99,6 +163,7 @@ const AdminInventoryView = () => {
           
           // Invalidate the query to refresh inventory data
           queryClient.invalidateQueries({ queryKey: ['admin-inventory-data'] });
+          queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
         })
       .subscribe();
 
@@ -108,12 +173,48 @@ const AdminInventoryView = () => {
     };
   }, [queryClient]);
   
+  // Handle barcode scanned
+  const handleBarcodeScanned = async (barcode: string) => {
+    setIsScannerOpen(false);
+    setHighlightedBarcode(barcode);
+    
+    // Invalidate query to ensure we have the latest data
+    await queryClient.invalidateQueries({ queryKey: ['admin-inventory-data'] });
+    
+    // Find item matching barcode
+    const item = inventoryItems.find(item => item.barcode === barcode);
+    
+    if (item) {
+      toast({
+        title: 'Item Found',
+        description: `Found ${item.productName} in ${item.warehouseName}`,
+      });
+      
+      // Set timeout to allow the query to complete and DOM to update
+      setTimeout(() => {
+        if (highlightedRowRef.current) {
+          highlightedRowRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }
+      }, 100);
+    } else {
+      toast({
+        title: 'Item Not Found',
+        description: `No inventory item with barcode ${barcode} was found.`,
+        variant: 'destructive'
+      });
+    }
+  };
+  
   // Filter inventory based on search term
   const filteredInventory = searchTerm
     ? inventoryItems.filter(item => 
         item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.warehouseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.barcode.toLowerCase().includes(searchTerm.toLowerCase())
+        item.barcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.batchId && item.batchId.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     : inventoryItems;
 
@@ -124,24 +225,73 @@ const AdminInventoryView = () => {
         description="View and manage current inventory across all warehouses"
       />
       
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate('/admin')}
-          className="mb-4"
+          className="w-full sm:w-auto"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Dashboard
         </Button>
         
-        <div className="w-1/3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Sheet open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Scan className="mr-2 h-4 w-4" />
+                Scan Barcode
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right">
+              <SheetHeader>
+                <SheetTitle>Scan Barcode</SheetTitle>
+                <SheetDescription>
+                  Scan a barcode to find the corresponding inventory item
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6">
+                <BarcodeScanner
+                  allowManualEntry={true}
+                  allowCameraScanning={true}
+                  onBarcodeScanned={handleBarcodeScanned}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
+      
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by product, warehouse, or barcode..."
+            placeholder="Search by product, warehouse, barcode, or batch ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
+            className="pl-9"
           />
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select
+            value={batchFilter}
+            onValueChange={setBatchFilter}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by Batch ID" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Batches</SelectItem>
+              {batchIds.map((batchId: string) => (
+                <SelectItem key={batchId} value={batchId}>
+                  Batch: {batchId.substring(0, 8)}...
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       
@@ -163,7 +313,7 @@ const AdminInventoryView = () => {
             </div>
           ) : filteredInventory.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              {searchTerm ? 'No inventory items match your search criteria.' : 'No inventory items found.'}
+              {searchTerm || batchFilter ? 'No inventory items match your search criteria.' : 'No inventory items found.'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -178,21 +328,39 @@ const AdminInventoryView = () => {
                     <TableHead>Color</TableHead>
                     <TableHead>Size</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Batch ID</TableHead>
                     <TableHead className="text-right">Last Updated</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredInventory.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow 
+                      key={item.id}
+                      ref={item.barcode === highlightedBarcode ? highlightedRowRef : null}
+                      className={item.barcode === highlightedBarcode ? "bg-blue-50 dark:bg-blue-900/20" : ""}
+                    >
                       <TableCell className="font-medium">{item.productName}</TableCell>
                       <TableCell>{item.warehouseName}</TableCell>
                       <TableCell>{item.locationDetails}</TableCell>
-                      <TableCell>{item.barcode}</TableCell>
+                      <TableCell>
+                        <span className={item.barcode === highlightedBarcode ? "font-bold text-blue-600" : ""}>
+                          {item.barcode}
+                        </span>
+                      </TableCell>
                       <TableCell>{item.quantity}</TableCell>
                       <TableCell>{item.color}</TableCell>
                       <TableCell>{item.size}</TableCell>
                       <TableCell>
                         <StatusBadge status={item.status} />
+                      </TableCell>
+                      <TableCell>
+                        {item.batchId ? (
+                          <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded">
+                            {item.batchId.substring(0, 8)}...
+                          </span>
+                        ) : (
+                          '-'
+                        )}
                       </TableCell>
                       <TableCell className="text-right">{item.lastUpdated}</TableCell>
                     </TableRow>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,10 +17,12 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 
 interface ProductInventory extends Product {
   in_stock_quantity: number;
   is_out_of_stock: boolean;
+  batches_count?: number;
 }
 
 export const InventoryStatus: React.FC = () => {
@@ -55,7 +58,7 @@ export const InventoryStatus: React.FC = () => {
         data.map(async (product) => {
           const { data: inventoryData, error: inventoryError } = await supabase
             .from('inventory')
-            .select('quantity')
+            .select('quantity, batch_id')
             .eq('product_id', product.id);
 
           if (inventoryError) {
@@ -64,6 +67,7 @@ export const InventoryStatus: React.FC = () => {
               ...product,
               in_stock_quantity: 0,
               is_out_of_stock: true,
+              batches_count: 0,
             };
           }
 
@@ -71,11 +75,18 @@ export const InventoryStatus: React.FC = () => {
             (sum, item) => sum + (item.quantity || 0), 
             0
           );
+          
+          // Count unique batches
+          const uniqueBatches = new Set();
+          inventoryData.forEach(item => {
+            if (item.batch_id) uniqueBatches.add(item.batch_id);
+          });
 
           return {
             ...product,
             in_stock_quantity: totalQuantity,
             is_out_of_stock: totalQuantity <= 0,
+            batches_count: uniqueBatches.size,
           };
         })
       );
@@ -163,6 +174,7 @@ export const InventoryStatus: React.FC = () => {
                   <TableHead>SKU</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Stock Status</TableHead>
+                  <TableHead>Batches</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -184,11 +196,18 @@ export const InventoryStatus: React.FC = () => {
                       <TableCell>{product.sku || 'N/A'}</TableCell>
                       <TableCell>{product.category || 'Uncategorized'}</TableCell>
                       <TableCell>{getStockStatus(product as ProductInventory)}</TableCell>
+                      <TableCell>
+                        {(product as ProductInventory).batches_count ? (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
+                            {(product as ProductInventory).batches_count} {(product as ProductInventory).batches_count === 1 ? 'batch' : 'batches'}
+                          </Badge>
+                        ) : 'No batches'}
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-slate-500">
+                    <TableCell colSpan={5} className="h-24 text-center text-slate-500">
                       {searchTerm ? 'No products match your search' : 'No products found'}
                     </TableCell>
                   </TableRow>
