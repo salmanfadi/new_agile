@@ -2,8 +2,29 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { StockInData } from '@/hooks/useStockInBoxes';
 import { toast } from '@/hooks/use-toast';
+import { Product } from '@/types/database';
+
+export interface StockInData {
+  id: string;
+  product?: {
+    id: string;
+    name: string;
+    sku?: string;
+    category?: string;
+  };
+  submitter: {
+    id: string | null;
+    name: string;
+    username: string;
+  } | null;
+  boxes: number;
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'processing';
+  created_at: string;
+  source: string;
+  notes?: string | null;
+  rejection_reason?: string | null;
+}
 
 export const useStockInData = (stockInId: string | undefined) => {
   const [stockInData, setStockInData] = useState<StockInData | null>(null);
@@ -46,7 +67,7 @@ export const useStockInData = (stockInId: string | undefined) => {
         console.log('Stock in data retrieved:', data);
         
         // Fetch product information
-        let product = { name: 'Unknown Product', id: null };
+        let product = undefined;
         if (data.product_id) {
           const { data: productData, error: productError } = await supabase
             .from('products')
@@ -55,7 +76,12 @@ export const useStockInData = (stockInId: string | undefined) => {
             .single();
             
           if (!productError && productData) {
-            product = productData;
+            product = {
+              id: productData.id,
+              name: productData.name,
+              sku: productData.sku,
+              category: productData.category
+            };
             console.log('Product data retrieved:', product);
           } else {
             console.error("Error fetching product:", productError);
@@ -103,9 +129,9 @@ export const useStockInData = (stockInId: string | undefined) => {
         }
         
         // Construct the complete stockInData object
-        const stockInDataObject = {
+        const stockInDataObject: StockInData = {
           id: data.id,
-          product: product,
+          product,
           submitter: submitter,
           boxes: data.boxes,
           status: data.status,

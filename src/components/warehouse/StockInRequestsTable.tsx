@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import {
@@ -11,25 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-
-interface StockInData {
-  id: string;
-  product: { name: string; id?: string | null };
-  submitter: { name: string; username: string; id?: string | null } | null;
-  boxes: number;
-  status: "pending" | "approved" | "rejected" | "completed" | "processing";
-  created_at: string;
-  source: string;
-  notes?: string;
-  rejection_reason?: string;
-}
+import { StockInRequestData } from '@/hooks/useStockInRequests';
 
 interface StockInRequestsTableProps {
-  stockInRequests: StockInData[];
+  stockInRequests: StockInRequestData[];
   isLoading: boolean;
-  onProcess: (stockIn: StockInData) => void;
-  onReject: (stockIn: StockInData) => void;
+  onProcess: (stockIn: StockInRequestData) => void;
+  onReject: (stockIn: StockInRequestData) => void;
   userId: string | undefined;
 }
 
@@ -73,7 +60,10 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
         <TableBody>
           {stockInRequests.map((stockIn) => (
             <TableRow key={stockIn.id} className={stockIn.status === 'pending' ? "bg-green-50" : undefined}>
-              <TableCell className="font-medium">{stockIn.product?.name || 'Unknown Product'}</TableCell>
+              <TableCell className="font-medium">
+                {stockIn.product?.name || 'Unknown Product'}
+                {stockIn.product?.sku && <span className="block text-xs text-slate-500">SKU: {stockIn.product.sku}</span>}
+              </TableCell>
               <TableCell>
                 {stockIn.submitter ? (
                   <div className="flex flex-col">

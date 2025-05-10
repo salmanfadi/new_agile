@@ -190,7 +190,11 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                     <Label>Product</Label>
                     <div className="p-2 bg-muted rounded-lg">
                       {stockInData.product?.name || 'Unknown Product'}
-                      {stockInData.product?.sku && ` (SKU: ${stockInData.product.sku})`}
+                      {stockInData.product?.sku && (
+                        <span className="block text-sm text-muted-foreground mt-1">
+                          SKU: {stockInData.product.sku}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -205,6 +209,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                     </div>
                   </div>
                 </div>
+                
                 <div className="space-y-2">
                   <Label htmlFor="source">Source</Label>
                   <Input 
