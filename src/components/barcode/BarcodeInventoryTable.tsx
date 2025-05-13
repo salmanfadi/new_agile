@@ -34,40 +34,52 @@ const BarcodeInventoryTable: React.FC = () => {
   const fetchBarcodes = async () => {
     setLoading(true);
     try {
-      // Fix query syntax for JSON field access by using -> for nested JSON and ->> for text extraction
+      // Fix the query syntax for JSON field access with proper extraction
       const { data, error } = await supabase
         .from('barcode_logs')
         .select(`
           id,
           barcode,
           batch_id,
-          details->>'product_id' as product_id,
-          details->>'product_name' as product_name,
-          details->>'warehouse' as warehouse,
-          details->>'location' as location,
-          user_id as created_by,
-          created_at
+          details->product_id,
+          details->product_name,
+          details->warehouse,
+          details->location,
+          user_id,
+          timestamp
         `)
-        .order('created_at', { ascending: false });
+        .order('timestamp', { ascending: false });
         
       if (error) {
         console.error('Error fetching barcode logs:', error);
         setBarcodes([]);
-      } else if (data) {
-        // Parse and validate the data before casting
-        const validBarcodes = data.map(item => ({
-          id: item.id,
-          barcode: item.barcode,
-          batch_id: item.batch_id,
-          product_id: item.product_id,
-          product_name: item.product_name,
-          warehouse: item.warehouse,
-          location: item.location,
-          created_by: item.created_by,
-          created_at: item.created_at
-        })) as BarcodeRecord[];
+      } else if (data && Array.isArray(data)) {
+        // Check that data is valid and is an array
+        console.log('Received data from barcode_logs:', data);
         
+        // Safely transform the data to match our expected format
+        const validBarcodes = data.map(item => {
+          // Use optional chaining to safely access nested properties
+          const details = item.details as Record<string, any> | null;
+          
+          return {
+            id: item.id || '',
+            barcode: item.barcode || '',
+            batch_id: item.batch_id || undefined,
+            product_id: details?.product_id || undefined,
+            product_name: details?.product_name || undefined,
+            warehouse: details?.warehouse || undefined,
+            location: details?.location || undefined,
+            created_by: item.user_id || undefined,
+            created_at: item.timestamp || undefined
+          };
+        });
+        
+        console.log('Transformed barcodes:', validBarcodes);
         setBarcodes(validBarcodes);
+      } else {
+        console.warn('No data or invalid data returned from barcode_logs');
+        setBarcodes([]);
       }
     } catch (err) {
       console.error('Exception fetching barcodes:', err);
