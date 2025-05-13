@@ -2,10 +2,45 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://kysvcexqmywyrawakwfs.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5c3ZjZXhxbXl3eXJhd2Frd2ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwOTEyNzYsImV4cCI6MjA2MTY2NzI3Nn0.koDEH1N85o1NdAyBAuuw3GUN4tFhIsmUVQ-QwEZs2Tw";
+// Check if environment variables are available
+const checkEnvVars = () => {
+  if (!import.meta.env.VITE_SUPABASE_URL) {
+    console.error('❌ Missing required environment variable: VITE_SUPABASE_URL');
+    return false;
+  }
+  if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    console.error('❌ Missing required environment variable: VITE_SUPABASE_ANON_KEY');
+    return false;
+  }
+  return true;
+};
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+// Fallback to hardcoded values if environment variables are not set
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://kysvcexqmywyrawakwfs.supabase.co";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5c3ZjZXhxbXl3eXJhd2Frd2ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwOTEyNzYsImV4cCI6MjA2MTY2NzI3Nn0.koDEH1N85o1NdAyBAuuw3GUN4tFhIsmUVQ-QwEZs2Tw";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// Log the Supabase configuration
+console.group('🔐 Supabase Configuration');
+console.log('Using Supabase URL:', SUPABASE_URL);
+console.log('Using Supabase Anon Key:', 
+  SUPABASE_ANON_KEY ? 
+  `${SUPABASE_ANON_KEY.substring(0, 10)}...${SUPABASE_ANON_KEY.substring(SUPABASE_ANON_KEY.length - 4)}` : 
+  'Not configured');
+console.log('Environment variables check:', checkEnvVars() ? '✅ Passed' : '❌ Failed');
+console.groupEnd();
+
+// Create the Supabase client
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Test the connection
+const testConnection = async () => {
+  try {
+    const { data, error } = await supabase.from('profiles').select('*').limit(1);
+    if (error) throw error;
+    console.log('✅ Supabase connection successful');
+  } catch (error) {
+    console.error('❌ Supabase connection failed:', error);
+  }
+};
+
+testConnection();

@@ -31,21 +31,63 @@ export const mockUsers: User[] = [
 // Helper function to delay execution
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Check for required environment variables
+const checkEnvVars = () => {
+  if (!import.meta.env.VITE_SUPABASE_URL) {
+    console.error('Missing required environment variable: VITE_SUPABASE_URL');
+    return false;
+  }
+  if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
+    console.error('Missing required environment variable: VITE_SUPABASE_ANON_KEY');
+    return false;
+  }
+  return true;
+};
+
 // Retry function with exponential backoff
 const retryWithBackoff = async <T,>(
   fn: () => Promise<T>,
   retries = 3,
-  baseDelay = 1000
+  baseDelay = 1000,
+  operation = 'operation'
 ): Promise<T> => {
+  const envCheck = checkEnvVars();
+  if (!envCheck) {
+    console.error('Missing required Supabase environment variables. Please check your .env file.');
+  }
+
   for (let i = 0; i < retries; i++) {
+    const attempt = i + 1;
+    const delayTime = baseDelay * Math.pow(2, i);
+    
     try {
-      return await fn();
+      console.log(`Attempt ${attempt}/${retries}: ${operation}`);
+      const result = await fn();
+      console.log(`Success on attempt ${attempt}: ${operation}`);
+      return result;
     } catch (error) {
-      if (i === retries - 1) throw error;
-      await delay(baseDelay * Math.pow(2, i));
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const status = error instanceof Response ? error.status : 'N/A';
+      const url = error instanceof Response ? error.url : 'N/A';
+      
+      console.error(`Attempt ${attempt} failed (${operation}):`, {
+        error: errorMessage,
+        status,
+        url,
+        retryIn: `${delayTime}ms`,
+        remainingRetries: retries - attempt - 1
+      });
+      
+      if (i === retries - 1) {
+        console.error(`All ${retries} attempts failed for operation: ${operation}`);
+        throw error;
+      }
+      
+      console.log(`Retrying in ${delayTime}ms...`);
+      await delay(delayTime);
     }
   }
-  throw new Error('Retry failed');
+  throw new Error(`Retry failed after ${retries} attempts for operation: ${operation}`);
 };
 
 const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
