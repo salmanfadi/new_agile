@@ -197,6 +197,7 @@ export const useBatchStockIn = (userId: string) => {
         quantity: box.quantity,
         color: box.color,
         size: box.size,
+        stock_in_detail_id: stockInDetailsResults[idx], // Link to stock_in_details
         batch_id: stockInId, // Link to the stock_in batch
         status: 'available'
       }));
