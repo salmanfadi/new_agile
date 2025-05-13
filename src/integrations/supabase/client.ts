@@ -1,5 +1,34 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+
+export type TypedSupabaseClient = SupabaseClient<Database>;
+
+// Check if we're in a restricted environment (like an iframe or web container)
+const isRestrictedEnvironment = typeof window !== 'undefined' && 
+  (window.self !== window.top || /webcontainer|gpteng\.co/.test(navigator.userAgent));
+
+// Mock response for restricted environments
+const createMockResponse = () => {
+  return new Response(JSON.stringify({ data: null, error: null }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+// Helper function to determine if we should use mock data
+const shouldUseMock = (): boolean => {
+  return isRestrictedEnvironment || !checkEnvVars();
+};
+
+// Extend the Window interface to include ENV variables
+declare global {
+  interface Window {
+    ENV: {
+      SUPABASE_URL?: string;
+      SUPABASE_ANON_KEY?: string;
+    };
+  }
+}
 
 // Enhanced error checking for environment variables
 const checkEnvVars = () => {
@@ -19,10 +48,19 @@ const checkEnvVars = () => {
 };
 
 // Fallback to hardcoded values if environment variables are not set
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://kysvcexqmywyrawakwfs.supabase.co";
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5c3ZjZXhxbXl3eXJhd2Frd2ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwOTEyNzYsImV4cCI6MjA2MTY2NzI3Nn0.koDEH1N85o1NdAyBAuuw3GUN4tFhIsmUVQ-QwEZs2Tw";
+const MOCK_SUPABASE_URL = "https://mock-supabase-url.supabase.co";
+const MOCK_SUPABASE_KEY = "mock-supabase-key";
 
-// Enhanced Supabase client configuration
+// Use environment variables or fallback to mock values in restricted environment
+const SUPABASE_URL = isRestrictedEnvironment 
+  ? MOCK_SUPABASE_URL 
+  : import.meta.env.VITE_SUPABASE_URL || "https://kysvcexqmywyrawakwfs.supabase.co";
+
+const SUPABASE_ANON_KEY = isRestrictedEnvironment 
+  ? MOCK_SUPABASE_KEY 
+  : import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5c3ZjZXhxbXl3eXJhd2Frd2ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwOTEyNzYsImV4cCI6MjA2MTY2NzI3Nn0.koDEH1N85o1NdAyBAuuw3GUN4tFhIsmUVQ-QwEZs2Tw";
+
+// Custom fetch implementation with better error handling and fallback
 const supabaseOptions: any = {
   auth: {
     autoRefreshToken: true,
@@ -59,12 +97,8 @@ const customFetch = async (url: RequestInfo, options?: RequestInit): Promise<Res
   const maxRetries = 3;
   let retryCount = 0;
 
-  // Determine environment type
-  const isLocalhost = SUPABASE_URL.includes('localhost') || SUPABASE_URL.includes('127.0.0.1');
-  const isRestrictedEnvironment = !isLocalhost && (
-    window.self !== window.top || 
-    /webcontainer|gpteng\.co/.test(navigator.userAgent)
-  );
+  // Check if we're making a localhost request
+  const isLocalhost = url.toString().includes('localhost') || url.toString().includes('127.0.0.1');
 
   // Base headers that should be included in all requests
   const baseHeaders = {
@@ -73,8 +107,8 @@ const customFetch = async (url: RequestInfo, options?: RequestInit): Promise<Res
     ...options?.headers,
   };
 
-  // Add CORS headers for restricted environments
-  const corsHeaders = isRestrictedEnvironment ? {
+  // Add CORS headers for non-localhost requests
+  const corsHeaders = !isLocalhost ? {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, apikey, Prefer',
@@ -87,8 +121,8 @@ const customFetch = async (url: RequestInfo, options?: RequestInit): Promise<Res
         ...baseHeaders,
         ...corsHeaders,
       },
-      mode: 'cors',
-      credentials: isRestrictedEnvironment ? 'include' : 'same-origin',
+      mode: !isLocalhost ? 'cors' : 'same-origin',
+      credentials: 'same-origin',
     };
 
     try {
@@ -126,9 +160,90 @@ const customFetch = async (url: RequestInfo, options?: RequestInit): Promise<Res
   return fetchWithRetry(0);
 };
 
+// Create a mock Supabase client for restricted environments
+const createMockSupabaseClient = () => {
+  console.warn('Creating mock Supabase client for restricted environment');
+  
+  const mockClient = {
+    auth: {
+      signInWithPassword: async () => ({
+        data: { user: null, session: null },
+        error: new Error('Mock auth: signInWithPassword not available in restricted environment')
+      }),
+      signUp: async () => ({
+        data: { user: null, session: null },
+        error: new Error('Mock auth: signUp not available in restricted environment')
+      }),
+      signOut: async () => ({
+        error: null
+      }),
+      onAuthStateChange: (callback: any) => ({
+        data: { subscription: { unsubscribe: () => {} } }
+      }),
+      getSession: async () => ({
+        data: { session: null },
+        error: null
+      })
+    },
+    from: (table: string) => ({
+      select: (columns = '*') => ({
+        eq: (column: string, value: any) => ({
+          single: async () => ({ data: null, error: null })
+        }),
+        in_: (column: string, values: any[]) => ({
+          select: (cols: string) => ({ data: [], error: null })
+        }),
+        order: (column: string, options: { ascending?: boolean }) => ({
+          data: [],
+          error: null
+        })
+      }),
+      insert: (data: any) => ({
+        select: () => ({
+          data: null,
+          error: null
+        })
+      }),
+      update: (data: any) => ({
+        eq: (column: string, value: any) => ({
+          data: null,
+          error: null
+        })
+      }),
+      delete: () => ({
+        eq: () => ({
+          data: null,
+          error: null
+        })
+      })
+    }),
+    channel: (name: string) => ({
+      on: (event: string, callback: Function) => ({
+        subscribe: () => ({
+          unsubscribe: () => {}
+        })
+      })
+    }),
+    removeChannel: () => {},
+    rpc: (fn: string, params?: any) => ({
+      data: null,
+      error: new Error('RPC not available in mock client')
+    })
+  };
+
+  return mockClient as unknown as TypedSupabaseClient;
+};
+
 // Create and export the Supabase client with custom fetch
-const createSupabaseClient = () => {
+export const createSupabaseClient = (): TypedSupabaseClient => {
+  // Use mock client in restricted environments or when env vars are missing
+  if (shouldUseMock()) {
+    console.log('Using mock Supabase client');
+    return createMockSupabaseClient() as unknown as TypedSupabaseClient;
+  }
+
   try {
+    // Create a real client with custom fetch
     const options = {
       ...supabaseOptions,
       global: {
@@ -141,14 +256,14 @@ const createSupabaseClient = () => {
       SUPABASE_URL,
       SUPABASE_ANON_KEY,
       options
-    );
+    ) as TypedSupabaseClient;
   } catch (error) {
-    console.error('Failed to create Supabase client:', error);
-    throw new Error('Failed to initialize Supabase client');
+    console.error('Failed to initialize Supabase client:', error);
+    return createMockSupabaseClient() as unknown as TypedSupabaseClient;
   }
 };
 
-export const supabase = createSupabaseClient();
+export const supabase: TypedSupabaseClient = createSupabaseClient();
 
 // Log the Supabase configuration
 console.group('🔐 Supabase Configuration');
