@@ -13,7 +13,7 @@ export const generateBarcodeString = (
   boxNumber: number
 ): string => {
   // Create category abbreviation (up to 4 chars)
-  const categoryAbbrev = category
+  const categoryAbbrev = (category || 'PROD')
     .split(/\s+/)
     .map(word => word.substring(0, 2).toUpperCase())
     .join('')
@@ -26,7 +26,7 @@ export const generateBarcodeString = (
   const uniqueId = Date.now().toString(36).substring(4);
   
   // Combine all parts
-  return `${categoryAbbrev}-${sku}-${boxStr}-${uniqueId}`;
+  return `${categoryAbbrev}-${sku || 'SKU'}-${boxStr}-${uniqueId}`;
 };
 
 /**
@@ -41,6 +41,10 @@ export const parseBarcodeString = (barcode: string): {
   boxNumber: number;
   uniqueId?: string;
 } | null => {
+  if (!barcode || barcode.trim() === '') {
+    return null;
+  }
+  
   const parts = barcode.split('-');
   
   if (parts.length < 3) {
@@ -62,6 +66,11 @@ export const parseBarcodeString = (barcode: string): {
  * @returns Boolean indicating if barcode is valid
  */
 export const isValidBarcode = (barcode: string): boolean => {
+  // Check if barcode is empty or null
+  if (!barcode || barcode.trim() === '') {
+    return false;
+  }
+  
   // Accept UUID format barcodes (legacy)
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(barcode)) {
     return true;
@@ -105,7 +114,7 @@ export const isValidBarcode = (barcode: string): boolean => {
  * @returns Formatted barcode string for display
  */
 export const formatBarcodeForDisplay = (barcode: string, maxLength: number = 16): string => {
-  if (!barcode) return '';
+  if (!barcode || barcode.trim() === '') return 'No barcode';
   
   if (barcode.length <= maxLength) {
     return barcode;
@@ -119,4 +128,27 @@ export const formatBarcodeForDisplay = (barcode: string, maxLength: number = 16)
   
   // For UUID-style barcodes
   return barcode.substring(0, 8) + '...';
+};
+
+/**
+ * Ensures that a barcode is valid, if not generates a new one
+ * 
+ * @param existingBarcode - The barcode to check
+ * @param category - Optional category for new barcode
+ * @param sku - Optional SKU for new barcode
+ * @param boxNumber - Optional box number for new barcode
+ * @returns A valid barcode string
+ */
+export const ensureValidBarcode = (
+  existingBarcode?: string | null,
+  category: string = 'PROD',
+  sku: string = 'SKU',
+  boxNumber: number = 1
+): string => {
+  if (existingBarcode && existingBarcode.trim() !== '' && isValidBarcode(existingBarcode)) {
+    return existingBarcode;
+  }
+  
+  // Generate a new barcode using the given parameters
+  return generateBarcodeString(category, sku, boxNumber);
 };

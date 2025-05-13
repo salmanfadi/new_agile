@@ -74,8 +74,14 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
     // Create stock in details for each box and inventory entries
     for (const box of boxes) {
       try {
-        // Ensure box has a valid barcode
-        const boxBarcode = box.barcode || uuidv4();
+        // Ensure box has a valid barcode - CRITICAL FIX
+        if (!box.barcode || box.barcode.trim() === '') {
+          const newBarcode = uuidv4();
+          console.log(`Box missing barcode, generating new one: ${newBarcode}`);
+          box.barcode = newBarcode;
+        }
+        
+        const boxBarcode = box.barcode;
         
         // Validate barcode to ensure consistency with inventory system
         const { exists: barcodeExists, item: existingItem } = await validateBarcode(boxBarcode);
@@ -99,7 +105,7 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
             stock_in_id: stockInId,
             warehouse_id: box.warehouse_id,
             location_id: box.location_id,
-            barcode: boxBarcode,
+            barcode: boxBarcode, // Using the validated barcode
             quantity: box.quantity,
             color: box.color || null,
             size: box.size || null,

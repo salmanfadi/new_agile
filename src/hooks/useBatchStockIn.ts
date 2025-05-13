@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessedBatch, BatchFormData } from '@/types/batchStockIn';
@@ -86,8 +87,11 @@ export const useBatchStockIn = (userId: string) => {
     const boxes = [];
     for (const batch of batches) {
       for (let i = 0; i < batch.boxes_count; i++) {
+        // Ensure we have a valid barcode
+        const barcode = batch.barcodes?.[i] || uuidv4();
+        
         boxes.push({
-          barcode: batch.barcodes?.[i] || uuidv4(),
+          barcode,
           quantity: batch.quantity_per_box,
           color: batch.color || null,
           size: batch.size || null,
@@ -107,29 +111,40 @@ export const useBatchStockIn = (userId: string) => {
     submittedBy: string
   ) => {
     console.log("Processing stock in with ID:", stockInId);
-    
-    // Check for duplicate barcodes by comparing with existing inventory
-    const { data: existingBarcodes, error: barcodeCheckError } = await supabase
-      .from('inventory')
-      .select('barcode')
-      .in('barcode', processedBoxes.map(box => box.barcode));
-      
-    if (barcodeCheckError) {
-      console.error('Error checking existing barcodes:', barcodeCheckError);
-      throw new Error('Failed to validate barcodes');
-    }
-    
-    // If we found any duplicates, return them as errors
-    if (existingBarcodes && existingBarcodes.length > 0) {
-      const barcodeErrors = existingBarcodes.map(item => ({
-        barcode: item.barcode,
-        error: 'Barcode already exists in inventory'
-      }));
-      
-      return { success: false, barcodeErrors };
-    }
-    
+    console.log("Processed boxes:", processedBoxes);
+
     try {
+      // Check for empty barcodes and assign new ones
+      const validatedBoxes = processedBoxes.map(box => {
+        if (!box.barcode || box.barcode.trim() === '') {
+          const newBarcode = uuidv4();
+          console.log(`Fixing missing barcode with new UUID: ${newBarcode}`);
+          return { ...box, barcode: newBarcode };
+        }
+        return box;
+      });
+      
+      // Check for duplicate barcodes by comparing with existing inventory
+      const { data: existingBarcodes, error: barcodeCheckError } = await supabase
+        .from('inventory')
+        .select('barcode')
+        .in('barcode', validatedBoxes.map(box => box.barcode));
+        
+      if (barcodeCheckError) {
+        console.error('Error checking existing barcodes:', barcodeCheckError);
+        throw new Error('Failed to validate barcodes');
+      }
+      
+      // If we found any duplicates, return them as errors
+      if (existingBarcodes && existingBarcodes.length > 0) {
+        const barcodeErrors = existingBarcodes.map(item => ({
+          barcode: item.barcode,
+          error: 'Barcode already exists in inventory'
+        }));
+        
+        return { success: false, barcodeErrors };
+      }
+      
       // Start a transaction to ensure data consistency
       // Update stock_in status to 'processing'
       const { error: updateError } = await supabase
@@ -147,16 +162,25 @@ export const useBatchStockIn = (userId: string) => {
       
       // 1. Insert each box into stock_in_details and collect the returned id
       const stockInDetailsResults = [];
-      for (const box of processedBoxes) {
+      for (const box of validatedBoxes) {
+        // Ensure barcode is always present
+        const boxBarcode = box.barcode || uuidv4();
+        
         const { data: detailData, error: detailError } = await supabase
           .from('stock_in_details')
           .insert({
             stock_in_id: stockInId,
             product_id: box.product_id,
             quantity: box.quantity,
+            barcode: boxBarcode,  // Explicitly pass the barcode
+            warehouse_id: box.warehouse_id,
+            location_id: box.location_id,
+            color: box.color,
+            size: box.size
           })
           .select('id')
           .single();
+          
         if (detailError) {
           console.error('Error inserting stock_in_details:', JSON.stringify(detailError, null, 2), 'Box:', box);
           throw new Error('Failed to add stock_in_details');
@@ -165,7 +189,7 @@ export const useBatchStockIn = (userId: string) => {
       }
 
       // 2. Insert into inventory using the correct stock_in_detail_id for each box
-      const inventoryInsertPayload = processedBoxes.map((box, idx) => ({
+      const inventoryInsertPayload = validatedBoxes.map((box, idx) => ({
         product_id: box.product_id,
         warehouse_id: box.warehouse_id,
         location_id: box.location_id, 
@@ -177,12 +201,15 @@ export const useBatchStockIn = (userId: string) => {
         stock_in_detail_id: stockInDetailsResults[idx],
         status: 'available'
       }));
+      
       const { data: inventoryInsertResult, error: insertError } = await supabase
         .from('inventory')
         .insert(inventoryInsertPayload)
         .select();
+      
       console.log('Inventory insert payload:', inventoryInsertPayload);
       console.log('Inventory insert result:', inventoryInsertResult, 'Error:', insertError);
+      
       if (insertError) {
         console.error('Error inserting inventory items:', insertError);
         throw new Error('Failed to add items to inventory');
@@ -198,14 +225,18 @@ export const useBatchStockIn = (userId: string) => {
           stock_in_detail_id: stockInDetailsResults[idx],
           quantity: inv.quantity
         }));
+        
         const { error: batchInsertError } = await supabase
           .from('batch_inventory_items')
           .insert(batchInventoryItems);
+          
         console.log('Batch inventory items insert payload:', batchInventoryItems);
+        
         if (batchInsertError) {
           console.error('Error inserting batch_inventory_items:', batchInsertError);
           throw new Error('Failed to add items to batch_inventory_items');
         }
+        
         // Insert barcode logs for each barcode
         const barcodeLogRows = inventoryInsertResult.map((inv, idx) => ({
           barcode: inv.barcode,
@@ -214,22 +245,26 @@ export const useBatchStockIn = (userId: string) => {
           details: {
             batch_id: stockInId,
             product_id: inv.product_id,
-            product_name: processedBoxes[idx]?.product_name || '',
-            warehouse: processedBoxes[idx]?.warehouse_id || '',
-            location: processedBoxes[idx]?.location_id || '',
+            product_name: validatedBoxes[idx]?.product_name || '',
+            warehouse: validatedBoxes[idx]?.warehouse_id || '',
+            location: validatedBoxes[idx]?.location_id || '',
             created_by: submittedBy,
             created_at: inv.created_at || new Date().toISOString(),
           }
         }));
+        
         if (barcodeLogRows.length > 0) {
           const { error: barcodeLogError } = await supabase
             .from('barcode_logs')
             .insert(barcodeLogRows);
+            
           console.log('Barcode log insert payload:', barcodeLogRows);
+          
           if (barcodeLogError) {
             console.error('Error inserting barcode logs:', barcodeLogError);
           }
         }
+        
         // Insert into barcodes table for real-time inventory
         const barcodeRows = inventoryInsertResult.map((inv, idx) => ({
           barcode: inv.barcode,
@@ -242,11 +277,14 @@ export const useBatchStockIn = (userId: string) => {
           created_at: inv.created_at || new Date().toISOString(),
           status: 'active'
         }));
+        
         if (barcodeRows.length > 0) {
           const { error: barcodeInsertError } = await supabase
             .from('barcodes')
             .insert(barcodeRows);
+            
           console.log('Barcodes table insert payload:', barcodeRows);
+          
           if (barcodeInsertError) {
             console.error('Error inserting into barcodes table:', barcodeInsertError);
           }
@@ -295,6 +333,10 @@ export const useBatchStockIn = (userId: string) => {
       processedBoxes.forEach(box => {
         if (!box.product_id) {
           box.product_id = data.productId;
+        }
+        // Ensure barcode is always present
+        if (!box.barcode || box.barcode.trim() === '') {
+          box.barcode = uuidv4();
         }
       });
       

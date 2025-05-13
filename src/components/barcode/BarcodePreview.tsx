@@ -20,7 +20,7 @@ const BarcodePreview: React.FC<BarcodePreviewProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (canvasRef.current && barcode) {
+    if (canvasRef.current && barcode && barcode.trim() !== '') {
       try {
         // Generate CODE128 barcode
         bwipjs.toCanvas(canvasRef.current, {
@@ -36,6 +36,15 @@ const BarcodePreview: React.FC<BarcodePreviewProps> = ({
       }
     }
   }, [barcode, includeText, scale]);
+
+  // If no barcode is provided, display a placeholder
+  if (!barcode || barcode.trim() === '') {
+    return (
+      <div className="barcode-preview flex items-center justify-center h-[50px] bg-gray-100 text-gray-500 rounded border border-dashed border-gray-300">
+        No barcode
+      </div>
+    );
+  }
 
   return (
     <div className="barcode-preview">
