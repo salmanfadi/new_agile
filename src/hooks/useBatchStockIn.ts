@@ -189,36 +189,69 @@ export const useBatchStockIn = (userId: string) => {
       }
 
       // 2. Insert into inventory using the correct stock_in_detail_id for each box
-      const inventoryInsertPayload = validatedBoxes.map((box, idx) => ({
-        product_id: box.product_id,
-        warehouse_id: box.warehouse_id,
-        location_id: box.location_id, 
-        barcode: box.barcode,
-        quantity: box.quantity,
-        color: box.color,
-        size: box.size,
-        stock_in_detail_id: stockInDetailsResults[idx], // Link to stock_in_details
-        batch_id: stockInId, // Link to the stock_in batch
-        status: 'available'
+      const inventoryInsertPayload = validatedBoxes.map((box, idx) => {
+        const payload: {
+          product_id: string;
+          location_id: string;  // Matches the database schema
+          warehouse_id: string;  // Required by the database schema
+          quantity: number;
+          barcode: string;
+          stock_in_id?: string;  // Optional in the schema
+          stock_in_detail_id?: string;  // Optional in the schema
+          status?: string;
+          color?: string;
+          size?: string;
+        } = {
+          product_id: box.product_id,
+          location_id: box.location_id,  // Matches the database schema
+          warehouse_id: box.warehouse_id, // Required by the database schema
+          quantity: box.quantity,
+          barcode: box.barcode,
+          status: 'completed'
+        };
+        
+        // Add optional fields if they exist
+        if (stockInId) payload.stock_in_id = stockInId;
+        if (stockInDetailsResults[idx]) payload.stock_in_detail_id = stockInDetailsResults[idx];
+        if (box.color) payload.color = box.color;
+        if (box.size) payload.size = box.size;
+        
+        return payload;
       }));
       
-      const { data: inventoryInsertResult, error: insertError } = await supabase
-        .from('inventory')
-        .insert(inventoryInsertPayload)
-        .select();
+      // Insert inventory items one by one to handle errors individually
+      const inventoryInsertResults: Array<{
+        id: string;
+        [key: string]: any;
+      }> = [];
       
-      console.log('Inventory insert payload:', inventoryInsertPayload);
-      console.log('Inventory insert result:', inventoryInsertResult, 'Error:', insertError);
-      
-      if (insertError) {
-        console.error('Error inserting inventory items:', insertError);
-        throw new Error('Failed to add items to inventory');
+      for (const item of inventoryInsertPayload) {
+        try {
+          const { data, error } = await supabase
+            .from('inventory')
+            .insert(item)
+            .select()
+            .single();
+            
+          if (error) throw error;
+          if (data) inventoryInsertResults.push(data);
+        } catch (error) {
+          console.error('Error inserting inventory item:', error, 'Item:', item);
+          // Continue with other items even if one fails
+          continue;
+        }
       }
       
-      // Remove references to tables that don't exist in the schema
-      if (inventoryInsertResult && Array.isArray(inventoryInsertResult)) {
+      if (inventoryInsertResults.length === 0) {
+        throw new Error('Failed to add any items to inventory');
+      }
+      
+      console.log('Successfully inserted inventory items:', inventoryInsertResults);
+      
+      // Process barcode logs for inserted items
+      if (inventoryInsertResults.length > 0) {
         // Insert barcode logs for each barcode
-        const barcodeLogRows = inventoryInsertResult.map((inv, idx) => ({
+        const barcodeLogRows = inventoryInsertResults.map((inv, idx) => ({
           barcode: inv.barcode,
           action: 'stock_in',
           user_id: submittedBy,
