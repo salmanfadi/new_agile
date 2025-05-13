@@ -17,13 +17,11 @@ import { Barcode, Search, Camera, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Import our components and hooks
-import { 
-  BarcodeScannerProps, 
-  useBarcodeProcessor, 
-  useBarcodeDetection, 
-  useHardwareScanner,
-  ScanDataDisplay
-} from './';
+import { BarcodeScannerProps } from './types';
+import { useBarcodeProcessor } from './useBarcodeProcessor';
+import { useBarcodeDetection } from './useBarcodeDetection';
+import { useHardwareScanner } from './useHardwareScanner';
+import ScanDataDisplay from './ScanDataDisplay';
 import CameraScanner from './CameraScanner';
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
