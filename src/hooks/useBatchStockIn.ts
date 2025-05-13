@@ -215,33 +215,14 @@ export const useBatchStockIn = (userId: string) => {
         throw new Error('Failed to add items to inventory');
       }
       
-      // 3. Insert into batch_inventory_items for each box
+      // Remove references to tables that don't exist in the schema
       if (inventoryInsertResult && Array.isArray(inventoryInsertResult)) {
-        const batchInventoryItems = inventoryInsertResult.map((inv, idx) => ({
-          batch_id: stockInId,
-          inventory_id: inv.id,
-          product_id: inv.product_id,
-          warehouse_location_id: inv.location_id,
-          stock_in_detail_id: stockInDetailsResults[idx],
-          quantity: inv.quantity
-        }));
-        
-        const { error: batchInsertError } = await supabase
-          .from('batch_inventory_items')
-          .insert(batchInventoryItems);
-          
-        console.log('Batch inventory items insert payload:', batchInventoryItems);
-        
-        if (batchInsertError) {
-          console.error('Error inserting batch_inventory_items:', batchInsertError);
-          throw new Error('Failed to add items to batch_inventory_items');
-        }
-        
         // Insert barcode logs for each barcode
         const barcodeLogRows = inventoryInsertResult.map((inv, idx) => ({
           barcode: inv.barcode,
           action: 'stock_in',
           user_id: submittedBy,
+          batch_id: stockInId,
           details: {
             batch_id: stockInId,
             product_id: inv.product_id,
@@ -262,31 +243,6 @@ export const useBatchStockIn = (userId: string) => {
           
           if (barcodeLogError) {
             console.error('Error inserting barcode logs:', barcodeLogError);
-          }
-        }
-        
-        // Insert into barcodes table for real-time inventory
-        const barcodeRows = inventoryInsertResult.map((inv, idx) => ({
-          barcode: inv.barcode,
-          batch_id: stockInId,
-          product_id: inv.product_id,
-          warehouse_id: inv.warehouse_id,
-          location_id: inv.location_id,
-          quantity: inv.quantity,
-          created_by: submittedBy,
-          created_at: inv.created_at || new Date().toISOString(),
-          status: 'active'
-        }));
-        
-        if (barcodeRows.length > 0) {
-          const { error: barcodeInsertError } = await supabase
-            .from('barcodes')
-            .insert(barcodeRows);
-            
-          console.log('Barcodes table insert payload:', barcodeRows);
-          
-          if (barcodeInsertError) {
-            console.error('Error inserting into barcodes table:', barcodeInsertError);
           }
         }
       }

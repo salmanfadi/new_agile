@@ -1,8 +1,10 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Copy, Download } from 'lucide-react';
+import BarcodePreview from './BarcodePreview';
 
 interface BarcodeRecord {
   id: string;
@@ -31,23 +33,32 @@ const BarcodeInventoryTable: React.FC = () => {
   // Fetch barcodes and metadata
   const fetchBarcodes = async () => {
     setLoading(true);
-    // Example: join barcode_logs with inventory/products/warehouses for metadata
-    const { data, error } = await supabase
-      .from('barcode_logs')
-      .select(`
-        id,
-        barcode,
-        details->>batch_id as batch_id,
-        details->>product_id as product_id,
-        details->>product_name as product_name,
-        details->>warehouse as warehouse,
-        details->>location as location,
-        user_id as created_by,
-        created_at
-      `)
-      .order('created_at', { ascending: false });
-    if (!error && data) {
-      setBarcodes(data);
+    try {
+      // Fixed query - Using proper PostgreSQL JSON access syntax
+      const { data, error } = await supabase
+        .from('barcode_logs')
+        .select(`
+          id,
+          barcode,
+          batch_id,
+          details->>'product_id' as product_id,
+          details->>'product_name' as product_name,
+          details->>'warehouse' as warehouse,
+          details->>'location' as location,
+          user_id as created_by,
+          created_at
+        `)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('Error fetching barcode logs:', error);
+        setBarcodes([]);
+      } else if (data) {
+        setBarcodes(data as BarcodeRecord[]);
+      }
+    } catch (err) {
+      console.error('Exception fetching barcodes:', err);
+      setBarcodes([]);
     }
     setLoading(false);
   };
@@ -143,7 +154,7 @@ const BarcodeInventoryTable: React.FC = () => {
                   <td className="px-2 py-1 border font-mono">
                     <div className="flex items-center gap-2">
                       <span>{b.barcode}</span>
-                      {/* Barcode preview (SVG or image) could go here */}
+                      <BarcodePreview barcode={b.barcode} width={100} height={40} scale={1} />
                     </div>
                   </td>
                   <td className="px-2 py-1 border">{b.batch_id}</td>
@@ -166,4 +177,4 @@ const BarcodeInventoryTable: React.FC = () => {
   );
 };
 
-export default BarcodeInventoryTable; 
+export default BarcodeInventoryTable;
