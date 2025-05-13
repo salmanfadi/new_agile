@@ -44,16 +44,24 @@ const checkEnvVars = () => {
   return true;
 };
 
-// Retry function with exponential backoff
+// Enhanced retry function with better error handling and network detection
 const retryWithBackoff = async <T,>(
   fn: () => Promise<T>,
   retries = 3,
   baseDelay = 1000,
   operation = 'operation'
 ): Promise<T> => {
+  // Check for network connectivity first
+  if (!navigator.onLine) {
+    throw new Error('No internet connection. Please check your network and try again.');
+  }
+
+  // Check environment variables
   const envCheck = checkEnvVars();
   if (!envCheck) {
-    console.error('Missing required Supabase environment variables. Please check your .env file.');
+    const error = new Error('Missing required Supabase environment variables. Please check your .env file.');
+    console.error(error.message);
+    throw error;
   }
 
   for (let i = 0; i < retries; i++) {
@@ -70,13 +78,20 @@ const retryWithBackoff = async <T,>(
       const status = error instanceof Response ? error.status : 'N/A';
       const url = error instanceof Response ? error.url : 'N/A';
       
+      // Enhanced error logging
       console.error(`Attempt ${attempt} failed (${operation}):`, {
         error: errorMessage,
         status,
         url,
         retryIn: `${delayTime}ms`,
-        remainingRetries: retries - attempt - 1
+        remainingRetries: retries - attempt - 1,
+        timestamp: new Date().toISOString()
       });
+      
+      // Don't retry for certain errors
+      if (errorMessage.includes('NetworkError') || errorMessage.includes('Failed to fetch')) {
+        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+      }
       
       if (i === retries - 1) {
         console.error(`All ${retries} attempts failed for operation: ${operation}`);
@@ -87,6 +102,7 @@ const retryWithBackoff = async <T,>(
       await delay(delayTime);
     }
   }
+  
   throw new Error(`Retry failed after ${retries} attempts for operation: ${operation}`);
 };
 
