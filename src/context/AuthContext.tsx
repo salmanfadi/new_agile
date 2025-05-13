@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect } from 'react';
 import { User, UserRole, AuthState } from '../types/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,24 +28,67 @@ export const mockUsers: User[] = [
   { id: '5', username: 'salesoperator@gmail.com', role: 'sales_operator', name: 'Sales Operator' }
 ];
 
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Retry function with exponential backoff
+const retryWithBackoff = async <T,>(
+  fn: () => Promise<T>,
+  retries = 3,
+  baseDelay = 1000
+): Promise<T> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === retries - 1) throw error;
+      await delay(baseDelay * Math.pow(2, i));
+    }
+  }
+  throw new Error('Retry failed');
+};
+
 const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
-  if (!supabaseUser) return null;
+  if (!supabaseUser) {
+    console.log('No Supabase user provided to mapSupabaseUser');
+    return null;
+  }
   
   try {
-    // Fetch the user's profile from our profiles table
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('username, role, name')
-      .eq('id', supabaseUser.id)
-      .single();
+    // Fetch the user's profile with retry logic
+    const { data: profile, error } = await retryWithBackoff(async () => {
+      const response = await supabase
+        .from('profiles')
+        .select('username, role, name')
+        .eq('id', supabaseUser.id)
+        .single();
+        
+      if (response.error) {
+        console.error('Supabase query error:', response.error);
+        throw response.error;
+      }
+      
+      return response;
+    });
     
     if (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error fetching user profile after retries:', error);
+      // Show a user-friendly error message
+      toast({
+        title: "Profile Error",
+        description: "Unable to load your profile. Please try refreshing the page.",
+        variant: "destructive",
+      });
       return null;
     }
     
     if (!profile) {
-      console.error('No profile found for user');
+      console.error('No profile found for user:', supabaseUser.id);
+      toast({
+        title: "Profile Not Found",
+        description: "Your user profile could not be found. Please contact support.",
+        variant: "destructive",
+      });
       return null;
     }
     
@@ -58,6 +100,12 @@ const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User 
     };
   } catch (error) {
     console.error('Error mapping Supabase user:', error);
+    // Show a more detailed error message
+    toast({
+      title: "Connection Error",
+      description: "Unable to connect to the server. Please check your internet connection and try again.",
+      variant: "destructive",
+    });
     return null;
   }
 };
