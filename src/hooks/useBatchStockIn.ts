@@ -190,40 +190,34 @@ export const useBatchStockIn = (userId: string) => {
 
       // 2. Insert into inventory using the correct stock_in_detail_id for each box
       const inventoryInsertPayload = validatedBoxes.map((box, idx) => {
-        const payload: {
-          product_id: string;
-          location_id: string;  // Matches the database schema
-          warehouse_id: string;  // Required by the database schema
-          quantity: number;
-          barcode: string;
-          stock_in_id?: string;  // Optional in the schema
-          stock_in_detail_id?: string;  // Optional in the schema
-          status?: string;
-          color?: string;
-          size?: string;
-        } = {
-          product_id: box.product_id,
-          location_id: box.location_id,  // Matches the database schema
-          warehouse_id: box.warehouse_id, // Required by the database schema
-          quantity: box.quantity,
+        // Create base payload with required fields
+        const payload = {
           barcode: box.barcode,
-          status: 'completed'
+          product_id: box.product_id,
+          warehouse_id: box.warehouse_id,
+          location_id: box.location_id,
+          quantity: box.quantity,
+          status: 'completed',
+          // Add optional fields with null checks
+          ...(stockInId && { stock_in_id: stockInId }),
+          ...(stockInDetailsResults?.[idx] && { stock_in_detail_id: stockInDetailsResults[idx] }),
+          ...(box.color && { color: box.color }),
+          ...(box.size && { size: box.size })
         };
         
-        // Add optional fields if they exist
-        if (stockInId) payload.stock_in_id = stockInId;
-        if (stockInDetailsResults[idx]) payload.stock_in_detail_id = stockInDetailsResults[idx];
-        if (box.color) payload.color = box.color;
-        if (box.size) payload.size = box.size;
-        
         return payload;
-      }));
+      });
+      
+      // Define the inventory item type
+      type InventoryItem = {
+        id: string;
+        barcode: string;
+        product_id: string;
+        [key: string]: unknown;
+      };
       
       // Insert inventory items one by one to handle errors individually
-      const inventoryInsertResults: Array<{
-        id: string;
-        [key: string]: any;
-      }> = [];
+      const inventoryInsertResults: InventoryItem[] = [];
       
       for (const item of inventoryInsertPayload) {
         try {
@@ -251,32 +245,38 @@ export const useBatchStockIn = (userId: string) => {
       // Process barcode logs for inserted items
       if (inventoryInsertResults.length > 0) {
         // Insert barcode logs for each barcode
-        const barcodeLogRows = inventoryInsertResults.map((inv, idx) => ({
-          barcode: inv.barcode,
-          action: 'stock_in',
-          user_id: submittedBy,
-          batch_id: stockInId,
-          details: {
+        const barcodeLogRows = inventoryInsertResults.map((inv, idx) => {
+          // Get the corresponding box data
+          const box = validatedBoxes[idx];
+          const logEntry = {
+            barcode: String(inv.barcode),
+            action: 'stock_in' as const,
+            user_id: submittedBy,
             batch_id: stockInId,
-            product_id: inv.product_id,
-            product_name: validatedBoxes[idx]?.product_name || '',
-            warehouse: validatedBoxes[idx]?.warehouse_id || '',
-            location: validatedBoxes[idx]?.location_id || '',
-            created_by: submittedBy,
-            created_at: inv.created_at || new Date().toISOString(),
-          }
-        }));
-        
-        if (barcodeLogRows.length > 0) {
-          const { error: barcodeLogError } = await supabase
+            details: {
+              batch_id: stockInId,
+              product_id: String(inv.product_id),
+              product_name: box?.product_name || 'Unknown Product',
+              warehouse: box?.warehouse_name || 'Unknown Warehouse',
+              location: box?.location_name || 'Unknown Location',
+              created_by: submittedBy,
+              created_at: new Date().toISOString()
+            }
+          };
+          return logEntry;
+        });
+
+        try {
+          const { error: logError } = await supabase
             .from('barcode_logs')
             .insert(barcodeLogRows);
-            
-          console.log('Barcode log insert payload:', barcodeLogRows);
-          
-          if (barcodeLogError) {
-            console.error('Error inserting barcode logs:', barcodeLogError);
+
+          if (logError) {
+            console.error('Error logging barcode actions:', logError);
+            // Don't fail the whole operation if logging fails
           }
+        } catch (logError) {
+          console.error('Exception while logging barcode actions:', logError);
         }
       }
       
