@@ -34,7 +34,7 @@ const BarcodeInventoryTable: React.FC = () => {
   const fetchBarcodes = async () => {
     setLoading(true);
     try {
-      // Fixed query - Using proper PostgreSQL JSON access syntax
+      // Fix query syntax for JSON field access
       const { data, error } = await supabase
         .from('barcode_logs')
         .select(`
@@ -54,6 +54,7 @@ const BarcodeInventoryTable: React.FC = () => {
         console.error('Error fetching barcode logs:', error);
         setBarcodes([]);
       } else if (data) {
+        // Ensure we cast the result to BarcodeRecord[] to prevent type errors
         setBarcodes(data as BarcodeRecord[]);
       }
     } catch (err) {
