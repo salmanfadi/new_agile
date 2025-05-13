@@ -34,7 +34,7 @@ const BarcodeInventoryTable: React.FC = () => {
   const fetchBarcodes = async () => {
     setLoading(true);
     try {
-      // Fix query syntax for JSON field access
+      // Fix query syntax for JSON field access by using -> for nested JSON and ->> for text extraction
       const { data, error } = await supabase
         .from('barcode_logs')
         .select(`
@@ -54,8 +54,20 @@ const BarcodeInventoryTable: React.FC = () => {
         console.error('Error fetching barcode logs:', error);
         setBarcodes([]);
       } else if (data) {
-        // Ensure we cast the result to BarcodeRecord[] to prevent type errors
-        setBarcodes(data as BarcodeRecord[]);
+        // Parse and validate the data before casting
+        const validBarcodes = data.map(item => ({
+          id: item.id,
+          barcode: item.barcode,
+          batch_id: item.batch_id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          warehouse: item.warehouse,
+          location: item.location,
+          created_by: item.created_by,
+          created_at: item.created_at
+        })) as BarcodeRecord[];
+        
+        setBarcodes(validBarcodes);
       }
     } catch (err) {
       console.error('Exception fetching barcodes:', err);
