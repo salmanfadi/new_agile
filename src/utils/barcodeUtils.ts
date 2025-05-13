@@ -97,6 +97,23 @@ export const isValidBarcode = (barcode: string): boolean => {
   return true;
 };
 
+export const generateBarcode = (product?: { sku?: string; id?: string }, index?: number): string => {
+  if (!product?.sku && !product?.id) {
+    throw new Error('Product information is required for barcode generation');
+  }
+
+  // Use SKU if available, otherwise use product ID
+  const productId = product.sku || product.id;
+  
+  // Generate a unique suffix using timestamp and random number
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8);
+  const uniqueSuffix = `${timestamp}${random}`;
+  
+  // Format: PRODID-INDEX-SUFFIX
+  return `${productId}-${index?.toString().padStart(3, '0') || '001'}-${uniqueSuffix}`;
+};
+
 /**
  * Formats a barcode for display (shortens if necessary)
  * 

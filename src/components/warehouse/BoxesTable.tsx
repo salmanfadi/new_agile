@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/select';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { Warehouse, Location } from '@/hooks/useWarehouseData';
+import { v4 as uuidv4 } from 'uuid';
+import { toast } from '@/hooks/use-toast';
 
 interface BoxesTableProps {
   boxesData: BoxData[];
@@ -32,6 +34,31 @@ export const BoxesTable: React.FC<BoxesTableProps> = ({
   warehouses,
   locations
 }) => {
+  const validateQuantity = (value: number) => {
+    if (value <= 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Quantity',
+        description: 'Quantity must be greater than 0',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleQuantityChange = (index: number, value: string) => {
+    const numValue = parseInt(value) || 0;
+    if (validateQuantity(numValue)) {
+      handleBoxUpdate(index, 'quantity', numValue);
+    }
+  };
+
+  const handleWarehouseChange = (index: number, value: string) => {
+    handleBoxUpdate(index, 'warehouse_id', value);
+    // Reset location when warehouse changes
+    handleBoxUpdate(index, 'location_id', '');
+  };
+
   return (
     <div>
       <h3 className="font-medium mb-3">Box Details</h3>
@@ -58,34 +85,32 @@ export const BoxesTable: React.FC<BoxesTableProps> = ({
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Input 
+                  <Input
                     value={box.barcode}
-                    onChange={(e) => handleBoxUpdate(index, 'barcode', e.target.value)}
-                    className="w-32"
-                    required
+                    readOnly
+                    className="w-48 text-gray-500 bg-gray-100 cursor-not-allowed"
+                    tabIndex={-1}
+                    aria-label={`Barcode for box ${index + 1}`}
                   />
                 </TableCell>
                 <TableCell>
                   <Input 
                     type="number"
                     value={box.quantity}
-                    onChange={(e) => handleBoxUpdate(index, 'quantity', parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleQuantityChange(index, e.target.value)}
                     className="w-20"
                     min="1"
                     required
+                    aria-label={`Quantity for box ${index + 1}`}
                   />
                 </TableCell>
                 <TableCell>
                   <Select 
                     value={box.warehouse_id} 
-                    onValueChange={(value) => {
-                      handleBoxUpdate(index, 'warehouse_id', value);
-                      // Reset location when warehouse changes
-                      handleBoxUpdate(index, 'location_id', '');
-                    }}
+                    onValueChange={(value) => handleWarehouseChange(index, value)}
                     required
                   >
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="w-32" aria-label={`Warehouse for box ${index + 1}`}>
                       <SelectValue placeholder="Warehouse" />
                     </SelectTrigger>
                     <SelectContent>
@@ -104,7 +129,7 @@ export const BoxesTable: React.FC<BoxesTableProps> = ({
                     disabled={!box.warehouse_id}
                     required
                   >
-                    <SelectTrigger className="w-28">
+                    <SelectTrigger className="w-28" aria-label={`Location for box ${index + 1}`}>
                       <SelectValue placeholder="Location" />
                     </SelectTrigger>
                     <SelectContent>
@@ -127,6 +152,7 @@ export const BoxesTable: React.FC<BoxesTableProps> = ({
                     value={box.color}
                     onChange={(e) => handleBoxUpdate(index, 'color', e.target.value)}
                     className="w-24"
+                    aria-label={`Color for box ${index + 1}`}
                   />
                 </TableCell>
                 <TableCell>
@@ -134,6 +160,7 @@ export const BoxesTable: React.FC<BoxesTableProps> = ({
                     value={box.size}
                     onChange={(e) => handleBoxUpdate(index, 'size', e.target.value)}
                     className="w-24"
+                    aria-label={`Size for box ${index + 1}`}
                   />
                 </TableCell>
               </TableRow>

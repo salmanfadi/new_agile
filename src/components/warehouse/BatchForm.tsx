@@ -53,15 +53,16 @@ export const BatchForm: React.FC<BatchFormProps> = ({
         color: editingBatch.color || '',
         size: editingBatch.size || ''
       });
-    } else if (stockInData?.product && (!batchData.product || Object.keys(batchData.product).length === 0)) {
-      // Set product from stockInData if available and product is not already set
-      console.log('Setting product from stockInData:', stockInData.product);
+    } else if (stockInData) {
+      // Always set product from stockInData if available
+      const product = stockInData.product as Product;
       setBatchData(prev => ({
         ...prev,
-        product: stockInData.product as Product
+        product: product,
+        boxes_count: stockInData.boxes // Set boxes count from stock-in request
       }));
     }
-  }, [editingBatch, stockInData, batchData.product]);
+  }, [editingBatch, stockInData]);
 
   // Fetch products
   const { data: products, isLoading: isLoadingProducts } = useQuery({
@@ -161,7 +162,13 @@ export const BatchForm: React.FC<BatchFormProps> = ({
       return;
     }
     
-    onAddBatch(batchData);
+    // Add product_id from stockInData if available
+    const batchWithProduct = {
+      ...batchData,
+      product_id: stockInData?.product?.id || batchData.product?.id
+    };
+
+    onAddBatch(batchWithProduct);
     
     // Reset form if not editing
     if (!editingBatch) {
@@ -178,10 +185,9 @@ export const BatchForm: React.FC<BatchFormProps> = ({
   };
 
   const isFormValid = 
-    batchData.product !== null && 
     batchData.warehouse !== null && 
     batchData.location !== null && 
-    batchData.boxes_count > 0 && 
+    (batchData.boxes_count !== undefined && batchData.boxes_count > 0) && 
     batchData.quantity_per_box > 0;
 
   // Debugging logs to trace product selection
