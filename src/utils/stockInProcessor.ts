@@ -109,6 +109,7 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
             quantity: box.quantity,
             color: box.color || null,
             size: box.size || null,
+            product_id: stockInData.product_id // Ensure product_id is set
           }])
           .select('id')
           .single();
@@ -148,6 +149,7 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
             barcode: boxBarcode,
             action: 'stock_in_processed',
             user_id: userId || '',
+            batch_id: stockInId,
             details: {
               stock_in_id: stockInId,
               product_id: stockInData.product_id,
@@ -193,6 +195,18 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
         barcode_errors: barcodeErrors
       }
     }]);
+
+    // Ensure we set the status to 'completed' to finalize the process
+    const { error: finalUpdateError } = await supabase
+      .from('stock_in')
+      .update({ status: 'completed' })
+      .eq('id', stockInId);
+
+    if (finalUpdateError) {
+      console.error('Error finalizing stock-in status:', finalUpdateError);
+      // Don't throw here, as we've already processed the inventory
+      console.warn('Stock-in status update to completed failed, but inventory has been updated');
+    }
 
     // If there were barcode errors, return them along with success status
     if (barcodeErrors.length > 0) {

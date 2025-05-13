@@ -170,13 +170,13 @@ export const useBatchStockIn = (userId: string) => {
           .from('stock_in_details')
           .insert({
             stock_in_id: stockInId,
-            product_id: box.product_id,
             quantity: box.quantity,
             barcode: boxBarcode,  // Explicitly pass the barcode
             warehouse_id: box.warehouse_id,
             location_id: box.location_id,
             color: box.color,
-            size: box.size
+            size: box.size,
+            product_id: box.product_id  // Make sure product_id is passed
           })
           .select('id')
           .single();
@@ -198,7 +198,6 @@ export const useBatchStockIn = (userId: string) => {
         color: box.color,
         size: box.size,
         batch_id: stockInId, // Link to the stock_in batch
-        stock_in_detail_id: stockInDetailsResults[idx],
         status: 'available'
       }));
       
@@ -260,6 +259,26 @@ export const useBatchStockIn = (userId: string) => {
       
       // Invalidate stock-in-requests query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+      
+      // Setup a subscription to real-time updates for immediate UI refresh
+      const stockInChannel = supabase
+        .channel('stock-in-updates')
+        .on('postgres_changes', { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'stock_in',
+          filter: `id=eq.${stockInId}`
+        }, () => {
+          console.log('Received real-time update for stock-in');
+          queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+        })
+        .subscribe();
+        
+      // Clean up subscription after 3 seconds
+      setTimeout(() => {
+        supabase.removeChannel(stockInChannel);
+      }, 3000);
+      
       return { success: true };
     } catch (error) {
       // If anything fails, try to revert the stock_in status to 'pending'
@@ -366,6 +385,24 @@ export const useBatchStockIn = (userId: string) => {
       queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
       queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+      
+      // Set up a realtime subscription for stock_in table updates
+      const stockInChannel = supabase
+        .channel('stock_in_updates')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'stock_in'
+        }, () => {
+          console.log('Real-time update received for stock-in table');
+          queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+        })
+        .subscribe();
+        
+      // Remove channel after 5 seconds to avoid memory leaks
+      setTimeout(() => {
+        supabase.removeChannel(stockInChannel);
+      }, 5000);
       
     } catch (error) {
       console.error('Error submitting batch stock in:', error);
