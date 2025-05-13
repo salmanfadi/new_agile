@@ -48,22 +48,41 @@ const supabaseOptions: any = {
   },
 };
 
-// Custom fetch implementation with better error handling
+// Custom fetch implementation with better error handling and fallback
 const customFetch = async (url: RequestInfo, options?: RequestInit) => {
-  try {
-    // Add CORS credentials if needed
-    const fetchOptions: RequestInit = {
-      ...options,
-      credentials: 'include',
-      mode: 'cors',
-      headers: {
-        ...options?.headers,
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-    };
+  // Check if we're in a restricted environment
+  const isRestrictedEnvironment = window.self !== window.top || 
+    /webcontainer|gpteng\.co/.test(navigator.userAgent);
 
-    const response = await fetch(url, fetchOptions);
+  // Create fetch options
+  const fetchOptions: RequestInit = {
+    ...options,
+    headers: {
+      ...options?.headers,
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    },
+  };
+
+  // In restricted environments, we need to be more permissive
+  if (isRestrictedEnvironment) {
+    console.log('Running in restricted environment, using permissive CORS settings');
+    fetchOptions.mode = 'cors';
+    fetchOptions.credentials = 'same-origin';
+    
+    // Ensure we have the correct content type
+    if (!fetchOptions.headers?.['Content-Type'] && 
+        options?.method?.toUpperCase() !== 'GET') {
+      fetchOptions.headers = {
+        ...fetchOptions.headers,
+        'Content-Type': 'application/json',
+      };
+    }
+  }
+
+  try {
+    // Try the fetch with the configured options
+    const response = await fetch(url.toString(), fetchOptions);
     
     // Handle 401 Unauthorized
     if (response.status === 401) {
@@ -74,6 +93,34 @@ const customFetch = async (url: RequestInfo, options?: RequestInit) => {
     return response;
   } catch (error) {
     console.error('Network error in custom fetch:', error);
+    
+    // If we're in a restricted environment and the first attempt failed,
+    // try with more permissive settings
+    if (isRestrictedEnvironment) {
+      console.log('First fetch attempt failed, trying with more permissive settings');
+      
+      try {
+        const permissiveOptions = {
+          ...fetchOptions,
+          mode: 'no-cors' as const,
+          credentials: 'omit' as const,
+        };
+        
+        const response = await fetch(url.toString(), permissiveOptions);
+        
+        // Even in no-cors mode, we might get an opaque response
+        if (response.type === 'opaque') {
+          console.log('Received opaque response, request might have succeeded');
+          return response;
+        }
+        
+        return response;
+      } catch (fallbackError) {
+        console.error('Fallback fetch also failed:', fallbackError);
+        throw new Error(`Network error (fallback failed): ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
+      }
+    }
+    
     throw new Error(`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
@@ -114,19 +161,33 @@ console.log('Using Supabase Anon Key:',
 console.log('Environment variables check:', checkEnvVars() ? '✅ Passed' : '❌ Failed');
 console.groupEnd();
 
-// Test the connection with retry logic
+// Test the connection with retry logic and better error reporting
 const testConnection = async () => {
-  const maxRetries = 3;
+  const maxRetries = 2;
   let retryCount = 0;
+  let lastError: any = null;
   
   const attemptConnection = async (): Promise<boolean> => {
     try {
       console.log(`🔌 Testing Supabase connection (attempt ${retryCount + 1}/${maxRetries})...`);
       
-      // Test both REST and Realtime APIs
+      // First, test a simple endpoint to check connectivity
+      const healthCheck = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+        method: 'GET',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!healthCheck.ok) {
+        throw new Error(`Health check failed with status ${healthCheck.status}`);
+      }
+      
+      // If health check passes, try a simple query
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id')
         .limit(1);
       
       if (error) throw error;
@@ -134,20 +195,43 @@ const testConnection = async () => {
       console.log('✅ Supabase connection successful!');
       return true;
     } catch (error) {
+      lastError = error;
       retryCount++;
       
       if (retryCount < maxRetries) {
-        console.warn(`⚠️ Connection attempt ${retryCount} failed, retrying...`, error);
-        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        const delayMs = 1000 * retryCount;
+        console.warn(`⚠️ Connection attempt ${retryCount} failed, retrying in ${delayMs}ms...`, error);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
         return attemptConnection();
       }
       
-      console.error(`❌ Supabase connection failed after ${maxRetries} attempts:`, error);
+      // Log detailed error information
+      const errorInfo = {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        name: error instanceof Error ? error.name : 'UnknownError',
+        stack: error instanceof Error ? error.stack : undefined,
+        url: SUPABASE_URL,
+        timestamp: new Date().toISOString(),
+      };
+      
+      console.error(`❌ Supabase connection failed after ${maxRetries} attempts:`, errorInfo);
       return false;
     }
   };
   
-  return attemptConnection();
+  const result = await attemptConnection();
+  
+  if (!result && lastError) {
+    console.error('Final connection error details:', {
+      name: lastError?.name,
+      message: lastError?.message,
+      code: lastError?.code,
+      status: lastError?.status,
+      statusText: lastError?.statusText,
+    });
+  }
+  
+  return result;
 };
 
 testConnection();

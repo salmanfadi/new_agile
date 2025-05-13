@@ -5,6 +5,23 @@ export interface User {
   username: string;
   role: UserRole;
   name: string | null;
+  email?: string;
+  created_at?: string;
+  updated_at?: string;
+  avatar_url?: string;
+  last_sign_in_at?: string;
+  is_anonymous?: boolean;
+  app_metadata?: Record<string, any>;
+  user_metadata?: Record<string, any>;
+  identities?: Array<{
+    id: string;
+    user_id: string;
+    identity_data?: Record<string, any>;
+    provider: string;
+    created_at: string;
+    last_sign_in_at: string;
+    updated_at?: string;
+  }>;
 }
 
 export interface AuthState {
