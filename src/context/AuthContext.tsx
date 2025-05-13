@@ -52,8 +52,10 @@ const retryWithBackoff = async <T,>(
   operation = 'operation'
 ): Promise<T> => {
   // Check for network connectivity first
-  if (!navigator.onLine) {
-    throw new Error('No internet connection. Please check your network and try again.');
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const error = new Error('No internet connection. Please check your network and try again.');
+    console.error(error.message);
+    throw error;
   }
 
   // Check environment variables
@@ -63,6 +65,8 @@ const retryWithBackoff = async <T,>(
     console.error(error.message);
     throw error;
   }
+
+  let lastError: unknown;
 
   for (let i = 0; i < retries; i++) {
     const attempt = i + 1;
@@ -74,9 +78,25 @@ const retryWithBackoff = async <T,>(
       console.log(`Success on attempt ${attempt}: ${operation}`);
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const status = error instanceof Response ? error.status : 'N/A';
-      const url = error instanceof Response ? error.url : 'N/A';
+      lastError = error;
+      let errorMessage = 'Unknown error';
+      let status = 'N/A';
+      let url = 'N/A';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error && typeof error === 'object') {
+        // Handle Supabase errors
+        if ('message' in error) {
+          errorMessage = String(error.message);
+        }
+        if ('status' in error) {
+          status = String(error.status);
+        }
+        if ('url' in error) {
+          url = String(error.url);
+        }
+      }
       
       // Enhanced error logging
       console.error(`Attempt ${attempt} failed (${operation}):`, {
@@ -85,12 +105,16 @@ const retryWithBackoff = async <T,>(
         url,
         retryIn: `${delayTime}ms`,
         remainingRetries: retries - attempt - 1,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        errorObject: error
       });
       
       // Don't retry for certain errors
-      if (errorMessage.includes('NetworkError') || errorMessage.includes('Failed to fetch')) {
-        throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+      if (errorMessage.includes('NetworkError') || 
+          errorMessage.includes('Failed to fetch') ||
+          errorMessage.includes('JWT expired') ||
+          errorMessage.includes('Invalid login credentials')) {
+        throw error;
       }
       
       if (i === retries - 1) {
@@ -103,7 +127,7 @@ const retryWithBackoff = async <T,>(
     }
   }
   
-  throw new Error(`Retry failed after ${retries} attempts for operation: ${operation}`);
+  throw lastError || new Error(`Retry failed after ${retries} attempts for operation: ${operation}`);
 };
 
 const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
@@ -112,36 +136,65 @@ const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User 
     return null;
   }
   
+  console.log('Mapping Supabase user:', { userId: supabaseUser.id, email: supabaseUser.email });
+  
   try {
     // Fetch the user's profile with retry logic
     const { data: profile, error } = await retryWithBackoff(async () => {
+      console.log('Fetching profile for user:', supabaseUser.id);
+      
       const response = await supabase
         .from('profiles')
-        .select('username, role, name')
+        .select('username, role, name, created_at, updated_at')
         .eq('id', supabaseUser.id)
         .single();
-        
+      
+      console.log('Profile response:', { 
+        data: response.data, 
+        error: response.error,
+        status: response.status,
+        statusText: response.statusText
+      });
+      
       if (response.error) {
-        console.error('Supabase query error:', response.error);
+        console.error('Supabase query error:', {
+          message: response.error.message,
+          code: response.error.code,
+          details: response.error.details,
+          hint: response.error.hint
+        });
         throw response.error;
       }
       
       return response;
-    });
+    }, 2, 1000, 'fetch-user-profile');
     
     if (error) {
-      console.error('Error fetching user profile after retries:', error);
+      console.error('Error fetching user profile after retries:', {
+        message: error.message,
+        code: error.code,
+        details: (error as any).details,
+        hint: (error as any).hint
+      });
+      
       // Show a user-friendly error message
       toast({
         title: "Profile Error",
         description: "Unable to load your profile. Please try refreshing the page.",
         variant: "destructive",
       });
+      
+      // If it's a 404, the user might not have a profile yet
+      if ((error as any).code === 'PGRST116') {
+        console.log('Profile not found for user, might need to be created');
+        // You might want to create a profile here if it doesn't exist
+      }
+      
       return null;
     }
     
     if (!profile) {
-      console.error('No profile found for user:', supabaseUser.id);
+      console.error('No profile data returned for user:', supabaseUser.id);
       toast({
         title: "Profile Not Found",
         description: "Your user profile could not be found. Please contact support.",
