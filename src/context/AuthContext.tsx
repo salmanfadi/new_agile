@@ -130,6 +130,15 @@ const retryWithBackoff = async <T,>(
   throw lastError || new Error(`Retry failed after ${retries} attempts for operation: ${operation}`);
 };
 
+interface UserProfile {
+  id: string;
+  username: string;
+  role: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
   if (!supabaseUser) {
     console.log('No Supabase user provided to mapSupabaseUser');
@@ -140,14 +149,14 @@ const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User 
   
   try {
     // Fetch the user's profile with retry logic
-    const { data: profile, error } = await retryWithBackoff(async () => {
+    const { data, error } = await retryWithBackoff(async () => {
       console.log('Fetching profile for user:', supabaseUser.id);
       
       const response = await supabase
         .from('profiles')
         .select('username, role, name, created_at, updated_at')
         .eq('id', supabaseUser.id)
-        .single();
+        .single<UserProfile>();
       
       console.log('Profile response:', { 
         data: response.data, 
@@ -192,6 +201,8 @@ const mapSupabaseUser = async (supabaseUser: SupabaseUser | null): Promise<User 
       
       return null;
     }
+    
+    const profile = data as UserProfile | null;
     
     if (!profile) {
       console.error('No profile data returned for user:', supabaseUser.id);
