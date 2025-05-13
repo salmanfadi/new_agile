@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom
 import { AuthProvider } from '@/context/AuthContext';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Index from '@/pages/Index';
 import Login from '@/pages/Login';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
@@ -12,7 +11,7 @@ import ManagerDashboard from '@/pages/warehouseManager/ManagerDashboard';
 import OperatorDashboard from '@/pages/fieldOperator/OperatorDashboard';
 import StockInProcessing from '@/pages/warehouseManager/StockInProcessing';
 import ProcessStockInPage from '@/pages/warehouseManager/ProcessStockInPage';
-import DedicatedBatchStockInPage from '@/pages/warehouseManager/DedicatedBatchStockInPage';
+import BatchStockInPage from '@/pages/warehouseManager/BatchStockInPage';
 import AdminBatchStockInPage from '@/pages/admin/BatchStockInPage';
 import StockOutApproval from '@/pages/warehouseManager/StockOutApproval';
 import StockOutForm from '@/pages/fieldOperator/StockOutForm';
@@ -47,13 +46,10 @@ import CustomerPortal from "./pages/customer/CustomerPortal";
 import CustomerRegister from "./pages/customer/CustomerRegister";
 
 const App: React.FC = () => {
-  const queryClient = new QueryClient();
-  
   return (
     <Router>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Routes>
+      <AuthProvider>
+        <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
@@ -89,8 +85,8 @@ const App: React.FC = () => {
           }>
             <Route index element={<ManagerDashboard />} />
             <Route path="stock-in" element={<StockInProcessing />} />
-            <Route path="stock-in/batch" element={<DedicatedBatchStockInPage />} />
-            <Route path="stock-in/batch/:stockInId" element={<DedicatedBatchStockInPage />} /> {/* New route with ID */}
+            <Route path="stock-in/batch" element={<BatchStockInPage />} />
+            <Route path="stock-in/batch/:stockInId" element={<BatchStockInPage />} /> {/* New route with ID */}
             <Route path="process-stock-in/:stockInId" element={<ProcessStockInPage />} />
             <Route path="stock-out-approval" element={<StockOutApproval />} />
             <Route path="inventory" element={<InventoryView />} />
@@ -151,9 +147,8 @@ const App: React.FC = () => {
             <Route path="register" element={<CustomerRegister />} />
             <Route path="portal" element={<CustomerPortal />} />
           </Route>
-          </Routes>
-        </AuthProvider>
-      </QueryClientProvider>
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 };

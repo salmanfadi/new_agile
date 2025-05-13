@@ -1,7 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -16,96 +15,121 @@ import { Warehouse, Location } from '@/hooks/useWarehouseData';
 interface DefaultValuesFormProps {
   defaultValues: DefaultValues;
   setDefaultValues: React.Dispatch<React.SetStateAction<DefaultValues>>;
+  applyDefaultsToAll: () => void;
   warehouses?: Warehouse[];
   locations?: Location[];
-  onApplyToAll: () => void;
 }
 
 export const DefaultValuesForm: React.FC<DefaultValuesFormProps> = ({
   defaultValues,
   setDefaultValues,
+  applyDefaultsToAll,
   warehouses,
-  locations,
-  onApplyToAll
+  locations
 }) => {
+  // Filter locations based on selected warehouse
+  const filteredLocations = locations?.filter(loc => 
+    loc.warehouse_id === defaultValues.warehouse
+  ) || [];
+
+  // Reset location when warehouse changes
+  const handleWarehouseChange = (warehouseId: string) => {
+    setDefaultValues(prev => ({ 
+      ...prev, 
+      warehouse: warehouseId,
+      location: '' // Reset location when warehouse changes
+    }));
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Default Values</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Warehouse</Label>
-            <Select
-              value={defaultValues.warehouse}
-              onValueChange={(value) => setDefaultValues(prev => ({ ...prev, warehouse: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select warehouse" />
-              </SelectTrigger>
-              <SelectContent>
-                {warehouses?.map(warehouse => (
-                  <SelectItem key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Location</Label>
-            <Select
-              value={defaultValues.location}
-              onValueChange={(value) => setDefaultValues(prev => ({ ...prev, location: value }))}
-              disabled={!defaultValues.warehouse}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations?.filter(loc => loc.warehouse_id === defaultValues.warehouse).map(location => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="default_warehouse">Warehouse</Label>
+          <Select 
+            value={defaultValues.warehouse} 
+            onValueChange={handleWarehouseChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select warehouse" />
+            </SelectTrigger>
+            <SelectContent>
+              {warehouses?.map(warehouse => (
+                <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
+              )) || (
+                <SelectItem value="no-warehouses-available" disabled>No warehouses available</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Label htmlFor="default_location">Location</Label>
+          <Select 
+            value={defaultValues.location} 
+            onValueChange={(value) => setDefaultValues(prev => ({ ...prev, location: value }))}
+            disabled={!defaultValues.warehouse || filteredLocations.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select location" />
+            </SelectTrigger>
+            <SelectContent>
+              {filteredLocations.length > 0 ? (
+                filteredLocations.map(location => (
                   <SelectItem key={location.id} value={location.id}>
-                    F{location.floor}, Z{location.zone}
+                    Floor {location.floor}, Zone {location.zone}
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                ))
+              ) : (
+                <SelectItem value="no-locations-available" disabled>
+                  {defaultValues.warehouse ? 'No locations for this warehouse' : 'Select warehouse first'}
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label>Quantity</Label>
-            <Input
-              type="number"
-              value={defaultValues.quantity}
-              onChange={(e) => setDefaultValues(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
-              min="1"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Color</Label>
-            <Input
-              value={defaultValues.color}
-              onChange={(e) => setDefaultValues(prev => ({ ...prev, color: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Size</Label>
-            <Input
-              value={defaultValues.size}
-              onChange={(e) => setDefaultValues(prev => ({ ...prev, size: e.target.value }))}
-            />
-          </div>
+        
+        <div>
+          <Label htmlFor="default_quantity">Quantity per Box</Label>
+          <Input 
+            id="default_quantity"
+            type="number"
+            value={defaultValues.quantity || ''}
+            onChange={(e) => setDefaultValues(prev => ({ 
+              ...prev, 
+              quantity: parseInt(e.target.value) || 0 
+            }))}
+            min="0"
+            className="w-full"
+          />
         </div>
-        <Button
-          onClick={onApplyToAll}
-          disabled={!defaultValues.warehouse || !defaultValues.location}
-          className="w-full"
-        >
-          Apply to All Boxes
-        </Button>
-      </CardContent>
-    </Card>
+        
+        <div>
+          <Label htmlFor="default_color">Color (Optional)</Label>
+          <Input 
+            id="default_color"
+            value={defaultValues.color}
+            onChange={(e) => setDefaultValues(prev => ({ ...prev, color: e.target.value }))}
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="default_size">Size (Optional)</Label>
+          <Input 
+            id="default_size"
+            value={defaultValues.size}
+            onChange={(e) => setDefaultValues(prev => ({ ...prev, size: e.target.value }))}
+          />
+        </div>
+      </div>
+      <Button 
+        type="button" 
+        onClick={applyDefaultsToAll}
+        className="mt-2"
+        disabled={!defaultValues.warehouse || !defaultValues.location}
+      >
+        Apply to All Boxes
+      </Button>
+    </div>
   );
 };

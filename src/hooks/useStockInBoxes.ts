@@ -1,6 +1,6 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface BoxData {
   id: string;
@@ -10,12 +10,11 @@ export interface BoxData {
   size: string;
   warehouse_id: string;
   location_id: string;
-  product_id: string;
 }
 
 export interface StockInData {
   id: string;
-  product?: { name: string; id?: string; sku?: string; };
+  product?: { name: string; id?: string; sku?: string; }; // Made product optional to match useStockInData
   submitter: { 
     name: string; 
     username: string;
@@ -37,23 +36,6 @@ export interface DefaultValues {
   size: string;
 }
 
-const generateBarcode = (product?: { sku?: string; id?: string }, index?: number): string => {
-  if (!product?.sku && !product?.id) {
-    throw new Error('Product information is required for barcode generation');
-  }
-
-  // Use SKU if available, otherwise use product ID
-  const productId = product.sku || product.id;
-  
-  // Generate a unique suffix using timestamp and random number
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
-  const uniqueSuffix = `${timestamp}${random}`;
-  
-  // Format: PRODID-INDEX-SUFFIX
-  return `${productId}-${index?.toString().padStart(3, '0') || '001'}-${uniqueSuffix}`;
-};
-
 export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boolean) => {
   const [boxesData, setBoxesData] = useState<BoxData[]>([]);
   const [defaultValues, setDefaultValues] = useState<DefaultValues>({
@@ -70,13 +52,12 @@ export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boole
       // Initialize with empty box entries for the number of boxes
       const initialBoxes = Array(selectedStockIn.boxes).fill(null).map((_, index) => ({
         id: `temp-${index}`,
-        barcode: generateBarcode(selectedStockIn.product, index),
-        quantity: 0,
+        barcode: `${Date.now()}-${index}`, // Generate a temporary barcode
+        quantity: 0, // Default quantity per box
         color: '',
         size: '',
         warehouse_id: '',
-        location_id: '',
-        product_id: selectedStockIn.product?.id || ''
+        location_id: ''
       }));
       
       setBoxesData(initialBoxes);
@@ -111,15 +92,17 @@ export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boole
       return;
     }
 
+    // Create a new array instead of modifying in place
     const updatedBoxes = boxesData.map(box => ({
       ...box,
       warehouse_id: defaultValues.warehouse,
       location_id: defaultValues.location,
-      color: defaultValues.color || box.color,
-      size: defaultValues.size || box.size,
+      color: defaultValues.color || box.color, // Preserve existing value if default is empty
+      size: defaultValues.size || box.size,    // Preserve existing value if default is empty
       quantity: defaultValues.quantity > 0 ? defaultValues.quantity : box.quantity
     }));
     
+    // Update the state with the new array
     setBoxesData(updatedBoxes);
     
     toast({
@@ -133,7 +116,6 @@ export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boole
       !box.warehouse_id || 
       !box.location_id || 
       !box.barcode || 
-      !box.product_id ||
       box.quantity <= 0
     );
   };

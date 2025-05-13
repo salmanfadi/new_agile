@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -71,36 +72,17 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
 
   // Process stock in mutation
   const processStockInMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedStockIn?.id || !userId) {
-        throw new Error('Missing required data for processing');
-      }
-
-      // Add product_id to each box
-      const boxesWithProduct = boxesData.map(box => ({
-        ...box,
-        product_id: selectedStockIn.product?.id || ''
-      }));
-
-      return processStockIn(selectedStockIn.id, boxesWithProduct, userId);
+    mutationFn: async (data: { stockInId: string; boxes: typeof boxesData }) => {
+      return processStockIn(data.stockInId, data.boxes, userId);
     },
-    onSuccess: (result) => {
-      if (result.barcodeErrors && result.barcodeErrors.length > 0) {
-        toast({
-          variant: 'destructive',
-          title: 'Stock In Processed with Warnings',
-          description: `${result.barcodeErrors.length} barcode(s) were found to be duplicates and were skipped.`,
-        });
-      } else {
-        toast({
-          title: 'Stock In Processed Successfully',
-          description: 'All items have been added to inventory',
-        });
-      }
-      
+    onSuccess: () => {
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      toast({
+        title: 'Stock In Processed',
+        description: 'The stock in has been processed and added to inventory.',
+      });
     },
     onError: (error) => {
       toast({
@@ -111,57 +93,86 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
     },
   });
 
-  const handleSubmit = () => {
+  const handleProcessingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStockIn) return;
+
     if (isMissingRequiredData()) {
       toast({
         variant: 'destructive',
-        title: 'Missing Required Data',
+        title: 'Incomplete data',
         description: 'Please fill in all required fields for each box.',
       });
       return;
     }
 
-    processStockInMutation.mutate();
+    processStockInMutation.mutate({
+      stockInId: selectedStockIn.id,
+      boxes: boxesData,
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={isMobile ? 'w-full h-full max-w-full' : 'max-w-4xl'}>
+      <DialogContent className={isMobile ? "max-w-[95vw] h-[85vh] p-4" : "max-w-3xl"}>
         <DialogHeader>
           <DialogTitle>Process Stock In</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[80vh]">
-          <div className="space-y-6 p-4">
-            <DefaultValuesForm
-              defaultValues={defaultValues}
-              setDefaultValues={setDefaultValues}
-              warehouses={warehouses}
-              locations={locations}
-              onApplyToAll={applyDefaultsToAll}
-            />
-            <BoxesTable
-              boxesData={boxesData}
-              handleBoxUpdate={handleBoxUpdate}
-              warehouses={warehouses}
-              locations={locations}
-            />
-          </div>
-        </ScrollArea>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={processStockInMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={processStockInMutation.isPending || isMissingRequiredData()}
-          >
-            {processStockInMutation.isPending ? 'Processing...' : 'Process Stock In'}
-          </Button>
-        </DialogFooter>
+        
+        {selectedStockIn && (
+          <form onSubmit={handleProcessingSubmit}>
+            <ScrollArea className={isMobile ? "h-[calc(85vh-10rem)]" : "max-h-[70vh]"}>
+              <div className="space-y-4 px-1">
+                <div className="space-y-2">
+                  <div className="font-medium">Product: {selectedStockIn.product?.name}</div>
+                  <div className="text-sm text-gray-500">Total Boxes: {selectedStockIn.boxes}</div>
+                  <div className="text-sm text-gray-500">
+                    Submitted By: {selectedStockIn.submitter ? `${selectedStockIn.submitter.name} (${selectedStockIn.submitter.username})` : 'Unknown'}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Source: {selectedStockIn.source}
+                  </div>
+                  {selectedStockIn.notes && (
+                    <div className="text-sm text-gray-500">
+                      Notes: {selectedStockIn.notes}
+                    </div>
+                  )}
+                </div>
+                
+                <DefaultValuesForm 
+                  defaultValues={defaultValues}
+                  setDefaultValues={setDefaultValues}
+                  applyDefaultsToAll={applyDefaultsToAll}
+                  warehouses={warehouses}
+                  locations={locations}
+                />
+                
+                <BoxesTable 
+                  boxesData={boxesData}
+                  handleBoxUpdate={handleBoxUpdate}
+                  warehouses={warehouses}
+                  locations={locations}
+                />
+              </div>
+            </ScrollArea>
+            
+            <DialogFooter className="mt-6">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={isMissingRequiredData() || processStockInMutation.isPending}
+              >
+                {processStockInMutation.isPending ? 'Processing...' : 'Accept & Process Stock In'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

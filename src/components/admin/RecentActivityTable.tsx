@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Table,
@@ -8,14 +9,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { format } from 'date-fns';
 
 interface ActivityItem {
   type: string;
   user: string;
   product: string;
   quantity: string;
-  status: 'success' | 'pending' | 'error';
+  status: string;
   date: string;
 }
 
@@ -29,12 +29,12 @@ export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({ activi
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead scope="col">Action</TableHead>
-            <TableHead scope="col">User</TableHead>
-            <TableHead scope="col">Product</TableHead>
-            <TableHead scope="col">Quantity</TableHead>
-            <TableHead scope="col">Timestamp</TableHead>
-            <TableHead scope="col">Status</TableHead>
+            <TableHead>Action</TableHead>
+            <TableHead>User</TableHead>
+            <TableHead>Product</TableHead>
+            <TableHead>Quantity</TableHead>
+            <TableHead>Timestamp</TableHead>
+            <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -44,7 +44,7 @@ export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({ activi
               <TableCell>{activity.user}</TableCell>
               <TableCell>{activity.product}</TableCell>
               <TableCell>{activity.quantity}</TableCell>
-              <TableCell>{format(new Date(activity.date), 'dd MMM yyyy, HH:mm')}</TableCell>
+              <TableCell>{activity.date}</TableCell>
               <TableCell>
                 <StatusBadge status={activity.status as any} />
               </TableCell>
