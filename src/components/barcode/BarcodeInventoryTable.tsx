@@ -18,6 +18,16 @@ interface BarcodeRecord {
   created_at?: string;
 }
 
+// Define the raw data structure returned from Supabase
+interface BarcodeLogRaw {
+  id: string;
+  barcode: string;
+  batch_id: string | null;
+  details: Record<string, any> | null;
+  user_id: string;
+  timestamp: string;
+}
+
 const BarcodeInventoryTable: React.FC = () => {
   const [barcodes, setBarcodes] = useState<BarcodeRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,44 +44,29 @@ const BarcodeInventoryTable: React.FC = () => {
   const fetchBarcodes = async () => {
     setLoading(true);
     try {
-      // Fix the query syntax for JSON field access with proper extraction
       const { data, error } = await supabase
         .from('barcode_logs')
-        .select(`
-          id,
-          barcode,
-          batch_id,
-          details->product_id,
-          details->product_name,
-          details->warehouse,
-          details->location,
-          user_id,
-          timestamp
-        `)
+        .select('id, barcode, batch_id, details, user_id, timestamp')
         .order('timestamp', { ascending: false });
         
       if (error) {
         console.error('Error fetching barcode logs:', error);
         setBarcodes([]);
       } else if (data && Array.isArray(data)) {
-        // Check that data is valid and is an array
         console.log('Received data from barcode_logs:', data);
         
-        // Safely transform the data to match our expected format
-        const validBarcodes = data.map(item => {
-          // Use optional chaining to safely access nested properties
-          const details = item.details as Record<string, any> | null;
-          
+        // Transform the raw data to our expected BarcodeRecord format
+        const validBarcodes = data.map((item: BarcodeLogRaw) => {
           return {
-            id: item.id || '',
-            barcode: item.barcode || '',
+            id: item.id,
+            barcode: item.barcode,
             batch_id: item.batch_id || undefined,
-            product_id: details?.product_id || undefined,
-            product_name: details?.product_name || undefined,
-            warehouse: details?.warehouse || undefined,
-            location: details?.location || undefined,
-            created_by: item.user_id || undefined,
-            created_at: item.timestamp || undefined
+            product_id: item.details?.product_id || undefined,
+            product_name: item.details?.product_name || undefined,
+            warehouse: item.details?.warehouse || undefined,
+            location: item.details?.location || undefined,
+            created_by: item.user_id,
+            created_at: item.timestamp
           };
         });
         
