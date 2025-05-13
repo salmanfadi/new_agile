@@ -89,39 +89,86 @@ const Login: React.FC = () => {
           console.log("Sign out before login failed:", err);
         }
         
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: username,
-          password,
-        });
+        // Add retry logic for the login attempt
+        let retryCount = 0;
+        const maxRetries = 3;
+        let lastError = null;
         
-        if (error) throw error;
-        
-        if (data.user) {
-          // Check if account is active
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('role, active')
-            .eq('id', data.user.id)
-            .single();
+        while (retryCount < maxRetries) {
+          try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+              email: username,
+              password,
+            });
             
-          if (profileError) throw profileError;
-          
-          if (!profile.active) {
-            await supabase.auth.signOut();
-            throw new Error("Your account has been disabled by the admin. For support, contact: admin@agilewms.com");
+            if (error) throw error;
+            
+            if (data.user) {
+              // Check if account is active
+              const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('role, active')
+                .eq('id', data.user.id)
+                .single();
+                
+              if (profileError) throw profileError;
+              
+              if (!profile.active) {
+                await supabase.auth.signOut();
+                throw new Error("Your account has been disabled by the admin. For support, contact: admin@agilewms.com");
+              }
+              
+              // Continue with login through the context
+              await login(username, password);
+              return; // Success - exit the function
+            }
+          } catch (error) {
+            lastError = error;
+            retryCount++;
+            
+            if (retryCount < maxRetries) {
+              console.log(`Login attempt ${retryCount} failed, retrying...`);
+              // Wait before retrying (exponential backoff)
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+            }
           }
-          
-          // Continue with login through the context
-          await login(username, password);
         }
+        
+        // If we get here, all retries failed
+        throw lastError || new Error('Failed to login after multiple attempts');
       }
     } catch (error) {
       console.error("Login submission error:", error);
+      
+      // Handle specific error cases
+      let errorMessage = 'An unknown error occurred';
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid username or password';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Please verify your email address before logging in';
+        } else if (error.message.includes('Network error')) {
+          errorMessage = 'Network connection error. Please check your internet connection and try again';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        description: errorMessage,
       });
+      
+      // If we've had multiple failed attempts, suggest resetting auth state
+      if (loginAttempts >= 2) {
+        toast({
+          variant: 'default',
+          title: 'Having trouble?',
+          description: 'Try clicking the "Reset Auth State" button below',
+        });
+      }
+    } finally {
       setIsLoading(false);
     }
   };

@@ -54,30 +54,33 @@ const customFetch = async (url: RequestInfo, options?: RequestInit) => {
   const isRestrictedEnvironment = window.self !== window.top || 
     /webcontainer|gpteng\.co/.test(navigator.userAgent);
 
-  // Create fetch options
+  // Create fetch options with default headers
   const fetchOptions: RequestInit = {
     ...options,
     headers: {
       ...options?.headers,
       'Cache-Control': 'no-cache',
       'Pragma': 'no-cache',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
     },
+    mode: 'cors',
+    credentials: 'include',
   };
 
   // In restricted environments, we need to be more permissive
   if (isRestrictedEnvironment) {
     console.log('Running in restricted environment, using permissive CORS settings');
     fetchOptions.mode = 'cors';
-    fetchOptions.credentials = 'same-origin';
+    fetchOptions.credentials = 'include';
     
-    // Ensure we have the correct content type
-    if (!fetchOptions.headers?.['Content-Type'] && 
-        options?.method?.toUpperCase() !== 'GET') {
-      fetchOptions.headers = {
-        ...fetchOptions.headers,
-        'Content-Type': 'application/json',
-      };
-    }
+    // Add additional headers for restricted environments
+    fetchOptions.headers = {
+      ...fetchOptions.headers,
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info',
+    };
   }
 
   try {
@@ -87,7 +90,9 @@ const customFetch = async (url: RequestInfo, options?: RequestInit) => {
     // Handle 401 Unauthorized
     if (response.status === 401) {
       console.error('Unauthorized access - please log in again');
-      // You might want to trigger a logout or token refresh here
+      // Clear any existing auth state
+      localStorage.removeItem('agile-warehouse-auth-token');
+      throw new Error('Unauthorized access - please log in again');
     }
     
     return response;
@@ -102,18 +107,17 @@ const customFetch = async (url: RequestInfo, options?: RequestInit) => {
       try {
         const permissiveOptions = {
           ...fetchOptions,
-          mode: 'no-cors' as const,
-          credentials: 'omit' as const,
+          mode: 'cors' as const,
+          credentials: 'include' as const,
+          headers: {
+            ...fetchOptions.headers,
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': '*',
+          },
         };
         
         const response = await fetch(url.toString(), permissiveOptions);
-        
-        // Even in no-cors mode, we might get an opaque response
-        if (response.type === 'opaque') {
-          console.log('Received opaque response, request might have succeeded');
-          return response;
-        }
-        
         return response;
       } catch (fallbackError) {
         console.error('Fallback fetch also failed:', fallbackError);
