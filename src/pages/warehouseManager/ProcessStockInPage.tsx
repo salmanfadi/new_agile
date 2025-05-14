@@ -109,7 +109,7 @@ const ProcessStockInPage: React.FC = () => {
           throw new Error("Stock In record not found.");
         }
 
-        // Transform the data into the expected shape - fix the object structure
+        // Transform the data into the expected shape
         const transformedData: ProcessableStockIn = {
           id: data.id,
           boxes: data.boxes,

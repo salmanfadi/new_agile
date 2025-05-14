@@ -22,7 +22,7 @@ export const RequireAuth = ({ children, allowedRoles }: RequireAuthProps) => {
   }
 
   // If roles are specified, check if user has one of them
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && user && !allowedRoles.includes(user.role as UserRole)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
