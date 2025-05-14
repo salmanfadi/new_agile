@@ -24,7 +24,7 @@ const ManagerDashboard: React.FC = () => {
   } = useManagerDashboardData();
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader 
         title={`Welcome, ${userName}`} 
         description="Manage warehouse operations and inventory"
@@ -36,29 +36,33 @@ const ManagerDashboard: React.FC = () => {
           value={isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : pendingStockIn}
           description="Awaiting processing"
           icon={<ArrowDownToLine />}
+          className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900"
         />
         <StatsCard
           title="Pending Stock Out"
           value={isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : pendingStockOut}
           description="Awaiting approval"
           icon={<ArrowUpFromLine />}
+          className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900"
         />
         <StatsCard
           title="Active Inventory"
           value={isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : activeInventory.toLocaleString()}
           description="Items in stock"
           icon={<BoxesIcon />}
+          className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900"
         />
         <StatsCard
           title="Warehouses"
           value={isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : warehouses}
           description="Under management"
           icon={<Warehouse />}
+          className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900"
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader>
             <CardTitle>Stock In</CardTitle>
             <CardDescription>Process incoming inventory</CardDescription>
@@ -69,7 +73,7 @@ const ManagerDashboard: React.FC = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild variant="default" className="w-full">
               <Link to="/manager/stock-in">
                 <Package className="mr-2 h-4 w-4" />
                 Process Stock In
@@ -78,7 +82,7 @@ const ManagerDashboard: React.FC = () => {
           </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-amber-500">
           <CardHeader>
             <CardTitle>Stock Out</CardTitle>
             <CardDescription>Manage outgoing inventory</CardDescription>
@@ -89,7 +93,7 @@ const ManagerDashboard: React.FC = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild variant="default" className="w-full">
               <Link to="/manager/stock-out-approval">
                 <Truck className="mr-2 h-4 w-4" />
                 Approve Stock Out
@@ -98,7 +102,7 @@ const ManagerDashboard: React.FC = () => {
           </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-green-500">
           <CardHeader>
             <CardTitle>Inventory</CardTitle>
             <CardDescription>View current inventory</CardDescription>
@@ -109,7 +113,7 @@ const ManagerDashboard: React.FC = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild variant="default" className="w-full">
               <Link to="/manager/inventory">
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 View Inventory
@@ -118,7 +122,7 @@ const ManagerDashboard: React.FC = () => {
           </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-indigo-500">
           <CardHeader>
             <CardTitle>Barcode Scanner</CardTitle>
             <CardDescription>Scan product barcodes</CardDescription>
@@ -129,7 +133,7 @@ const ManagerDashboard: React.FC = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild variant="default" className="w-full">
               <Link to="/scan">
                 <Barcode className="mr-2 h-4 w-4" />
                 Open Scanner

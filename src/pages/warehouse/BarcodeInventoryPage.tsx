@@ -76,7 +76,7 @@ const BarcodeInventoryPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader 
         title={`Batch Barcodes: ${batchDetails?.product.name || 'Loading...'}`}
         description={`View and print barcodes for batch ${batchId?.slice(0, 8) || ''}`}
@@ -87,13 +87,14 @@ const BarcodeInventoryPage: React.FC = () => {
           variant="ghost"
           size="sm"
           onClick={() => navigate('/manager/inventory/batches')}
+          className="flex items-center gap-2"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" />
           Back to Batches
         </Button>
         
         <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex relative">
+          <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input 
               placeholder="Search barcodes, colors, sizes..." 
@@ -113,8 +114,9 @@ const BarcodeInventoryPage: React.FC = () => {
           <Button 
             onClick={handlePrintSelected}
             disabled={selectedBarcodes.length === 0}
+            className="flex items-center gap-2"
           >
-            <Printer className="mr-2 h-4 w-4" />
+            <Printer className="h-4 w-4" />
             Print Selected ({selectedBarcodes.length})
           </Button>
         </div>

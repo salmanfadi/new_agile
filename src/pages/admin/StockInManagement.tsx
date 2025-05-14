@@ -27,7 +27,6 @@ const AdminStockInManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Fetch stock in requests with filter using the shared hook
-  // Fix: Passing the filter as an object 
   const { data: stockInRequests, isLoading, error } = useStockInRequests({
     status: statusFilter !== "all" ? statusFilter : undefined
   });
@@ -49,37 +48,39 @@ const AdminStockInManagement: React.FC = () => {
         description="Monitor and manage all stock in requests across warehouses"
       />
       
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate('/admin')}
-        className="mb-4"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Dashboard
-      </Button>
-      
-      <div className="flex items-center gap-2">
-        <Filter className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Filter by status:</span>
-        <Select 
-          value={statusFilter} 
-          onValueChange={setStatusFilter}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/admin')}
+          className="flex items-center gap-2"
         >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="all">All Requests</SelectItem>
-              <SelectItem value="pending">Awaiting Review</SelectItem>
-              <SelectItem value="processing">In Processing</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Button>
+        
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filter by status:</span>
+          <Select 
+            value={statusFilter} 
+            onValueChange={setStatusFilter}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="all">All Requests</SelectItem>
+                <SelectItem value="pending">Awaiting Review</SelectItem>
+                <SelectItem value="processing">In Processing</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       
       <Card>

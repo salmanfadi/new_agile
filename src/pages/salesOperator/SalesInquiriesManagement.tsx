@@ -3,6 +3,7 @@ import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useSalesInquiries } from '@/hooks/useSalesInquiries';
 import { InquiryManagement } from '@/components/sales/InquiryManagement';
+import { Card, CardContent } from '@/components/ui/card';
 
 const SalesInquiriesManagement: React.FC = () => {
   const {
@@ -24,17 +25,21 @@ const SalesInquiriesManagement: React.FC = () => {
         description="Manage and respond to customer inquiries"
       />
       
-      <InquiryManagement
-        inquiries={inquiries}
-        isLoading={isLoading}
-        searchTerm={searchTerm}
-        statusFilter={statusFilter}
-        setSearchTerm={setSearchTerm}
-        setStatusFilter={setStatusFilter}
-        updateInquiryStatus={updateInquiryStatus}
-        formatDate={formatDate}
-        refreshInquiries={refreshInquiries}
-      />
+      <Card>
+        <CardContent className="pt-6">
+          <InquiryManagement
+            inquiries={inquiries}
+            isLoading={isLoading}
+            searchTerm={searchTerm}
+            statusFilter={statusFilter}
+            setSearchTerm={setSearchTerm}
+            setStatusFilter={setStatusFilter}
+            updateInquiryStatus={updateInquiryStatus}
+            formatDate={formatDate}
+            refreshInquiries={refreshInquiries}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 };

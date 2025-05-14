@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import BatchStockInComponent from '@/components/warehouse/BatchStockInComponent';
@@ -11,6 +12,7 @@ import { DateRange } from 'react-day-picker';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from '@/components/ui/card';
 
 const StockInProcessing: React.FC = () => {
   const { user } = useAuth();
@@ -106,77 +108,81 @@ const StockInProcessing: React.FC = () => {
   };
   
   return (
-    <div className="container mx-auto">
+    <div className="space-y-6">
       <PageHeader 
         title="Stock In Processing"
         description="Manage incoming stock requests and process new inventory"
       />
       
-      <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-5 mb-6">
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="processing">In Progress</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-          <TabsTrigger value="batches">Processed Batches</TabsTrigger>
-        </TabsList>
-        
-        <div className="mb-6">
-          {activeTab === 'batches' ? (
-            <ProcessedBatchesFilters 
-              onSearch={handleBatchSearch}
-              onDateChange={handleBatchDateChange}
-              onReset={handleBatchFilterReset}
-              onFilterChange={handleFilterChange}
-            />
-          ) : (
-            <StockInFilters 
-              onFilterChange={(filters) => handleStockInFilterChange(activeTab, filters)}
-            />
-          )}
-        </div>
-        
-        <TabsContent value="pending" className="mt-0">
-          <StockInRequestsTable 
-            status="pending" 
-            filters={pendingFilters} 
-            onProcess={handleProcess}
-            onReject={handleReject}
-            userId={userId}
-          />
-        </TabsContent>
-        
-        <TabsContent value="processing" className="mt-0">
-          <StockInRequestsTable 
-            status="processing" 
-            filters={processingFilters}
-            onProcess={handleProcess}
-            userId={userId}
-          />
-        </TabsContent>
-        
-        <TabsContent value="completed" className="mt-0">
-          <StockInRequestsTable 
-            status="completed" 
-            filters={completedFilters}
-            userId={userId}
-          />
-        </TabsContent>
-        
-        <TabsContent value="rejected" className="mt-0">
-          <StockInRequestsTable 
-            status="rejected" 
-            filters={rejectedFilters}
-            userId={userId}
-          />
-        </TabsContent>
-        
-        <TabsContent value="batches" className="mt-0">
-          <ProcessedBatchesTable 
-            filters={batchFilters}
-          />
-        </TabsContent>
-      </Tabs>
+      <Card>
+        <CardContent className="pt-6">
+          <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid grid-cols-5 mb-6">
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="processing">In Progress</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              <TabsTrigger value="batches">Processed Batches</TabsTrigger>
+            </TabsList>
+            
+            <div className="mb-6">
+              {activeTab === 'batches' ? (
+                <ProcessedBatchesFilters 
+                  onSearch={handleBatchSearch}
+                  onDateChange={handleBatchDateChange}
+                  onReset={handleBatchFilterReset}
+                  onFilterChange={handleFilterChange}
+                />
+              ) : (
+                <StockInFilters 
+                  onFilterChange={(filters) => handleStockInFilterChange(activeTab, filters)}
+                />
+              )}
+            </div>
+            
+            <TabsContent value="pending" className="mt-0">
+              <StockInRequestsTable 
+                status="pending" 
+                filters={pendingFilters} 
+                onProcess={handleProcess}
+                onReject={handleReject}
+                userId={userId}
+              />
+            </TabsContent>
+            
+            <TabsContent value="processing" className="mt-0">
+              <StockInRequestsTable 
+                status="processing" 
+                filters={processingFilters}
+                onProcess={handleProcess}
+                userId={userId}
+              />
+            </TabsContent>
+            
+            <TabsContent value="completed" className="mt-0">
+              <StockInRequestsTable 
+                status="completed" 
+                filters={completedFilters}
+                userId={userId}
+              />
+            </TabsContent>
+            
+            <TabsContent value="rejected" className="mt-0">
+              <StockInRequestsTable 
+                status="rejected" 
+                filters={rejectedFilters}
+                userId={userId}
+              />
+            </TabsContent>
+            
+            <TabsContent value="batches" className="mt-0">
+              <ProcessedBatchesTable 
+                filters={batchFilters}
+              />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 };

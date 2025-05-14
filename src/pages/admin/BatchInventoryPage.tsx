@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -22,7 +23,7 @@ const AdminBatchInventoryPage: React.FC = () => {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [showBatchDetails, setShowBatchDetails] = useState<boolean>(false);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(10); // You can make this adjustable if needed
+  const [pageSize] = useState(10);
 
   // No need to pass data to the table component as it fetches its own data
   const { isLoading, error } = useProcessedBatches(page, pageSize);
@@ -45,19 +46,20 @@ const AdminBatchInventoryPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader 
         title="Batch Inventory Management" 
         description="Comprehensive view of all processed batches across warehouses"
       />
       
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate('/admin/inventory')}
+          className="flex items-center gap-2"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" />
           Back to Inventory
         </Button>
         
