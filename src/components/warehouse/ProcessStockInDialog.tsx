@@ -16,7 +16,7 @@ import {
 import { useStockInBoxes, StockInData } from '@/hooks/useStockInBoxes';
 import { DefaultValuesForm } from '@/components/warehouse/DefaultValuesForm';
 import { BoxesTable } from '@/components/warehouse/BoxesTable';
-import { processStockIn } from '@/utils/stockInProcessor';
+import { processStockIn, StockInBox } from '@/utils/stockInProcessor';
 
 interface ProcessStockInDialogProps {
   open: boolean;
@@ -75,8 +75,8 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
     mutationFn: async (data: { stockInId: string; boxes: typeof boxesData }) => {
       if (!userId) throw new Error("User ID is required to process stock in");
       
-      // Transform BoxData to StockInBox by mapping the properties correctly
-      const transformedBoxes = data.boxes.map(box => ({
+      // Transform BoxData to StockInBox
+      const transformedBoxes: StockInBox[] = data.boxes.map(box => ({
         barcode: box.barcode,
         quantity: box.quantity,
         color: box.color,

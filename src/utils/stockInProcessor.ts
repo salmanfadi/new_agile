@@ -80,10 +80,11 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
   } catch (error) {
     console.error('Error processing stock in:', error);
     
-    // Try to mark the stock_in as failed - we need to update the type to include 'failed'
+    // Try to mark the stock_in as processing instead of failed
+    // since failed may not be an allowed status in the enum
     await supabase
       .from('stock_in')
-      .update({ status: 'processing' }) // Use an allowed status as fallback
+      .update({ status: 'processing' })
       .eq('id', stockInId);
       
     throw error;

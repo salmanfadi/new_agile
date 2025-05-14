@@ -75,38 +75,51 @@ export const useInventoryMovements = (filters: InventoryMovementFilters = {}) =>
       }
       
       // Map the data to our InventoryMovement interface
-      const movements: InventoryMovement[] = data?.map(item => ({
-        id: item.id,
-        product_id: item.product_id,
-        warehouse_id: item.warehouse_id,
-        location_id: item.location_id,
-        movement_type: item.movement_type,
-        quantity: item.quantity,
-        status: item.status,
-        reference_table: item.reference_table,
-        reference_id: item.reference_id,
-        performed_by: item.performed_by,
-        created_at: item.created_at,
-        details: typeof item.details === 'string' 
-          ? JSON.parse(item.details) 
-          : item.details || {},
-        product: item.products ? {
-          name: item.products.name,
-          sku: item.products.sku
-        } : undefined,
-        warehouse: item.warehouses ? {
-          name: item.warehouses.name,
-          location: item.warehouses.location
-        } : undefined,
-        location: item.warehouse_locations ? {
-          floor: item.warehouse_locations.floor,
-          zone: item.warehouse_locations.zone
-        } : undefined,
-        performer: item.profiles ? {
-          name: item.profiles.name,
-          username: item.profiles.username
-        } : undefined
-      })) || [];
+      const movements: InventoryMovement[] = data?.map(item => {
+        // Parse the details if it's a string and use supplied details or empty object as fallback
+        let parsedDetails;
+        if (typeof item.details === 'string') {
+          try {
+            parsedDetails = JSON.parse(item.details);
+          } catch (err) {
+            parsedDetails = {};
+            console.error('Error parsing details JSON:', err);
+          }
+        } else {
+          parsedDetails = item.details || {};
+        }
+
+        return {
+          id: item.id,
+          product_id: item.product_id,
+          warehouse_id: item.warehouse_id,
+          location_id: item.location_id,
+          movement_type: item.movement_type,
+          quantity: item.quantity,
+          status: item.status,
+          reference_table: item.reference_table,
+          reference_id: item.reference_id,
+          performed_by: item.performed_by,
+          created_at: item.created_at,
+          details: parsedDetails,
+          product: item.products ? {
+            name: item.products.name,
+            sku: item.products.sku
+          } : undefined,
+          warehouse: item.warehouses ? {
+            name: item.warehouses.name,
+            location: item.warehouses.location
+          } : undefined,
+          location: item.warehouse_locations ? {
+            floor: item.warehouse_locations.floor,
+            zone: item.warehouse_locations.zone
+          } : undefined,
+          performer: item.profiles ? {
+            name: item.profiles.name,
+            username: item.profiles.username
+          } : undefined
+        };
+      }) || [];
       
       return movements;
     } catch (error) {
