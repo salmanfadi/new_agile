@@ -1,3 +1,4 @@
+
 // Define interfaces for inventory movement system
 
 export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release' | 'transfer';
@@ -71,4 +72,14 @@ export interface InventoryMovementFilters {
   dateTo?: string;
   referenceId?: string;
   performedBy?: string;
+}
+
+// Define interface for barcode logs (for temporary storage/tracking of barcode scans)
+export interface BarcodeLog {
+  barcode: string;
+  user_id: string;
+  action: string;
+  event_type?: string;
+  timestamp?: string;
+  details?: Record<string, any>;
 }

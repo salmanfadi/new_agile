@@ -24,6 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { InventoryMovement } from '@/types/inventory';
 
 interface InventoryTableProps {
   inventoryItems: InventoryItem[];
@@ -45,7 +46,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [showItemHistory, setShowItemHistory] = useState(false);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
-  const [itemHistory, setItemHistory] = useState<any[]>([]);
+  const [itemHistory, setItemHistory] = useState<InventoryMovement[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   useEffect(() => {
@@ -106,7 +107,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   const fetchItemHistory = async (itemId: string) => {
     setIsHistoryLoading(true);
     try {
-      // Fetch barcode logs related to this inventory item
+      // Get the inventory item first to get the barcode
       const { data: inventoryItem } = await supabase
         .from('inventory')
         .select('barcode')
@@ -115,15 +116,16 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
 
       if (!inventoryItem) throw new Error("Item not found");
 
-      const { data: logs, error: logsError } = await supabase
-        .from('barcode_logs')
+      // Use inventory_movements with details containing barcode
+      const { data: movements, error: movementsError } = await supabase
+        .from('inventory_movements')
         .select('*')
-        .eq('barcode', inventoryItem.barcode)
-        .order('timestamp', { ascending: false });
+        .contains('details', { barcode: inventoryItem.barcode })
+        .order('created_at', { ascending: false });
 
-      if (logsError) throw logsError;
+      if (movementsError) throw movementsError;
 
-      setItemHistory(logs || []);
+      setItemHistory(movements || []);
     } catch (error) {
       console.error('Error fetching item history:', error);
       setItemHistory([]);
@@ -365,20 +367,20 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
           ) : itemHistory.length > 0 ? (
             <div className="space-y-4">
               <div className="max-h-[400px] overflow-y-auto pr-2">
-                {itemHistory.map((log, index) => (
+                {itemHistory.map((movement, index) => (
                   <div key={index} className="mb-3 border-b pb-3 last:border-b-0">
                     <div className="flex justify-between items-start">
                       <div className="font-medium">
-                        {log.action.replace(/_/g, ' ')}
+                        {movement.movement_type.replace(/_/g, ' ')}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {format(new Date(log.timestamp), 'MMM d, yyyy h:mm a')}
+                        {format(new Date(movement.created_at), 'MMM d, yyyy h:mm a')}
                       </div>
                     </div>
-                    {log.details && (
+                    {movement.details && (
                       <div className="mt-1 text-sm text-slate-600">
                         <pre className="font-mono text-xs bg-slate-50 p-2 rounded overflow-x-auto">
-                          {JSON.stringify(log.details, null, 2)}
+                          {JSON.stringify(movement.details, null, 2)}
                         </pre>
                       </div>
                     )}

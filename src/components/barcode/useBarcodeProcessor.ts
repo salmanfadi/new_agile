@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ScanResponse } from '@/types/auth';
 import { BarcodeProcessorOptions } from './types';
+import { BarcodeLog } from '@/types/inventory';
 
 export function useBarcodeProcessor({
   user,
@@ -44,17 +45,25 @@ export function useBarcodeProcessor({
       if (inventoryData && inventoryData.length > 0) {
         const item = inventoryData[0];
         
-        // Log the scan for tracking purposes
-        await supabase.from('barcode_logs').insert({
+        // Log the scan for tracking purposes using inventory_movements
+        const logDetails = { 
+          inventory_id: item.inventory_id,
+          product_name: item.product_name,
+          location: `${item.warehouse_name} - Floor ${item.floor} - Zone ${item.zone}`,
           barcode: scannedBarcode,
-          user_id: user?.id || 'anonymous',
-          action: 'direct-lookup',
-          event_type: 'scan',
-          details: { 
-            inventory_id: item.inventory_id,
-            product_name: item.product_name,
-            location: `${item.warehouse_name} - Floor ${item.floor} - Zone ${item.zone}`
-          }
+          event_type: 'scan'
+        };
+        
+        // Add an inventory movement record instead of using barcode_logs
+        await supabase.from('inventory_movements').insert({
+          product_id: item.inventory_id,
+          warehouse_id: item.warehouse_id || '',
+          location_id: item.location_id || '',
+          movement_type: 'adjustment', // Using adjustment for scanning/lookup operations
+          quantity: 0, // Zero quantity as this is just a scan, not actual movement
+          status: 'approved',
+          performed_by: user?.id || 'anonymous',
+          details: logDetails
         });
         
         // Format response for the UI
