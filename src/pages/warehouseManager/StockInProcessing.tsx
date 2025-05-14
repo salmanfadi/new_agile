@@ -68,7 +68,14 @@ const StockInProcessing: React.FC = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Fix: Check if status is an object with a 'status' property before accessing it
+        if (status && typeof status === 'object' && 'status' in status) {
+          console.log("Subscription status:", status.status);
+        } else {
+          console.log("Received subscription response:", status);
+        }
+      });
 
     // Clean up the subscription when component unmounts
     return () => {
