@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { StockIn, StockInDetail } from '@/types/stockIn';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { ProcessableStockIn } from '@/components/StockInDetails';
 
 interface Product {
   id: string;
@@ -19,7 +20,9 @@ interface Submitter {
   username: string;
 }
 
-interface StockInWithDetails extends StockIn {
+// Update interface to align with ProcessableStockIn
+export interface StockInWithDetails extends Omit<StockIn, 'boxes'> {
+  boxes: number; // Make boxes required to match ProcessableStockIn
   details: StockInDetail[];
   product?: Product;
   submitter?: Submitter;
@@ -102,7 +105,7 @@ export const useStockInProcessing = (stockInId?: string) => {
       created_at: stockIn.created_at,
       updated_at: stockIn.updated_at,
       product_id: stockIn.product_id,
-      boxes: stockIn.boxes,
+      boxes: stockIn.boxes || 0, // Ensure boxes is always provided with a default value
       source: stockIn.source,
       notes: stockIn.notes,
       submitted_by: stockIn.submitted_by,

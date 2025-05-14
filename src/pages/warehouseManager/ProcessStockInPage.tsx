@@ -31,12 +31,35 @@ const ProcessStockInPage: React.FC = () => {
     return <div className="p-4 text-red-500">Stock in not found</div>;
   }
 
+  // Convert StockInWithDetails to ProcessableStockIn for the component
+  const processableStockIn = {
+    id: currentStockIn.id,
+    boxes: currentStockIn.boxes,
+    status: currentStockIn.status,
+    created_at: currentStockIn.created_at || "",
+    source: currentStockIn.source,
+    notes: currentStockIn.notes,
+    product: currentStockIn.product || { 
+      id: currentStockIn.product_id,
+      name: "Unknown Product" 
+    },
+    submitter: currentStockIn.submitter || {
+      id: currentStockIn.submitted_by,
+      name: "Unknown User",
+      username: "unknown"
+    },
+    processed_by: currentStockIn.processed_by,
+    batch_id: undefined,
+    processing_started_at: undefined,
+    processing_completed_at: undefined
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-semibold mb-4">Process Stock In</h1>
       
       <StockInDetailView
-        stockIn={currentStockIn}
+        stockIn={processableStockIn}
         details={details}
         isLoading={stockInData.loading}
       />
