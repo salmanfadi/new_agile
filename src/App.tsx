@@ -39,9 +39,11 @@ import MySubmissions from '@/pages/fieldOperator/MySubmissions';
 import BarcodeLookup from '@/pages/fieldOperator/BarcodeLookup';
 import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
 import CustomerLogin from './pages/customer/CustomerLogin';
+import InventoryTransfers from './pages/warehouseManager/InventoryTransfers';
+import AdminInventoryTransfers from './pages/admin/InventoryTransfers';
 
 // Define routes
-const router = createBrowserRouter([
+const routes = [
   {
     path: "/",
     element: <PublicLayout><Outlet /></PublicLayout>,
@@ -179,18 +181,38 @@ const router = createBrowserRouter([
       {
         path: "manager/stock-in/process/:stockInId",
         element: <RequireAuth allowedRoles={['warehouse_manager']}><ProcessStockInPage /></RequireAuth>,
-      }
+      },
+      {
+        path: "/manager/transfers",
+        element: (
+          <RequireAuth allowedRoles={["admin", "warehouse_manager"]}>
+            <MainLayout>
+              <InventoryTransfers />
+            </MainLayout>
+          </RequireAuth>
+        ),
+      },
+      {
+        path: "/admin/transfers",
+        element: (
+          <RequireAuth allowedRoles={["admin"]}>
+            <MainLayout>
+              <AdminInventoryTransfers />
+            </MainLayout>
+          </RequireAuth>
+        ),
+      },
     ]
   },
   {
     path: "*",
     element: <Navigate to="/login" replace />
   }
-]);
+];
 
 function App() {
   return (
-    <RouterProvider router={router} />
+    <RouterProvider router={routes} />
   );
 }
 
