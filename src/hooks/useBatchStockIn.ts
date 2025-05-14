@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { BatchData, StockInBatchSubmission } from '@/types/batchStockIn';
 import { v4 as uuidv4 } from 'uuid';
 import { createInventoryMovement } from './useInventoryMovements';
@@ -104,6 +104,7 @@ export const useBatchStockIn = (userId: string = '') => {
           total_quantity: boxes.reduce((sum, box) => sum + box.quantity, 0),
           processed_at: new Date().toISOString(),
           product_id: boxes[0].product_id,
+          warehouse_id: boxes[0].warehouse_id // Add warehouse_id to processed_batches for filtering
         })
         .select()
         .single();
@@ -113,99 +114,111 @@ export const useBatchStockIn = (userId: string = '') => {
       const processed_batch_id = batchData.id;
       const barcodeErrors: any[] = [];
       
-      // Process each box as a batch item
+      // Process each box in sequence to maintain referential integrity
       for (const box of boxes) {
-        const { error } = await supabase
-          .from('batch_items')
-          .insert({
-            batch_id: processed_batch_id,
-            barcode: box.barcode,
-            quantity: box.quantity,
-            color: box.color,
-            size: box.size,
-            warehouse_id: box.warehouse_id,
-            location_id: box.location_id,
-            status: 'available'
-          });
+        try {
+          // 1. First create stock_in_detail record to satisfy the foreign key constraint
+          const { data: detailData, error: detailError } = await supabase
+            .from('stock_in_details')
+            .insert({
+              stock_in_id: stockInId,
+              warehouse_id: box.warehouse_id,
+              location_id: box.location_id,
+              barcode: box.barcode,
+              quantity: box.quantity,
+              color: box.color,
+              size: box.size,
+              product_id: box.product_id
+            })
+            .select()
+            .single();
+            
+          if (detailError) {
+            console.error('Error creating stock_in_details:', detailError);
+            barcodeErrors.push({
+              barcode: box.barcode,
+              error: detailError.message
+            });
+            continue; // Skip inventory creation if detail creation fails
+          }
           
-        if (error) {
-          console.error('Error creating batch item:', error);
+          // 2. Now create batch_item record
+          const { error: itemError } = await supabase
+            .from('batch_items')
+            .insert({
+              batch_id: processed_batch_id,
+              barcode: box.barcode,
+              quantity: box.quantity,
+              color: box.color,
+              size: box.size,
+              warehouse_id: box.warehouse_id,
+              location_id: box.location_id,
+              status: 'available'
+            });
+            
+          if (itemError) {
+            console.error('Error creating batch item:', itemError);
+            barcodeErrors.push({
+              barcode: box.barcode,
+              error: itemError.message
+            });
+          }
+          
+          // 3. Finally create inventory entry with the stock_in_detail_id to satisfy the FK constraint
+          const { error: inventoryError, data: inventoryData } = await supabase
+            .from('inventory')
+            .insert({
+              product_id: box.product_id,
+              warehouse_id: box.warehouse_id,
+              location_id: box.location_id,
+              quantity: box.quantity,
+              barcode: box.barcode,
+              color: box.color,
+              size: box.size,
+              batch_id: processed_batch_id,
+              stock_in_id: stockInId,
+              stock_in_detail_id: detailData.id, // Include the stock_in_detail_id to satisfy FK constraint
+              status: 'available'
+            })
+            .select()
+            .single();
+            
+          if (inventoryError) {
+            console.error('Error creating inventory entry:', inventoryError);
+            barcodeErrors.push({
+              barcode: box.barcode,
+              error: inventoryError.message
+            });
+          } else if (inventoryData) {
+            // 4. Create inventory movement record
+            await createInventoryMovement(
+              box.product_id,
+              box.warehouse_id,
+              box.location_id,
+              box.quantity,
+              'in',
+              'approved',
+              'stock_in',
+              stockInId,
+              userId || '',
+              { 
+                barcode: box.barcode, 
+                batch_id: processed_batch_id,
+                stock_in_detail_id: detailData.id 
+              }
+            );
+          }
+        } catch (boxError) {
+          console.error(`Error processing box with barcode ${box.barcode}:`, boxError);
           barcodeErrors.push({
             barcode: box.barcode,
-            error: error.message
+            error: boxError instanceof Error ? boxError.message : 'Unknown error'
           });
-        }
-        
-        // First, create stock_in_details record to avoid foreign key constraint violation
-        const { data: detailData, error: detailError } = await supabase
-          .from('stock_in_details')
-          .insert({
-            stock_in_id: stockInId,
-            warehouse_id: box.warehouse_id,
-            location_id: box.location_id,
-            barcode: box.barcode,
-            quantity: box.quantity,
-            color: box.color,
-            size: box.size,
-            product_id: box.product_id
-          })
-          .select()
-          .single();
-          
-        if (detailError) {
-          console.error('Error creating stock_in_details:', detailError);
-          barcodeErrors.push({
-            barcode: box.barcode,
-            error: detailError.message
-          });
-          continue; // Skip inventory creation if detail creation fails
-        }
-        
-        // Now create inventory entry with the stock_in_detail_id to satisfy the FK constraint
-        const { error: inventoryError, data: inventoryData } = await supabase
-          .from('inventory')
-          .insert({
-            product_id: box.product_id,
-            warehouse_id: box.warehouse_id,
-            location_id: box.location_id,
-            quantity: box.quantity,
-            barcode: box.barcode,
-            color: box.color,
-            size: box.size,
-            batch_id: processed_batch_id,
-            stock_in_id: stockInId,
-            stock_in_detail_id: detailData.id, // Include the stock_in_detail_id to satisfy FK constraint
-            status: 'available'
-          })
-          .select()
-          .single();
-          
-        if (inventoryError) {
-          console.error('Error creating inventory entry:', inventoryError);
-          barcodeErrors.push({
-            barcode: box.barcode,
-            error: inventoryError.message
-          });
-        } else if (inventoryData) {
-          // Create inventory movement record
-          await createInventoryMovement(
-            box.product_id,
-            box.warehouse_id,
-            box.location_id,
-            box.quantity,
-            'in',
-            'approved',
-            'stock_in',
-            stockInId,
-            userId || '',
-            { barcode: box.barcode, batch_id: processed_batch_id }
-          );
         }
       }
       
       // Update stock_in status to completed if this was from a stock_in request
       if (stockInId) {
-        // Cast status to movement_status to fix type mismatch error
         const { error: updateError } = await supabase
           .from('stock_in')
           .update({ 
@@ -277,7 +290,27 @@ export const useBatchStockIn = (userId: string = '') => {
         }
       }
       
-      const result = await processBatch(submission.stockInId || '', boxes, submission.submittedBy);
+      // Create stock_in record if not provided
+      let processingStockInId = submission.stockInId;
+      if (!processingStockInId) {
+        const { data: stockInData, error: stockInError } = await supabase
+          .from('stock_in')
+          .insert({
+            product_id: submission.productId,
+            source: submission.source || 'batch',
+            notes: submission.notes,
+            status: 'processing',
+            submitted_by: submission.submittedBy,
+            boxes: boxes.length
+          })
+          .select()
+          .single();
+          
+        if (stockInError) throw stockInError;
+        processingStockInId = stockInData.id;
+      }
+      
+      const result = await processBatch(processingStockInId, boxes, submission.submittedBy);
       
       if (result.success) {
         setIsSuccess(true);

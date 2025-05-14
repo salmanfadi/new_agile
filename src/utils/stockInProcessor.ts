@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { createInventoryMovement } from '@/hooks/useInventoryMovements';
 
 export interface StockInBox {
@@ -123,4 +123,3 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
     throw error;
   }
 };
-
