@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -14,27 +14,95 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
 import { RejectStockInDialog } from '@/components/warehouse/RejectStockInDialog';
+import { ProcessStockInDialog } from '@/components/warehouse/ProcessStockInDialog'; 
 import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const StockInProcessing: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
 
   // Fetch stock in requests with improved query to get submitter name
-  const { data: stockInRequests, isLoading, error } = useStockInRequests('pending');
+  const { 
+    data: stockInRequests, 
+    isLoading, 
+    error, 
+    refetch 
+  } = useStockInRequests('pending');
+
+  // Force refresh when component mounts
+  useEffect(() => {
+    console.log("StockInProcessing component mounted, refreshing data");
+    queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+  }, [queryClient]);
+
+  // Setup Supabase real-time subscription for completed batch processing
+  useEffect(() => {
+    console.log("Setting up batch processing status subscription");
+    
+    // Subscribe to stock-in status changes
+    const channel = supabase
+      .channel('stock-in-status-changes')
+      .on(
+        'postgres_changes', 
+        { event: '*', schema: 'public', table: 'stock_in' }, 
+        (payload) => {
+          console.log('Stock-in status changed:', payload);
+          
+          // Immediately refetch the data when stock-in status changes
+          queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+          
+          // Show toast notification for completed processing
+          if (payload.new && payload.new.status === 'completed') {
+            toast({
+              title: 'Stock In Completed',
+              description: 'A stock in request has been processed and completed',
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Clean up the subscription when component unmounts
+    return () => {
+      console.log("Cleaning up stock-in status subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Navigate to batch processing page with the stock in ID
   const handleProcess = (stockIn: StockInRequestData) => {
-    console.log("Processing stock in:", stockIn.id);
+    console.log("Navigating to batch processing for stock in:", stockIn.id);
     navigate(`/manager/stock-in/batch/${stockIn.id}`);
+  };
+
+  // Open dialog for immediate processing
+  const handleQuickProcess = (stockIn: StockInRequestData) => {
+    console.log("Opening quick process dialog for stock in:", stockIn.id);
+    setSelectedStockIn(stockIn);
+    setIsProcessDialogOpen(true);
   };
 
   const handleReject = (stockIn: StockInRequestData) => {
     setSelectedStockIn(stockIn);
     setIsRejectDialogOpen(true);
+  };
+  
+  const handleManualRefresh = () => {
+    console.log("Manual refresh requested");
+    toast({
+      title: "Refreshing data",
+      description: "Getting the latest stock in requests..."
+    });
+    queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+    refetch();
   };
 
   return (
@@ -54,6 +122,19 @@ const StockInProcessing: React.FC = () => {
         Back to Dashboard
       </Button>
       
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-medium">Pending Requests</h2>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleManualRefresh}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+      
       <Card>
         <CardHeader>
           <CardTitle>Stock In Requests</CardTitle>
@@ -69,8 +150,10 @@ const StockInProcessing: React.FC = () => {
               stockInRequests={stockInRequests || []}
               isLoading={isLoading}
               onProcess={handleProcess}
+              onQuickProcess={handleQuickProcess}
               onReject={handleReject}
               userId={user?.id}
+              onRefresh={handleManualRefresh}
             />
           )}
         </CardContent>
@@ -80,6 +163,14 @@ const StockInProcessing: React.FC = () => {
       <RejectStockInDialog
         open={isRejectDialogOpen}
         onOpenChange={setIsRejectDialogOpen}
+        selectedStockIn={selectedStockIn}
+        userId={user?.id}
+      />
+      
+      {/* Process Dialog for quick processing */}
+      <ProcessStockInDialog 
+        open={isProcessDialogOpen}
+        onOpenChange={setIsProcessDialogOpen}
         selectedStockIn={selectedStockIn}
         userId={user?.id}
       />
