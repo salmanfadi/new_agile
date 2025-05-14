@@ -119,15 +119,15 @@ const ProcessStockInPage: React.FC = () => {
           notes: data.notes,
           // Fix these properties - they're objects, not arrays
           product: {
-            id: data.product?.id,
-            name: data.product?.name,
-            sku: data.product?.sku,
-            category: data.product?.category
+            id: data.product?.id || '',
+            name: data.product?.name || '',
+            sku: data.product?.sku || undefined,
+            category: data.product?.category || undefined
           },
           submitter: {
-            id: data.submitter?.id,
-            name: data.submitter?.name,
-            username: data.submitter?.username
+            id: data.submitter?.id || '',
+            name: data.submitter?.name || '',
+            username: data.submitter?.username || ''
           }
         };
 
