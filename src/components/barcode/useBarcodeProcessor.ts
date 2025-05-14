@@ -57,9 +57,9 @@ export function useBarcodeProcessor({
         // Add an inventory movement record instead of using barcode_logs
         await supabase.from('inventory_movements').insert({
           product_id: item.inventory_id,
-          // We need to get warehouse and location IDs differently since they're not in the returned structure
-          warehouse_id: '', // This will be populated through a separate query or passed in
-          location_id: '', // This will be populated through a separate query or passed in
+          // We need to fetch the warehouse and location IDs from the inventory item
+          warehouse_id: await getWarehouseId(item.warehouse_name),
+          location_id: await getLocationId(item.floor, item.zone),
           movement_type: 'adjustment', // Using adjustment for scanning/lookup operations
           quantity: 0, // Zero quantity as this is just a scan, not actual movement
           status: 'approved',
@@ -153,6 +153,39 @@ export function useBarcodeProcessor({
       setLoading(false);
     }
   }, [user, toast, onScanComplete, onBarcodeScanned]);
+
+  // Helper function to get warehouse ID from warehouse name
+  const getWarehouseId = async (warehouseName: string): Promise<string> => {
+    const { data, error } = await supabase
+      .from('warehouses')
+      .select('id')
+      .eq('name', warehouseName)
+      .single();
+    
+    if (error || !data) {
+      console.error('Error getting warehouse ID:', error);
+      return '';
+    }
+    
+    return data.id;
+  };
+  
+  // Helper function to get location ID from floor and zone
+  const getLocationId = async (floor: number, zone: string): Promise<string> => {
+    const { data, error } = await supabase
+      .from('warehouse_locations')
+      .select('id')
+      .eq('floor', floor)
+      .eq('zone', zone)
+      .single();
+    
+    if (error || !data) {
+      console.error('Error getting location ID:', error);
+      return '';
+    }
+    
+    return data.id;
+  };
 
   return {
     processScan,
