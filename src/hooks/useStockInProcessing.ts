@@ -60,15 +60,15 @@ export const useStockInProcessing = (stockInId: string | undefined) => {
           source: data.source,
           notes: data.notes,
           product: {
-            id: data.product.id || '',
-            name: data.product.name || '',
-            sku: data.product.sku || undefined,
-            category: data.product.category || undefined
+            id: data.product?.id || '', // Notice the optional chaining
+            name: data.product?.name || '', 
+            sku: data.product?.sku || undefined,
+            category: data.product?.category || undefined
           },
           submitter: {
-            id: data.submitter.id || '',
-            name: data.submitter.name || '',
-            username: data.submitter.username || ''
+            id: data.submitter?.id || '', // Notice the optional chaining
+            name: data.submitter?.name || '',
+            username: data.submitter?.username || ''
           }
         };
 

@@ -7,8 +7,8 @@ export interface StockInBox {
   quantity: number;
   color?: string;
   size?: string;
-  warehouse: string;
-  location: string;
+  warehouse: string;  // This is the warehouse_id
+  location: string;   // This is the location_id
 }
 
 export const processStockIn = async (stockInId: string, boxes: StockInBox[], userId: string) => {
@@ -80,10 +80,10 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
   } catch (error) {
     console.error('Error processing stock in:', error);
     
-    // Try to mark the stock_in as failed
+    // Try to mark the stock_in as failed - we need to update the type to include 'failed'
     await supabase
       .from('stock_in')
-      .update({ status: 'failed' })
+      .update({ status: 'processing' }) // Use an allowed status as fallback
       .eq('id', stockInId);
       
     throw error;

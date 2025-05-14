@@ -8,20 +8,22 @@ export interface BoxData {
   quantity: number;
   color: string;
   size: string;
-  warehouse_id: string;
-  location_id: string;
+  warehouse: string;   // Changed from warehouse_id to warehouse to match StockInBox
+  location: string;    // Changed from location_id to location to match StockInBox
+  warehouse_id: string; // Keep for backward compatibility
+  location_id: string;  // Keep for backward compatibility
 }
 
 export interface StockInData {
   id: string;
-  product?: { name: string; id?: string; sku?: string; }; // Made product optional to match useStockInData
+  product?: { name: string; id?: string; sku?: string; }; 
   submitter: { 
     name: string; 
     username: string;
     id: string;
   } | null;
   boxes: number;
-  status: "pending" | "approved" | "rejected" | "completed" | "processing";
+  status: "pending" | "approved" | "rejected" | "completed" | "processing" | "failed";
   created_at: string;
   source: string;
   notes?: string;
@@ -57,7 +59,9 @@ export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boole
         color: '',
         size: '',
         warehouse_id: '',
-        location_id: ''
+        location_id: '',
+        warehouse: '',  // Add this property to match StockInBox
+        location: ''    // Add this property to match StockInBox
       }));
       
       setBoxesData(initialBoxes);
@@ -76,7 +80,10 @@ export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boole
     const updatedBoxes = [...boxesData];
     updatedBoxes[index] = {
       ...updatedBoxes[index],
-      [field]: value
+      [field]: value,
+      // Update the corresponding field based on the field that was updated
+      ...(field === 'warehouse_id' ? { warehouse: value as string } : {}),
+      ...(field === 'location_id' ? { location: value as string } : {})
     };
     setBoxesData(updatedBoxes);
   };
@@ -97,6 +104,8 @@ export const useStockInBoxes = (selectedStockIn: StockInData | null, open: boole
       ...box,
       warehouse_id: defaultValues.warehouse,
       location_id: defaultValues.location,
+      warehouse: defaultValues.warehouse,  // Also set the warehouse property
+      location: defaultValues.location,    // Also set the location property 
       color: defaultValues.color || box.color, // Preserve existing value if default is empty
       size: defaultValues.size || box.size,    // Preserve existing value if default is empty
       quantity: defaultValues.quantity > 0 ? defaultValues.quantity : box.quantity

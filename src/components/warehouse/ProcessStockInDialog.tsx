@@ -74,7 +74,18 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
   const processStockInMutation = useMutation({
     mutationFn: async (data: { stockInId: string; boxes: typeof boxesData }) => {
       if (!userId) throw new Error("User ID is required to process stock in");
-      return processStockIn(data.stockInId, data.boxes, userId);
+      
+      // Transform BoxData to StockInBox by mapping the properties correctly
+      const transformedBoxes = data.boxes.map(box => ({
+        barcode: box.barcode,
+        quantity: box.quantity,
+        color: box.color,
+        size: box.size,
+        warehouse: box.warehouse_id, // Use warehouse_id as warehouse
+        location: box.location_id    // Use location_id as location
+      }));
+      
+      return processStockIn(data.stockInId, transformedBoxes, userId);
     },
     onSuccess: () => {
       onOpenChange(false);

@@ -17,12 +17,12 @@ export interface InventoryMovement {
   performed_by: string;
   created_at: string;
   details?: {
+    [key: string]: any;
     barcode?: string;
     color?: string;
     size?: string;
     source?: string;
     notes?: string;
-    [key: string]: any;
   };
   
   // Join fields

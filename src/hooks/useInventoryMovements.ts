@@ -87,7 +87,9 @@ export const useInventoryMovements = (filters: InventoryMovementFilters = {}) =>
         reference_id: item.reference_id,
         performed_by: item.performed_by,
         created_at: item.created_at,
-        details: item.details,
+        details: typeof item.details === 'string' 
+          ? JSON.parse(item.details) 
+          : item.details || {},
         product: item.products ? {
           name: item.products.name,
           sku: item.products.sku
