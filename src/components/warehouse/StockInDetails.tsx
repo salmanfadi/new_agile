@@ -1,60 +1,82 @@
 
 import React from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { StockIn, StockInDetail } from '@/types/stockIn';
 import { StockInData } from '@/hooks/useStockInBoxes';
-import { Badge } from '@/components/ui/badge';
-import { AtSign, User } from 'lucide-react';
+import { StockInDetailItem } from './StockInDetailItem';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { StockInProcessingStatus } from './StockInProcessingStatus';
 
-interface StockInDetailsProps {
+export interface StockInDetailsProps {
   stockInData: StockInData;
+  stockIn: StockIn;
+  details: StockInDetail[];
 }
 
-export const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData }) => {
+export const StockInDetails: React.FC<StockInDetailsProps> = ({
+  stockInData,
+  stockIn,
+  details
+}) => {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Stock In Details</CardTitle>
-        <CardDescription>Review the details of this stock in request</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2">
-          <div className="font-medium">Product: {stockInData.product?.name}</div>
-          <div className="text-sm text-gray-500">Total Boxes: {stockInData.boxes}</div>
-          
-          <div className="text-sm">
-            <span className="font-medium">User:</span>
-            {stockInData.submitter ? (
-              <div className="ml-2 mt-1 p-2 bg-slate-50 rounded-md border border-slate-100">
-                <div className="font-medium flex items-center">
-                  <User className="h-4 w-4 mr-1 text-slate-500" />
-                  {stockInData.submitter.name}
-                </div>
-                <div className="text-sm text-blue-600 flex items-center mt-1">
-                  <AtSign className="h-3 w-3 mr-1" />
-                  {stockInData.submitter.username}
-                </div>
+    <div className="space-y-6">
+      {/* Stock In Request Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Stock In Request Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm font-medium">Product</p>
+              <p>{stockInData.product.name}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Requested Boxes</p>
+              <p>{stockInData.boxes}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Source</p>
+              <p>{stockInData.source}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Status</p>
+              <p>{stockInData.status}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Submitter</p>
+              <p>{stockInData.submitter.name}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Created At</p>
+              <p>{new Date(stockInData.created_at).toLocaleString()}</p>
+            </div>
+            {stockInData.notes && (
+              <div className="col-span-2">
+                <p className="text-sm font-medium">Notes</p>
+                <p>{stockInData.notes}</p>
               </div>
-            ) : (
-              <span className="ml-2 text-amber-500">Unknown</span>
             )}
           </div>
-          
-          <div className="text-sm text-gray-500">
-            Source: {stockInData.source}
+        </CardContent>
+      </Card>
+
+      {/* Processing Status */}
+      <StockInProcessingStatus stockIn={stockIn} details={details} />
+
+      {/* Stock In Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Stock In Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4">
+            {details.map((detail) => (
+              <StockInDetailItem key={detail.id} detail={detail} />
+            ))}
           </div>
-          {stockInData.notes && (
-            <div className="text-sm text-gray-500">
-              Notes: {stockInData.notes}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

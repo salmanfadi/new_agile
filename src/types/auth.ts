@@ -1,60 +1,59 @@
-export type UserRole = 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator' | 'customer';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
-export interface AuthUser {
+export interface User extends SupabaseUser {
   id: string;
   email?: string;
-  role?: UserRole;
   name?: string;
+  role?: string;
+  avatar_url?: string;
   username?: string;
   active?: boolean;
 }
 
-export interface AuthState {
-  user: AuthUser | null;
-  isAuthenticated: boolean;
+export interface AuthContextType {
+  session: Session | null;
+  user: User | null;
   isLoading: boolean;
-  error: string | null;
-}
-
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
-
-export interface RegistrationData {
-  email: string;
-  password: string;
-  username?: string;
-  name?: string;
-  role?: UserRole;
-}
-
-export interface RequireAuthProps {
-  allowedRoles?: string[];
-  children: React.ReactNode;
+  signIn: (
+    provider: 'google' | 'github' | 'email',
+    email?: string,
+    password?: string
+  ) => Promise<void>;
+  signUp: (email: string, password?: string) => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (data: any) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  verifyOTP: (email: string, token: string, type: 'email' | 'magiclink') => Promise<any>;
 }
 
 export interface ScanResponse {
-  id?: string;
-  barcode: string;
-  product?: {
-    id: string;
-    name: string;
-    description?: string;
-    specifications?: string;
-    sku?: string;
-    category?: string;
-    image_url?: string;
+  status: 'success' | 'error';
+  data?: {
+    box_id: string;
+    product: {
+      id: string;
+      name: string;
+      sku?: string;
+      description?: string;
+    };
+    box_quantity: number;
+    total_product_quantity?: number;
+    location: {
+      warehouse: string;
+      zone: string;
+      position: string;
+    };
+    status: string;
+    attributes?: {
+      color?: string;
+      size?: string;
+      batch_id?: string;
+      [key: string]: any;
+    };
+    history?: Array<{
+      action: string;
+      timestamp: string;
+    }>;
   };
-  inventory?: {
-    id: string;
-    quantity: number;
-    warehouse_id: string;
-    location_id?: string;
-    color?: string;
-    size?: string;
-  };
-  timestamp?: string;
-  status?: 'success' | 'error' | 'not_found';
-  message?: string;
+  error?: string;
 }

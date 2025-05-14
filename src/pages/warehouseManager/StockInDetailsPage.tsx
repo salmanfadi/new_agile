@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { StockInDetails } from '@/components/warehouse/StockInDetails';
 import { supabase } from '@/integrations/supabase/client';
-import { StockIn, StockInDetail } from '@/types/stockIn';
+import { StockIn, StockInDetail, StockInStatus } from '@/types/stockIn';
 import { StockInData } from '@/hooks/useStockInBoxes';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -36,7 +37,23 @@ export const StockInDetailsPage: React.FC = () => {
         if (stockInError) throw stockInError;
         if (!stockInData) throw new Error('Stock in not found');
 
-        setStockIn(stockInData);
+        // Create StockIn object with properly typed status
+        const typedStockIn: StockIn = {
+          id: stockInData.id,
+          product_id: stockInData.product_id,
+          source: stockInData.source,
+          notes: stockInData.notes || '',
+          status: stockInData.status as StockInStatus,
+          submitted_by: stockInData.submitted_by,
+          processed_by: stockInData.processed_by,
+          batch_id: stockInData.batch_id,
+          processing_started_at: stockInData.processing_started_at,
+          processing_completed_at: stockInData.processing_completed_at,
+          created_at: stockInData.created_at,
+          updated_at: stockInData.updated_at
+        };
+        
+        setStockIn(typedStockIn);
 
         // Fetch stock in details
         const { data: detailsData, error: detailsError } = await supabase
@@ -119,4 +136,4 @@ export const StockInDetailsPage: React.FC = () => {
       />
     </div>
   );
-}; 
+};

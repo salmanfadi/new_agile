@@ -1,6 +1,6 @@
 import { Product, Profile } from './database';
 
-export type StockInStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type StockInStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'approved' | 'rejected';
 export type StockInDetailStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type InventoryStatus = 'available' | 'reserved' | 'sold' | 'damaged';
 
@@ -20,6 +20,7 @@ export interface StockInDetail {
   processed_at?: string;
   created_at?: string;
   updated_at?: string;
+  error_message?: string;
 }
 
 export interface Inventory {
@@ -70,4 +71,4 @@ export interface StockInData {
   submitter: Profile;
   status: StockInStatus;
   created_at: string;
-} 
+}

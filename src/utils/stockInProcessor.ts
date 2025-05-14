@@ -165,24 +165,29 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
           throw inventoryUpdateError;
         }
         
-        // Create stock movement audit entry
-        const { error: auditError } = await supabase
-          .from('stock_movement_audit')
-          .insert({
-            inventory_id: detailId,
-            movement_type: 'stock_in',
-            quantity: box.quantity,
-            previous_quantity: currentQuantity,
-            new_quantity: newQuantity,
-            performed_by: userId,
-            reference_id: batchId,
-            reference_type: 'batch',
-            notes: `Batch stock in: ${batchId}`
-          });
-        
-        if (auditError) {
-          console.error('Error creating audit entry:', auditError);
-          // Don't throw, just log the error
+        // Create stock movement audit entry - Check if table exists first
+        try {
+          const { error: auditError } = await supabase
+            .from('stock_audit_log')  // Changed from stock_movement_audit to stock_audit_log
+            .insert({
+              inventory_id: detailId,
+              movement_type: 'stock_in',
+              quantity: box.quantity,
+              previous_quantity: currentQuantity,
+              new_quantity: newQuantity,
+              performed_by: userId,
+              reference_id: batchId,
+              reference_type: 'batch',
+              notes: `Batch stock in: ${batchId}`
+            });
+          
+          if (auditError) {
+            // Don't throw, just log the error
+            console.error('Error creating audit entry:', auditError);
+          }
+        } catch (auditError) {
+          console.warn('Audit logging failed, continuing process:', auditError);
+          // Continue execution, don't block on audit failure
         }
         
         // Create barcode log entry
