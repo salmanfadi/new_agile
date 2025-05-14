@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useAuth } from '@/context/AuthContext';
-import { useBatchStockIn, BatchType } from '@/hooks/useBatchStockIn'; // Import BatchType from useBatchStockIn
+import { useBatchStockIn, BatchType } from '@/hooks/useBatchStockIn'; 
 import { BatchForm } from '@/components/warehouse/BatchForm';
 import { useStockInData } from '@/hooks/useStockInData';
 import { toast } from '@/hooks/use-toast';
@@ -207,13 +206,21 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     }
     
     console.log("Submitting with product ID:", productId);
+    
+    // Ensure each batch has the required properties
+    const processedBatches = batches.map(batch => ({
+      ...batch,
+      quantity_per_box: batch.quantity_per_box || 1, // Default to 1 if not specified
+      created_by: user.id // Ensure created_by is set
+    }));
+    
     submitStockIn({
       stockInId: stockInId,
       productId,
       source,
       notes,
       submittedBy: user.id,
-      batches: batches as BatchType[] // Explicitly cast batches to BatchType[]
+      batches: processedBatches
     });
   };
 
@@ -274,7 +281,11 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
             
             <div className="space-y-4">
               <BatchList 
-                batches={batches as BatchType[]} // Explicitly cast to BatchType[]
+                batches={processedBatches || batches.map(batch => ({
+                  ...batch,
+                  quantity_per_box: batch.quantity_per_box || 1,
+                  created_by: user?.id || ''
+                }))}
                 editBatch={editBatch}
                 deleteBatch={deleteBatch}
                 handleBatchSubmission={handleBatchSubmission}

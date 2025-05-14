@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
@@ -100,9 +99,6 @@ const fetchProcessedBatches = async (
         products:product_id (
           name,
           sku
-        ),
-        submitter:submitted_by (
-          name
         ),
         processor:processed_by (
           name

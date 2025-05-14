@@ -13,8 +13,8 @@ export interface BatchType {
   color?: string;
   size?: string;
   barcode?: string;
-  quantity_per_box?: number;
-  created_by?: string;
+  quantity_per_box: number; // Changed from optional to required
+  created_by: string; // Changed from optional to required
 }
 
 export const useBatchStockIn = (userId: string = '') => {
