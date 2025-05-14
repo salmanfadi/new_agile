@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session } from '@supabase/supabase-js';
@@ -100,7 +101,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (session?.user) {
         setIsAuthenticated(true);
         try {
-          // Fetch the user role from profiles table - remove avatar_url from select
+          // Fetch the user role from profiles table
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('role, name, username, active')

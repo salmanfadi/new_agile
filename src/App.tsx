@@ -72,9 +72,7 @@ const router = createBrowserRouter([
     path: "/",
     element: (
       <RequireAuth>
-        <MainLayout>
-          <Outlet />
-        </MainLayout>
+        <MainLayout />
       </RequireAuth>
     ),
     children: [
