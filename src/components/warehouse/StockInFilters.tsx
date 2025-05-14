@@ -3,9 +3,9 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import { Search, X } from 'lucide-react';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 
 interface StockInFiltersProps {
   onFilterChange: (filters: Record<string, any>) => void;
@@ -19,7 +19,8 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
   defaultStatus 
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [status, setStatus] = useState<string>(defaultStatus || '');
+  const [status, setStatus] = useState<string>(defaultStatus || 'all');
+  const [source, setSource] = useState<string>('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   
   const handleSearch = () => {
@@ -29,16 +30,18 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
       filters.searchTerm = searchTerm;
     }
     
-    if (status && showStatus) {
+    if (status && status !== 'all' && showStatus) {
       filters.status = status;
-    } else if (defaultStatus && !showStatus) {
-      filters.status = defaultStatus;
+    }
+    
+    if (source) {
+      filters.source = source;
     }
     
     if (dateRange?.from) {
-      filters.fromDate = dateRange.from;
+      filters.date_from = dateRange.from.toISOString();
       if (dateRange.to) {
-        filters.toDate = dateRange.to;
+        filters.date_to = dateRange.to.toISOString();
       }
     }
     
@@ -47,17 +50,10 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
   
   const handleClear = () => {
     setSearchTerm('');
-    if (showStatus) {
-      setStatus('');
-    }
+    setStatus(defaultStatus || 'all');
+    setSource('');
     setDateRange(undefined);
-    
-    const filters: Record<string, any> = {};
-    if (defaultStatus && !showStatus) {
-      filters.status = defaultStatus;
-    }
-    
-    onFilterChange(filters);
+    onFilterChange({});
   };
   
   return (
@@ -65,7 +61,7 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
       <div className="flex flex-wrap gap-4">
         <div className="flex-1 min-w-[200px]">
           <Input
-            placeholder="Search by ID, product, source..."
+            placeholder="Search by ID or product..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -75,10 +71,10 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
           <div className="w-[200px]">
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="processing">Processing</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
@@ -87,6 +83,14 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
             </Select>
           </div>
         )}
+        
+        <div className="w-[200px]">
+          <Input
+            placeholder="Source..."
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+          />
+        </div>
         
         <div className="w-[300px]">
           <DatePickerWithRange
@@ -109,3 +113,5 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
     </div>
   );
 };
+
+export default StockInFilters;

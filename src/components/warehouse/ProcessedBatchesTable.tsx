@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Eye, Printer } from 'lucide-react';
 import { format } from 'date-fns';
-import { ProcessedBatchType } from '@/hooks/useProcessedBatches';
 import { useProcessedBatches } from '@/hooks/useProcessedBatches';
 
 export interface ProcessedBatchesTableProps {
@@ -91,7 +90,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.data.map((batch: ProcessedBatchType) => (
+          {data.data.map((batch) => (
             <TableRow key={batch.id}>
               <TableCell className="font-medium">{batch.id.slice(0, 8)}</TableCell>
               <TableCell>

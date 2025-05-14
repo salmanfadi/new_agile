@@ -73,11 +73,8 @@ const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     const formattedSku = selectedProduct.sku || selectedProduct.name.substring(0, 6).toUpperCase().replace(/\s+/g, '');
     const category = selectedProduct.category || 'MISC';
     
-    const newBarcode = generateBarcodeString(
-      category,
-      formattedSku,
-      boxNumber
-    );
+    // Fix: Using the function with the correct number of arguments
+    const newBarcode = generateBarcodeString(category, formattedSku, boxNumber);
     
     setBarcode(newBarcode);
     if (onGenerateBarcode) {

@@ -30,7 +30,7 @@ export const BatchDetailsDialog: React.FC<BatchDetailsDialogProps> = ({
   onPrintBarcodes,
 }) => {
   const isMobile = useIsMobile();
-  const { data: batchItems, isLoading } = useBatchItems(batchId);
+  const { data: batchItems, isLoading } = useBatchItems(batchId || undefined);
 
   if (!batchId) {
     return null;
@@ -128,3 +128,5 @@ export const BatchDetailsDialog: React.FC<BatchDetailsDialogProps> = ({
     </Dialog>
   );
 };
+
+export default BatchDetailsDialog;

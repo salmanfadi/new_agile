@@ -14,17 +14,15 @@ import {
 } from "@/components/ui/popover";
 
 interface DatePickerWithRangeProps {
+  className?: string;
   date: DateRange | undefined;
   onDateChange: (date: DateRange | undefined) => void;
-  className?: string;
-  align?: "center" | "start" | "end";
 }
 
 export function DatePickerWithRange({
+  className,
   date,
   onDateChange,
-  className,
-  align = "start",
 }: DatePickerWithRangeProps) {
   return (
     <div className={cn("grid gap-2", className)}>
@@ -53,7 +51,7 @@ export function DatePickerWithRange({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align={align}>
+        <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             initialFocus
             mode="range"

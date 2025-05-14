@@ -145,3 +145,5 @@ export const ProcessedBatchesFilters: React.FC<ProcessedBatchesFiltersProps> = (
     </div>
   );
 };
+
+export default ProcessedBatchesFilters;

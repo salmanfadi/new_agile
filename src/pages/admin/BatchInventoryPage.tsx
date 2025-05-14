@@ -23,7 +23,8 @@ const AdminBatchInventoryPage: React.FC = () => {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [showBatchDetails, setShowBatchDetails] = useState<boolean>(false);
 
-  const { data: batches, isLoading, error } = useProcessedBatches();
+  // No need to pass data to the table component as it fetches its own data
+  const { isLoading, error } = useProcessedBatches();
 
   const handleRefresh = () => {
     toast({
@@ -82,8 +83,7 @@ const AdminBatchInventoryPage: React.FC = () => {
             </div>
           ) : (
             <ProcessedBatchesTable 
-              batches={batches || []}
-              isLoading={isLoading}
+              filters={{}}
               onViewDetails={handleViewDetails}
               onPrintBarcodes={handlePrintBarcodes}
             />

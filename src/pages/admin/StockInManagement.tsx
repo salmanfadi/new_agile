@@ -27,7 +27,10 @@ const AdminStockInManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Fetch stock in requests with filter using the shared hook
-  const { data: stockInRequests, isLoading, error } = useStockInRequests(statusFilter);
+  // Fix: Passing the filter as an object 
+  const { data: stockInRequests, isLoading, error } = useStockInRequests({
+    status: statusFilter !== "all" ? statusFilter : undefined
+  });
 
   // Navigate to batch processing page with the stock in ID
   const handleProcess = (stockIn: StockInRequestData) => {
@@ -91,7 +94,8 @@ const AdminStockInManagement: React.FC = () => {
             </div>
           ) : (
             <StockInRequestsTable 
-              stockInRequests={stockInRequests || []}
+              status={statusFilter !== "all" ? statusFilter : undefined}
+              filters={{}}
               isLoading={isLoading}
               onProcess={handleProcess}
               onReject={handleReject}

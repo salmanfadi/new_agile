@@ -32,7 +32,7 @@ const AdminBarcodeInventoryPage: React.FC = () => {
   const { 
     data: batchItems, 
     isLoading: isLoadingItems 
-  } = useBatchItems(batchId || null);
+  } = useBatchItems(batchId || undefined);
 
   // Reset selected barcodes when batch changes
   useEffect(() => {
@@ -78,7 +78,7 @@ const AdminBarcodeInventoryPage: React.FC = () => {
   return (
     <div className="space-y-6 p-6">
       <PageHeader 
-        title={`Batch Barcodes: ${batchDetails?.product.name || 'Loading...'}`}
+        title={`Batch Barcodes: ${batchDetails?.product?.name || 'Loading...'}`}
         description={`View and print barcodes for batch ${batchId?.slice(0, 8) || ''}`}
       />
       

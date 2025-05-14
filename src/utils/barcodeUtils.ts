@@ -3,12 +3,26 @@ import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Generates a unique barcode string
- * @param prefix Optional prefix for the barcode
+ * @param category Optional category prefix
+ * @param sku Optional SKU prefix
+ * @param boxNumber Optional box number
  * @returns A unique barcode string
  */
-export const generateBarcodeString = (prefix?: string): string => {
-  const uuid = uuidv4();
-  return prefix ? `${prefix}-${uuid}` : uuid;
+export const generateBarcodeString = (
+  category?: string,
+  sku?: string,
+  boxNumber?: number
+): string => {
+  const uuid = uuidv4().substring(0, 8);
+  const parts = [];
+  
+  if (category) parts.push(category.toUpperCase());
+  if (sku) parts.push(sku.toUpperCase());
+  if (boxNumber) parts.push(boxNumber.toString().padStart(3, '0'));
+  
+  parts.push(uuid);
+  
+  return parts.join('-');
 };
 
 /**
