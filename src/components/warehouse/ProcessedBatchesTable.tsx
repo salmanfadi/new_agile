@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Eye, Printer } from 'lucide-react';
 import { format } from 'date-fns';
-import { useProcessedBatches } from '@/hooks/useProcessedBatches';
+import { useProcessedBatches, ProcessedBatchType } from '@/hooks/useProcessedBatches';
 
 export interface ProcessedBatchesTableProps {
   filters?: Record<string, any>;

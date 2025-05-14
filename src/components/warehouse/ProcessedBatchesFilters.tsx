@@ -95,7 +95,7 @@ export const ProcessedBatchesFilters: React.FC<ProcessedBatchesFiltersProps> = (
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Warehouses</SelectItem>
-              {warehouses.map((warehouse) => (
+              {warehouses.map((warehouse: Warehouse) => (
                 <SelectItem key={warehouse.id} value={warehouse.id}>
                   {warehouse.name}
                 </SelectItem>
@@ -115,7 +115,7 @@ export const ProcessedBatchesFilters: React.FC<ProcessedBatchesFiltersProps> = (
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Locations</SelectItem>
-              {filteredLocations.map((location) => (
+              {filteredLocations.map((location: Location) => (
                 <SelectItem key={location.id} value={location.id}>
                   Floor {location.floor}, Zone {location.zone}
                 </SelectItem>

@@ -90,13 +90,12 @@ const fetchProcessedBatches = async (
         product_id,
         submitted_by,
         processed_by,
-        boxes,
+        total_boxes,
         status,
         source,
         notes,
         processed_at,
         total_quantity,
-        total_boxes,
         warehouse_id,
         products:product_id (
           name,
@@ -147,9 +146,9 @@ const fetchProcessedBatches = async (
       return {
         id: item.id,
         product_id: item.product_id,
-        submitted_by: item.submitted_by,
-        processed_by: item.processed_by,
-        boxes: item.boxes || item.total_boxes,
+        submitted_by: item.submitted_by || '',
+        processed_by: item.processed_by || '',
+        boxes: item.total_boxes || 0,
         status: item.status,
         source: item.source,
         notes: item.notes,
@@ -159,7 +158,7 @@ const fetchProcessedBatches = async (
         product_sku: item.products?.sku || '',
         submitter_name: item.submitter?.name || 'Unknown Submitter',
         processor_name: item.processor?.name || 'Unknown Processor',
-        total_quantity: item.total_quantity,
+        total_quantity: item.total_quantity || 0,
         warehouse_id: item.warehouse_id,
       };
     });
@@ -185,7 +184,6 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
         id,
         product_id,
         processed_by,
-        boxes,
         total_boxes,
         status,
         source,
@@ -232,7 +230,7 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
         sku: data.products?.sku || ''
       },
       processed_by: data.processor?.name || 'Unknown',
-      total_boxes: data.total_boxes || data.boxes,
+      total_boxes: data.total_boxes || 0,
       status: data.status,
       source: data.source,
       notes: data.notes,

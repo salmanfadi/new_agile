@@ -24,6 +24,7 @@ interface StockInRequestsTableProps {
   onQuickProcess?: (stockIn: StockInRequestData) => void;
   onReject?: (stockIn: StockInRequestData) => void;
   onRefresh?: () => void;
+  userId?: string;
 }
 
 export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
@@ -33,10 +34,11 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   onQuickProcess,
   onReject,
   onRefresh,
+  userId,
 }) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const userId = user?.id;
+  const currentUserId = userId || user?.id;
   
   // Merge status into filters
   const allFilters = { ...filters, status };

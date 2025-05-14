@@ -23,7 +23,7 @@ const BatchInventoryPage: React.FC = () => {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [showBatchDetails, setShowBatchDetails] = useState<boolean>(false);
 
-  const { data: batches, isLoading, error } = useProcessedBatches();
+  const { isLoading, error } = useProcessedBatches();
 
   const handleRefresh = () => {
     toast({
@@ -45,8 +45,8 @@ const BatchInventoryPage: React.FC = () => {
   return (
     <div className="space-y-6 p-6">
       <PageHeader 
-        title="Batch Inventory" 
-        description="Track processed batches and manage inventory by batch"
+        title="Batch Inventory Management" 
+        description="View all processed batches and their inventory items"
       />
       
       <div className="flex justify-between items-center">
@@ -82,8 +82,7 @@ const BatchInventoryPage: React.FC = () => {
             </div>
           ) : (
             <ProcessedBatchesTable 
-              batches={batches || []}
-              isLoading={isLoading}
+              filters={{}}
               onViewDetails={handleViewDetails}
               onPrintBarcodes={handlePrintBarcodes}
             />

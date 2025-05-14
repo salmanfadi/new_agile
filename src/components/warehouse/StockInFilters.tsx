@@ -2,10 +2,16 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DateRange } from 'react-day-picker';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Search, X } from 'lucide-react';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
 
 interface StockInFiltersProps {
   onFilterChange: (filters: Record<string, any>) => void;
@@ -13,14 +19,13 @@ interface StockInFiltersProps {
   defaultStatus?: string;
 }
 
-export const StockInFilters: React.FC<StockInFiltersProps> = ({ 
-  onFilterChange, 
+export const StockInFilters: React.FC<StockInFiltersProps> = ({
+  onFilterChange,
   showStatus = true,
-  defaultStatus 
+  defaultStatus = 'pending',
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [status, setStatus] = useState<string>(defaultStatus || 'all');
-  const [source, setSource] = useState<string>('');
+  const [status, setStatus] = useState<string>(defaultStatus);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   
   const handleSearch = () => {
@@ -30,19 +35,18 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
       filters.searchTerm = searchTerm;
     }
     
-    if (status && status !== 'all' && showStatus) {
+    if (showStatus && status) {
       filters.status = status;
-    }
-    
-    if (source) {
-      filters.source = source;
+    } else if (defaultStatus && !showStatus) {
+      filters.status = defaultStatus;
     }
     
     if (dateRange?.from) {
-      filters.date_from = dateRange.from.toISOString();
-      if (dateRange.to) {
-        filters.date_to = dateRange.to.toISOString();
-      }
+      filters.fromDate = dateRange.from;
+    }
+    
+    if (dateRange?.to) {
+      filters.toDate = dateRange.to;
     }
     
     onFilterChange(filters);
@@ -50,31 +54,33 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
   
   const handleClear = () => {
     setSearchTerm('');
-    setStatus(defaultStatus || 'all');
-    setSource('');
+    if (showStatus) {
+      setStatus(defaultStatus);
+    }
     setDateRange(undefined);
-    onFilterChange({});
+    
+    const defaultFilters = showStatus ? { status: defaultStatus } : {};
+    onFilterChange(defaultFilters);
   };
   
   return (
     <div className="mb-6 space-y-4">
-      <div className="flex flex-wrap gap-4">
-        <div className="flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
           <Input
-            placeholder="Search by ID or product..."
+            placeholder="Search by product or submitter..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
         {showStatus && (
-          <div className="w-[200px]">
+          <div className="w-[180px]">
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="processing">Processing</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
@@ -84,15 +90,7 @@ export const StockInFilters: React.FC<StockInFiltersProps> = ({
           </div>
         )}
         
-        <div className="w-[200px]">
-          <Input
-            placeholder="Source..."
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-          />
-        </div>
-        
-        <div className="w-[300px]">
+        <div className="w-full sm:w-auto">
           <DatePickerWithRange
             date={dateRange}
             onDateChange={setDateRange}

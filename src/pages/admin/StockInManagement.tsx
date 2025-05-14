@@ -94,9 +94,8 @@ const AdminStockInManagement: React.FC = () => {
             </div>
           ) : (
             <StockInRequestsTable 
-              status={statusFilter !== "all" ? statusFilter : undefined}
+              status={statusFilter !== "all" ? statusFilter : ""}
               filters={{}}
-              isLoading={isLoading}
               onProcess={handleProcess}
               onReject={handleReject}
               userId={user?.id}
