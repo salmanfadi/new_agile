@@ -9,6 +9,7 @@ interface ProcessedBatchesFiltersProps {
   onSearch: (searchTerm: string) => void;
   onDateChange: (dateRange: DateRange | undefined) => void;
   onReset: () => void;
+  onFilterChange?: (filters: Record<string, any>) => void;
   isLoading?: boolean;
 }
 
@@ -16,6 +17,7 @@ export const ProcessedBatchesFilters: React.FC<ProcessedBatchesFiltersProps> = (
   onSearch,
   onDateChange,
   onReset,
+  onFilterChange,
   isLoading = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,17 +29,26 @@ export const ProcessedBatchesFilters: React.FC<ProcessedBatchesFiltersProps> = (
 
   const handleSearch = () => {
     onSearch(searchTerm);
+    if (onFilterChange) {
+      onFilterChange({ searchTerm });
+    }
   };
 
   const handleDateChange = (range: DateRange | undefined) => {
     setDateRange(range);
     onDateChange(range);
+    if (onFilterChange) {
+      onFilterChange({ dateRange: range });
+    }
   };
 
   const handleReset = () => {
     setSearchTerm('');
     setDateRange(undefined);
     onReset();
+    if (onFilterChange) {
+      onFilterChange({});
+    }
   };
 
   return (

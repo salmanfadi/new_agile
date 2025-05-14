@@ -1,5 +1,5 @@
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 
@@ -107,7 +107,7 @@ const fetchProcessedBatches = async (
     if (filters.searchTerm) {
       // Search across multiple fields
       const term = `%${filters.searchTerm}%`;
-      query = query.or(`id.ilike.${term},products.name.ilike.${term},products.sku.ilike.${term}`);
+      query = query.or(`id.ilike.${term},source.ilike.${term}`);
     }
 
     if (filters.warehouse_id) {
@@ -150,7 +150,7 @@ const fetchProcessedBatches = async (
         product_name: item.products?.name || 'Unknown Product',
         product_sku: item.products?.sku || '',
         submitter_name: '', // No submitter in this schema
-        processor_name: '', // Processor name will be fetched separately if needed
+        processor_name: '', // Will be fetched separately if needed
         total_quantity: item.total_quantity || 0,
         warehouse_id: item.warehouse_id || '',
       };
@@ -194,20 +194,44 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
 
     if (error) throw error;
     if (!data) return null;
+    
+    // Get processor name if available
+    let processorName = "Unknown";
+    if (data.processed_by) {
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', data.processed_by)
+          .maybeSingle();
+        
+        if (profileData) {
+          processorName = profileData.name || "Unknown";
+        }
+      } catch (error) {
+        console.error("Error getting processor name:", error);
+        // Continue execution even if we can't get the processor name
+      }
+    }
 
     // Get warehouse details if it exists
     let warehouseName = null;
     let locationDetails = {};
 
     if (data.warehouse_id) {
-      const { data: warehouseData } = await supabase
-        .from('warehouses')
-        .select('name')
-        .eq('id', data.warehouse_id)
-        .single();
+      try {
+        const { data: warehouseData } = await supabase
+          .from('warehouses')
+          .select('name')
+          .eq('id', data.warehouse_id)
+          .single();
 
-      if (warehouseData) {
-        warehouseName = warehouseData.name;
+        if (warehouseData) {
+          warehouseName = warehouseData.name;
+        }
+      } catch (error) {
+        console.error("Error getting warehouse details:", error);
+        // Continue execution even if we can't get the warehouse details
       }
     }
 
@@ -218,7 +242,7 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
         name: data.products?.name || 'Unknown Product',
         sku: data.products?.sku || ''
       },
-      processed_by: '', // Processor name will be fetched separately if needed
+      processed_by: processorName,
       total_boxes: data.total_boxes || 0,
       status: data.status,
       source: data.source,

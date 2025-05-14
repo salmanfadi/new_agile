@@ -24,16 +24,22 @@ export interface BatchFormData {
   size: string;
 }
 
-export interface ProcessedBatch extends BatchData {
+export interface ProcessedBatch {
+  id?: string;
+  product_id: string;
+  warehouse_id: string;
+  location_id: string;
+  boxes_count: number;
+  quantity_per_box: number;
+  color?: string;
+  size?: string;
+  created_by: string;
+  barcodes?: string[];
   product?: Product;
   warehouse?: Warehouse;
   warehouseLocation?: WarehouseLocation;
   submitter?: Profile;
   created_at?: string;
-  quantity_per_box: number;
-  created_by: string;
-  warehouse_id: string;
-  location_id: string;
 }
 
 export interface StockInBatchSubmission {

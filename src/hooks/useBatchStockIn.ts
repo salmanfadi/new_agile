@@ -6,7 +6,7 @@ import { BatchData, StockInBatchSubmission } from '@/types/batchStockIn';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define the BoxData interface used for processing
-interface BoxData {
+export interface BoxData {
   id: string;
   product_id: string;
   quantity: number;
@@ -48,10 +48,10 @@ export const useBatchStockIn = (userId: string = '') => {
       warehouse_id: batchData.warehouse?.id || '',
       location_id: batchData.location?.id || '',
       boxes_count: batchData.boxes_count,
-      quantity_per_box: batchData.quantity_per_box,
+      quantity_per_box: batchData.quantity_per_box || 1,
       color: batchData.color,
       size: batchData.size,
-      created_by: userId,
+      created_by: userId, 
     };
 
     if (editingIndex !== null) {
@@ -177,6 +177,7 @@ export const useBatchStockIn = (userId: string = '') => {
           description: `${barcodeErrors.length} barcodes had errors during processing.`,
           variant: 'default',
         });
+        setBarcodeErrors(barcodeErrors);
         return { success: true, processed_batch_id, barcodeErrors };
       }
       
