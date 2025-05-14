@@ -1,7 +1,6 @@
-
 // Define interfaces for inventory movement system
 
-export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release';
+export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release' | 'transfer';
 export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit';
 
 export interface InventoryMovement {
@@ -16,6 +15,7 @@ export interface InventoryMovement {
   reference_id?: string;
   performed_by: string;
   created_at: string;
+  transfer_reference_id?: string;
   details?: {
     [key: string]: any;
     barcode?: string;
@@ -23,22 +23,27 @@ export interface InventoryMovement {
     size?: string;
     source?: string;
     notes?: string;
+    direction?: 'in' | 'out';
+    from_warehouse_id?: string;
+    from_location_id?: string;
+    to_warehouse_id?: string;
+    to_location_id?: string;
   };
   
   // Join fields
-  product?: {
+  products?: {
     name: string;
     sku?: string;
   };
-  warehouse?: {
+  warehouses?: {
     name: string;
     location?: string;
   };
-  location?: {
+  warehouse_locations?: {
     floor: number;
     zone: string;
   };
-  performer?: {
+  profiles?: {
     name: string;
     username: string;
   };

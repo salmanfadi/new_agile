@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { InventoryMovement } from '@/types/inventory';
+import { InventoryMovement, MovementType } from '@/types/inventory';
 import { useAuth } from '@/context/AuthContext';
 
 export interface TransferFormData {
@@ -45,7 +45,7 @@ export const useTransfers = () => {
             warehouse_locations:location_id (floor, zone),
             profiles:performed_by (name, username)
           `)
-          .eq('movement_type', 'transfer')
+          .eq('movement_type', 'transfer' as MovementType)
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
           
@@ -85,7 +85,7 @@ export const useTransfers = () => {
             warehouse_locations:location_id (floor, zone),
             profiles:performed_by (name, username)
           `)
-          .eq('movement_type', 'transfer')
+          .eq('movement_type', 'transfer' as MovementType)
           .order('created_at', { ascending: false });
           
         if (error) {
@@ -116,7 +116,7 @@ export const useTransfers = () => {
             product_id: formData.productId,
             warehouse_id: formData.fromWarehouseId,
             location_id: formData.fromLocationId,
-            movement_type: 'transfer',
+            movement_type: 'transfer' as MovementType,
             quantity: -formData.quantity, // Negative to indicate removal
             status: 'pending',
             transfer_reference_id: transferReferenceId,
@@ -138,7 +138,7 @@ export const useTransfers = () => {
             product_id: formData.productId,
             warehouse_id: formData.toWarehouseId,
             location_id: formData.toLocationId,
-            movement_type: 'transfer',
+            movement_type: 'transfer' as MovementType,
             quantity: formData.quantity, // Positive to indicate addition
             status: 'pending',
             transfer_reference_id: transferReferenceId,
@@ -203,11 +203,7 @@ export const useTransfers = () => {
         .from('inventory_movements')
         .update({ 
           status: 'approved',
-          details: supabase.rpc('jsonb_set', { 
-            target: 'details',
-            path: '{approved_by}',
-            value: user.id
-          })
+          details: { approved_by: user.id }
         })
         .eq('transfer_reference_id', transferReferenceId)
         .eq('status', 'pending');
@@ -247,11 +243,7 @@ export const useTransfers = () => {
         .from('inventory_movements')
         .update({ 
           status: 'rejected',
-          details: supabase.rpc('jsonb_set', { 
-            target: 'details',
-            path: '{rejection_reason}',
-            value: reason
-          })
+          details: { rejection_reason: reason }
         })
         .eq('transfer_reference_id', transferReferenceId)
         .eq('status', 'pending');

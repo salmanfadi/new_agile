@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   createBrowserRouter,
@@ -43,7 +44,7 @@ import InventoryTransfers from './pages/warehouseManager/InventoryTransfers';
 import AdminInventoryTransfers from './pages/admin/InventoryTransfers';
 
 // Define routes
-const routes = [
+const router = createBrowserRouter([
   {
     path: "/",
     element: <PublicLayout><Outlet /></PublicLayout>,
@@ -183,24 +184,12 @@ const routes = [
         element: <RequireAuth allowedRoles={['warehouse_manager']}><ProcessStockInPage /></RequireAuth>,
       },
       {
-        path: "/manager/transfers",
-        element: (
-          <RequireAuth allowedRoles={["admin", "warehouse_manager"]}>
-            <MainLayout>
-              <InventoryTransfers />
-            </MainLayout>
-          </RequireAuth>
-        ),
+        path: "manager/transfers",
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><InventoryTransfers /></RequireAuth>,
       },
       {
-        path: "/admin/transfers",
-        element: (
-          <RequireAuth allowedRoles={["admin"]}>
-            <MainLayout>
-              <AdminInventoryTransfers />
-            </MainLayout>
-          </RequireAuth>
-        ),
+        path: "admin/transfers",
+        element: <RequireAuth allowedRoles={['admin']}><AdminInventoryTransfers /></RequireAuth>,
       },
     ]
   },
@@ -208,11 +197,11 @@ const routes = [
     path: "*",
     element: <Navigate to="/login" replace />
   }
-];
+]);
 
 function App() {
   return (
-    <RouterProvider router={routes} />
+    <RouterProvider router={router} />
   );
 }
 

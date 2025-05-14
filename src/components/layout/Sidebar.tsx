@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -19,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { AlignLeft, ArrowLeftRight, BarChart, Cog6Tooth, Home, KanbanSquare, LayoutDashboard, ListChecks, LogOut, LucideIcon, Package2, Settings, ShoppingCart, User2, Users, Warehouse } from 'lucide-react';
+import { AlignLeft, ArrowLeftRight, BarChart, Settings, Home, KanbanSquare, LayoutDashboard, ListChecks, LogOut, LucideIcon, Package2, ShoppingCart, User2, Users, Warehouse } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavLink {
@@ -44,52 +45,52 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         {
           href: "/admin",
           label: "Dashboard",
-          icon: <LayoutDashboard className="h-4 w-4" />,
+          icon: LayoutDashboard,
         },
         {
           href: "/admin/users",
           label: "Users",
-          icon: <Users className="h-4 w-4" />,
+          icon: Users,
         },
         {
           href: "/admin/products",
           label: "Products",
-          icon: <Package2 className="h-4 w-4" />,
+          icon: Package2,
         },
         {
           href: "/admin/warehouses",
           label: "Warehouses",
-          icon: <Warehouse className="h-4 w-4" />,
+          icon: Warehouse,
         },
         {
           href: "/admin/stock-in",
           label: "Stock In",
-          icon: <ListChecks className="h-4 w-4" />,
+          icon: ListChecks,
         },
         {
           href: "/admin/stock-out",
           label: "Stock Out",
-          icon: <ShoppingCart className="h-4 w-4" />,
+          icon: ShoppingCart,
         },
         {
           href: "/admin/inventory",
           label: "Inventory",
-          icon: <KanbanSquare className="h-4 w-4" />,
+          icon: KanbanSquare,
         },
         {
           href: "/admin/sales-inquiries",
           label: "Sales Inquiries",
-          icon: <BarChart className="h-4 w-4" />,
+          icon: BarChart,
         },
         {
           href: "/admin/transfers",
           label: "Transfers",
-          icon: <ArrowLeftRight className="h-4 w-4" />,
+          icon: ArrowLeftRight,
         },
         {
           href: "/admin/settings",
           label: "Settings",
-          icon: <Settings className="h-4 w-4" />,
+          icon: Settings,
         },
       ],
     },
@@ -99,32 +100,32 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         {
           href: "/manager",
           label: "Dashboard",
-          icon: <LayoutDashboard className="h-4 w-4" />,
+          icon: LayoutDashboard,
         },
         {
           href: "/manager/stock-in",
           label: "Stock In",
-          icon: <ListChecks className="h-4 w-4" />,
+          icon: ListChecks,
         },
         {
           href: "/manager/stock-out",
           label: "Stock Out",
-          icon: <ShoppingCart className="h-4 w-4" />,
+          icon: ShoppingCart,
         },
         {
           href: "/manager/inventory",
           label: "Inventory",
-          icon: <KanbanSquare className="h-4 w-4" />,
+          icon: KanbanSquare,
         },
         {
           href: "/manager/transfers",
           label: "Transfers",
-          icon: <ArrowLeftRight className="h-4 w-4" />,
+          icon: ArrowLeftRight,
         },
         {
           href: "/manager/settings",
           label: "Settings",
-          icon: <Settings className="h-4 w-4" />,
+          icon: Settings,
         },
       ],
     },
@@ -134,22 +135,22 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         {
           href: "/field",
           label: "Dashboard",
-          icon: <LayoutDashboard className="h-4 w-4" />,
+          icon: LayoutDashboard,
         },
         {
           href: "/field/stock-in",
           label: "Stock In",
-          icon: <ListChecks className="h-4 w-4" />,
+          icon: ListChecks,
         },
         {
           href: "/field/submissions",
           label: "My Submissions",
-          icon: <ListChecks className="h-4 w-4" />,
+          icon: ListChecks,
         },
         {
           href: "/field/settings",
           label: "Settings",
-          icon: <Settings className="h-4 w-4" />,
+          icon: Settings,
         },
       ],
     },
@@ -159,17 +160,17 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         {
           href: "/sales",
           label: "Dashboard",
-          icon: <LayoutDashboard className="h-4 w-4" />,
+          icon: LayoutDashboard,
         },
         {
           href: "/sales/inquiries",
           label: "Inquiries",
-          icon: <ListChecks className="h-4 w-4" />,
+          icon: ListChecks,
         },
         {
           href: "/sales/settings",
           label: "Settings",
-          icon: <Settings className="h-4 w-4" />,
+          icon: Settings,
         },
       ],
     },
@@ -178,7 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const relevantLinks = sidebarItems.find((item) => item.role === user?.role)?.links || [];
 
   return (
-    <Sheet className={className}>
+    <Sheet>
       <SheetTrigger asChild>
         <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-secondary h-10 px-4 py-2 lg:hidden">
           <AlignLeft className="mr-2 h-4 w-4" />
@@ -194,19 +195,22 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         </SheetHeader>
         <Separator className="my-4" />
         <div className="flex flex-col space-y-2">
-          {relevantLinks.map((link: NavLink) => (
-            <Link
-              key={link.href}
-              to={link.href}
-              className={cn(
-                "group flex items-center space-x-2 rounded-md p-2 font-medium hover:underline",
-                location.pathname === link.href ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <link.icon className="h-4 w-4" />
-              <span>{link.label}</span>
-            </Link>
-          ))}
+          {relevantLinks.map((link, index) => {
+            const Icon = link.icon;
+            return (
+              <Link
+                key={index}
+                to={link.href}
+                className={cn(
+                  "group flex items-center space-x-2 rounded-md p-2 font-medium hover:underline",
+                  location.pathname === link.href ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{link.label}</span>
+              </Link>
+            );
+          })}
         </div>
         <Separator className="my-4" />
         <DropdownMenu>
@@ -227,7 +231,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/settings')}>
-              <Cog6Tooth className="mr-2 h-4 w-4" />
+              <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />

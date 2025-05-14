@@ -22,14 +22,20 @@ import { supabase } from '@/integrations/supabase/client';
 const TransferForm: React.FC = () => {
   const { createTransfer } = useTransfers();
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<TransferFormData>();
-  const { warehouses, isLoading: warehousesLoading } = useWarehouses();
+  const warehousesQuery = useWarehouses();
+  const warehouses = warehousesQuery.warehouses;
+  const isWarehousingLoading = warehousesQuery.isLoading;
   
   const [fromWarehouseId, setFromWarehouseId] = useState<string>('');
   const [toWarehouseId, setToWarehouseId] = useState<string>('');
   
   // Get locations based on selected warehouses
-  const { locations: fromLocations, isLoading: fromLocationsLoading } = useLocations(fromWarehouseId);
-  const { locations: toLocations, isLoading: toLocationsLoading } = useLocations(toWarehouseId);
+  const fromLocationsQuery = useLocations(fromWarehouseId);
+  const toLocationsQuery = useLocations(toWarehouseId);
+  const fromLocations = fromLocationsQuery.locations;
+  const toLocations = toLocationsQuery.locations;
+  const fromLocationsLoading = fromLocationsQuery.isLoading;
+  const toLocationsLoading = toLocationsQuery.isLoading;
   
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -121,7 +127,7 @@ const TransferForm: React.FC = () => {
                   <SelectValue placeholder="Select source warehouse" />
                 </SelectTrigger>
                 <SelectContent>
-                  {warehousesLoading ? (
+                  {isWarehousingLoading ? (
                     <SelectItem value="loading" disabled>Loading warehouses...</SelectItem>
                   ) : warehouses && warehouses.length > 0 ? (
                     warehouses.map(warehouse => (
@@ -179,7 +185,7 @@ const TransferForm: React.FC = () => {
                   <SelectValue placeholder="Select destination warehouse" />
                 </SelectTrigger>
                 <SelectContent>
-                  {warehousesLoading ? (
+                  {isWarehousingLoading ? (
                     <SelectItem value="loading" disabled>Loading warehouses...</SelectItem>
                   ) : warehouses && warehouses.length > 0 ? (
                     warehouses.map(warehouse => (
