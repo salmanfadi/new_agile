@@ -1,6 +1,5 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { User, UserRole, AuthContextType } from '@/types/auth';
 
@@ -64,9 +63,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           
           // Need to fetch user role from profiles table
           if (data.session.user) {
+            // Only select columns that exist in the profiles table
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
-              .select('role, name, username, active, avatar_url')
+              .select('role, name, username, active')
               .eq('id', data.session.user.id)
               .single();
               
@@ -79,8 +79,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 role: profileData.role as UserRole,
                 name: profileData.name,
                 username: profileData.username,
-                active: profileData.active,
-                avatar_url: profileData.avatar_url
+                active: profileData.active
               } as User);
             }
           }
@@ -101,10 +100,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (session?.user) {
         setIsAuthenticated(true);
         try {
-          // Fetch the user role from profiles table
+          // Fetch the user role from profiles table - remove avatar_url from select
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('role, name, username, active, avatar_url')
+            .select('role, name, username, active')
             .eq('id', session.user.id)
             .single();
             
@@ -117,8 +116,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               role: profileData.role as UserRole,
               name: profileData.name,
               username: profileData.username,
-              active: profileData.active,
-              avatar_url: profileData.avatar_url
+              active: profileData.active
             } as User);
           }
         } catch (err) {

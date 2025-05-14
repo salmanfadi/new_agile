@@ -1,4 +1,3 @@
-
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface User extends SupabaseUser {
@@ -6,7 +5,6 @@ export interface User extends SupabaseUser {
   email?: string;
   name?: string;
   role?: UserRole;
-  avatar_url?: string;
   username?: string;
   active?: boolean;
 }

@@ -72,7 +72,7 @@ const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData, stockIn, d
 const ProcessStockInPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast()
+  const { toast } = useToast();
 
   const [stockInData, setStockInData] = useState<StockInData>({
     stockIn: null,
@@ -109,7 +109,7 @@ const ProcessStockInPage: React.FC = () => {
           throw new Error("Stock In record not found.");
         }
 
-        // Transform the data into the expected shape
+        // Transform the data into the expected shape, correctly handling the nested objects
         const transformedData: ProcessableStockIn = {
           id: data.id,
           boxes: data.boxes,
@@ -117,7 +117,7 @@ const ProcessStockInPage: React.FC = () => {
           created_at: data.created_at,
           source: data.source,
           notes: data.notes,
-          // Fix these properties - they're objects, not arrays
+          // Fix these properties - access them as objects, not arrays
           product: {
             id: data.product?.id || '',
             name: data.product?.name || '',
@@ -141,7 +141,7 @@ const ProcessStockInPage: React.FC = () => {
           variant: "destructive",
           title: "Error",
           description: "Failed to load stock in details."
-        })
+        });
       }
     };
 
@@ -170,7 +170,7 @@ const ProcessStockInPage: React.FC = () => {
       toast({
         title: "Success",
         description: `Stock In ${approved ? 'approved' : 'rejected'} successfully.`,
-      })
+      });
       navigate('/manager/stock-in');
     } catch (error: any) {
       console.error('Error updating stock in status:', error);
@@ -178,7 +178,7 @@ const ProcessStockInPage: React.FC = () => {
         variant: "destructive",
         title: "Error",
         description: "Failed to update stock in status."
-      })
+      });
     }
   };
 
