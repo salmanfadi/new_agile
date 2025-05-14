@@ -1,4 +1,16 @@
 
+import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Generates a unique barcode string
+ * @param prefix Optional prefix for the barcode
+ * @returns A unique barcode string
+ */
+export const generateBarcodeString = (prefix?: string): string => {
+  const uuid = uuidv4();
+  return prefix ? `${prefix}-${uuid}` : uuid;
+};
+
 /**
  * Formats a barcode for display by adding dashes or other formatting
  * @param barcode The raw barcode string

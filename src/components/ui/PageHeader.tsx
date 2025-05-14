@@ -10,12 +10,14 @@ interface PageHeaderProps {
     onClick: () => void;
     icon?: React.ReactNode;
   };
+  actions?: React.ReactNode;
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   description,
-  action
+  action,
+  actions
 }) => {
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
@@ -26,7 +28,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         )}
       </div>
       
-      {action && (
+      {action && !actions && (
         <Button 
           className="mt-4 md:mt-0" 
           onClick={action.onClick}
@@ -34,6 +36,12 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           {action.icon && <span className="mr-2">{action.icon}</span>}
           {action.label}
         </Button>
+      )}
+      
+      {actions && (
+        <div className="mt-4 md:mt-0">
+          {actions}
+        </div>
       )}
     </div>
   );

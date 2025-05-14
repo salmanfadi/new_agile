@@ -6,7 +6,7 @@ import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTabl
 import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTable';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { useStockInRequests } from '@/hooks/useStockInRequests';
+import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
 import { useProcessedBatches } from '@/hooks/useProcessedBatches';
 import { StockInFilters } from '@/components/warehouse/StockInFilters';
 import { ProcessedBatchesFilters } from '@/components/warehouse/ProcessedBatchesFilters';
@@ -26,10 +26,11 @@ const StockInProcessing: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('pending');
-  const [stockInFilters, setStockInFilters] = useState({});
-  const [processedFilters, setProcessedFilters] = useState({});
+  const [stockInFilters, setStockInFilters] = useState<Record<string, any>>({ status: 'pending' });
+  const [processedFilters, setProcessedFilters] = useState<Record<string, any>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  // Use the filters directly in the hooks
   const { refetch: refetchStockIn } = useStockInRequests(stockInFilters);
   const { refetch: refetchProcessed } = useProcessedBatches(1, 10, processedFilters);
 
@@ -54,7 +55,7 @@ const StockInProcessing: React.FC = () => {
           if (newRecord && newRecord.status) {
             // Determine which query to invalidate based on the status
             if (newRecord.status === 'pending' || newRecord.status === 'processing') {
-              queryClient.invalidateQueries({ queryKey: ['stockInRequests'] });
+              queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
               toast({
                 title: 'Stock In Request Updated',
                 description: `A stock in request has been updated to ${newRecord.status}`,
@@ -119,10 +120,20 @@ const StockInProcessing: React.FC = () => {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+    // Update filters based on active tab
+    if (value === 'pending') {
+      setStockInFilters(prev => ({ ...prev, status: 'pending' }));
+    } else if (value === 'processing') {
+      setStockInFilters(prev => ({ ...prev, status: 'processing' }));
+    }
+  };
+
+  const handleProcess = (stockIn: StockInRequestData) => {
+    navigate(`/manager/stock-in/batch/${stockIn.id}`);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <PageHeader 
         title="Stock-In Processing" 
         description="Manage stock-in requests and view processed batches"
@@ -162,11 +173,15 @@ const StockInProcessing: React.FC = () => {
             </CardHeader>
             <CardContent>
               <StockInFilters 
-                onFilterChange={setStockInFilters} 
+                onFilterChange={(filters) => setStockInFilters({...filters, status: 'pending'})}
                 showStatus={false}
                 defaultStatus="pending"
               />
-              <StockInRequestsTable status="pending" filters={stockInFilters} />
+              <StockInRequestsTable 
+                status="pending" 
+                filters={stockInFilters}
+                onProcess={handleProcess} 
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -179,11 +194,15 @@ const StockInProcessing: React.FC = () => {
             </CardHeader>
             <CardContent>
               <StockInFilters 
-                onFilterChange={setStockInFilters}
+                onFilterChange={(filters) => setStockInFilters({...filters, status: 'processing'})}
                 showStatus={false} 
                 defaultStatus="processing"
               />
-              <StockInRequestsTable status="processing" filters={stockInFilters} />
+              <StockInRequestsTable 
+                status="processing" 
+                filters={stockInFilters}
+                onProcess={handleProcess}
+              />
             </CardContent>
           </Card>
         </TabsContent>

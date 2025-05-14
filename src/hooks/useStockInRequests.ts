@@ -16,12 +16,12 @@ export interface StockInRequestData {
   rejection_reason?: string;
 }
 
-export const useStockInRequests = (statusFilter: string = 'all') => {
+export const useStockInRequests = (filters: Record<string, any> = {}) => {
   const queryClient = useQueryClient();
 
   // Fetch function that we can call both from the query and when revalidating via subscription
   const fetchStockInRequests = useCallback(async () => {
-    console.log('Fetching stock in requests with filter:', statusFilter);
+    console.log('Fetching stock in requests with filter:', filters);
     try {
       // Build query based on filter
       let query = supabase
@@ -38,8 +38,25 @@ export const useStockInRequests = (statusFilter: string = 'all') => {
           rejection_reason
         `);
         
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter as "pending" | "approved" | "rejected" | "completed" | "processing");
+      // Apply filters
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+      
+      if (filters.source) {
+        query = query.ilike('source', `%${filters.source}%`);
+      }
+      
+      if (filters.date_from) {
+        query = query.gte('created_at', filters.date_from);
+      }
+      
+      if (filters.date_to) {
+        query = query.lte('created_at', filters.date_to);
+      }
+      
+      if (filters.submitted_by) {
+        query = query.eq('submitted_by', filters.submitted_by);
       }
       
       const { data: stockData, error: stockError } = await query
@@ -128,11 +145,11 @@ export const useStockInRequests = (statusFilter: string = 'all') => {
       });
       return [];
     }
-  }, [statusFilter]);
+  }, [filters]);
 
   // Set up the main React Query with increased poll interval for better responsiveness
   const queryResult = useQuery({
-    queryKey: ['stock-in-requests', statusFilter],
+    queryKey: ['stock-in-requests', filters],
     queryFn: fetchStockInRequests,
     staleTime: 1000 * 30, // Data is fresh for 30 seconds
     refetchInterval: 1000 * 60, // Refetch every minute as a backup
@@ -167,9 +184,7 @@ export const useStockInRequests = (statusFilter: string = 'all') => {
             queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
           }
       )
-      .subscribe((status) => {
-        console.log("Subscription status:", status);
-      });
+      .subscribe();
 
     // Setup subscription for stock_in_details to catch batch processing
     const detailsChannel = supabase
@@ -192,7 +207,7 @@ export const useStockInRequests = (statusFilter: string = 'all') => {
       supabase.removeChannel(channel);
       supabase.removeChannel(detailsChannel);
     };
-  }, [statusFilter, queryClient]);
+  }, [filters, queryClient]);
 
   return queryResult;
 };

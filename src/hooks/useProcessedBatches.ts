@@ -18,11 +18,11 @@ export interface BatchItemType {
   };
   locations?: {
     warehouse_id: string;
-    floor?: number;
-    zone?: string;
-    position?: string;
-    warehouse_name?: string;
-  };
+    floor?: number | null;
+    zone?: string | null;
+    position?: string | null;
+    warehouse_name?: string | null;
+  } | null;
 }
 
 export interface ProcessedBatchType {
@@ -42,12 +42,12 @@ export interface ProcessedBatchType {
     name: string;
     sku?: string | null;
     description?: string | null;
-  };
+  } | null;
   warehouse: {
     id: string;
     name: string;
     location?: string | null;
-  };
+  } | null;
   submitter?: {
     id: string;
     name: string;
@@ -194,7 +194,29 @@ export const useBatchItems = (batchId: string | null) => {
       throw error;
     }
 
-    return data || [];
+    // Ensure proper typing by mapping the data
+    const typedData: BatchItemType[] = (data || []).map(item => ({
+      id: item.id,
+      batch_id: item.batch_id,
+      barcode: item.barcode,
+      quantity: item.quantity,
+      color: item.color || null,
+      size: item.size || null,
+      location_id: item.location_id || null,
+      warehouse_id: item.warehouse_id || null,
+      created_at: item.created_at,
+      status: item.status || 'unknown',
+      warehouses: item.warehouses,
+      locations: item.locations ? {
+        warehouse_id: item.locations.warehouse_id,
+        floor: item.locations.floor,
+        zone: item.locations.zone,
+        position: item.locations.position,
+        warehouse_name: null
+      } : null
+    }));
+
+    return typedData;
   };
 
   return useQuery({
@@ -256,7 +278,7 @@ export const useProcessedBatchDetails = (batchId: string | null) => {
     }
 
     // Then fetch the batch items
-    const { data: itemsData } = await useBatchItems(batchId).queryFn();
+    const batchItems = await useBatchItems(batchId).fetchBatchItems();
 
     const detailedBatch: DetailedBatchType = {
       id: batchData.id,
@@ -280,7 +302,7 @@ export const useProcessedBatchDetails = (batchId: string | null) => {
         id: processorData.id || '',
         name: processorData.name || 'Unknown'
       } : { id: '', name: 'Unknown' },
-      items: itemsData || []
+      items: batchItems || []
     };
 
     return detailedBatch;

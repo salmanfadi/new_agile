@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import {
@@ -10,37 +10,42 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { StockInRequestData } from '@/hooks/useStockInRequests';
+import { StockInRequestData, useStockInRequests } from '@/hooks/useStockInRequests';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface StockInRequestsTableProps {
-  stockInRequests: StockInRequestData[];
-  isLoading: boolean;
-  onProcess: (stockIn: StockInRequestData) => void;
-  onQuickProcess?: (stockIn: StockInRequestData) => void; // Added for quick processing
-  onReject: (stockIn: StockInRequestData) => void;
-  userId: string | undefined;
-  onRefresh?: () => void; // Added callback for manual refresh
+  status: string;
+  filters: Record<string, any>;
+  onProcess?: (stockIn: StockInRequestData) => void;
+  onQuickProcess?: (stockIn: StockInRequestData) => void;
+  onReject?: (stockIn: StockInRequestData) => void;
+  onRefresh?: () => void;
 }
 
 export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
-  stockInRequests,
-  isLoading,
+  status,
+  filters,
   onProcess,
   onQuickProcess,
   onReject,
-  userId,
   onRefresh,
 }) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id;
+  
+  // Merge status into filters
+  const allFilters = { ...filters, status };
+  const { data: stockInRequests, isLoading, refetch } = useStockInRequests(allFilters);
 
   // Force refetch data if needed
   const refreshData = () => {
     console.log("Manually refreshing stock-in requests data");
-    queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+    refetch();
     if (onRefresh) onRefresh();
     toast({
       title: 'Refreshing data...',
@@ -100,14 +105,10 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
             
             // Always invalidate the query to refresh data
             queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+            refetch();
           }
         )
-        .subscribe((status) => {
-          console.log("Supabase channel status:", status);
-          if (status !== 'SUBSCRIBED') {
-            console.warn("Failed to subscribe to real-time updates:", status);
-          }
-        });
+        .subscribe();
     } catch (err) {
       console.error("Error setting up real-time subscription:", err);
     }
@@ -116,7 +117,25 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
       console.log('Unsubscribing from stock-in table changes');
       if (channel) supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, refetch]);
+
+  const handleProcess = (stockIn: StockInRequestData) => {
+    if (onProcess) {
+      onProcess(stockIn);
+    }
+  };
+
+  const handleQuickProcess = (stockIn: StockInRequestData) => {
+    if (onQuickProcess) {
+      onQuickProcess(stockIn);
+    }
+  };
+
+  const handleReject = (stockIn: StockInRequestData) => {
+    if (onReject) {
+      onReject(stockIn);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -129,7 +148,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   if (!stockInRequests || stockInRequests.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        <p>No pending stock in requests</p>
+        <p>No {status} stock in requests</p>
         <Button 
           variant="outline" 
           size="sm"
@@ -196,24 +215,23 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                 <TableCell className="text-right space-x-2">
                   {stockIn.status === 'pending' && (
                     <>
-                      <Button 
-                        size="sm" 
-                        variant="default"
-                        onClick={() => {
-                          console.log(`Processing stock in with ID: ${stockIn.id}`);
-                          onProcess(stockIn);
-                        }}
-                        className="relative overflow-hidden transition-all hover:shadow-lg hover:shadow-blue-200 group"
-                      >
-                        <span className="absolute right-0 top-0 h-full w-8 translate-x-12 transform bg-blue-600 opacity-10 transition-all duration-1000 group-hover:-translate-x-40"></span>
-                        Batch Process
-                      </Button>
+                      {onProcess && (
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          onClick={() => handleProcess(stockIn)}
+                          className="relative overflow-hidden transition-all hover:shadow-lg hover:shadow-blue-200 group"
+                        >
+                          <span className="absolute right-0 top-0 h-full w-8 translate-x-12 transform bg-blue-600 opacity-10 transition-all duration-1000 group-hover:-translate-x-40"></span>
+                          Batch Process
+                        </Button>
+                      )}
                       
                       {onQuickProcess && (
                         <Button 
                           size="sm"
                           variant="outline"
-                          onClick={() => onQuickProcess(stockIn)}
+                          onClick={() => handleQuickProcess(stockIn)}
                           className="text-green-600 border-green-200 hover:bg-green-50"
                         >
                           <CheckCircle2 className="h-4 w-4 mr-1" />
@@ -221,17 +239,30 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                         </Button>
                       )}
                       
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="text-red-600"
-                        onClick={() => onReject(stockIn)}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
+                      {onReject && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-red-600"
+                          onClick={() => handleReject(stockIn)}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      )}
                     </>
                   )}
+                  
+                  {stockIn.status === 'processing' && (
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      onClick={() => handleProcess(stockIn)}
+                    >
+                      Continue Processing
+                    </Button>
+                  )}
+                  
                   {stockIn.status === 'rejected' && stockIn.rejection_reason && (
                     <div className="text-xs text-red-600">
                       Reason: {stockIn.rejection_reason}

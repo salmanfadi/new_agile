@@ -8,8 +8,8 @@ import {
   Navigate
 } from "react-router-dom";
 import { useAuth } from '@/context/AuthContext';
-import { MainLayout } from '@/components/layout/MainLayout';
-import { PublicLayout } from '@/components/layout/PublicLayout';
+import { MainLayout } from '@/layouts/MainLayout';
+import { PublicLayout } from '@/layouts/PublicLayout';
 import LoginPage from './pages/Login';
 import SignUpPage from './pages/Index'; // Using Index as SignUpPage for now
 import AdminDashboard from '@/pages/admin/AdminDashboard';
@@ -49,6 +49,10 @@ const router = createBrowserRouter([
         path: "signup",
         element: <SignUpPage />,
       },
+      {
+        path: "",
+        element: <Navigate to="/login" replace />,
+      }
     ]
   },
   {
