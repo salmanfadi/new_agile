@@ -29,11 +29,10 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
     }
     
     // Update stock_in status to processing
-    // Cast status to movement_status type to fix type mismatch error
     const { error: updateError } = await supabase
       .from('stock_in')
       .update({ 
-        status: 'processing'::movement_status,
+        status: 'processing',
         processed_by: userId,
         processing_started_at: new Date().toISOString()
       })
@@ -43,8 +42,37 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
       throw updateError;
     }
     
-    // Process each box and create inventory movements
+    // Process each box and create stock_in_details first
+    const stockInDetails = [];
     for (const box of boxes) {
+      // Create stock_in_detail record
+      const { data: detailData, error: detailError } = await supabase
+        .from('stock_in_details')
+        .insert({
+          stock_in_id: stockInId,
+          warehouse_id: box.warehouse,
+          location_id: box.location,
+          barcode: box.barcode,
+          quantity: box.quantity, 
+          color: box.color,
+          size: box.size,
+          product_id: stockInData.product_id
+        })
+        .select()
+        .single();
+        
+      if (detailError) {
+        throw detailError;
+      }
+      
+      stockInDetails.push(detailData);
+    }
+    
+    // Now process each box and create inventory movements
+    for (let i = 0; i < boxes.length; i++) {
+      const box = boxes[i];
+      const detail = stockInDetails[i];
+      
       // Create inventory movement for this box
       await createInventoryMovement(
         stockInData.product_id,
@@ -59,17 +87,17 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
         {
           barcode: box.barcode,
           color: box.color,
-          size: box.size
+          size: box.size,
+          stock_in_detail_id: detail.id
         }
       );
     }
     
     // Mark the stock_in as completed
-    // Cast status to movement_status type to fix type mismatch error
     const { error: completeError } = await supabase
       .from('stock_in')
       .update({ 
-        status: 'completed'::movement_status,
+        status: 'completed',
         processing_completed_at: new Date().toISOString()
       })
       .eq('id', stockInId);
@@ -83,11 +111,10 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
     console.error('Error processing stock in:', error);
     
     try {
-      // Try to mark the stock_in as processing instead of failed
-      // Cast status to movement_status type to fix type mismatch error
+      // Try to mark the stock_in as failed instead of processing
       await supabase
         .from('stock_in')
-        .update({ status: 'processing'::movement_status })
+        .update({ status: 'failed' })
         .eq('id', stockInId);
     } catch (updateError) {
       console.error('Failed to update status after error:', updateError);
