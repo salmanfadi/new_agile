@@ -15,12 +15,8 @@ interface LedgerFilters {
 export const useInventoryLedger = (filters: LedgerFilters = {}) => {
   const fetchInventoryLedger = async () => {
     try {
-      // This is a temporary implementation until we create the materialized view
-      // It fetches all approved movements and calculates the stock levels
-      
-      let query = supabase.rpc('get_inventory_levels');
-      
-      const { data, error } = await query;
+      // Call the get_inventory_levels database function we created
+      const { data, error } = await supabase.rpc('get_inventory_levels');
       
       if (error) {
         console.error('Error fetching inventory ledger:', error);

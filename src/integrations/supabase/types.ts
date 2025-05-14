@@ -198,6 +198,80 @@ export type Database = {
           },
         ]
       }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: string
+          location_id: string
+          movement_type: Database["public"]["Enums"]["movement_type"]
+          performed_by: string
+          product_id: string
+          quantity: number
+          reference_id: string | null
+          reference_table: string | null
+          status: Database["public"]["Enums"]["movement_status"]
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          location_id: string
+          movement_type: Database["public"]["Enums"]["movement_type"]
+          performed_by: string
+          product_id: string
+          quantity: number
+          reference_id?: string | null
+          reference_table?: string | null
+          status?: Database["public"]["Enums"]["movement_status"]
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          location_id?: string
+          movement_type?: Database["public"]["Enums"]["movement_type"]
+          performed_by?: string
+          product_id?: string
+          quantity?: number
+          reference_id?: string | null
+          reference_table?: string | null
+          status?: Database["public"]["Enums"]["movement_status"]
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           action_type: string
@@ -877,12 +951,28 @@ export type Database = {
           status: string
         }[]
       }
+      get_inventory_levels: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          product_id: string
+          product_name: string
+          product_sku: string
+          warehouse_id: string
+          warehouse_name: string
+          location_id: string
+          location_name: string
+          stock_level: number
+          last_updated: string
+        }[]
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
     }
     Enums: {
+      movement_status: "pending" | "approved" | "rejected" | "in_transit"
+      movement_type: "in" | "out" | "adjustment" | "reserve" | "release"
       stock_status:
         | "pending"
         | "approved"
@@ -1010,6 +1100,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      movement_status: ["pending", "approved", "rejected", "in_transit"],
+      movement_type: ["in", "out", "adjustment", "reserve", "release"],
       stock_status: [
         "pending",
         "approved",

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { ProcessableStockIn } from '@/types/auth';
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from 'react-router-dom';
+import { createInventoryMovement } from './useInventoryMovements';
 
 export const useStockInProcessing = (stockInId: string | undefined) => {
   const navigate = useNavigate();
@@ -59,15 +60,15 @@ export const useStockInProcessing = (stockInId: string | undefined) => {
           source: data.source,
           notes: data.notes,
           product: {
-            id: data.product?.id || '',
-            name: data.product?.name || '',
-            sku: data.product?.sku || undefined,
-            category: data.product?.category || undefined
+            id: data.product.id || '',
+            name: data.product.name || '',
+            sku: data.product.sku || undefined,
+            category: data.product.category || undefined
           },
           submitter: {
-            id: data.submitter?.id || '',
-            name: data.submitter?.name || '',
-            username: data.submitter?.username || ''
+            id: data.submitter.id || '',
+            name: data.submitter.name || '',
+            username: data.submitter.username || ''
           }
         };
 
@@ -89,23 +90,75 @@ export const useStockInProcessing = (stockInId: string | undefined) => {
   }, [stockInId, toast]);
 
   const handleApproval = async (approved: boolean) => {
-    if (!stockInId) {
-      console.error("Stock In ID is missing.");
+    if (!stockInId || !currentStockIn) {
+      console.error("Stock In ID is missing or data not loaded.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
+      // Get user ID from session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      
+      if (!userId) {
+        throw new Error("User not authenticated.");
+      }
+
+      // Update the stock_in status
+      const newStatus = approved ? 'approved' : 'rejected';
+      const { error: updateError } = await supabase
         .from('stock_in')
         .update({
-          status: approved ? 'approved' : 'rejected',
+          status: newStatus,
           notes: approvalNotes,
+          processed_by: userId
         })
         .eq('id', stockInId);
 
-      if (error) {
-        throw error;
+      if (updateError) {
+        throw updateError;
+      }
+      
+      // If approved, create an inventory movement record
+      if (approved) {
+        // Get first warehouse and location (this would ideally come from a form selection)
+        const { data: warehouseData } = await supabase.from('warehouses').select('id').limit(1).single();
+        const warehouseId = warehouseData?.id;
+        
+        if (!warehouseId) {
+          throw new Error("No warehouse found to process stock in.");
+        }
+        
+        const { data: locationData } = await supabase
+          .from('warehouse_locations')
+          .select('id')
+          .eq('warehouse_id', warehouseId)
+          .limit(1)
+          .single();
+          
+        const locationId = locationData?.id;
+        
+        if (!locationId) {
+          throw new Error("No warehouse location found to process stock in.");
+        }
+        
+        // Create the inventory movement
+        await createInventoryMovement(
+          currentStockIn.product.id,
+          warehouseId,
+          locationId,
+          currentStockIn.boxes,
+          'in',
+          'approved',
+          'stock_in',
+          stockInId,
+          userId,
+          {
+            source: currentStockIn.source,
+            notes: approvalNotes || "Stock in approved"
+          }
+        );
       }
 
       toast({

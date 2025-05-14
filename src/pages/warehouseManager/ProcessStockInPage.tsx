@@ -20,24 +20,26 @@ const ProcessStockInPage: React.FC = () => {
   } = useStockInProcessing(stockInId);
 
   if (stockInData.loading) {
-    return <div>Loading stock in details...</div>;
+    return <div className="p-4">Loading stock in details...</div>;
   }
 
   if (stockInData.error) {
-    return <div>Error: {stockInData.error.message}</div>;
+    return <div className="p-4 text-red-500">Error: {stockInData.error.message}</div>;
+  }
+
+  if (!currentStockIn) {
+    return <div className="p-4 text-red-500">Stock in not found</div>;
   }
 
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-semibold mb-4">Process Stock In</h1>
       
-      {currentStockIn && (
-        <StockInDetailView
-          stockIn={currentStockIn}
-          details={details}
-          isLoading={stockInData.loading}
-        />
-      )}
+      <StockInDetailView
+        stockIn={currentStockIn}
+        details={details}
+        isLoading={stockInData.loading}
+      />
       
       <StockInApprovalForm
         approvalNotes={approvalNotes}

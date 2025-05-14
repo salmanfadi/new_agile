@@ -7,6 +7,7 @@ import { InventoryMovement, InventoryMovementFilters } from '@/types/inventory';
 export const useInventoryMovements = (filters: InventoryMovementFilters = {}) => {
   const fetchInventoryMovements = async () => {
     try {
+      // Use the new inventory_movements table with related data
       let query = supabase
         .from('inventory_movements')
         .select(`
@@ -22,10 +23,10 @@ export const useInventoryMovements = (filters: InventoryMovementFilters = {}) =>
           performed_by,
           created_at,
           details,
-          product:product_id (name, sku),
-          warehouse:warehouse_id (name, location),
-          location:location_id (floor, zone),
-          performer:performed_by (name, username)
+          products:product_id (name, sku),
+          warehouses:warehouse_id (name, location),
+          warehouse_locations:location_id (floor, zone),
+          profiles:performed_by (name, username)
         `)
         .order('created_at', { ascending: false });
       
@@ -73,7 +74,39 @@ export const useInventoryMovements = (filters: InventoryMovementFilters = {}) =>
         throw error;
       }
       
-      return data as InventoryMovement[];
+      // Map the data to our InventoryMovement interface
+      const movements: InventoryMovement[] = data?.map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        warehouse_id: item.warehouse_id,
+        location_id: item.location_id,
+        movement_type: item.movement_type,
+        quantity: item.quantity,
+        status: item.status,
+        reference_table: item.reference_table,
+        reference_id: item.reference_id,
+        performed_by: item.performed_by,
+        created_at: item.created_at,
+        details: item.details,
+        product: item.products ? {
+          name: item.products.name,
+          sku: item.products.sku
+        } : undefined,
+        warehouse: item.warehouses ? {
+          name: item.warehouses.name,
+          location: item.warehouses.location
+        } : undefined,
+        location: item.warehouse_locations ? {
+          floor: item.warehouse_locations.floor,
+          zone: item.warehouse_locations.zone
+        } : undefined,
+        performer: item.profiles ? {
+          name: item.profiles.name,
+          username: item.profiles.username
+        } : undefined
+      })) || [];
+      
+      return movements;
     } catch (error) {
       console.error('Failed to fetch inventory movements:', error);
       toast({
