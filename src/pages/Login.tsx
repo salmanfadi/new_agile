@@ -41,7 +41,7 @@ const Login: React.FC = () => {
       let targetRoute = '/';
       if (user.role === 'admin') targetRoute = '/admin';
       else if (user.role === 'warehouse_manager') targetRoute = '/manager';
-      else if (user.role === 'field_operator') targetRoute = '/operator';
+      else if (user.role === 'field_operator') targetRoute = '/field';
       else if (user.role === 'sales_operator') targetRoute = '/sales';
       
       console.log("Redirecting authenticated user to:", targetRoute);
@@ -89,31 +89,7 @@ const Login: React.FC = () => {
           console.log("Sign out before login failed:", err);
         }
         
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: username,
-          password,
-        });
-        
-        if (error) throw error;
-        
-        if (data.user) {
-          // Check if account is active
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('role, active')
-            .eq('id', data.user.id)
-            .single();
-            
-          if (profileError) throw profileError;
-          
-          if (!profile.active) {
-            await supabase.auth.signOut();
-            throw new Error("Your account has been disabled by the admin. For support, contact: admin@agilewms.com");
-          }
-          
-          // Continue with login through the context
-          await login(username, password);
-        }
+        await login(username, password);
       }
     } catch (error) {
       console.error("Login submission error:", error);

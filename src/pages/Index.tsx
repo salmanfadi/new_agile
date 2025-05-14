@@ -1,169 +1,34 @@
 
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Barcode, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const Index: React.FC = () => {
+const Index = () => {
+  const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
-  const { isAuthenticated, user, isLoading } = useAuth();
-  const [progressValue, setProgressValue] = useState(30);
-  const [redirectAttempted, setRedirectAttempted] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  
-  console.log("Index page state:", { isAuthenticated, user, isLoading, redirectAttempted, elapsedTime });
-  
-  // Simulate progress while loading to improve UX
-  useEffect(() => {
-    if (isLoading) {
-      const interval = setInterval(() => {
-        setProgressValue((prev) => (prev < 90 ? prev + 10 : prev));
-      }, 500);
-      return () => clearInterval(interval);
-    }
-  }, [isLoading]);
-  
-  // Track elapsed time for better user feedback
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedTime((prev) => prev + 1);
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, []);
-  
-  // Safety timeout to prevent getting stuck on loading
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (isLoading) {
-        console.log("Navigation timeout - redirecting to login");
-        navigate('/login');
-      }
-    }, 3000); // Reduced from 5s to 3s for faster fallback
-    
-    return () => clearTimeout(timeoutId);
-  }, [isLoading, navigate]);
   
   useEffect(() => {
-    // Only redirect when we're sure about authentication state (not loading)
-    if (!isLoading && !redirectAttempted) {
-      console.log("Auth state loaded:", { isAuthenticated, user });
-      setRedirectAttempted(true);
+    if (isAuthenticated && user && !isLoading) {
+      // Redirect to appropriate dashboard based on user role
+      let targetRoute = '/';
+      if (user.role === 'admin') targetRoute = '/admin';
+      else if (user.role === 'warehouse_manager') targetRoute = '/manager';
+      else if (user.role === 'field_operator') targetRoute = '/field';
+      else if (user.role === 'sales_operator') targetRoute = '/sales';
       
-      if (isAuthenticated && user) {
-        // Redirect based on user role
-        switch (user.role) {
-          case 'admin':
-            navigate('/admin');
-            break;
-          case 'warehouse_manager':
-            navigate('/manager');
-            break;
-          case 'field_operator':
-            navigate('/operator');
-            break;
-          default:
-            navigate('/login');
-        }
-      } else {
-        console.log("User not authenticated, redirecting to login");
-        navigate('/login');
-      }
+      navigate(targetRoute, { replace: true });
+    } else if (!isLoading) {
+      // If not authenticated and not loading, redirect to login
+      navigate('/login', { replace: true });
     }
-  }, [isAuthenticated, user, navigate, isLoading, redirectAttempted]);
+  }, [isAuthenticated, user, isLoading, navigate]);
   
-  // Provide a manual escape button if loading takes too long
-  const handleManualRedirect = () => {
-    console.log("Manual redirect to login");
-    navigate('/login');
-  };
-  
-  // If we're stuck in loading state for some reason, provide an option to force login
-  const handleForceLogin = () => {
-    console.log("Forcing login with mock user");
-    try {
-      // Clear any existing auth data
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || key.includes('sb-') || key === 'user') {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Create a mock admin user and store it
-      const mockAdmin = { id: '1', username: 'admin', role: 'admin', name: 'Admin User' };
-      localStorage.setItem('user', JSON.stringify(mockAdmin));
-      window.location.href = '/admin';  // Full page reload to ensure auth state is reset
-    } catch (error) {
-      console.error("Force login failed:", error);
-      navigate('/login');
-    }
-  };
-  
-  // Handle force clear auth state
-  const handleForceClearAuth = () => {
-    console.log("Clearing auth state");
-    // Clear any auth tokens in storage
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-') || key === 'user') {
-        localStorage.removeItem(key);
-      }
-    });
-    
-    // Force a full page reload
-    window.location.href = '/login';
-  };
-  
+  // Show simple loading while redirecting
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center max-w-md w-full p-8 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-6">Agile Warehouse</h1>
-        <div className="flex flex-col items-center gap-6">
-          <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <Progress value={progressValue} className="w-full h-2" />
-          <div className="space-y-2">
-            <p className="text-gray-600">Loading application...</p>
-            <p className="text-sm text-gray-400">Verifying access credentials</p>
-            {elapsedTime > 2 && (
-              <p className="text-sm text-amber-500 flex items-center justify-center gap-1 mt-2">
-                <AlertTriangle className="h-4 w-4" /> 
-                Taking longer than expected
-              </p>
-            )}
-          </div>
-          
-          {progressValue >= 60 || elapsedTime >= 3 ? (
-            <div className="flex flex-col gap-2">
-              <Button 
-                onClick={handleManualRedirect}
-                variant="outline"
-                className="mt-4"
-              >
-                Continue to Login
-              </Button>
-              
-              <div className="flex gap-2 mt-2">
-                <Button
-                  onClick={handleForceLogin}
-                  variant="secondary"
-                  size="sm"
-                >
-                  Debug: Force Login
-                </Button>
-                
-                <Button
-                  onClick={handleForceClearAuth}
-                  variant="destructive"
-                  size="sm"
-                >
-                  Clear Auth State
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
+      <div className="text-center">
+        <div className="h-12 w-12 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <h2 className="text-xl font-medium text-gray-700">Redirecting...</h2>
       </div>
     </div>
   );

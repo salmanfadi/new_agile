@@ -48,7 +48,14 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
     console.log("Admin user, granting access");
     // Handle function children (render prop pattern)
     if (typeof children === 'function') {
-      return children({ user });
+      return children({ 
+        user: {
+          id: user.id,
+          username: user.username || '',
+          role: user.role,
+          name: user.name || ''
+        } 
+      });
     }
     return <>{children}</>;
   }
@@ -60,7 +67,14 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
       user?.role === 'warehouse_manager') {
     console.log("Warehouse manager accessing stock-in processing, granting access");
     if (typeof children === 'function') {
-      return children({ user });
+      return children({ 
+        user: {
+          id: user.id,
+          username: user.username || '',
+          role: user.role,
+          name: user.name || ''
+        } 
+      });
     }
     return <>{children}</>;
   }
@@ -70,7 +84,14 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
   if (location.pathname === '/admin/barcodes' && user?.role === 'warehouse_manager') {
     console.log("Warehouse manager accessing barcode management, granting access");
     if (typeof children === 'function') {
-      return children({ user });
+      return children({ 
+        user: {
+          id: user.id,
+          username: user.username || '',
+          role: user.role,
+          name: user.name || ''
+        } 
+      });
     }
     return <>{children}</>;
   }
@@ -80,13 +101,20 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
   if (location.pathname === '/admin/products' && user?.role === 'warehouse_manager') {
     console.log("Warehouse manager accessing product management, granting access");
     if (typeof children === 'function') {
-      return children({ user });
+      return children({ 
+        user: {
+          id: user.id,
+          username: user.username || '',
+          role: user.role,
+          name: user.name || ''
+        } 
+      });
     }
     return <>{children}</>;
   }
 
   // Check if the user has the required role for the page
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && user && !allowedRoles.includes(user.role as UserRole)) {
     console.log("User role not in allowed roles, redirecting to unauthorized", {
       userRole: user.role,
       allowedRoles
@@ -98,7 +126,14 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
   
   // Handle function children (render prop pattern)
   if (typeof children === 'function' && user) {
-    return children({ user });
+    return children({ 
+      user: {
+        id: user.id,
+        username: user.username || '',
+        role: user.role as UserRole,
+        name: user.name || ''
+      } 
+    });
   }
 
   // Handle regular ReactNode children

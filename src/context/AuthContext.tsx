@@ -4,6 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import { UserRole } from '@/types/auth';
 
+// Mock users for development
+export const mockUsers = [
+  { username: 'admin', password: 'password', role: 'admin', name: 'Admin User', id: '1' },
+  { username: 'warehouse', password: 'password', role: 'warehouse_manager', name: 'Warehouse Manager', id: '2' },
+  { username: 'field', password: 'password', role: 'field_operator', name: 'Field Operator', id: '3' },
+  { username: 'sales', password: 'password', role: 'sales_operator', name: 'Sales Operator', id: '4' },
+];
+
 // Define the type for the user object that includes email
 export interface User {
   id: string;
@@ -21,6 +29,8 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
+  isAuthenticated: boolean; // Added this property
+  login: (username: string, password: string) => Promise<void>; // Added for compatibility
 }
 
 // Create the context
@@ -36,6 +46,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false); // Added this state
 
   // Initialize session on mount
   useEffect(() => {
@@ -52,8 +63,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // If session exists, fetch user profile
         if (initialSession?.user) {
           await fetchUserProfile(initialSession.user.id);
+          setIsAuthenticated(true); // Set authenticated if session exists
         } else {
           setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
@@ -75,11 +88,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Handle sign in and user update events
         if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
           await fetchUserProfile(session.user.id);
+          setIsAuthenticated(true);
         }
         
         // Handle sign out event
         if (event === 'SIGNED_OUT') {
           setUser(null);
+          setIsAuthenticated(false);
         }
         
         setIsLoading(false);
@@ -155,7 +170,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Session is automatically updated via the auth listener
-      return data;
+      // Modified to not return data (to match Promise<void> signature)
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
       setError(`Sign in error: ${errorMessage}`);
@@ -189,6 +204,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Mock login function for development
+  const login = async (username: string, password: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Check if the username matches any of our mock users
+      const mockUser = mockUsers.find(u => 
+        u.username.toLowerCase() === username.toLowerCase() && u.password === password
+      );
+      
+      if (mockUser) {
+        setUser({
+          id: mockUser.id,
+          email: `${mockUser.username}@example.com`,
+          role: mockUser.role as UserRole,
+          name: mockUser.name,
+          username: mockUser.username
+        });
+        setIsAuthenticated(true);
+        
+        // Navigate to the appropriate dashboard based on role
+        console.log("Mock login successful for", mockUser.role);
+      } else {
+        // Try real Supabase auth if no mock user found
+        await signIn(username, password);
+      }
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
+      setError(`Login error: ${errorMessage}`);
+      console.error('Login error:', e);
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Create the value object
   const value: AuthContextType = {
     session,
@@ -196,7 +248,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signIn,
     signOut,
     isLoading,
-    error
+    error,
+    isAuthenticated,
+    login // Added mock login function
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
