@@ -1,156 +1,183 @@
-
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
-import { AuthProvider } from '@/context/AuthContext';
-import { RequireAuth } from '@/components/auth/RequireAuth';
-import { MainLayout } from '@/components/layout/MainLayout';
-import Index from '@/pages/Index';
-import Login from '@/pages/Login';
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Route,
+  Outlet,
+  Navigate
+} from "react-router-dom";
+import { useAuth } from '@/context/AuthContext';
+import { MainLayout } from '@/layouts/MainLayout';
+import { PublicLayout } from '@/layouts/PublicLayout';
+import LoginPage from '@/pages/LoginPage';
+import SignUpPage from '@/pages/SignUpPage';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
-import ManagerDashboard from '@/pages/warehouseManager/ManagerDashboard';
-import OperatorDashboard from '@/pages/fieldOperator/OperatorDashboard';
+import WarehouseManagerDashboard from '@/pages/warehouseManager/WarehouseManagerDashboard';
+import FieldOperatorDashboard from '@/pages/fieldOperator/FieldOperatorDashboard';
+import SalesOperatorDashboard from '@/pages/salesOperator/SalesOperatorDashboard';
+import CustomerDashboard from '@/pages/customer/CustomerDashboard';
+import AdminStockInManagement from '@/pages/admin/StockInManagement';
 import StockInProcessing from '@/pages/warehouseManager/StockInProcessing';
-import ProcessStockInPage from '@/pages/warehouseManager/ProcessStockInPage';
-import BatchStockInPage from '@/pages/warehouseManager/BatchStockInPage';
 import AdminBatchStockInPage from '@/pages/admin/BatchStockInPage';
-import StockOutApproval from '@/pages/warehouseManager/StockOutApproval';
-import StockOutForm from '@/pages/fieldOperator/StockOutForm';
-import MySubmissions from '@/pages/fieldOperator/MySubmissions';
+import AdminInventoryView from '@/pages/admin/InventoryView';
 import InventoryView from '@/pages/warehouseManager/InventoryView';
-import Unauthorized from '@/pages/Unauthorized';
-import BarcodeLookup from "./pages/fieldOperator/BarcodeLookup";
-import ManagerBarcodeLookup from "./pages/warehouseManager/BarcodeLookup";
-import BarcodeScannerPage from "./pages/BarcodeScanner";
-import ProductManagement from "./pages/admin/ProductManagement";
-import WarehouseManagement from "./pages/admin/WarehouseManagement";
-import ProductCatalogue from "./pages/public/ProductCatalogue";
-import ProductDetail from "./pages/public/ProductDetail";
-import Cart from "./pages/public/Cart";
-import SalesInquiries from "./pages/admin/SalesInquiries";
-import AdminInventoryView from "./pages/admin/InventoryView";
-import UsersManagement from "./pages/admin/UsersManagement"; 
-import SalesOperatorDashboard from "./pages/salesOperator/SalesOperatorDashboard";
-import SalesInquiriesManagement from "./pages/salesOperator/SalesInquiriesManagement";
-import SalesInventoryView from "./pages/salesOperator/InventoryView";
-import StockInForm from "./pages/fieldOperator/StockInForm";
-import BarcodeManagement from "./pages/admin/BarcodeManagement";
-import AdminStockInManagement from "./pages/admin/StockInManagement";
-import AdminStockOutManagement from "./pages/admin/StockOutManagement";
-// Import customer pages
-import CustomerLanding from "./pages/customer/CustomerLanding";
-import CustomerProducts from "./pages/customer/CustomerProducts";
-import CustomerInquiry from "./pages/customer/CustomerInquiry";
-import CustomerInquirySuccess from "./pages/customer/CustomerInquirySuccess";
-import CustomerLogin from "./pages/customer/CustomerLogin";
-import CustomerPortal from "./pages/customer/CustomerPortal";
-import CustomerRegister from "./pages/customer/CustomerRegister";
+import AdminStockOutManagement from '@/pages/admin/StockOutManagement';
+import StockOutRequests from '@/pages/warehouseManager/StockOutRequests';
+import AdminProfilesManagement from '@/pages/admin/ProfilesManagement';
+import SalesInquiriesManagement from '@/pages/admin/SalesInquiriesManagement';
+import BatchStockInPage from '@/pages/warehouseManager/BatchStockInPage';
+import BatchInventoryPage from '@/pages/warehouse/BatchInventoryPage';
+import BarcodeInventoryPage from '@/pages/warehouse/BarcodeInventoryPage';
+import AdminBatchInventoryPage from '@/pages/admin/BatchInventoryPage';
+import AdminBarcodeInventoryPage from '@/pages/admin/BarcodeInventoryPage';
 
-const App: React.FC = () => {
-  return (
-    <Router>
-      <AuthProvider>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/unauthorized" element={<Unauthorized />} />
+// Define a function component for protected routes
+const RequireAuth = ({ allowedRoles, children }: { allowedRoles: string[], children: JSX.Element }) => {
+  const { user, loading } = useAuth();
 
-          {/* Admin Routes */}
-          <Route path="/admin" element={
-            <RequireAuth allowedRoles={['admin']}>
-              <MainLayout>
-                <Outlet />
-              </MainLayout>
-            </RequireAuth>
-          }>
-            <Route index element={<AdminDashboard />} />
-            <Route path="products" element={<ProductManagement />} />
-            <Route path="warehouses" element={<WarehouseManagement />} />
-            <Route path="inventory" element={<AdminInventoryView />} />
-            <Route path="barcodes" element={<BarcodeManagement />} />
-            <Route path="stock-in" element={<AdminStockInManagement />} />
-            <Route path="stock-in/batch" element={<AdminBatchStockInPage />} />
-            <Route path="stock-in/batch/:stockInId" element={<AdminBatchStockInPage />} /> {/* New route with ID */}
-            <Route path="stock-out" element={<AdminStockOutManagement />} />
-            <Route path="sales" element={<SalesInquiries />} />
-            <Route path="users" element={<UsersManagement />} />
-          </Route>
+  if (loading) {
+    return <div>Loading...</div>; // Show a loading indicator while checking authentication
+  }
 
-          {/* Warehouse Manager Routes */}
-          <Route path="/manager" element={
-            <RequireAuth allowedRoles={['warehouse_manager']}>
-              <MainLayout>
-                <Outlet />
-              </MainLayout>
-            </RequireAuth>
-          }>
-            <Route index element={<ManagerDashboard />} />
-            <Route path="stock-in" element={<StockInProcessing />} />
-            <Route path="stock-in/batch" element={<BatchStockInPage />} />
-            <Route path="stock-in/batch/:stockInId" element={<BatchStockInPage />} /> {/* New route with ID */}
-            <Route path="process-stock-in/:stockInId" element={<ProcessStockInPage />} />
-            <Route path="stock-out-approval" element={<StockOutApproval />} />
-            <Route path="inventory" element={<InventoryView />} />
-            <Route path="barcode" element={<ManagerBarcodeLookup />} />
-          </Route>
+  if (!user) {
+    // Redirect to login if not authenticated
+    return <Navigate to="/login" replace />;
+  }
 
-          {/* Field Operator Routes */}
-          <Route path="/operator" element={
-            <RequireAuth allowedRoles={['field_operator']}>
-              <MainLayout>
-                <Outlet />
-              </MainLayout>
-            </RequireAuth>
-          }>
-            <Route index element={<OperatorDashboard />} />
-            <Route path="stock-in" element={<StockInForm />} />
-            <Route path="stock-out" element={<StockOutForm />} />
-            <Route path="submissions" element={<MySubmissions />} />
-            <Route path="barcode-lookup" element={<BarcodeLookup />} />
-          </Route>
+  if (!allowedRoles.includes(user.role)) {
+    // Redirect to unauthorized page or appropriate route if user doesn't have required role
+    return <div>Unauthorized</div>;
+  }
 
-          {/* Sales Operator Routes */}
-          <Route path="/sales" element={
-            <RequireAuth allowedRoles={['sales_operator']}>
-              <MainLayout>
-                <Outlet />
-              </MainLayout>
-            </RequireAuth>
-          }>
-            <Route index element={<SalesOperatorDashboard />} />
-            <Route path="inquiries" element={<SalesInquiriesManagement />} />
-            <Route path="inventory" element={<SalesInventoryView />} />
-          </Route>
-
-          {/* Shared Route for Barcode Scanner */}
-          <Route path="/scan" element={
-            <RequireAuth allowedRoles={['warehouse_manager', 'field_operator', 'admin']}>
-              <MainLayout>
-                <Outlet />
-              </MainLayout>
-            </RequireAuth>
-          }>
-            <Route index element={<BarcodeScannerPage />} />
-          </Route>
-
-          {/* Customer Facing Routes */}
-          <Route path="/products" element={<ProductCatalogue />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
-          <Route path="/cart" element={<Cart />} />
-          
-          {/* Customer Portal */}
-          <Route path="/customer">
-            <Route index element={<CustomerLanding />} />
-            <Route path="products" element={<CustomerProducts />} />
-            <Route path="inquiry" element={<CustomerInquiry />} />
-            <Route path="inquiry/success" element={<CustomerInquirySuccess />} />
-            <Route path="login" element={<CustomerLogin />} />
-            <Route path="register" element={<CustomerRegister />} />
-            <Route path="portal" element={<CustomerPortal />} />
-          </Route>
-        </Routes>
-      </AuthProvider>
-    </Router>
-  );
+  return children;
 };
+
+// Define routes
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <PublicLayout />,
+    children: [
+      {
+        path: "login",
+        element: <LoginPage />,
+      },
+      {
+        path: "signup",
+        element: <SignUpPage />,
+      },
+    ]
+  },
+  {
+    path: "/",
+    element: <RequireAuth allowedRoles={['admin', 'warehouse_manager', 'field_operator', 'sales_operator']} />,
+    children: [
+      {
+        path: "/",
+        element: <MainLayout />,
+        children: [
+          {
+            path: "admin",
+            element: <AdminDashboard />,
+          },
+          {
+            path: "manager",
+            element: <WarehouseManagerDashboard />,
+          },
+          {
+            path: "field",
+            element: <FieldOperatorDashboard />,
+          },
+          {
+            path: "sales",
+            element: <SalesOperatorDashboard />,
+          },
+          {
+            path: "customer",
+            element: <CustomerDashboard />,
+          },
+          {
+            path: "admin/stock-in",
+            element: <AdminStockInManagement />,
+          },
+          {
+            path: "manager/stock-in",
+            element: <StockInProcessing />,
+          },
+          {
+            path: "admin/stock-in/batch",
+            element: <AdminBatchStockInPage />,
+          },
+          {
+            path: "admin/stock-in/batch/:stockInId",
+            element: <AdminBatchStockInPage />,
+          },
+          {
+            path: "manager/stock-in/batch",
+            element: <BatchStockInPage />,
+          },
+          {
+            path: "manager/stock-in/batch/:stockInId",
+            element: <BatchStockInPage />,
+          },
+          {
+            path: "admin/inventory",
+            element: <AdminInventoryView />,
+          },
+          {
+            path: "manager/inventory",
+            element: <InventoryView />,
+          },
+          {
+            path: "admin/stock-out",
+            element: <AdminStockOutManagement />,
+          },
+          {
+            path: "manager/stock-out",
+            element: <StockOutRequests />,
+          },
+          {
+            path: "admin/profiles",
+            element: <AdminProfilesManagement />,
+          },
+          {
+            path: "admin/sales-inquiries",
+            element: <SalesInquiriesManagement />,
+          },
+          
+          // Admin routes
+          {
+            path: "admin/inventory/batches",
+            element: <AdminBatchInventoryPage />
+          },
+          {
+            path: "admin/inventory/barcodes/:batchId",
+            element: <AdminBarcodeInventoryPage />
+          },
+          
+          // Manager routes
+          {
+            path: "manager/inventory/batches",
+            element: <BatchInventoryPage />
+          },
+          {
+            path: "manager/inventory/barcodes/:batchId",
+            element: <BarcodeInventoryPage />
+          }
+        ]
+      }
+    ]
+  },
+  {
+    path: "*",
+    element: <div>Page not found</div>
+  }
+]);
+
+function App() {
+  return (
+    <RouterProvider router={router} />
+  );
+}
 
 export default App;

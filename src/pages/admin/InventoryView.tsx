@@ -11,7 +11,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { ArrowLeft, Package } from 'lucide-react';
+import { ArrowLeft, Package, BoxesIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useInventoryData } from '@/hooks/useInventoryData';
 import { InventoryTable } from '@/components/warehouse/InventoryTable';
@@ -121,14 +121,25 @@ const AdminInventoryView = () => {
           Back to Dashboard
         </Button>
         
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          className="w-full sm:w-auto"
-        >
-          Refresh All Data
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/admin/inventory/batches')}
+            className="flex items-center gap-1"
+          >
+            <BoxesIcon className="h-4 w-4" />
+            View Batch Inventory
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+          >
+            Refresh All Data
+          </Button>
+        </div>
       </div>
       
       <InventoryFiltersPanel

@@ -52,7 +52,7 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
     // Get product_id from stock_in for inventory creation
     const { data: stockInData, error: stockInFetchError } = await supabase
       .from('stock_in')
-      .select('product_id')
+      .select('product_id, source, notes')
       .eq('id', stockInId)
       .single();
 
@@ -70,6 +70,34 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
     
     const auditEntries = [];
     const barcodeErrors = [];
+
+    // Calculate total quantity across all boxes
+    const totalQuantity = boxes.reduce((total, box) => total + box.quantity, 0);
+    
+    // Create a new processed batch record
+    const { data: batchData, error: batchError } = await supabase
+      .from('processed_batches')
+      .insert({
+        stock_in_id: stockInId,
+        processed_by: userId,
+        product_id: stockInData.product_id,
+        total_quantity: totalQuantity,
+        total_boxes: boxes.length,
+        warehouse_id: boxes[0]?.warehouse_id, // Use the first box's warehouse as default
+        source: stockInData.source,
+        notes: stockInData.notes,
+        status: 'completed'
+      })
+      .select('id')
+      .single();
+      
+    if (batchError) {
+      console.error('Error creating processed batch record:', batchError);
+      throw batchError;
+    }
+    
+    const batchId = batchData.id;
+    console.log(`Created new processed batch with ID: ${batchId}`);
 
     // Create stock in details for each box and inventory entries
     for (const box of boxes) {
@@ -120,7 +148,26 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
         }
         
         // Save the detail ID to use as batch_id in the inventory entry
-        const batchId = detailData?.id;
+        const detailId = detailData?.id;
+        
+        // Create a batch item record
+        const { error: batchItemError } = await supabase
+          .from('batch_items')
+          .insert({
+            batch_id: batchId,
+            barcode: boxBarcode,
+            quantity: box.quantity,
+            color: box.color || null,
+            size: box.size || null,
+            warehouse_id: box.warehouse_id,
+            location_id: box.location_id,
+            status: 'available'
+          });
+          
+        if (batchItemError) {
+          console.error('Error creating batch item:', batchItemError);
+          throw batchItemError;
+        }
         
         // Create an inventory entry for this box
         const { error: inventoryError } = await supabase
@@ -134,7 +181,7 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
             color: box.color || null,
             size: box.size || null,
             status: 'available',
-            batch_id: batchId  // Link to the batch ID
+            batch_id: batchId  // Link to the processed batch
           }]);
         
         if (inventoryError) {
@@ -149,12 +196,12 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
             barcode: boxBarcode,
             action: 'stock_in_processed',
             user_id: userId || '',
-            batch_id: stockInId,
+            batch_id: batchId,
             details: {
               stock_in_id: stockInId,
               product_id: stockInData.product_id,
               quantity: box.quantity,
-              batch_id: batchId,
+              processed_batch_id: batchId,
               warehouse_id: box.warehouse_id,
               location_id: box.location_id,
               color: box.color || null,
@@ -189,6 +236,7 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
       action_type: 'stock_in_processed',
       metadata: {
         stock_in_id: stockInId,
+        processed_batch_id: batchId,
         boxes_count: boxes.length,
         product_id: stockInData.product_id,
         audit_entries: auditEntries,
@@ -212,13 +260,17 @@ export const processStockIn = async (stockInId: string, boxes: BoxData[], userId
     if (barcodeErrors.length > 0) {
       console.warn(`Completed with ${barcodeErrors.length} barcode validation errors:`, barcodeErrors);
       return { 
-        success: true, 
+        success: true,
+        processed_batch_id: batchId, 
         barcodeErrors 
       };
     }
 
-    console.log(`Successfully processed stock-in: ${stockInId}`);
-    return { success: true };
+    console.log(`Successfully processed stock-in: ${stockInId}, batch: ${batchId}`);
+    return { 
+      success: true,
+      processed_batch_id: batchId
+    };
   } catch (error) {
     console.error('Stock-in processing failed:', error);
     throw error;

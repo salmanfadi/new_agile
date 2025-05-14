@@ -19,6 +19,7 @@ import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInReques
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 const StockInProcessing: React.FC = () => {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ const StockInProcessing: React.FC = () => {
     console.log("Setting up batch processing status subscription");
     
     // Subscribe to stock-in status changes
-    const channel = supabase
+    const channel: RealtimeChannel = supabase
       .channel('stock-in-status-changes')
       .on(
         'postgres_changes', 
@@ -69,20 +70,42 @@ const StockInProcessing: React.FC = () => {
         }
       )
       .subscribe((response) => {
-        // Fix: Use a more type-safe approach to checking the subscription status
         if (response) {
           console.log("Subscription response received:", response);
-          // Only try to access status if it's a known object shape with status property
+          // Type-safe access of status property
           if (typeof response === 'object' && response !== null && 'status' in response) {
             console.log("Subscription status:", response.status);
           }
         }
       });
 
-    // Clean up the subscription when component unmounts
+    // Subscribe to processed batches
+    const batchesChannel: RealtimeChannel = supabase
+      .channel('processed-batches-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'processed_batches' },
+        (payload) => {
+          console.log('Processed batch change detected:', payload);
+          
+          // Invalidate the processed batches data
+          queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
+          
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: 'New Batch Processed',
+              description: 'A new batch has been successfully processed',
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Clean up the subscriptions when component unmounts
     return () => {
       console.log("Cleaning up stock-in status subscription");
       supabase.removeChannel(channel);
+      supabase.removeChannel(batchesChannel);
     };
   }, [queryClient]);
 

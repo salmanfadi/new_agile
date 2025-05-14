@@ -2,18 +2,21 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import { useInventoryData } from '@/hooks/useInventoryData';
 import { InventoryTable } from '@/components/warehouse/InventoryTable';
 import { useInventoryFilters } from '@/hooks/useInventoryFilters';
 import { InventoryFiltersPanel } from '@/components/warehouse/InventoryFiltersPanel';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { BoxesIcon } from 'lucide-react';
 
 const InventoryView: React.FC = () => {
   const [highlightedBarcode, setHighlightedBarcode] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Get filters 
   const {
@@ -119,6 +122,18 @@ const InventoryView: React.FC = () => {
         title="Inventory" 
         description="View inventory across all warehouses"
       />
+      
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/manager/inventory/batches')}
+          className="flex items-center gap-1"
+        >
+          <BoxesIcon className="h-4 w-4" />
+          View Batch Inventory
+        </Button>
+      </div>
       
       <InventoryFiltersPanel
         onBarcodeScanned={handleBarcodeScanned}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -13,6 +14,7 @@ import { BatchStockInLoading } from '@/components/warehouse/BatchStockInLoading'
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BatchStockInComponentProps {
   adminMode?: boolean;
@@ -36,6 +38,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   const [remainingBoxes, setRemainingBoxes] = useState<number>(0);
   const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [processedBatchId, setProcessedBatchId] = useState<string | null>(null);
   
   // Log stockInData to debug
   useEffect(() => {
@@ -69,62 +72,61 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     resetBatches
   } = useBatchStockIn(user?.id || '');
 
-  // Navigate to inventory page after successful submission with improved navigation reliability
+  // Subscribe to processed batches to get the batch ID when it's created
+  useEffect(() => {
+    if (isSubmitting || isProcessing) {
+      const channel = supabase
+        .channel('processed-batch-creation')
+        .on('postgres_changes', 
+          { event: 'INSERT', schema: 'public', table: 'processed_batches' },
+          (payload) => {
+            console.log('New processed batch created:', payload);
+            if (payload.new && payload.new.stock_in_id === stockInId) {
+              setProcessedBatchId(payload.new.id);
+              console.log(`Setting processed batch ID: ${payload.new.id}`);
+            }
+          }
+        )
+        .subscribe();
+        
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [isSubmitting, isProcessing, stockInId]);
+
+  // Navigate to inventory page after successful submission with improved navigation
   useEffect(() => {
     if (isSuccess && !isProcessing && !isSubmitting) {
       queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
       setShowSuccessModal(true);
-      const timer = setTimeout(() => {
-        let role = user?.role;
-        let path = window.location.pathname;
-        console.log('Redirecting after batch submission:', { role, path });
-        if (onClose) {
-          console.log('Calling onClose() to close panel/sheet');
-          onClose();
-        }
-        if (role === 'admin') {
-          console.log('Navigating to /admin/inventory');
-          navigate('/admin/inventory');
-        } else if (role === 'warehouse_manager') {
-          console.log('Navigating to /manager/inventory');
-          navigate('/manager/inventory');
-        } else if (path.includes('/admin')) {
-          console.log('Fallback: Navigating to /admin/inventory');
-          navigate('/admin/inventory');
-        } else {
-          console.log('Fallback: Navigating to /manager/inventory');
-          navigate('/manager/inventory');
-        }
-        resetBatches();
-      }, 2000);
-      return () => clearTimeout(timer);
     }
-  }, [isSuccess, isProcessing, isSubmitting, user, navigate, onClose, resetBatches, queryClient]);
+  }, [isSuccess, isProcessing, isSubmitting, queryClient]);
 
   const handleNavigateToInventory = () => {
     setShowSuccessModal(false);
-    let role = user?.role;
-    let path = window.location.pathname;
-    console.log('Manual redirect after modal:', { role, path });
-    if (onClose) {
-      console.log('Calling onClose() to close panel/sheet');
-      onClose();
-    }
-    if (role === 'admin') {
-      console.log('Navigating to /admin/inventory');
-      navigate('/admin/inventory');
-    } else if (role === 'warehouse_manager') {
-      console.log('Navigating to /manager/inventory');
-      navigate('/manager/inventory');
-    } else if (path.includes('/admin')) {
-      console.log('Fallback: Navigating to /admin/inventory');
-      navigate('/admin/inventory');
-    } else {
-      console.log('Fallback: Navigating to /manager/inventory');
-      navigate('/manager/inventory');
-    }
+    
+    // Reset batches before navigating
     resetBatches();
+    
+    if (onClose && sheetMode) {
+      onClose();
+      return;
+    }
+    
+    const path = processedBatchId ? 
+      `${adminMode ? '/admin' : '/manager'}/inventory/barcodes/${processedBatchId}` :
+      `${adminMode ? '/admin' : '/manager'}/inventory`;
+      
+    console.log(`Navigating to: ${path}`);
+    navigate(path, { 
+      state: { 
+        fromBatchProcessing: true,
+        batchId: processedBatchId 
+      }
+    });
   };
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
@@ -285,14 +287,39 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
           </div>
         </div>
       )}
+      
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Batch Processed!</DialogTitle>
           </DialogHeader>
-          <div className="py-2">Your batch has been processed successfully. You will be redirected to Inventory shortly.</div>
-          <DialogFooter>
-            <Button onClick={handleNavigateToInventory} className="w-full">View Inventory Now</Button>
+          <div className="py-2">
+            <p>Your batch has been processed successfully.</p>
+            {processedBatchId && (
+              <p className="text-sm text-slate-500 mt-1">
+                Batch ID: {processedBatchId}
+              </p>
+            )}
+            <p className="mt-3">Would you like to view the barcodes for this batch or go to inventory?</p>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => {
+              setShowSuccessModal(false);
+              resetBatches();
+              if (onClose && sheetMode) {
+                onClose();
+                return;
+              }
+              navigate(`${adminMode ? '/admin' : '/manager'}/inventory`);
+            }}>
+              View Inventory
+            </Button>
+            <Button 
+              onClick={handleNavigateToInventory} 
+              className="w-full sm:w-auto"
+            >
+              {processedBatchId ? 'View Batch Barcodes' : 'View Inventory'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

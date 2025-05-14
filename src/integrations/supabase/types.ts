@@ -42,6 +42,67 @@ export type Database = {
         }
         Relationships: []
       }
+      batch_items: {
+        Row: {
+          barcode: string
+          batch_id: string | null
+          color: string | null
+          created_at: string | null
+          id: string
+          location_id: string | null
+          quantity: number
+          size: string | null
+          status: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          barcode: string
+          batch_id?: string | null
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          location_id?: string | null
+          quantity: number
+          size?: string | null
+          status?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          barcode?: string
+          batch_id?: string | null
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          location_id?: string | null
+          quantity?: number
+          size?: string | null
+          status?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "processed_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_items_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_items_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           barcode: string
@@ -234,6 +295,70 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      processed_batches: {
+        Row: {
+          id: string
+          notes: string | null
+          processed_at: string | null
+          processed_by: string | null
+          product_id: string | null
+          source: string | null
+          status: string
+          stock_in_id: string | null
+          total_boxes: number
+          total_quantity: number
+          warehouse_id: string | null
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          product_id?: string | null
+          source?: string | null
+          status?: string
+          stock_in_id?: string | null
+          total_boxes?: number
+          total_quantity?: number
+          warehouse_id?: string | null
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          product_id?: string | null
+          source?: string | null
+          status?: string
+          stock_in_id?: string | null
+          total_boxes?: number
+          total_quantity?: number
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processed_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processed_batches_stock_in_id_fkey"
+            columns: ["stock_in_id"]
+            isOneToOne: false
+            referencedRelation: "stock_in"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processed_batches_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {

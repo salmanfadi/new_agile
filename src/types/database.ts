@@ -82,6 +82,43 @@ export interface StockInDetail {
   updated_at: string;
 }
 
+// New interface for processed batches
+export interface ProcessedBatch {
+  id: string;
+  stock_in_id: string;
+  processed_by: string;
+  processed_at: string;
+  product_id: string;
+  total_quantity: number;
+  total_boxes: number;
+  warehouse_id: string | null;
+  source: string | null;
+  notes: string | null;
+  status: string;
+  // Join fields
+  product?: Product;
+  stock_in?: StockIn;
+  processor?: Profile;
+  items?: BatchItem[];
+}
+
+// New interface for batch items
+export interface BatchItem {
+  id: string;
+  batch_id: string;
+  barcode: string;
+  quantity: number;
+  color: string | null;
+  size: string | null;
+  warehouse_id: string;
+  location_id: string;
+  status: string;
+  created_at: string;
+  // Join fields
+  warehouse?: Warehouse;
+  location?: WarehouseLocation;
+}
+
 export interface StockOut {
   id: string;
   product_id: string;
