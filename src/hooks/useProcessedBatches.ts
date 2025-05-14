@@ -2,7 +2,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { ProcessedBatch, Product, Profile } from '@/types/database';
+import { ProcessedBatch } from '@/types/database';
+
+// Define simplified types for the database entities
+interface SimpleProduct {
+  id: string;
+  name: string;
+  sku?: string;
+}
+
+interface SimpleProfile {
+  id: string;
+  name: string;
+  username: string;
+}
 
 export interface ProcessedBatchData extends ProcessedBatch {
   productName: string;
@@ -63,18 +76,18 @@ export const useProcessedBatches = (productFilter?: string) => {
         ]);
 
         // Create lookup maps
-        const productMap: Record<string, Product> = {};
-        const profileMap: Record<string, Profile> = {};
+        const productMap: Record<string, SimpleProduct> = {};
+        const profileMap: Record<string, SimpleProfile> = {};
 
         if (productsResponse.data) {
           productsResponse.data.forEach(product => {
-            productMap[product.id] = product;
+            productMap[product.id] = product as SimpleProduct;
           });
         }
 
         if (profilesResponse.data) {
           profilesResponse.data.forEach(profile => {
-            profileMap[profile.id] = profile;
+            profileMap[profile.id] = profile as SimpleProfile;
           });
         }
 

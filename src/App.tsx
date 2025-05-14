@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   createBrowserRouter,
@@ -7,24 +8,24 @@ import {
   Navigate
 } from "react-router-dom";
 import { useAuth } from '@/context/AuthContext';
-import { MainLayout } from '@/layouts/MainLayout';
-import { PublicLayout } from '@/layouts/PublicLayout';
-import LoginPage from '@/pages/LoginPage';
-import SignUpPage from '@/pages/SignUpPage';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { PublicLayout } from '@/components/layout/PublicLayout';
+import LoginPage from './pages/Login';
+import SignUpPage from './pages/Index'; // Using Index as SignUpPage for now
 import AdminDashboard from '@/pages/admin/AdminDashboard';
-import WarehouseManagerDashboard from '@/pages/warehouseManager/WarehouseManagerDashboard';
-import FieldOperatorDashboard from '@/pages/fieldOperator/FieldOperatorDashboard';
+import WarehouseManagerDashboard from './pages/warehouseManager/ManagerDashboard';
+import FieldOperatorDashboard from './pages/fieldOperator/OperatorDashboard';
 import SalesOperatorDashboard from '@/pages/salesOperator/SalesOperatorDashboard';
-import CustomerDashboard from '@/pages/customer/CustomerDashboard';
+import CustomerDashboard from './pages/customer/CustomerPortal';
 import AdminStockInManagement from '@/pages/admin/StockInManagement';
 import StockInProcessing from '@/pages/warehouseManager/StockInProcessing';
 import AdminBatchStockInPage from '@/pages/admin/BatchStockInPage';
 import AdminInventoryView from '@/pages/admin/InventoryView';
 import InventoryView from '@/pages/warehouseManager/InventoryView';
 import AdminStockOutManagement from '@/pages/admin/StockOutManagement';
-import StockOutRequests from '@/pages/warehouseManager/StockOutRequests';
-import AdminProfilesManagement from '@/pages/admin/ProfilesManagement';
-import SalesInquiriesManagement from '@/pages/admin/SalesInquiriesManagement';
+import StockOutRequests from './pages/warehouseManager/StockOutApproval';
+import ProfilesManagement from './pages/admin/UsersManagement';
+import SalesInquiriesManagement from './pages/admin/SalesInquiries';
 import BatchStockInPage from '@/pages/warehouseManager/BatchStockInPage';
 import BatchInventoryPage from '@/pages/warehouse/BatchInventoryPage';
 import BarcodeInventoryPage from '@/pages/warehouse/BarcodeInventoryPage';
@@ -33,9 +34,9 @@ import AdminBarcodeInventoryPage from '@/pages/admin/BarcodeInventoryPage';
 
 // Define a function component for protected routes
 const RequireAuth = ({ allowedRoles, children }: { allowedRoles: string[], children: JSX.Element }) => {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (loading) {
+  if (isLoading) {
     return <div>Loading...</div>; // Show a loading indicator while checking authentication
   }
 
@@ -70,7 +71,10 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    element: <RequireAuth allowedRoles={['admin', 'warehouse_manager', 'field_operator', 'sales_operator']} />,
+    element: 
+      <RequireAuth allowedRoles={['admin', 'warehouse_manager', 'field_operator', 'sales_operator']}>
+        <Outlet />
+      </RequireAuth>,
     children: [
       {
         path: "/",
@@ -138,7 +142,7 @@ const router = createBrowserRouter([
           },
           {
             path: "admin/profiles",
-            element: <AdminProfilesManagement />,
+            element: <ProfilesManagement />,
           },
           {
             path: "admin/sales-inquiries",
