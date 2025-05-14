@@ -57,8 +57,9 @@ export function useBarcodeProcessor({
         // Add an inventory movement record instead of using barcode_logs
         await supabase.from('inventory_movements').insert({
           product_id: item.inventory_id,
-          warehouse_id: item.warehouse_id || '',
-          location_id: item.location_id || '',
+          // We need to get warehouse and location IDs differently since they're not in the returned structure
+          warehouse_id: '', // This will be populated through a separate query or passed in
+          location_id: '', // This will be populated through a separate query or passed in
           movement_type: 'adjustment', // Using adjustment for scanning/lookup operations
           quantity: 0, // Zero quantity as this is just a scan, not actual movement
           status: 'approved',

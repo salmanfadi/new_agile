@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import {
   Table,
@@ -125,7 +124,27 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
 
       if (movementsError) throw movementsError;
 
-      setItemHistory(movements || []);
+      // Convert the data to match the InventoryMovement type
+      const typedMovements: InventoryMovement[] = movements?.map(item => {
+        // Parse details if it's a string
+        let parsedDetails;
+        if (typeof item.details === 'string') {
+          try {
+            parsedDetails = JSON.parse(item.details);
+          } catch (err) {
+            parsedDetails = {};
+          }
+        } else {
+          parsedDetails = item.details || {};
+        }
+        
+        return {
+          ...item,
+          details: parsedDetails
+        };
+      }) || [];
+
+      setItemHistory(typedMovements);
     } catch (error) {
       console.error('Error fetching item history:', error);
       setItemHistory([]);
