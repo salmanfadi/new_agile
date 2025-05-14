@@ -10,7 +10,7 @@ interface RequireAuthProps {
 }
 
 export const RequireAuth: React.FC<RequireAuthProps> = ({ allowedRoles, children }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
   const location = useLocation();
 
   // If we're still loading, show nothing or a loading spinner
@@ -19,12 +19,12 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ allowedRoles, children
   }
 
   // If there is no user, redirect to login
-  if (!user) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // If allowedRoles is provided, check if the user has the required role
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && user.role && !allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" state={{ from: location }} replace />;
   }
 

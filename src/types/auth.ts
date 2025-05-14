@@ -18,7 +18,7 @@ export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  error?: string;
+  error?: string | Error | null;
   signIn: (
     provider: 'google' | 'github' | 'email',
     email?: string,
@@ -27,6 +27,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
+  signOut: () => Promise<void>;
   updateUser: (data: any) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   verifyOTP: (email: string, token: string, type: 'email' | 'magiclink') => Promise<any>;
@@ -62,4 +63,24 @@ export interface ScanResponse {
     }>;
   };
   error?: string;
+}
+
+export interface ProcessableStockIn {
+  id: string;
+  boxes: number;
+  status: string;
+  created_at: string;
+  source: string;
+  notes?: string;
+  product: {
+    id: string;
+    name: string;
+    sku?: string;
+    category?: string;
+  };
+  submitter: {
+    id: string;
+    name: string;
+    username: string;
+  };
 }

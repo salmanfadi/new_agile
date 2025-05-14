@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { Warehouse } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,7 +53,7 @@ const Login: React.FC = () => {
     if (authError) {
       toast({
         title: "Authentication Error",
-        description: authError,
+        description: authError instanceof Error ? authError.message : String(authError),
         variant: "destructive"
       });
     }
@@ -198,7 +198,9 @@ const Login: React.FC = () => {
         
         {authError && (
           <Alert variant="destructive" className="mt-4">
-            <AlertDescription>{authError}</AlertDescription>
+            <AlertDescription>
+              {authError instanceof Error ? authError.message : String(authError)}
+            </AlertDescription>
           </Alert>
         )}
       </Card>

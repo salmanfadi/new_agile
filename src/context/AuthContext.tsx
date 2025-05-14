@@ -1,31 +1,23 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { UserRole } from '@/types/auth';
-
-export interface User extends Omit<SupabaseUser, 'role'> {
-  role: UserRole;
-}
-
-export interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  isLoading: boolean;
-  error: Error | null;
-  login: (email: string, password: string) => Promise<{ error: Error | null; data: Session | null }>;
-  signUp: (email: string, password: string, role: UserRole) => Promise<{ error: Error | null; data: any }>;
-  logout: () => Promise<void>;
-}
+import { Session } from '@supabase/supabase-js';
+import { User, UserRole, AuthContextType } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   isLoading: true,
+  isAuthenticated: false,
   error: null,
-  login: async () => ({ error: null, data: null }),
-  signUp: async () => ({ error: null, data: null }),
+  login: async () => {},
+  signIn: async () => {},
+  signUp: async () => {},
   logout: async () => {},
+  signOut: async () => {},
+  updateUser: async () => {},
+  resetPassword: async () => {},
+  verifyOTP: async () => ({}),
 });
 
 interface AuthProviderProps {
@@ -37,6 +29,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     // Get initial session
@@ -50,12 +43,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setError(error);
         } else if (data.session) {
           setSession(data.session);
+          setIsAuthenticated(true);
           
           // Need to fetch user role from profiles table
           if (data.session.user) {
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
-              .select('role')
+              .select('role, name, username, active, avatar_url')
               .eq('id', data.session.user.id)
               .single();
               
@@ -65,8 +59,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               // Set the user with the role from the profiles table
               setUser({ 
                 ...data.session.user, 
-                role: profileData.role as UserRole 
-              });
+                role: profileData.role as UserRole,
+                name: profileData.name,
+                username: profileData.username,
+                active: profileData.active,
+                avatar_url: profileData.avatar_url
+              } as User);
             }
           }
         }
@@ -84,11 +82,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setSession(session);
       
       if (session?.user) {
+        setIsAuthenticated(true);
         try {
           // Fetch the user role from profiles table
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('role')
+            .select('role, name, username, active, avatar_url')
             .eq('id', session.user.id)
             .single();
             
@@ -98,14 +97,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             // Set the user with the role from the profiles table
             setUser({ 
               ...session.user, 
-              role: profileData.role as UserRole 
-            });
+              role: profileData.role as UserRole,
+              name: profileData.name,
+              username: profileData.username,
+              active: profileData.active,
+              avatar_url: profileData.avatar_url
+            } as User);
           }
         } catch (err) {
           console.error('Error in auth state change:', err);
         }
       } else {
         setUser(null);
+        setIsAuthenticated(false);
       }
     });
     
@@ -123,39 +127,53 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       if (error) {
         setError(error);
-        return { error, data: null };
+        throw error;
       }
       
-      return { error: null, data: data.session };
+      return;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('An unknown error occurred');
       setError(error);
-      return { error, data: null };
+      throw error;
     }
   };
 
-  const signUp = async (email: string, password: string, role: UserRole) => {
+  const signIn = async (provider: 'google' | 'github' | 'email', email?: string, password?: string) => {
     try {
+      if (provider === 'email' && email && password) {
+        return login(email, password);
+      }
+      
+      // Handle other providers here
+      setError(new Error(`Provider ${provider} not implemented`));
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('An unknown error occurred');
+      setError(error);
+      throw error;
+    }
+  };
+
+  const signUp = async (email: string, password?: string) => {
+    try {
+      if (!password) {
+        throw new Error("Password is required");
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            role,
-          },
-        },
       });
       
       if (error) {
         setError(error);
-        return { error, data: null };
+        throw error;
       }
       
-      return { error: null, data };
+      return;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('An unknown error occurred');
       setError(error);
-      return { error, data: null };
+      throw error;
     }
   };
 
@@ -164,8 +182,49 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
+      setIsAuthenticated(false);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+      throw err;
+    }
+  };
+
+  // Alias for logout to match the type definition
+  const signOut = logout;
+
+  const updateUser = async (data: any) => {
+    try {
+      const { error } = await supabase.auth.updateUser(data);
+      if (error) throw error;
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+      throw err;
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+      throw err;
+    }
+  };
+
+  const verifyOTP = async (email: string, token: string, type: 'email' | 'magiclink') => {
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+      throw err;
     }
   };
 
@@ -173,10 +232,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     session,
     isLoading,
+    isAuthenticated,
     error,
     login,
+    signIn,
     signUp,
     logout,
+    signOut,
+    updateUser,
+    resetPassword,
+    verifyOTP,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
