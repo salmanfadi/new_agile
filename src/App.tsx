@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   createBrowserRouter,
@@ -65,7 +66,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    element: <RequireAuth><MainLayout><Outlet /></MainLayout></RequireAuth>,
+    element: <RequireAuth allowedRoles={undefined}><MainLayout><Outlet /></MainLayout></RequireAuth>,
     children: [
       {
         path: "admin",

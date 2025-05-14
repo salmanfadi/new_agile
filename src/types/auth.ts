@@ -1,10 +1,11 @@
+
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface User extends SupabaseUser {
   id: string;
   email?: string;
   name?: string;
-  role?: string;
+  role?: UserRole;
   avatar_url?: string;
   username?: string;
   active?: boolean;
@@ -16,11 +17,14 @@ export interface AuthContextType {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
+  error?: string;
   signIn: (
     provider: 'google' | 'github' | 'email',
     email?: string,
     password?: string
   ) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: any) => Promise<void>;

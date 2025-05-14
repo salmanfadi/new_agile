@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -5,29 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { StockInDetails } from '@/components/StockInDetails';
-import { useToast } from "@/components/ui/use-toast"
-
-// Add a type for the processed stockIn data
-interface ProcessableStockIn {
-  id: string;
-  boxes: number;
-  status: "pending" | "approved" | "rejected" | "completed" | "processing";
-  created_at: string;
-  source: string;
-  notes?: string;
-  product: {
-    id: string;
-    name: string;
-    sku?: string;
-    category?: string;
-  };
-  submitter: {
-    id: string;
-    name: string;
-    username: string;
-  };
-}
+import { StockInDetails, ProcessableStockIn } from '@/components/StockInDetails';
+import { useToast } from "@/components/ui/use-toast";
 
 interface StockInData {
   stockIn?: ProcessableStockIn | null;
@@ -57,12 +37,12 @@ const ProcessStockInPage: React.FC = () => {
           throw new Error("Stock In ID is missing.");
         }
 
-        const { data: stockIn, error: stockInError } = await supabase
+        const { data, error: stockInError } = await supabase
           .from('stock_in')
           .select(`
             id, boxes, status, created_at, source, notes,
-            product (id, name, sku, category),
-            submitter: submitted_by (id, name, username)
+            product:product_id (id, name, sku, category),
+            submitter:submitted_by (id, name, username)
           `)
           .eq('id', stockInId)
           .single();
@@ -71,12 +51,24 @@ const ProcessStockInPage: React.FC = () => {
           throw stockInError;
         }
 
-        if (!stockIn) {
+        if (!data) {
           throw new Error("Stock In record not found.");
         }
 
-        setCurrentStockIn(stockIn as ProcessableStockIn);
-        setStockInData({ stockIn: stockIn as ProcessableStockIn, loading: false, error: null });
+        // Transform the data into the expected shape
+        const transformedData: ProcessableStockIn = {
+          id: data.id,
+          boxes: data.boxes,
+          status: data.status,
+          created_at: data.created_at,
+          source: data.source,
+          notes: data.notes,
+          product: data.product, // This should now be a single object
+          submitter: data.submitter, // This should now be a single object
+        };
+
+        setCurrentStockIn(transformedData);
+        setStockInData({ stockIn: transformedData, loading: false, error: null });
 
       } catch (error: any) {
         console.error('Error fetching stock in:', error);
@@ -140,7 +132,7 @@ const ProcessStockInPage: React.FC = () => {
       {currentStockIn && (
         <StockInDetails
           stockInData={stockInData}
-          stockIn={currentStockIn as any}
+          stockIn={currentStockIn}
           details={details}
         />
       )}

@@ -73,6 +73,7 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
   // Process stock in mutation
   const processStockInMutation = useMutation({
     mutationFn: async (data: { stockInId: string; boxes: typeof boxesData }) => {
+      if (!userId) throw new Error("User ID is required to process stock in");
       return processStockIn(data.stockInId, data.boxes, userId);
     },
     onSuccess: () => {

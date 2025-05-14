@@ -1,3 +1,4 @@
+
 import { Product, Profile } from './database';
 
 export type StockInStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'approved' | 'rejected';
@@ -60,6 +61,7 @@ export interface StockIn {
   processing_completed_at?: string;
   created_at?: string;
   updated_at?: string;
+  boxes?: number;
 }
 
 export interface StockInData {

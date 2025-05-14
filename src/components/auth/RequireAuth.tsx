@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -13,7 +14,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
   children, 
   allowedRoles
 }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   
   console.log("RequireAuth state:", { 

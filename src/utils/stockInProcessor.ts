@@ -1,3 +1,4 @@
+
 import { supabase } from '../lib/supabase';
 
 // Function to update the stock details for a product
@@ -11,7 +12,7 @@ export const updateStockDetails = async (productId: string, quantity: number, wa
       .eq('warehouse_id', warehouseId)
       .single();
 
-    if (stockError && stockError.status !== 404) {
+    if (stockError && stockError.code !== '406') { // Modified from stockError.status to stockError.code
       console.error('Error checking existing stock:', stockError);
       throw stockError;
     }
@@ -55,6 +56,7 @@ const logStockMovement = async (
   details: any
 ) => {
   try {
+    // Check if the table exists in the schema
     await supabase
       .from('stock_movement_audit')
       .insert({
@@ -71,7 +73,7 @@ const logStockMovement = async (
 };
 
 // Main function to process stock-in
-export const processStockIn = async (stockInId: string, userId: string, warehouseId: string) => {
+export const processStockIn = async (stockInId: string, boxes: any[], userId: string) => {
   try {
     // Fetch the stock-in details
     const { data: stockIn, error: stockInError } = await supabase
@@ -87,6 +89,16 @@ export const processStockIn = async (stockInId: string, userId: string, warehous
 
     if (!stockIn) {
       throw new Error(`Stock-in with ID ${stockInId} not found.`);
+    }
+    
+    // Get the warehouse_id from the first box
+    if (!boxes || boxes.length === 0) {
+      throw new Error('No boxes provided for processing');
+    }
+    
+    const warehouseId = boxes[0].warehouse_id;
+    if (!warehouseId) {
+      throw new Error('Warehouse ID is required');
     }
 
     // Update stock details in the warehouse
