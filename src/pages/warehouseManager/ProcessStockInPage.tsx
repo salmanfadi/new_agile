@@ -43,10 +43,11 @@ const ProcessStockInPage: React.FC = () => {
       id: currentStockIn.product_id,
       name: "Unknown Product" 
     },
-    submitter: currentStockIn.submitter || {
-      id: currentStockIn.submitted_by,
-      name: "Unknown User",
-      username: "unknown"
+    submitter: {
+      id: currentStockIn.submitter?.id || currentStockIn.submitted_by,
+      // Ensure name is always a string as required by ProcessableStockIn
+      name: currentStockIn.submitter?.name || "Unknown User",
+      username: currentStockIn.submitter?.username || "unknown"
     },
     processed_by: currentStockIn.processed_by,
     batch_id: undefined,

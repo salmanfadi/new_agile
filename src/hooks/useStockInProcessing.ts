@@ -16,7 +16,7 @@ interface Product {
 
 interface Submitter {
   id: string;
-  name?: string | null;
+  name: string | null;  // Changed from name?: string | null to make it always present but possibly null
   username: string;
 }
 
@@ -128,7 +128,7 @@ export const useStockInProcessing = (stockInId?: string) => {
     if (stockIn.profiles) {
       stockInData.submitter = {
         id: stockIn.profiles.id,
-        name: stockIn.profiles.name,
+        name: stockIn.profiles.name, // This can be null but is now always present as a property
         username: stockIn.profiles.username,
       };
     }
