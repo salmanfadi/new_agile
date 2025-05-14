@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -135,7 +136,32 @@ export const useBatchStockIn = (userId: string = '') => {
           });
         }
         
-        // Create inventory entry
+        // First, create stock_in_details record to avoid foreign key constraint violation
+        const { data: detailData, error: detailError } = await supabase
+          .from('stock_in_details')
+          .insert({
+            stock_in_id: stockInId,
+            warehouse_id: box.warehouse_id,
+            location_id: box.location_id,
+            barcode: box.barcode,
+            quantity: box.quantity,
+            color: box.color,
+            size: box.size,
+            product_id: box.product_id
+          })
+          .select()
+          .single();
+          
+        if (detailError) {
+          console.error('Error creating stock_in_details:', detailError);
+          barcodeErrors.push({
+            barcode: box.barcode,
+            error: detailError.message
+          });
+          continue; // Skip inventory creation if detail creation fails
+        }
+        
+        // Now create inventory entry with the stock_in_detail_id to satisfy the FK constraint
         const { error: inventoryError, data: inventoryData } = await supabase
           .from('inventory')
           .insert({
@@ -147,6 +173,8 @@ export const useBatchStockIn = (userId: string = '') => {
             color: box.color,
             size: box.size,
             batch_id: processed_batch_id,
+            stock_in_id: stockInId,
+            stock_in_detail_id: detailData.id, // Include the stock_in_detail_id to satisfy FK constraint
             status: 'available'
           })
           .select()
@@ -177,9 +205,13 @@ export const useBatchStockIn = (userId: string = '') => {
       
       // Update stock_in status to completed if this was from a stock_in request
       if (stockInId) {
+        // Cast status to movement_status to fix type mismatch error
         const { error: updateError } = await supabase
           .from('stock_in')
-          .update({ status: 'completed', processed_by: userId })
+          .update({ 
+            status: 'completed', 
+            processed_by: userId 
+          })
           .eq('id', stockInId);
           
         if (updateError) {

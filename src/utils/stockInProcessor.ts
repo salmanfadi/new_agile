@@ -29,10 +29,11 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
     }
     
     // Update stock_in status to processing
+    // Cast status to movement_status type to fix type mismatch error
     const { error: updateError } = await supabase
       .from('stock_in')
       .update({ 
-        status: 'processing',
+        status: 'processing'::movement_status,
         processed_by: userId,
         processing_started_at: new Date().toISOString()
       })
@@ -64,10 +65,11 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
     }
     
     // Mark the stock_in as completed
+    // Cast status to movement_status type to fix type mismatch error
     const { error: completeError } = await supabase
       .from('stock_in')
       .update({ 
-        status: 'completed',
+        status: 'completed'::movement_status,
         processing_completed_at: new Date().toISOString()
       })
       .eq('id', stockInId);
@@ -80,12 +82,16 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
   } catch (error) {
     console.error('Error processing stock in:', error);
     
-    // Try to mark the stock_in as processing instead of failed
-    // since failed may not be an allowed status in the enum
-    await supabase
-      .from('stock_in')
-      .update({ status: 'processing' })
-      .eq('id', stockInId);
+    try {
+      // Try to mark the stock_in as processing instead of failed
+      // Cast status to movement_status type to fix type mismatch error
+      await supabase
+        .from('stock_in')
+        .update({ status: 'processing'::movement_status })
+        .eq('id', stockInId);
+    } catch (updateError) {
+      console.error('Failed to update status after error:', updateError);
+    }
       
     throw error;
   }

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -35,12 +36,13 @@ export const useProcessBatch = () => {
       setIsPending(true);
 
       // Create a new batch record
+      // Note the casting of status to stock_status enum
       const { data: batch, error: batchError } = await supabase
         .from('stock_in')
         .insert({
           product_id: batchData.product_id,
           source: 'batch',
-          status: 'processing',
+          status: 'processing', // This will be cast to the appropriate enum type by Postgres
           submitted_by: (await supabase.auth.getUser()).data.user?.id,
           boxes: batchData.number_of_boxes,
         })
@@ -76,10 +78,11 @@ export const useProcessBatch = () => {
       }
 
       // Update batch status to completed
+      // Note the casting of status to stock_status enum
       const { error: updateError } = await supabase
         .from('stock_in')
         .update({
-          status: 'completed',
+          status: 'completed', // This will be cast to the appropriate enum type by Postgres
           processing_completed_at: new Date().toISOString(),
         })
         .eq('id', batch.id);
@@ -100,6 +103,8 @@ export const useProcessBatch = () => {
             size: detail.size,
             status: 'available',
             batch_id: detail.batch_number,
+            stock_in_id: batch.id,
+            stock_in_detail_id: detail.id, // Add this to satisfy the foreign key constraint
           });
 
         if (inventoryError) throw inventoryError;
