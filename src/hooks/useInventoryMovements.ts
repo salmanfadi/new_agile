@@ -22,6 +22,7 @@ export const useInventoryMovements = (filters: InventoryMovementFilters = {}) =>
           reference_id,
           performed_by,
           created_at,
+          transfer_reference_id,
           details,
           products:product_id (name, sku),
           warehouses:warehouse_id (name, location),
@@ -145,12 +146,13 @@ export const createInventoryMovement = async (
   warehouseId: string,
   locationId: string,
   quantity: number,
-  movementType: 'in' | 'out' | 'adjustment' | 'reserve' | 'release',
-  status: 'pending' | 'approved' | 'rejected' | 'in_transit',
+  movementType: MovementType,
+  status: MovementStatus,
   referenceTable: string,
   referenceId: string,
   userId: string,
-  details?: any
+  details?: any,
+  transferReferenceId?: string
 ) => {
   try {
     const { data, error } = await supabase
@@ -165,7 +167,8 @@ export const createInventoryMovement = async (
         reference_table: referenceTable,
         reference_id: referenceId,
         performed_by: userId,
-        details: details || {}
+        details: details || {},
+        transfer_reference_id: transferReferenceId
       })
       .select()
       .single();

@@ -211,6 +211,7 @@ export type Database = {
           reference_id: string | null
           reference_table: string | null
           status: Database["public"]["Enums"]["movement_status"]
+          transfer_reference_id: string | null
           warehouse_id: string
         }
         Insert: {
@@ -225,6 +226,7 @@ export type Database = {
           reference_id?: string | null
           reference_table?: string | null
           status?: Database["public"]["Enums"]["movement_status"]
+          transfer_reference_id?: string | null
           warehouse_id: string
         }
         Update: {
@@ -239,6 +241,7 @@ export type Database = {
           reference_id?: string | null
           reference_table?: string | null
           status?: Database["public"]["Enums"]["movement_status"]
+          transfer_reference_id?: string | null
           warehouse_id?: string
         }
         Relationships: [
@@ -972,7 +975,13 @@ export type Database = {
     }
     Enums: {
       movement_status: "pending" | "approved" | "rejected" | "in_transit"
-      movement_type: "in" | "out" | "adjustment" | "reserve" | "release"
+      movement_type:
+        | "in"
+        | "out"
+        | "adjustment"
+        | "reserve"
+        | "release"
+        | "transfer"
       stock_status:
         | "pending"
         | "approved"
@@ -1101,7 +1110,14 @@ export const Constants = {
   public: {
     Enums: {
       movement_status: ["pending", "approved", "rejected", "in_transit"],
-      movement_type: ["in", "out", "adjustment", "reserve", "release"],
+      movement_type: [
+        "in",
+        "out",
+        "adjustment",
+        "reserve",
+        "release",
+        "transfer",
+      ],
       stock_status: [
         "pending",
         "approved",

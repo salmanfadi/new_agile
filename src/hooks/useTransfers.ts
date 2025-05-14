@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -45,7 +44,7 @@ export const useTransfers = () => {
             warehouse_locations:location_id (floor, zone),
             profiles:performed_by (name, username)
           `)
-          .eq('movement_type', 'transfer' as MovementType)
+          .eq('movement_type', 'transfer')
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
           
@@ -85,7 +84,7 @@ export const useTransfers = () => {
             warehouse_locations:location_id (floor, zone),
             profiles:performed_by (name, username)
           `)
-          .eq('movement_type', 'transfer' as MovementType)
+          .eq('movement_type', 'transfer')
           .order('created_at', { ascending: false });
           
         if (error) {
@@ -116,7 +115,7 @@ export const useTransfers = () => {
             product_id: formData.productId,
             warehouse_id: formData.fromWarehouseId,
             location_id: formData.fromLocationId,
-            movement_type: 'transfer' as MovementType,
+            movement_type: 'transfer',
             quantity: -formData.quantity, // Negative to indicate removal
             status: 'pending',
             transfer_reference_id: transferReferenceId,
@@ -138,7 +137,7 @@ export const useTransfers = () => {
             product_id: formData.productId,
             warehouse_id: formData.toWarehouseId,
             location_id: formData.toLocationId,
-            movement_type: 'transfer' as MovementType,
+            movement_type: 'transfer',
             quantity: formData.quantity, // Positive to indicate addition
             status: 'pending',
             transfer_reference_id: transferReferenceId,
@@ -203,7 +202,7 @@ export const useTransfers = () => {
         .from('inventory_movements')
         .update({ 
           status: 'approved',
-          details: { approved_by: user.id }
+          details: JSON.stringify({ approved_by: user.id })
         })
         .eq('transfer_reference_id', transferReferenceId)
         .eq('status', 'pending');
@@ -243,7 +242,7 @@ export const useTransfers = () => {
         .from('inventory_movements')
         .update({ 
           status: 'rejected',
-          details: { rejection_reason: reason }
+          details: JSON.stringify({ rejection_reason: reason })
         })
         .eq('transfer_reference_id', transferReferenceId)
         .eq('status', 'pending');
