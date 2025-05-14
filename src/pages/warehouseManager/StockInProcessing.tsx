@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import BatchStockInComponent from '@/components/warehouse/BatchStockInComponent';
@@ -41,7 +40,7 @@ const StockInProcessing: React.FC = () => {
   // Stock in table actions
   const handleProcess = (stockIn: any) => {
     const stockInId = stockIn.id;
-    navigate(`/manager/stock-in/process/${stockInId}`);
+    navigate(`/manager/stock-in/batch/${stockInId}`);
   };
   
   const handleReject = (stockIn: any) => {

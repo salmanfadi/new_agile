@@ -1,9 +1,9 @@
-
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { BatchData, StockInBatchSubmission } from '@/types/batchStockIn';
 import { v4 as uuidv4 } from 'uuid';
+import { createInventoryMovement } from './useInventoryMovements';
 
 // Define the BoxData interface used for processing
 export interface BoxData {
@@ -136,7 +136,7 @@ export const useBatchStockIn = (userId: string = '') => {
         }
         
         // Create inventory entry
-        const { error: inventoryError } = await supabase
+        const { error: inventoryError, data: inventoryData } = await supabase
           .from('inventory')
           .insert({
             product_id: box.product_id,
@@ -148,7 +148,9 @@ export const useBatchStockIn = (userId: string = '') => {
             size: box.size,
             batch_id: processed_batch_id,
             status: 'available'
-          });
+          })
+          .select()
+          .single();
           
         if (inventoryError) {
           console.error('Error creating inventory entry:', inventoryError);
@@ -156,6 +158,20 @@ export const useBatchStockIn = (userId: string = '') => {
             barcode: box.barcode,
             error: inventoryError.message
           });
+        } else if (inventoryData) {
+          // Create inventory movement record
+          await createInventoryMovement(
+            box.product_id,
+            box.warehouse_id,
+            box.location_id,
+            box.quantity,
+            'in',
+            'approved',
+            'stock_in',
+            stockInId,
+            userId || '',
+            { barcode: box.barcode, batch_id: processed_batch_id }
+          );
         }
       }
       
