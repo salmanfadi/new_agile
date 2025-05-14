@@ -63,8 +63,18 @@ const ProcessStockInPage: React.FC = () => {
           created_at: data.created_at,
           source: data.source,
           notes: data.notes,
-          product: data.product, // This should now be a single object
-          submitter: data.submitter, // This should now be a single object
+          // Fix the type issues - ensure product and submitter are objects, not arrays
+          product: {
+            id: data.product.id,
+            name: data.product.name,
+            sku: data.product.sku,
+            category: data.product.category
+          },
+          submitter: {
+            id: data.submitter.id,
+            name: data.submitter.name,
+            username: data.submitter.username
+          }
         };
 
         setCurrentStockIn(transformedData);

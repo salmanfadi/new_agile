@@ -1,68 +1,33 @@
 
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types/auth';
-import { Progress } from '@/components/ui/progress';
 
 interface RequireAuthProps {
   allowedRoles?: UserRole[];
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-export const RequireAuth: React.FC<RequireAuthProps> = ({ 
-  children, 
-  allowedRoles
-}) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+export const RequireAuth: React.FC<RequireAuthProps> = ({ allowedRoles, children }) => {
+  const { user, isLoading } = useAuth();
   const location = useLocation();
-  
-  console.log("RequireAuth state:", { 
-    isLoading, 
-    isAuthenticated, 
-    user, 
-    allowedRoles,
-    currentPath: location.pathname 
-  });
 
-  // Show loading state but make it more informative
+  // If we're still loading, show nothing or a loading spinner
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-md w-full p-8 bg-white rounded-lg shadow-md">
-          <div className="flex flex-col items-center gap-6">
-            <div className="h-10 w-10 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <Progress value={45} className="w-full h-2" />
-            <div className="space-y-2">
-              <p className="text-gray-600">Verifying access...</p>
-              <p className="text-sm text-gray-400">This will only take a moment</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <div>Loading authentication status...</div>;
   }
 
-  if (!isAuthenticated) {
-    console.log("Not authenticated, redirecting to login");
+  // If there is no user, redirect to login
+  if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Special case for admins - they always have access to all pages
-  if (user?.role === 'admin') {
-    console.log("Admin user, granting access");
-    return <>{children}</>;
+  // If allowedRoles is provided, check if the user has the required role
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/unauthorized" state={{ from: location }} replace />;
   }
 
-  // Check if the user has the required role for the page
-  if (allowedRoles && user && !allowedRoles.includes(user.role as UserRole)) {
-    console.log("User role not in allowed roles, redirecting to unauthorized", {
-      userRole: user.role,
-      allowedRoles
-    });
-    return <Navigate to="/unauthorized" replace />;
-  }
-
-  console.log("Access granted to user", user);
+  // User is authenticated and authorized, render the children
   return <>{children}</>;
 };
