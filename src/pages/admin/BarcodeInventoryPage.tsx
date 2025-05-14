@@ -14,7 +14,7 @@ import {
 import BarcodeGenerator from '@/components/barcode/BarcodeGenerator';
 import BarcodePrinter from '@/components/barcode/BarcodePrinter';
 import { useBatchItems } from '@/hooks/useProcessedBatches';
-import { BarcodeInventoryTable } from '@/components/barcode/BarcodeInventoryTable';
+import BarcodeInventoryTable from '@/components/barcode/BarcodeInventoryTable';
 
 const AdminBarcodeInventoryPage: React.FC = () => {
   const { batchId } = useParams<{ batchId: string }>();

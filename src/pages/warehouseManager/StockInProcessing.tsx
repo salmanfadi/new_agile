@@ -19,7 +19,7 @@ import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInReques
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { RealtimeChannel, ChannelStatus } from '@supabase/supabase-js';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 const StockInProcessing: React.FC = () => {
   const navigate = useNavigate();
@@ -72,9 +72,9 @@ const StockInProcessing: React.FC = () => {
       .subscribe((response) => {
         if (response) {
           console.log("Subscription response received:", response);
-          // Type-safe access of status property
-          if (typeof response === 'object' && response !== null) {
-            console.log("Subscription status:", (response as { status?: string }).status || 'unknown');
+          // Type-safe access of status property with type guard
+          if (typeof response === 'object' && response !== null && 'status' in response) {
+            console.log("Subscription status:", response.status || 'unknown');
           }
         }
       });

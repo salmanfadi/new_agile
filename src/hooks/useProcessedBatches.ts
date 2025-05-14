@@ -1,165 +1,174 @@
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { ProcessedBatch } from '@/types/database';
 
-// Define simplified types for the database entities
-interface SimpleProduct {
+export interface BatchItemType {
   id: string;
-  name: string;
-  sku?: string;
+  batch_id: string;
+  barcode: string;
+  quantity: number;
+  color: string;
+  size: string;
+  warehouse_id: string;
+  location_id: string;
+  status: string;
+  created_at: string;
+  product?: {
+    id: string;
+    name: string;
+    sku: string;
+  };
+  warehouse?: {
+    id: string;
+    name: string;
+    location: string;
+  };
+  location?: {
+    id: string;
+    floor: number;
+    zone: string;
+  };
 }
 
-interface SimpleProfile {
+export interface ProcessedBatchType {
   id: string;
-  name: string;
-  username: string;
+  stock_in_id: string;
+  processed_by: string;
+  processed_at: string;
+  product_id: string;
+  total_quantity: number;
+  total_boxes: number;
+  warehouse_id: string;
+  source: string;
+  notes: string;
+  status: string;
+  product?: {
+    id: string;
+    name: string;
+    sku: string;
+  };
+  warehouse?: {
+    id: string;
+    name: string;
+    location: string;
+  };
+  submitter?: {
+    id: string;
+    name: string;
+  };
+  processor?: {
+    id: string;
+    name: string;
+  };
 }
 
-export interface ProcessedBatchData extends ProcessedBatch {
-  productName: string;
-  productSku?: string;
-  processorName?: string;
-}
-
-export const useProcessedBatches = (productFilter?: string) => {
+// Hook to fetch all processed batches
+export const useProcessedBatches = () => {
   return useQuery({
-    queryKey: ['processed-batches', productFilter],
+    queryKey: ['processed-batches'],
     queryFn: async () => {
-      try {
-        // Build the base query
-        let query = supabase
-          .from('processed_batches')
-          .select(`
-            id,
-            stock_in_id,
-            processed_by,
-            processed_at,
-            product_id,
-            total_quantity,
-            total_boxes,
-            warehouse_id,
-            source,
-            notes,
-            status
-          `);
+      const { data, error } = await supabase
+        .from('processed_batches')
+        .select(`
+          *,
+          product:product_id (id, name, sku),
+          warehouse:warehouse_id (id, name, location),
+          submitter:stock_in!inner (
+            submitted_by,
+            submitter:submitted_by (id, name)
+          ),
+          processor:processed_by (id, name)
+        `)
+        .order('processed_at', { ascending: false });
 
-        // Apply filters if provided
-        if (productFilter) {
-          query = query.eq('product_id', productFilter);
-        }
-
-        // Order by most recently processed first
-        query = query.order('processed_at', { ascending: false });
-
-        // Execute the query
-        const { data: batchesData, error } = await query;
-
-        if (error) {
-          console.error('Error fetching processed batches:', error);
-          throw error;
-        }
-
-        if (!batchesData || batchesData.length === 0) {
-          return [];
-        }
-
-        // Extract unique IDs for related data
-        const productIds = [...new Set(batchesData.map(batch => batch.product_id))];
-        const userIds = [...new Set(batchesData.map(batch => batch.processed_by))];
-
-        // Fetch related data
-        const [productsResponse, profilesResponse] = await Promise.all([
-          supabase.from('products').select('id, name, sku').in('id', productIds),
-          supabase.from('profiles').select('id, name, username').in('id', userIds)
-        ]);
-
-        // Create lookup maps
-        const productMap: Record<string, SimpleProduct> = {};
-        const profileMap: Record<string, SimpleProfile> = {};
-
-        if (productsResponse.data) {
-          productsResponse.data.forEach(product => {
-            productMap[product.id] = product as SimpleProduct;
-          });
-        }
-
-        if (profilesResponse.data) {
-          profilesResponse.data.forEach(profile => {
-            profileMap[profile.id] = profile as SimpleProfile;
-          });
-        }
-
-        // Map batches with related entity data
-        const enrichedBatches: ProcessedBatchData[] = batchesData.map(batch => {
-          const product = productMap[batch.product_id];
-          const processor = profileMap[batch.processed_by];
-
-          return {
-            ...batch,
-            productName: product?.name || 'Unknown Product',
-            productSku: product?.sku,
-            processorName: processor?.name || 'Unknown User'
-          };
-        });
-
-        return enrichedBatches;
-      } catch (error) {
-        console.error('Error in processed batches query:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error loading batches',
-          description: error instanceof Error ? error.message : 'An unknown error occurred'
-        });
+      if (error) {
+        console.error('Error fetching processed batches:', error);
         throw error;
       }
-    },
-    staleTime: 1000 * 60, // Data is fresh for 1 minute
-    refetchInterval: 1000 * 60 * 5 // Refetch every 5 minutes
+
+      // Process and format the data
+      const formattedData = data.map(batch => {
+        return {
+          ...batch,
+          submitter: batch.submitter?.submitter || null
+        };
+      });
+
+      return formattedData as ProcessedBatchType[];
+    }
   });
 };
 
+// Hook to fetch a single batch and its items
+export const useBatch = (batchId: string | null) => {
+  return useQuery({
+    queryKey: ['batch', batchId],
+    queryFn: async () => {
+      if (!batchId) {
+        return null;
+      }
+
+      const { data: batch, error: batchError } = await supabase
+        .from('processed_batches')
+        .select(`
+          *,
+          product:product_id (id, name, sku),
+          warehouse:warehouse_id (id, name, location),
+          submitter:stock_in!inner (
+            submitted_by,
+            submitter:submitted_by (id, name)
+          ),
+          processor:processed_by (id, name)
+        `)
+        .eq('id', batchId)
+        .single();
+
+      if (batchError) {
+        console.error('Error fetching batch:', batchError);
+        throw batchError;
+      }
+
+      return batch as ProcessedBatchType;
+    },
+    enabled: !!batchId
+  });
+};
+
+// Hook to fetch items for a specific batch
 export const useBatchItems = (batchId: string | null) => {
   return useQuery({
     queryKey: ['batch-items', batchId],
     queryFn: async () => {
-      if (!batchId) return [];
-      
-      try {
-        const { data, error } = await supabase
-          .from('batch_items')
-          .select(`
-            id,
-            batch_id,
-            barcode,
-            quantity,
-            color,
-            size,
-            warehouse_id,
-            location_id,
-            status,
-            created_at,
-            warehouses:warehouse_id(id, name),
-            locations:location_id(id, floor, zone)
-          `)
-          .eq('batch_id', batchId);
-          
-        if (error) {
-          console.error('Error fetching batch items:', error);
-          throw error;
-        }
-        
-        return data || [];
-      } catch (error) {
-        console.error('Error in batch items query:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error loading batch items',
-          description: error instanceof Error ? error.message : 'An unknown error occurred'
-        });
+      if (!batchId) {
+        return [];
+      }
+
+      const { data, error } = await supabase
+        .from('batch_items')
+        .select(`
+          *,
+          product:processed_batches!inner (
+            product_id,
+            product:product_id (id, name, sku)
+          ),
+          warehouse:warehouse_id (id, name, location),
+          location:location_id (id, floor, zone)
+        `)
+        .eq('batch_id', batchId);
+
+      if (error) {
+        console.error('Error fetching batch items:', error);
         throw error;
       }
+
+      // Process and format the data
+      const formattedItems = data.map(item => ({
+        ...item,
+        product: item.product?.product || null
+      }));
+
+      return formattedItems as BatchItemType[];
     },
     enabled: !!batchId
   });

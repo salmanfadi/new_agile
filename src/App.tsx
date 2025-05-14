@@ -57,7 +57,7 @@ const RequireAuth = ({ allowedRoles, children }: { allowedRoles: string[], child
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <PublicLayout />,
+    element: <PublicLayout><Outlet /></PublicLayout>,
     children: [
       {
         path: "login",
@@ -78,7 +78,7 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/",
-        element: <MainLayout />,
+        element: <MainLayout><Outlet /></MainLayout>,
         children: [
           {
             path: "admin",
