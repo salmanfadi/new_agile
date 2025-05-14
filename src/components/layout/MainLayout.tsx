@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { 
@@ -60,7 +59,7 @@ export const MainLayout: React.FC<{ children?: React.ReactNode }> = ({ children 
     <SidebarProvider defaultOpen={true}>
       <div className="flex h-screen w-full bg-background">
         {/* Sidebar */}
-        <Sidebar>
+        <Sidebar className="border-r">
           <SidebarHeader>
             <div className="flex items-center space-x-2 px-2">
               <Package className="h-6 w-6 text-primary" />
@@ -68,11 +67,11 @@ export const MainLayout: React.FC<{ children?: React.ReactNode }> = ({ children 
             </div>
           </SidebarHeader>
           
-          <SidebarContent>
+          <SidebarContent className="flex-1 overflow-y-auto">
             <NavItems role={user?.role} />
           </SidebarContent>
           
-          <SidebarFooter>
+          <SidebarFooter className="border-t">
             <div className="px-3 py-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">

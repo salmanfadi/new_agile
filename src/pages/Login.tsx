@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,13 @@ const Login: React.FC = () => {
   const location = useLocation();
   const { toast } = useToast();
   
+  // Add effect to reset loading state if authLoading changes
+  useEffect(() => {
+    if (!authLoading) {
+      setIsLoading(false);
+    }
+  }, [authLoading]);
+
   // Debug information
   console.log("Login page state:", { 
     isAuthenticated, 
@@ -27,7 +33,8 @@ const Login: React.FC = () => {
     user, 
     currentPath: location.pathname,
     loginAttempts,
-    authError
+    authError,
+    isLoading // Add isLoading to debug output
   });
   
   // Check if we're already authenticated - redirect if so
