@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -135,7 +136,7 @@ const Login: React.FC = () => {
           <div className="flex items-center justify-center mb-4">
             <Warehouse className="h-8 w-8 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl text-center">Welcome to SCA Warehouse Management</CardTitle>
           <CardDescription className="text-center">
             Sign in to your account to continue
           </CardDescription>

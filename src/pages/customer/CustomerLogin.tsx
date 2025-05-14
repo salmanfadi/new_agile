@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User } from 'lucide-react';
+import { Loader2, User, Warehouse } from 'lucide-react';
 
 const CustomerLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -134,9 +134,12 @@ const CustomerLogin: React.FC = () => {
         <div className="max-w-md mx-auto">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">Customer Login</CardTitle>
+              <div className="flex items-center justify-center mb-4">
+                <Warehouse className="h-8 w-8 text-blue-600" />
+              </div>
+              <CardTitle className="text-2xl text-center">Welcome to SCA Warehouse Management</CardTitle>
               <CardDescription>
-                Sign in to your account to access your customer portal.
+                Sign in to your customer account to access your portal.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -150,6 +153,7 @@ const CustomerLogin: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    className="h-11"
                   />
                 </div>
                 
@@ -161,12 +165,13 @@ const CustomerLogin: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    className="h-11"
                   />
                 </div>
                 
                 <Button 
                   type="submit" 
-                  className="w-full" 
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white" 
                   disabled={isLoggingIn}
                 >
                   {isLoggingIn ? (

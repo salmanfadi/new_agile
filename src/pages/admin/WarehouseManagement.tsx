@@ -221,8 +221,8 @@ const WarehouseManagement = () => {
         description="Manage warehouses and their locations"
       />
 
-      <div className="flex justify-end">
-        <Button onClick={openNewWarehouseDialog}>
+      <div className="flex justify-end mb-6">
+        <Button onClick={openNewWarehouseDialog} className="hover-lift">
           <Plus className="h-4 w-4 mr-2" />
           Add Warehouse
         </Button>
@@ -239,12 +239,12 @@ const WarehouseManagement = () => {
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto scrollbar-thin">
                 {warehouses && warehouses.map((warehouse) => (
                   <div 
                     key={warehouse.id}
-                    className={`p-3 border rounded-lg flex justify-between items-center cursor-pointer ${
-                      selectedWarehouseId === warehouse.id ? 'bg-blue-50 border-blue-200' : ''
+                    className={`p-3 border rounded-lg flex justify-between items-center cursor-pointer transition-colors hover:bg-gray-50 ${
+                      selectedWarehouseId === warehouse.id ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800/60' : ''
                     }`}
                     onClick={() => handleWarehouseSelect(warehouse.id)}
                   >
@@ -286,36 +286,38 @@ const WarehouseManagement = () => {
                 'Select a warehouse to view locations'}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             {isLoadingLocations && selectedWarehouseId ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
               </div>
             ) : selectedWarehouseId ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Floor</TableHead>
-                    <TableHead>Zone</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {locations && locations.length > 0 ? (
-                    locations.map((location) => (
-                      <TableRow key={location.id}>
-                        <TableCell>{location.floor}</TableCell>
-                        <TableCell>{location.zone}</TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
+              <div className="max-h-[60vh] overflow-y-auto scrollbar-thin">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center py-4 text-gray-500">
-                        No locations found for this warehouse
-                      </TableCell>
+                      <TableHead>Floor</TableHead>
+                      <TableHead>Zone</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {locations && locations.length > 0 ? (
+                      locations.map((location) => (
+                        <TableRow key={location.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
+                          <TableCell>{location.floor}</TableCell>
+                          <TableCell>{location.zone}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center py-4 text-gray-500">
+                          No locations found for this warehouse
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
                 Select a warehouse from the list to view its locations
@@ -327,7 +329,7 @@ const WarehouseManagement = () => {
 
       {/* Add/Edit Warehouse Dialog */}
       <Dialog open={isWarehouseDialogOpen} onOpenChange={setIsWarehouseDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}</DialogTitle>
           </DialogHeader>
@@ -379,7 +381,7 @@ const WarehouseManagement = () => {
 
       {/* Add Location Dialog */}
       <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Location</DialogTitle>
           </DialogHeader>

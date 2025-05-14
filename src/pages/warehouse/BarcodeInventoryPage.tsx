@@ -87,26 +87,27 @@ const BarcodeInventoryPage: React.FC = () => {
           variant="ghost"
           size="sm"
           onClick={() => navigate('/manager/inventory/batches')}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 hover-lift"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Batches
         </Button>
         
         <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input 
               placeholder="Search barcodes, colors, sizes..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
+              className="pl-8 w-full"
             />
           </div>
           
           <Button 
             variant="outline"
             onClick={handleSelectAll}
+            className="whitespace-nowrap"
           >
             {selectedBarcodes.length === (batchItems?.length || 0) ? 'Unselect All' : 'Select All'}
           </Button>
@@ -114,7 +115,7 @@ const BarcodeInventoryPage: React.FC = () => {
           <Button 
             onClick={handlePrintSelected}
             disabled={selectedBarcodes.length === 0}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 whitespace-nowrap"
           >
             <Printer className="h-4 w-4" />
             Print Selected ({selectedBarcodes.length})
@@ -134,18 +135,20 @@ const BarcodeInventoryPage: React.FC = () => {
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           {isLoadingItems ? (
             <div className="w-full py-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-2 text-sm text-gray-500">Loading barcode inventory...</p>
             </div>
           ) : (
-            <BarcodeInventoryTable 
-              batchItems={filteredBatchItems || []}
-              onSelectBarcode={handleSelectBarcode}
-              selectedBarcodes={selectedBarcodes}
-            />
+            <div className="max-h-[60vh] overflow-y-auto scrollbar-thin">
+              <BarcodeInventoryTable 
+                batchItems={filteredBatchItems || []}
+                onSelectBarcode={handleSelectBarcode}
+                selectedBarcodes={selectedBarcodes}
+              />
+            </div>
           )}
         </CardContent>
       </Card>
