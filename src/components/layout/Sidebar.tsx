@@ -1,16 +1,10 @@
 
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
-import { Separator } from "@/components/ui/separator"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { AlignLeft, ArrowLeftRight, BarChart, Settings, Home, KanbanSquare, LayoutDashboard, ListChecks, LogOut, LucideIcon, Package2, ShoppingCart, User2, Users, Warehouse } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,10 +12,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { AlignLeft, ArrowLeftRight, BarChart, Settings, Home, KanbanSquare, LayoutDashboard, ListChecks, LogOut, LucideIcon, Package2, ShoppingCart, User2, Users, Warehouse } from 'lucide-react';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/dropdown-menu";
+import { Separator } from '@/components/ui/separator';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NavLink {
   href: string;
@@ -34,9 +27,10 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   const sidebarItems = [
     {
@@ -178,52 +172,63 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 
   const relevantLinks = sidebarItems.find((item) => item.role === user?.role)?.links || [];
 
+  const handleLogout = () => {
+    signOut();
+    navigate('/login');
+  };
+
+  // Display sidebar as a vertical navigation menu, whether for mobile or desktop
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-secondary h-10 px-4 py-2 lg:hidden">
-          <AlignLeft className="mr-2 h-4 w-4" />
-          Menu
-        </button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-full sm:w-64">
-        <SheetHeader className="text-left">
-          <SheetTitle>Menu</SheetTitle>
-          <SheetDescription>
-            Navigate through the warehouse management system.
-          </SheetDescription>
-        </SheetHeader>
-        <Separator className="my-4" />
-        <div className="flex flex-col space-y-2">
+    <div className={cn("h-full flex flex-col", className)}>
+      <div className="p-4 flex items-center gap-2">
+        <Warehouse className="h-6 w-6 text-primary" />
+        <span className="text-lg font-semibold">Agile WMS</span>
+      </div>
+      
+      <Separator className="mb-4" />
+      
+      <div className="flex-1 overflow-auto">
+        <nav className="space-y-1 px-2">
           {relevantLinks.map((link, index) => {
             const Icon = link.icon;
+            const isActive = location.pathname === link.href;
+            
             return (
               <Link
                 key={index}
                 to={link.href}
                 className={cn(
-                  "group flex items-center space-x-2 rounded-md p-2 font-medium hover:underline",
-                  location.pathname === link.href ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+                  "flex items-center space-x-3 rounded-md px-3 py-2 text-sm transition-colors",
+                  isActive 
+                    ? "bg-accent text-accent-foreground font-medium" 
+                    : "hover:bg-accent/80 hover:text-accent-foreground text-muted-foreground"
                 )}
               >
-                <Icon className="h-4 w-4" />
-                <span>{link.label}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{link.label}</span>
               </Link>
             );
           })}
-        </div>
-        <Separator className="my-4" />
+        </nav>
+      </div>
+      
+      <Separator className="mt-4" />
+      
+      <div className="p-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-secondary h-10 px-4 py-2 w-full">
-              <Avatar className="mr-2 h-5 w-5">
-                <AvatarImage src="https://github.com/shadcn.png" alt="Your Name" />
+            <button className="flex items-center space-x-3 w-full rounded-md py-2 px-3 text-sm hover:bg-accent hover:text-accent-foreground text-left">
+              <Avatar className="h-6 w-6">
                 <AvatarFallback>{user?.name?.charAt(0) || user?.username?.charAt(0) || "U"}</AvatarFallback>
+                <AvatarImage src={user?.avatar_url} alt={user?.name || "User"} />
               </Avatar>
-              <span>{user?.name || user?.username || "User"}</span>
+              <div className="flex-1 flex-col">
+                <p className="font-medium truncate">{user?.name || user?.username || "User"}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.role && formatRole(user.role)}</p>
+              </div>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate('/profile')}>
@@ -235,15 +240,24 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout}>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 };
+
+function formatRole(role?: string): string {
+  if (!role) return 'User';
+  
+  return role
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
 export default Sidebar;

@@ -118,9 +118,12 @@ export const MainLayout = () => {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        {!isMobile && sidebarOpen && (
-          <aside className="w-64 border-r bg-background hidden md:block">
+        {/* Sidebar - now always visible for non-mobile */}
+        {isMobile ? (
+          // Mobile sidebar is handled via Sheet component above
+          null
+        ) : (
+          <aside className={`border-r bg-background ${sidebarOpen ? 'w-64' : 'w-16'}`}>
             <Sidebar />
           </aside>
         )}

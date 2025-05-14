@@ -9,39 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      barcode_logs: {
-        Row: {
-          action: string
-          barcode: string
-          batch_id: string | null
-          details: Json | null
-          event_type: string | null
-          id: string
-          timestamp: string
-          user_id: string
-        }
-        Insert: {
-          action: string
-          barcode: string
-          batch_id?: string | null
-          details?: Json | null
-          event_type?: string | null
-          id?: string
-          timestamp?: string
-          user_id: string
-        }
-        Update: {
-          action?: string
-          barcode?: string
-          batch_id?: string | null
-          details?: Json | null
-          event_type?: string | null
-          id?: string
-          timestamp?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       batch_items: {
         Row: {
           barcode: string
@@ -312,66 +279,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      otp_tokens: {
-        Row: {
-          created_at: string | null
-          email: string
-          expires_at: string
-          id: string
-          token: string
-          used: boolean | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          expires_at: string
-          id?: string
-          token: string
-          used?: boolean | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          expires_at?: string
-          id?: string
-          token?: string
-          used?: boolean | null
-        }
-        Relationships: []
-      }
-      pricing_inquiries: {
-        Row: {
-          company: string | null
-          created_at: string
-          customer_email: string
-          customer_name: string
-          id: string
-          products: Json
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          company?: string | null
-          created_at?: string
-          customer_email: string
-          customer_name: string
-          id?: string
-          products: Json
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          company?: string | null
-          created_at?: string
-          customer_email?: string
-          customer_name?: string
-          id?: string
-          products?: Json
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       processed_batches: {
         Row: {
