@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -43,12 +44,13 @@ const Login: React.FC = () => {
       else if (user.role === 'warehouse_manager') targetRoute = '/manager';
       else if (user.role === 'field_operator') targetRoute = '/field';
       else if (user.role === 'sales_operator') targetRoute = '/sales';
+      else if (user.role === 'customer') targetRoute = '/customer/portal';
       
       console.log("Redirecting authenticated user to:", targetRoute);
-      // Use navigate for smoother transition
-      navigate(targetRoute, { replace: true });
+      // Force a full page reload to ensure clean state
+      window.location.href = targetRoute;
     }
-  }, [isAuthenticated, navigate, location, user, authLoading]);
+  }, [isAuthenticated, user, authLoading, navigate, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,28 +70,34 @@ const Login: React.FC = () => {
     try {
       console.log("Attempting login with:", username);
       
+      // Clean up any existing auth state first
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Attempt global sign out first
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+        console.log("Sign out before login failed:", err);
+      }
+      
       // Handle mock users (development mode)
       if (mockUsers.some(u => u.username === username || u.username === username.toLowerCase())) {
-        // Mock login logic
         await login(username, password);
       } else {
-        // Real Supabase auth login
-        // Clean up existing state first
-        Object.keys(localStorage).forEach((key) => {
-          if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-            localStorage.removeItem(key);
-          }
-        });
+        // Real Supabase auth login - determine if it's an email or username
+        const isEmail = username.includes('@');
         
-        // Attempt global sign out first
-        try {
-          await supabase.auth.signOut({ scope: 'global' });
-        } catch (err) {
-          // Continue even if this fails
-          console.log("Sign out before login failed:", err);
+        if (isEmail) {
+          await login(username, password);
+        } else {
+          // If it's not an email, try as mock user first, then fail
+          await login(username, password);
         }
-        
-        await login(username, password);
       }
     } catch (error) {
       console.error("Login submission error:", error);
@@ -109,7 +117,7 @@ const Login: React.FC = () => {
     try {
       console.log("Quick login with role:", role);
       await login(role, 'password');
-      // Navigation handled by login function directly
+      // Navigation handled by the useEffect hook above
     } catch (error) {
       console.error("Quick login error:", error);
       toast({

@@ -29,8 +29,8 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
-  isAuthenticated: boolean; // Added this property
-  login: (username: string, password: string) => Promise<void>; // Added for compatibility
+  isAuthenticated: boolean;
+  login: (username: string, password: string) => Promise<void>;
 }
 
 // Create the context
@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false); // Added this state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   // Initialize session on mount
   useEffect(() => {
@@ -54,6 +54,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       
       try {
+        // Clean up any existing auth state first
+        cleanupAuthState();
+        
         // Get initial session
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         
@@ -63,7 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // If session exists, fetch user profile
         if (initialSession?.user) {
           await fetchUserProfile(initialSession.user.id);
-          setIsAuthenticated(true); // Set authenticated if session exists
+          setIsAuthenticated(true);
         } else {
           setUser(null);
           setIsAuthenticated(false);
@@ -85,10 +88,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Auth state change event:', event);
         setSession(session);
         
-        // Handle sign in and user update events
+        // Handle sign in and user update events - use setTimeout to avoid deadlocks
         if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
-          await fetchUserProfile(session.user.id);
           setIsAuthenticated(true);
+          
+          // Use setTimeout to avoid potential Supabase auth deadlocks
+          setTimeout(async () => {
+            await fetchUserProfile(session.user.id);
+          }, 0);
         }
         
         // Handle sign out event
@@ -106,6 +113,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Function to clean up auth state
+  const cleanupAuthState = () => {
+    // Remove all Supabase auth keys from localStorage
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Remove from sessionStorage if in use
+    Object.keys(sessionStorage || {}).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+        sessionStorage.removeItem(key);
+      }
+    });
+  };
 
   // Function to fetch user profile data from profiles table
   const fetchUserProfile = async (userId: string) => {
@@ -159,6 +183,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Clean up existing state first
+      cleanupAuthState();
+      
+      // Attempt global sign out first
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+        console.log("Sign out before sign in failed:", err);
+      }
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -170,7 +205,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Session is automatically updated via the auth listener
-      // Modified to not return data (to match Promise<void> signature)
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
       setError(`Sign in error: ${errorMessage}`);
@@ -187,13 +221,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       setError(null);
       
-      const { error } = await supabase.auth.signOut();
+      // Clean up auth state
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
       
       if (error) {
         throw error;
       }
       
-      // User is automatically updated via the auth listener
+      // Force a page reload for a clean state
+      window.location.href = '/login';
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
       setError(`Sign out error: ${errorMessage}`);
@@ -250,7 +289,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     error,
     isAuthenticated,
-    login // Added mock login function
+    login
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

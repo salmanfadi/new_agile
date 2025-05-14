@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
@@ -21,7 +22,6 @@ export type BoxItemType = {
   position: string | null;
 };
 
-// Add BatchItemType export that was missing and causing several errors
 export type BatchItemType = {
   id: string;
   barcode: string;
@@ -87,7 +87,6 @@ const fetchProcessedBatches = async (
       .select(`
         id,
         product_id,
-        submitted_by,
         processed_by,
         total_boxes,
         status,
@@ -99,9 +98,6 @@ const fetchProcessedBatches = async (
         products:product_id (
           name,
           sku
-        ),
-        processor:processed_by (
-          name
         )
       `, { count: 'exact' })
       .eq('status', 'completed')
@@ -137,25 +133,26 @@ const fetchProcessedBatches = async (
 
     if (error) throw error;
 
-    // Transform the data
+    // Transform the data with proper error handling
     const processedData = data ? data.map((item: any) => {
+      // Use optional chaining and nullish coalescing to safely access properties
       return {
-        id: item.id,
-        product_id: item.product_id,
-        submitted_by: item.submitted_by || '',
+        id: item.id || '',
+        product_id: item.product_id || '',
+        submitted_by: '',
         processed_by: item.processed_by || '',
         boxes: item.total_boxes || 0,
-        status: item.status,
-        source: item.source,
-        notes: item.notes,
-        created_at: item.processed_at,
-        completed_at: item.processed_at,
+        status: item.status || 'completed',
+        source: item.source || '',
+        notes: item.notes || '',
+        created_at: item.processed_at || new Date().toISOString(),
+        completed_at: item.processed_at || null,
         product_name: item.products?.name || 'Unknown Product',
         product_sku: item.products?.sku || '',
-        submitter_name: item.submitter?.name || 'Unknown Submitter',
-        processor_name: item.processor?.name || 'Unknown Processor',
+        submitter_name: '', // No submitter in this schema
+        processor_name: '', // Processor name will be fetched separately if needed
         total_quantity: item.total_quantity || 0,
-        warehouse_id: item.warehouse_id,
+        warehouse_id: item.warehouse_id || '',
       };
     }) : [];
 
@@ -169,7 +166,6 @@ const fetchProcessedBatches = async (
   }
 };
 
-// Add this function to fix the useProcessedBatchDetails reference error
 export const fetchBatchDetails = async (batchId: string | null): Promise<any> => {
   if (!batchId) return null;
   
@@ -191,9 +187,6 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
           name,
           sku,
           description
-        ),
-        processor:processed_by (
-          name
         )
       `)
       .eq('id', batchId)
@@ -225,7 +218,7 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
         name: data.products?.name || 'Unknown Product',
         sku: data.products?.sku || ''
       },
-      processed_by: data.processor?.name || 'Unknown',
+      processed_by: '', // Processor name will be fetched separately if needed
       total_boxes: data.total_boxes || 0,
       status: data.status,
       source: data.source,
@@ -313,7 +306,6 @@ export const useBatchItems = (batchId: string | undefined) => {
   return query;
 };
 
-// Add this function to fix the useProcessedBatchDetails reference error
 export const useProcessedBatchDetails = (batchId: string | null) => {
   return useQuery({
     queryKey: ['processedBatchDetails', batchId],

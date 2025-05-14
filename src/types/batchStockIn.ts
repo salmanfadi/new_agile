@@ -30,6 +30,10 @@ export interface ProcessedBatch extends BatchData {
   warehouseLocation?: WarehouseLocation;
   submitter?: Profile;
   created_at?: string;
+  quantity_per_box: number;
+  created_by: string;
+  warehouse_id: string;
+  location_id: string;
 }
 
 export interface StockInBatchSubmission {

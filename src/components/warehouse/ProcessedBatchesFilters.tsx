@@ -1,150 +1,80 @@
 
 import React, { useState } from 'react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { DatePickerWithRange } from '@/components/ui/date-range-picker';
-import { DateRange } from 'react-day-picker';
-import { Search, X } from 'lucide-react';
-import { useWarehouseData } from '@/hooks/useWarehouseData';
-
-interface Warehouse {
-  id: string;
-  name: string;
-}
-
-interface Location {
-  id: string;
-  warehouse_id: string;
-  floor: number;
-  zone: string;
-}
+import { DateRange } from "react-day-picker";
 
 interface ProcessedBatchesFiltersProps {
-  onFilterChange: (filters: Record<string, any>) => void;
+  onSearch: (searchTerm: string) => void;
+  onDateChange: (dateRange: DateRange | undefined) => void;
+  onReset: () => void;
+  isLoading?: boolean;
 }
 
-export const ProcessedBatchesFilters: React.FC<ProcessedBatchesFiltersProps> = ({ onFilterChange }) => {
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [warehouseId, setWarehouseId] = useState<string>('');
-  const [locationId, setLocationId] = useState<string>('');
+export const ProcessedBatchesFilters: React.FC<ProcessedBatchesFiltersProps> = ({
+  onSearch,
+  onDateChange,
+  onReset,
+  isLoading = false,
+}) => {
+  const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  
-  // Get warehouses and locations
-  const warehouseData = useWarehouseData();
-  const warehouses = warehouseData.warehouses || [];
-  const locations = warehouseData.locations || [];
-  
-  const filteredLocations = warehouseId
-    ? locations.filter(loc => loc.warehouse_id === warehouseId)
-    : [];
-  
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
   const handleSearch = () => {
-    const filters: Record<string, any> = {};
-    
-    if (searchTerm) {
-      filters.searchTerm = searchTerm;
-    }
-    
-    if (warehouseId) {
-      filters.warehouse_id = warehouseId;
-    }
-    
-    if (locationId) {
-      filters.location_id = locationId;
-    }
-    
-    if (dateRange?.from) {
-      filters.fromDate = dateRange.from;
-      if (dateRange.to) {
-        filters.toDate = dateRange.to;
-      }
-    }
-    
-    onFilterChange(filters);
+    onSearch(searchTerm);
   };
-  
-  const handleClear = () => {
+
+  const handleDateChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    onDateChange(range);
+  };
+
+  const handleReset = () => {
     setSearchTerm('');
-    setWarehouseId('');
-    setLocationId('');
     setDateRange(undefined);
-    onFilterChange({});
+    onReset();
   };
-  
-  const handleWarehouseChange = (value: string) => {
-    setWarehouseId(value);
-    setLocationId(''); // Reset location when warehouse changes
-  };
-  
+
   return (
-    <div className="mb-6 space-y-4">
-      <div className="flex flex-wrap gap-4">
-        <div className="flex-1 min-w-[200px]">
+    <div className="bg-white dark:bg-slate-800 p-4 rounded-md shadow">
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Filter Batches</h3>
+        
+        <div className="flex flex-col sm:flex-row gap-3">
           <Input
-            placeholder="Search by batch ID, product..."
+            placeholder="Search by batch ID, product, etc."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
+            className="flex-1"
           />
-        </div>
-        
-        <div className="w-[200px]">
-          <Select value={warehouseId} onValueChange={handleWarehouseChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Warehouse" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Warehouses</SelectItem>
-              {warehouses.map((warehouse: Warehouse) => (
-                <SelectItem key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="w-[200px]">
-          <Select 
-            value={locationId} 
-            onValueChange={setLocationId} 
-            disabled={!warehouseId}
+          <Button 
+            onClick={handleSearch}
+            disabled={isLoading}
           >
-            <SelectTrigger>
-              <SelectValue placeholder={warehouseId ? "Select Location" : "Select Warehouse First"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Locations</SelectItem>
-              {filteredLocations.map((location: Location) => (
-                <SelectItem key={location.id} value={location.id}>
-                  Floor {location.floor}, Zone {location.zone}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="w-[300px]">
-          <DatePickerWithRange
-            date={dateRange}
-            onDateChange={setDateRange}
-            className="" // Add empty className to match expected prop
-          />
-        </div>
-        
-        <div className="flex gap-2">
-          <Button variant="default" onClick={handleSearch}>
-            <Search className="h-4 w-4 mr-2" />
             Search
           </Button>
-          <Button variant="outline" onClick={handleClear}>
-            <X className="h-4 w-4 mr-2" />
-            Clear
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium mb-1">Date Range</label>
+          <DatePickerWithRange date={dateRange} onDateChange={handleDateChange} />
+        </div>
+        
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={handleReset}
+            disabled={isLoading}
+          >
+            Reset Filters
           </Button>
         </div>
       </div>
     </div>
   );
 };
-
-export default ProcessedBatchesFilters;

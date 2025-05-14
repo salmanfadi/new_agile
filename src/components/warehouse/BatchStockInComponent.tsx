@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -14,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { ProcessedBatch } from '@/types/batchStockIn';
 
 interface BatchStockInComponentProps {
   adminMode?: boolean;
@@ -281,11 +283,13 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
             
             <div className="space-y-4">
               <BatchList 
-                batches={processedBatches || batches.map(batch => ({
+                batches={batches.map(batch => ({
                   ...batch,
                   quantity_per_box: batch.quantity_per_box || 1,
-                  created_by: user?.id || ''
-                }))}
+                  created_by: user?.id || '',
+                  warehouse_id: batch.warehouse_id, 
+                  location_id: batch.location_id
+                }) as ProcessedBatch)}
                 editBatch={editBatch}
                 deleteBatch={deleteBatch}
                 handleBatchSubmission={handleBatchSubmission}
