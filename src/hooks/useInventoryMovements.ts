@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { InventoryMovement, InventoryMovementFilters } from '@/types/inventory';
+import { InventoryMovement, InventoryMovementFilters, MovementType, MovementStatus } from '@/types/inventory';
 
 export const useInventoryMovements = (filters: InventoryMovementFilters = {}) => {
   const fetchInventoryMovements = async () => {
@@ -102,6 +102,7 @@ export const useInventoryMovements = (filters: InventoryMovementFilters = {}) =>
           reference_id: item.reference_id,
           performed_by: item.performed_by,
           created_at: item.created_at,
+          transfer_reference_id: item.transfer_reference_id,
           details: parsedDetails,
           product: item.products ? {
             name: item.products.name,

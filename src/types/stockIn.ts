@@ -15,13 +15,14 @@ export interface StockInDetail {
   color?: string;
   size?: string;
   product_id: string;
-  status: StockInDetailStatus;
+  status?: StockInDetailStatus;
   batch_number?: string;
   processing_order?: number;
   processed_at?: string;
   created_at?: string;
   updated_at?: string;
   error_message?: string;
+  inventory_id?: string;
 }
 
 export interface Inventory {
@@ -62,6 +63,7 @@ export interface StockIn {
   created_at?: string;
   updated_at?: string;
   boxes?: number;
+  rejection_reason?: string;
 }
 
 export interface StockInData {

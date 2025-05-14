@@ -1,7 +1,10 @@
+
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { StockIn, StockInDetails } from '@/types/stockin';
+import { StockIn, StockInDetail } from '@/types/stockIn';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface Product {
   id: string;
@@ -17,71 +20,83 @@ interface Submitter {
 }
 
 interface StockInWithDetails extends StockIn {
-  details: StockInDetails[];
+  details: StockInDetail[];
   product?: Product;
   submitter?: Submitter;
 }
 
-export const useStockInProcessing = () => {
-  const fetchStockIn = async (): Promise<StockInWithDetails[]> => {
-    try {
-      const { data: stockIns, error } = await supabase
-        .from('stock_in')
-        .select(`
-          *,
-          products (
-            id,
-            name,
-            sku,
-            category
-          ),
-          profiles (
-            id,
-            name,
-            username
-          )
-        `)
-        .order('created_at', { ascending: false });
+export const useStockInProcessing = (stockInId?: string) => {
+  const [approvalNotes, setApprovalNotes] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const navigate = useNavigate();
 
-      if (error) {
-        console.error('Error fetching stock-in data:', error);
-        throw error;
-      }
-
-      if (!stockIns) {
-        console.warn('No stock-in data found.');
+  const stockInQuery = useQuery({
+    queryKey: ['stock-in-detail', stockInId],
+    queryFn: async (): Promise<StockInWithDetails[]> => {
+      if (!stockInId) {
         return [];
       }
+      
+      try {
+        const { data: stockIns, error } = await supabase
+          .from('stock_in')
+          .select(`
+            *,
+            products (
+              id,
+              name,
+              sku,
+              category
+            ),
+            profiles (
+              id,
+              name,
+              username
+            )
+          `)
+          .eq('id', stockInId);
 
-      const stockInWithDetails = await Promise.all(
-        stockIns.map(async (stockIn) => {
-          const { data: details, error: detailsError } = await supabase
-            .from('stock_in_details')
-            .select('*')
-            .eq('stock_in_id', stockIn.id);
+        if (error) {
+          console.error('Error fetching stock-in data:', error);
+          throw error;
+        }
 
-          if (detailsError) {
-            console.error(`Error fetching details for stock-in ID ${stockIn.id}:`, detailsError);
-            return mapStockInWithDetails(stockIn, []);
-          }
+        if (!stockIns || stockIns.length === 0) {
+          console.warn('No stock-in data found.');
+          return [];
+        }
 
-          return mapStockInWithDetails(stockIn, details || []);
-        })
-      );
+        const stockInWithDetails = await Promise.all(
+          stockIns.map(async (stockIn) => {
+            const { data: details, error: detailsError } = await supabase
+              .from('stock_in_details')
+              .select('*')
+              .eq('stock_in_id', stockIn.id);
 
-      return stockInWithDetails;
-    } catch (error) {
-      console.error('Failed to fetch stock-in data:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to fetch stock-in data.',
-      });
-      throw error;
-    }
-  };
+            if (detailsError) {
+              console.error(`Error fetching details for stock-in ID ${stockIn.id}:`, detailsError);
+              return mapStockInWithDetails(stockIn, []);
+            }
 
-  const mapStockInWithDetails = (stockIn: any, details: any[]) => {
+            return mapStockInWithDetails(stockIn, details || []);
+          })
+        );
+
+        return stockInWithDetails;
+      } catch (error) {
+        console.error('Failed to fetch stock-in data:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to fetch stock-in data.',
+        });
+        throw error;
+      }
+    },
+    enabled: !!stockInId,
+  });
+
+  const mapStockInWithDetails = (stockIn: any, details: any[]): StockInWithDetails => {
     const stockInData: StockInWithDetails = {
       id: stockIn.id,
       created_at: stockIn.created_at,
@@ -118,8 +133,65 @@ export const useStockInProcessing = () => {
     return stockInData;
   };
 
-  return useQuery({
-    queryKey: ['stock-in'],
-    queryFn: fetchStockIn,
-  });
+  // Get the first item from the array (if there is one)
+  const currentStockIn = stockInQuery.data && stockInQuery.data.length > 0 ? stockInQuery.data[0] : null;
+
+  // Get the stock-in details
+  const details = currentStockIn ? currentStockIn.details : [];
+
+  const handleApproval = async (isApproved: boolean) => {
+    if (!stockInId || !currentStockIn) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Update the stock-in status
+      const newStatus = isApproved ? 'approved' : 'rejected';
+      
+      const { error } = await supabase
+        .from('stock_in')
+        .update({
+          status: newStatus,
+          processed_by: (await supabase.auth.getUser()).data.user?.id,
+          rejection_reason: isApproved ? null : approvalNotes
+        })
+        .eq('id', stockInId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: `Stock-in request ${isApproved ? 'approved' : 'rejected'}`,
+        description: isApproved ? 'The stock-in request has been approved' : 'The stock-in request has been rejected',
+      });
+      
+      // Navigate back to the stock-in list
+      navigate('/manager/stock-in');
+    } catch (error) {
+      console.error('Error updating stock-in:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: `Failed to ${isApproved ? 'approve' : 'reject'} the stock-in request.`
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return {
+    stockInData: {
+      data: currentStockIn,
+      loading: stockInQuery.isLoading,
+      error: stockInQuery.error,
+    },
+    currentStockIn,
+    details,
+    approvalNotes,
+    setApprovalNotes,
+    handleApproval,
+    isSubmitting,
+    navigate
+  };
 };
