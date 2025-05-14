@@ -15,9 +15,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true
   },
   realtime: {
-    channels: {
-      slowLanes: ['*']
-    }
+    // Removing the 'channels' property as it doesn't exist in RealtimeClientOptions
   }
 });
 
