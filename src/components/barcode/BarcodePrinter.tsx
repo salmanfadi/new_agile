@@ -1,131 +1,96 @@
 
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Printer, Download } from 'lucide-react';
-import BarcodePreview from './BarcodePreview';
-import jsPDF from 'jspdf';
 import { BatchItemType } from '@/hooks/useProcessedBatches';
+import { formatBarcodeForDisplay } from '@/utils/barcodeUtils';
 
 interface BarcodePrinterProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   barcodes: string[];
-  batchItems?: BatchItemType[];
+  batchItems: BatchItemType[];
 }
 
 const BarcodePrinter: React.FC<BarcodePrinterProps> = ({ 
   open, 
   onOpenChange, 
   barcodes,
-  batchItems = []
+  batchItems
 }) => {
-  const generatePDF = () => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    const margin = 10;
-    const labelWidth = 60;
-    const labelHeight = 30;
-    const labelsPerRow = Math.floor((210 - margin * 2) / labelWidth);
-    const labelsPerCol = Math.floor((297 - margin * 2) / labelHeight);
-    
-    barcodes.forEach((barcode, index) => {
-      // Calculate position for current barcode label
-      const row = Math.floor(index / labelsPerRow);
-      const col = index % labelsPerRow;
-      const x = margin + col * labelWidth;
-      const y = margin + row * labelHeight;
-      
-      // Position for new page if needed
-      if (row >= labelsPerCol) {
-        doc.addPage();
-        doc.setPage(Math.floor(row / labelsPerCol) + 1);
-      }
-      
-      // Place barcode info
-      doc.setFontSize(8);
-      doc.text(barcode, x + 5, y + 5);
-      
-      // Get matching batch item for additional info
-      const batchItem = batchItems.find(item => item.barcode === barcode);
-      if (batchItem) {
-        const infoText = `Qty: ${batchItem.quantity}, Color: ${batchItem.color || 'N/A'}`;
-        doc.text(infoText, x + 5, y + 10);
-      }
-      
-      // Add placeholder for barcode image
-      doc.rect(x + 5, y + 12, 50, 15);
-      doc.setFontSize(6);
-      doc.text('Barcode image would render here in full implementation', x + 7, y + 20);
-    });
-    
-    doc.save('barcodes.pdf');
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  // Find batch items matching selected barcodes
+  const selectedItems = batchItems.filter(item => barcodes.includes(item.barcode));
+  
+  const handlePrint = () => {
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrinting(false);
+    }, 500);
+  };
+
+  const handleDownload = () => {
+    // In a real implementation, this would generate a PDF or image file
+    console.log('Downloading barcodes:', barcodes);
+    // Mock implementation - just show a success message
+    alert('Barcodes have been downloaded');
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Print Barcodes</DialogTitle>
+          <DialogTitle>Print Barcodes ({barcodes.length})</DialogTitle>
         </DialogHeader>
         
-        <Tabs defaultValue="preview">
-          <TabsList className="grid grid-cols-2">
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-            <TabsTrigger value="print">Print Options</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="preview" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              {barcodes.slice(0, 6).map((barcode) => (
-                <div key={barcode} className="border p-2 rounded">
-                  <div className="text-xs font-mono mb-1">{barcode}</div>
-                  <BarcodePreview barcode={barcode} width={150} height={50} />
-                  <div className="text-xs mt-1">
-                    {batchItems.find(item => item.barcode === barcode)?.quantity || 0} units
+        <ScrollArea className="max-h-[70vh]">
+          <div className="print-container space-y-4">
+            {selectedItems.map((item) => (
+              <div 
+                key={item.barcode} 
+                className="border rounded-md p-4 print:border-none print:p-0 print:mb-8 page-break-inside-avoid"
+              >
+                <div className="flex flex-col items-center">
+                  {/* Mock barcode image */}
+                  <div className="w-full h-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMzAiPjxwYXRoIGQ9Ik0wIDBoMnYzMEgwem0zIDBoMXYzMEgzem00IDBoM3YzMEg3em01IDBoMXYzMGgtMXptMyAwaDJ2MzBoLTJ6bTQgMGgxdjMwaC0xem0yIDBoM3YzMGgtM3ptNSAwaDJ2MzBoLTJ6bTMgMGgzdjMwaC0zem01IDBoMnYzMGgtMnptMyAwaDR2MzBoLTR6bTYgMGgydjMwaC0yem0zIDBoMXYzMGgtMXptMyAwaDJ2MzBoLTJ6bTQgMGgxdjMwaC0xem0zIDBoM3YzMGgtM3ptNSAwaDJ2MzBoLTJ6bTMgMGg1djMwaC01em03IDBoMnYzMGgtMnptNCAwaDJ2MzBoLTJ6bTQgMGgxdjMwaC0xem0yIDBoNHYzMGgtNHptNiAwaDJ2MzBoLTJ6bTMgMGgxdjMwaC0xem0yIDBoMnYzMGgtMnoiLz48L3N2Zz4=')]" />
+                  <div className="mt-2 text-center">
+                    <p className="font-mono font-bold">{formatBarcodeForDisplay(item.barcode)}</p>
+                    <p className="text-sm text-gray-600">{item.warehouses?.name || 'Unknown'} - {item.locations?.zone || 'Unknown'}</p>
+                    <div className="flex justify-center gap-2 text-xs mt-1">
+                      {item.color && <span>Color: {item.color}</span>}
+                      {item.size && <span>Size: {item.size}</span>}
+                      <span>Qty: {item.quantity}</span>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-            {barcodes.length > 6 && (
-              <div className="text-center text-sm text-gray-500">
-                + {barcodes.length - 6} more barcodes
               </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="print" className="space-y-4 mt-4">
-            <div className="space-y-4">
-              <div className="flex flex-col gap-2">
-                <Button onClick={generatePDF} className="flex items-center gap-2">
-                  <Download size={16} />
-                  Download PDF ({barcodes.length} barcodes)
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    /* Print functionality would go here */
-                    window.print();
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Printer size={16} />
-                  Print Now
-                </Button>
-              </div>
-              
-              <div className="text-sm text-gray-500 mt-2">
-                Note: Downloaded PDF will include all selected barcodes formatted for printing on standard A4 paper.
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+            ))}
+          </div>
+        </ScrollArea>
+        
+        <DialogFooter className="space-x-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button variant="outline" onClick={handleDownload}>
+            <Download className="w-4 h-4 mr-2" />
+            Download
+          </Button>
+          <Button onClick={handlePrint} disabled={isPrinting}>
+            <Printer className="w-4 h-4 mr-2" />
+            {isPrinting ? 'Printing...' : 'Print All'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -13,7 +13,7 @@ import { ProcessedBatchesFilters } from '@/components/warehouse/ProcessedBatches
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Plus, RefreshCw } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface StockInUpdate {
@@ -69,18 +69,27 @@ const StockInProcessing: React.FC = () => {
           }
         }
       )
-      .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
-        
-        // Use optional chaining to safely access the status property
-        if (status && status.status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to stock-in-updates');
-        }
-      });
-    
+      .subscribe();
+      
+    // Setup subscription for stock_in_details to catch batch processing
+    const detailsChannel = supabase
+      .channel('stock-in-details-changes')
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'stock_in_details' },
+          (payload) => {
+            console.log('Realtime update for stock_in_details:', payload);
+            
+            // Invalidate both stock-in requests and inventory data
+            queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+            queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
+          }
+      )
+      .subscribe();
+
+    // Clean up subscription when component unmounts or dependencies change
     return () => {
-      // Unsubscribe when component unmounts
       supabase.removeChannel(channel);
+      supabase.removeChannel(detailsChannel);
     };
   }, [queryClient]);
   

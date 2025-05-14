@@ -1,154 +1,74 @@
 
 /**
- * Generates a barcode string in the format CAT-PROD-BOX-UID
- * 
- * @param category - Product category abbreviation (e.g., ELEC for Electronics)
- * @param sku - Product SKU or identifier
- * @param boxNumber - Sequential number for the box
- * @returns Formatted barcode string
+ * Formats a barcode for display by adding dashes or other formatting
+ * @param barcode The raw barcode string
+ * @returns Formatted barcode for display
  */
-export const generateBarcodeString = (
-  category: string,
-  sku: string,
-  boxNumber: number
-): string => {
-  // Create category abbreviation (up to 4 chars)
-  const categoryAbbrev = (category || 'PROD')
-    .split(/\s+/)
-    .map(word => word.substring(0, 2).toUpperCase())
-    .join('')
-    .substring(0, 4);
-    
-  // Format box number with leading zeros (001, 002, etc.)
-  const boxStr = boxNumber.toString().padStart(3, '0');
+export const formatBarcodeForDisplay = (barcode: string): string => {
+  if (!barcode) return '';
   
-  // Add timestamp to ensure uniqueness across batches
-  const uniqueId = Date.now().toString(36).substring(4);
+  // If it's already in a standard format like XXX-XXX-XXX, return as is
+  if (barcode.includes('-')) return barcode;
   
-  // Combine all parts
-  return `${categoryAbbrev}-${sku || 'SKU'}-${boxStr}-${uniqueId}`;
+  // For UUIDs, format with dashes to make them more readable
+  if (barcode.length >= 32) {
+    return `${barcode.substring(0, 8)}-${barcode.substring(8, 12)}-${barcode.substring(12, 16)}-${barcode.substring(16, 20)}-${barcode.substring(20)}`;
+  }
+  
+  // For numeric barcodes, format in groups of 4
+  if (/^\d+$/.test(barcode)) {
+    return barcode.match(/.{1,4}/g)?.join('-') || barcode;
+  }
+  
+  // For other formats, try to group in a reasonable way
+  if (barcode.length > 8) {
+    return `${barcode.substring(0, 4)}-${barcode.substring(4, 8)}-${barcode.substring(8)}`;
+  }
+  
+  return barcode;
 };
 
 /**
- * Extracts information from a barcode string
- * 
- * @param barcode - Barcode string in format CAT-PROD-BOX-UID
- * @returns Object with category abbreviation, product code, and box number
+ * Normalizes a barcode by removing formatting characters
+ * @param barcode The formatted barcode string
+ * @returns Normalized barcode without formatting
  */
-export const parseBarcodeString = (barcode: string): { 
-  categoryAbbrev: string;
-  productCode: string; 
-  boxNumber: number;
-  uniqueId?: string;
-} | null => {
-  if (!barcode || barcode.trim() === '') {
-    return null;
-  }
+export const normalizeBarcode = (barcode: string): string => {
+  if (!barcode) return '';
   
-  const parts = barcode.split('-');
-  
-  if (parts.length < 3) {
-    return null;
-  }
-  
-  return {
-    categoryAbbrev: parts[0],
-    productCode: parts[1],
-    boxNumber: parseInt(parts[2], 10),
-    uniqueId: parts[3]
-  };
+  // Remove dashes, spaces, and other common formatting characters
+  return barcode.replace(/[-\s]/g, '');
 };
 
 /**
- * Validates whether a barcode is in the correct format
- * 
- * @param barcode - Barcode string to validate
- * @returns Boolean indicating if barcode is valid
+ * Validates a barcode against common barcode formats
+ * @param barcode The barcode to validate
+ * @returns Boolean indicating if the barcode is valid
  */
-export const isValidBarcode = (barcode: string): boolean => {
-  // Check if barcode is empty or null
-  if (!barcode || barcode.trim() === '') {
-    return false;
-  }
+export const validateBarcode = (barcode: string): boolean => {
+  if (!barcode) return false;
   
-  // Accept UUID format barcodes (legacy)
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(barcode)) {
-    return true;
-  }
+  // Basic validation - should be at least 4 characters
+  if (barcode.length < 4) return false;
   
-  // Accept structured barcode format
-  const parts = barcode.split('-');
-  
-  if (parts.length !== 4) {
-    return false;
-  }
-  
-  // Category should be 2-4 chars
-  if (parts[0].length < 2 || parts[0].length > 4) {
-    return false;
-  }
-  
-  // Product code should be at least 3 chars
-  if (parts[1].length < 3) {
-    return false;
-  }
-  
-  // Box number should be 3 digits
-  if (!/^\d{3}$/.test(parts[2])) {
-    return false;
-  }
-  
-  // Unique ID should be at least 4 chars
-  if (parts[3].length < 4) {
-    return false;
-  }
+  // This is a simplified validation. Add specific rules here as needed.
+  // Examples could include check digit validation for specific barcode types
   
   return true;
 };
 
 /**
- * Formats a barcode for display (shortens if necessary)
- * 
- * @param barcode - Full barcode string
- * @param maxLength - Maximum display length before truncation
- * @returns Formatted barcode string for display
+ * Creates a barcode image URL for display purposes
+ * This is a mock implementation - in production you would use a real barcode library
+ * @param barcode The barcode data
+ * @param format The barcode format (e.g., 'code128', 'qrcode')
+ * @returns URL to a barcode image
  */
-export const formatBarcodeForDisplay = (barcode: string, maxLength: number = 16): string => {
-  if (!barcode || barcode.trim() === '') return 'No barcode';
+export const createBarcodeImageUrl = (barcode: string, format: string = 'code128'): string => {
+  // This is a placeholder. In a real app, you'd generate an actual barcode.
+  // You could use a library like JSBarcode for frontend rendering
+  // or a service that returns an image URL.
   
-  if (barcode.length <= maxLength) {
-    return barcode;
-  }
-  
-  // For structured barcodes (CAT-PROD-BOX-UID format)
-  const parts = barcode.split('-');
-  if (parts.length === 4) {
-    return `${parts[0]}-${parts[1]}-${parts[2]}...`;
-  }
-  
-  // For UUID-style barcodes
-  return barcode.substring(0, 8) + '...';
-};
-
-/**
- * Ensures that a barcode is valid, if not generates a new one
- * 
- * @param existingBarcode - The barcode to check
- * @param category - Optional category for new barcode
- * @param sku - Optional SKU for new barcode
- * @param boxNumber - Optional box number for new barcode
- * @returns A valid barcode string
- */
-export const ensureValidBarcode = (
-  existingBarcode?: string | null,
-  category: string = 'PROD',
-  sku: string = 'SKU',
-  boxNumber: number = 1
-): string => {
-  if (existingBarcode && existingBarcode.trim() !== '' && isValidBarcode(existingBarcode)) {
-    return existingBarcode;
-  }
-  
-  // Generate a new barcode using the given parameters
-  return generateBarcodeString(category, sku, boxNumber);
+  // Placeholder SVG for a barcode:
+  return `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTAwIj48ZyBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiPjxsaW5lIHgxPSIxMCIgeTE9IjEwIiB4Mj0iMTAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTUiIHkxPSIxMCIgeDI9IjE1IiB5Mj0iOTAiIC8+PGxpbmUgeDE9IjIwIiB5MT0iMTAiIHgyPSIyMCIgeTI9IjkwIiAvPjxsaW5lIHgxPSIzMCIgeTE9IjEwIiB4Mj0iMzAiIHkyPSI5MCIgLz48bGluZSB4MT0iNDAiIHkxPSIxMCIgeDI9IjQwIiB5Mj0iOTAiIC8+PGxpbmUgeDE9IjUwIiB5MT0iMTAiIHgyPSI1MCIgeTI9IjkwIiAvPjxsaW5lIHgxPSI2MCIgeTE9IjEwIiB4Mj0iNjAiIHkyPSI5MCIgLz48bGluZSB4MT0iNzAiIHkxPSIxMCIgeDI9IjcwIiB5Mj0iOTAiIC8+PGxpbmUgeDE9IjgwIiB5MT0iMTAiIHgyPSI4MCIgeTI9IjkwIiAvPjxsaW5lIHgxPSI5MCIgeTE9IjEwIiB4Mj0iOTAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTAwIiB5MT0iMTAiIHgyPSIxMDAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTE1IiB5MT0iMTAiIHgyPSIxMTUiIHkyPSI5MCIgLz48bGluZSB4MT0iMTIwIiB5MT0iMTAiIHgyPSIxMjAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTMwIiB5MT0iMTAiIHgyPSIxMzAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTQwIiB5MT0iMTAiIHgyPSIxNDAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTUwIiB5MT0iMTAiIHgyPSIxNTAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTYwIiB5MT0iMTAiIHgyPSIxNjAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTcwIiB5MT0iMTAiIHgyPSIxNzAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTgwIiB5MT0iMTAiIHgyPSIxODAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTkwIiB5MT0iMTAiIHgyPSIxOTAiIHkyPSI5MCIgLz48L2c+PC9zdmc+`;
 };

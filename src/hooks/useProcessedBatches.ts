@@ -2,49 +2,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface ProcessedBatchType {
-  id: string;
-  stock_in_id: string;
-  product_id: string;
-  warehouse_id: string;
-  status: string;
-  processed_by: string;
-  processed_at: string;
-  total_boxes: number;
-  total_quantity: number;
-  source: string;
-  notes: string;
-  product: {
-    id: string;
-    name: string;
-    sku: string;
-    description?: string;
-  };
-  warehouse: {
-    id: string;
-    name: string;
-    location?: string;
-  };
-  submitter: {
-    id: string;
-    name: string;
-  };
-  processor: {
-    id: string;
-    name: string;
-  };
-}
-
-interface BatchItemType {
+export interface BatchItemType {
   id: string;
   batch_id: string;
   barcode: string;
   quantity: number;
-  color?: string;
-  size?: string;
-  location_id?: string;
-  warehouse_id?: string;
+  color?: string | null;
+  size?: string | null;
+  location_id?: string | null;
+  warehouse_id?: string | null;
   created_at: string;
+  status: string;
+  warehouses?: {
+    name: string;
+  };
   locations?: {
     warehouse_id: string;
     floor?: number;
@@ -52,6 +23,40 @@ interface BatchItemType {
     position?: string;
     warehouse_name?: string;
   };
+}
+
+export interface ProcessedBatchType {
+  id: string;
+  stock_in_id: string;
+  product_id: string;
+  warehouse_id: string | null;
+  status: string;
+  processed_by: string;
+  processed_at: string;
+  total_boxes: number;
+  total_quantity: number;
+  source: string | null;
+  notes: string | null;
+  product: {
+    id: string;
+    name: string;
+    sku?: string | null;
+    description?: string | null;
+  };
+  warehouse: {
+    id: string;
+    name: string;
+    location?: string | null;
+  };
+  submitter?: {
+    id: string;
+    name: string;
+  };
+  processor: {
+    id: string;
+    name: string | null;
+  };
+  items?: BatchItemType[];
 }
 
 export interface DetailedBatchType extends ProcessedBatchType {
@@ -65,11 +70,7 @@ export const useProcessedBatches = (page = 1, pageSize = 10, filters: Record<str
       .select(`
         *,
         product:product_id(*),
-        warehouse:warehouse_id(*),
-        submitter:submissions:stock_in_id(
-          profiles:submitted_by(id, name)
-        ),
-        processor:profiles!processed_by(id, name)
+        warehouse:warehouse_id(*)
       `)
       .order('processed_at', { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
@@ -102,38 +103,65 @@ export const useProcessedBatches = (page = 1, pageSize = 10, filters: Record<str
       throw error;
     }
 
-    // Transform data to match the expected ProcessedBatchType format
-    const transformedData: ProcessedBatchType[] = data.map(batch => {
-      // Handle possible nested fields
-      const submitterData = batch.submitter?.[0]?.profiles;
-      const processorData = batch.processor;
+    if (!data) return [];
 
-      return {
-        id: batch.id,
-        stock_in_id: batch.stock_in_id,
-        product_id: batch.product_id,
-        warehouse_id: batch.warehouse_id,
-        status: batch.status,
-        processed_by: batch.processed_by,
-        processed_at: batch.processed_at,
-        total_boxes: batch.total_boxes,
-        total_quantity: batch.total_quantity,
-        source: batch.source,
-        notes: batch.notes,
-        product: batch.product || { id: '', name: 'Unknown', sku: '' },
-        warehouse: batch.warehouse || { id: '', name: 'Unknown' },
-        submitter: submitterData ? { 
-          id: submitterData.id || '',
-          name: submitterData.name || 'Unknown'
-        } : { id: '', name: 'Unknown' },
-        processor: processorData ? { 
-          id: processorData.id || '',
-          name: processorData.name || 'Unknown'
-        } : { id: '', name: 'Unknown' }
-      };
-    });
+    // Get processor details for each batch
+    const processedBatches: ProcessedBatchType[] = await Promise.all(
+      data.map(async (batch) => {
+        // Get processor details
+        const { data: processorData } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .eq('id', batch.processed_by)
+          .single();
 
-    return transformedData;
+        // Get submitter details if stock_in_id exists
+        let submitterData = null;
+        if (batch.stock_in_id) {
+          const { data: stockInData } = await supabase
+            .from('stock_in')
+            .select('submitted_by')
+            .eq('id', batch.stock_in_id)
+            .single();
+
+          if (stockInData) {
+            const { data: submitter } = await supabase
+              .from('profiles')
+              .select('id, name')
+              .eq('id', stockInData.submitted_by)
+              .single();
+            
+            submitterData = submitter;
+          }
+        }
+
+        return {
+          id: batch.id,
+          stock_in_id: batch.stock_in_id || '',
+          product_id: batch.product_id || '',
+          warehouse_id: batch.warehouse_id,
+          status: batch.status,
+          processed_by: batch.processed_by,
+          processed_at: batch.processed_at,
+          total_boxes: batch.total_boxes,
+          total_quantity: batch.total_quantity,
+          source: batch.source,
+          notes: batch.notes,
+          product: batch.product || { id: '', name: 'Unknown', sku: '' },
+          warehouse: batch.warehouse || { id: '', name: 'Unknown' },
+          submitter: submitterData ? { 
+            id: submitterData.id || '',
+            name: submitterData.name || 'Unknown'
+          } : undefined,
+          processor: processorData ? { 
+            id: processorData.id || '',
+            name: processorData.name || 'Unknown'
+          } : { id: '', name: 'Unknown' }
+        };
+      })
+    );
+
+    return processedBatches;
   };
 
   return useQuery({
@@ -142,19 +170,51 @@ export const useProcessedBatches = (page = 1, pageSize = 10, filters: Record<str
   });
 };
 
-export const useProcessedBatchDetails = (batchId: string) => {
+// Add the useBatchItems hook for batch details
+export const useBatchItems = (batchId: string | null) => {
+  const fetchBatchItems = async (): Promise<BatchItemType[]> => {
+    if (!batchId) return [];
+
+    const { data, error } = await supabase
+      .from('batch_items')
+      .select(`
+        *,
+        warehouses:warehouse_id(name),
+        locations:location_id(
+          warehouse_id,
+          floor,
+          zone,
+          position
+        )
+      `)
+      .eq('batch_id', batchId);
+
+    if (error) {
+      console.error('Error fetching batch items:', error);
+      throw error;
+    }
+
+    return data || [];
+  };
+
+  return useQuery({
+    queryKey: ['batchItems', batchId],
+    queryFn: fetchBatchItems,
+    enabled: !!batchId
+  });
+};
+
+export const useProcessedBatchDetails = (batchId: string | null) => {
   const fetchBatchDetails = async (): Promise<DetailedBatchType | null> => {
+    if (!batchId) return null;
+    
     // First fetch the batch details
     const { data: batchData, error: batchError } = await supabase
       .from('processed_batches')
       .select(`
         *,
         product:product_id(*),
-        warehouse:warehouse_id(*),
-        submitter:submissions:stock_in_id(
-          profiles:submitted_by(id, name)
-        ),
-        processor:profiles!processed_by(id, name)
+        warehouse:warehouse_id(*)
       `)
       .eq('id', batchId)
       .single();
@@ -168,34 +228,40 @@ export const useProcessedBatchDetails = (batchId: string) => {
       return null;
     }
 
-    // Transform the batch data similar to the above function
-    const submitterData = batchData.submitter?.[0]?.profiles;
-    const processorData = batchData.processor;
+    // Get processor details
+    const { data: processorData } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .eq('id', batchData.processed_by)
+      .single();
+
+    // Get submitter details if stock_in_id exists
+    let submitterData = null;
+    if (batchData.stock_in_id) {
+      const { data: stockInData } = await supabase
+        .from('stock_in')
+        .select('submitted_by')
+        .eq('id', batchData.stock_in_id)
+        .single();
+
+      if (stockInData) {
+        const { data: submitter } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .eq('id', stockInData.submitted_by)
+          .single();
+        
+        submitterData = submitter;
+      }
+    }
 
     // Then fetch the batch items
-    const { data: itemsData, error: itemsError } = await supabase
-      .from('batch_items')
-      .select(`
-        *,
-        locations:location_id(
-          warehouse_id,
-          floor,
-          zone,
-          position,
-          warehouse:warehouse_id(name)
-        )
-      `)
-      .eq('batch_id', batchId);
-
-    if (itemsError) {
-      console.error('Error fetching batch items:', itemsError);
-      throw itemsError;
-    }
+    const { data: itemsData } = await useBatchItems(batchId).queryFn();
 
     const detailedBatch: DetailedBatchType = {
       id: batchData.id,
-      stock_in_id: batchData.stock_in_id,
-      product_id: batchData.product_id,
+      stock_in_id: batchData.stock_in_id || '',
+      product_id: batchData.product_id || '',
       warehouse_id: batchData.warehouse_id,
       status: batchData.status,
       processed_by: batchData.processed_by,
@@ -209,7 +275,7 @@ export const useProcessedBatchDetails = (batchId: string) => {
       submitter: submitterData ? { 
         id: submitterData.id || '',
         name: submitterData.name || 'Unknown'
-      } : { id: '', name: 'Unknown' },
+      } : undefined,
       processor: processorData ? { 
         id: processorData.id || '',
         name: processorData.name || 'Unknown'

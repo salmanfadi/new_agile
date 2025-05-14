@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Printer } from 'lucide-react';
-import { useBatchItems } from '@/hooks/useProcessedBatches';
+import { useBatchItems, BatchItemType } from '@/hooks/useProcessedBatches';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatBarcodeForDisplay } from '@/utils/barcodeUtils';
 
@@ -73,7 +73,7 @@ export const BatchDetailsDialog: React.FC<BatchDetailsDialogProps> = ({
                 </div>
               ) : batchItems && batchItems.length > 0 ? (
                 <div className="grid gap-3">
-                  {batchItems.map((item: any) => (
+                  {batchItems.map((item: BatchItemType) => (
                     <Card key={item.id} className="overflow-hidden">
                       <CardContent className="p-3">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
