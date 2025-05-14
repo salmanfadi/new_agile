@@ -46,29 +46,46 @@ export const updateStockDetails = async (productId: string, quantity: number, wa
   }
 };
 
-// Function to log stock movement
-const logStockMovement = async (
-  stockInId: string,
+// Function to create an inventory movement record
+export const createInventoryMovement = async (
   productId: string,
-  action: string,
+  warehouseId: string,
+  locationId: string,
   quantity: number,
+  movementType: 'in' | 'out' | 'adjustment' | 'reserve' | 'release',
+  status: 'pending' | 'approved' | 'rejected' | 'in_transit',
+  referenceTable: string,
+  referenceId: string,
   userId: string,
-  details: any
+  details?: any
 ) => {
   try {
-    // Check if the table exists in the schema
-    await supabase
-      .from('stock_movement_audit')
+    const { data, error } = await supabase
+      .from('inventory_movements')
       .insert({
-        stock_in_id: stockInId,
         product_id: productId,
-        action,
-        quantity,
-        user_id: userId,
-        details
-      });
+        warehouse_id: warehouseId,
+        location_id: locationId,
+        movement_type: movementType,
+        quantity: quantity,
+        status: status,
+        reference_table: referenceTable,
+        reference_id: referenceId,
+        performed_by: userId,
+        details: details || null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating inventory movement:', error);
+      throw error;
+    }
+
+    return data;
   } catch (error) {
-    console.error('Error logging stock movement:', error);
+    console.error('Error in createInventoryMovement:', error);
+    throw error;
   }
 };
 
@@ -78,7 +95,7 @@ export const processStockIn = async (stockInId: string, boxes: any[], userId: st
     // Fetch the stock-in details
     const { data: stockIn, error: stockInError } = await supabase
       .from('stock_in')
-      .select('product_id, boxes')
+      .select('product_id, boxes, source')
       .eq('id', stockInId)
       .single();
 
@@ -101,13 +118,36 @@ export const processStockIn = async (stockInId: string, boxes: any[], userId: st
       throw new Error('Warehouse ID is required');
     }
 
-    // Update stock details in the warehouse
-    await updateStockDetails(stockIn.product_id, stockIn.boxes, warehouseId);
+    // Process each box and create inventory movements
+    for (const box of boxes) {
+      // Ensure all required fields are present
+      if (!box.location_id || !box.barcode) {
+        console.error('Missing required box data:', box);
+        throw new Error('Box is missing required fields (location_id, barcode)');
+      }
 
-    // Log the stock movement
-    await logStockMovement(stockInId, stockIn.product_id, 'stock_in', stockIn.boxes, userId, {
-      warehouse_id: warehouseId,
-    });
+      // Create inventory movement record for this box
+      await createInventoryMovement(
+        stockIn.product_id,
+        box.warehouse_id,
+        box.location_id,
+        box.quantity || 1, // Default to 1 if quantity is not provided
+        'in',
+        'approved',
+        'stock_in',
+        stockInId,
+        userId,
+        {
+          barcode: box.barcode,
+          color: box.color,
+          size: box.size,
+          source: stockIn.source
+        }
+      );
+    }
+
+    // For backward compatibility, still update the legacy stock details
+    await updateStockDetails(stockIn.product_id, stockIn.boxes, warehouseId);
 
     // Update the stock-in status to 'completed'
     const { error: updateError } = await supabase
