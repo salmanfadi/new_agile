@@ -51,7 +51,7 @@ export const useStockInProcessing = (stockInId: string | undefined) => {
           throw new Error("Stock In record not found.");
         }
 
-        // Ensure data is properly transformed into the expected shape
+        // Fix: Ensure product and submitter objects are properly accessed
         const transformedData: ProcessableStockIn = {
           id: data.id,
           boxes: data.boxes,
