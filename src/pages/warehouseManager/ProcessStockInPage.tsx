@@ -109,7 +109,7 @@ const ProcessStockInPage: React.FC = () => {
           throw new Error("Stock In record not found.");
         }
 
-        // Transform the data into the expected shape
+        // Transform the data into the expected shape - fix the object structure
         const transformedData: ProcessableStockIn = {
           id: data.id,
           boxes: data.boxes,
@@ -117,17 +117,17 @@ const ProcessStockInPage: React.FC = () => {
           created_at: data.created_at,
           source: data.source,
           notes: data.notes,
-          // Properly handle nested objects from the query
+          // Fix these properties - they're objects, not arrays
           product: {
-            id: data.product.id,
-            name: data.product.name,
-            sku: data.product.sku,
-            category: data.product.category
+            id: data.product?.id,
+            name: data.product?.name,
+            sku: data.product?.sku,
+            category: data.product?.category
           },
           submitter: {
-            id: data.submitter.id,
-            name: data.submitter.name,
-            username: data.submitter.username
+            id: data.submitter?.id,
+            name: data.submitter?.name,
+            username: data.submitter?.username
           }
         };
 

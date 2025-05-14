@@ -65,16 +65,15 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    // Fix the RequireAuth usage by passing children as a prop correctly
-    element: <RequireAuth>{<MainLayout><Outlet /></MainLayout>}</RequireAuth>,
+    element: <RequireAuth><MainLayout><Outlet /></MainLayout></RequireAuth>,
     children: [
       {
         path: "admin",
-        element: <RequireAuth allowedRoles={['admin']}>{<AdminDashboard />}</RequireAuth>,
+        element: <RequireAuth allowedRoles={['admin']}><AdminDashboard /></RequireAuth>,
       },
       {
         path: "manager",
-        element: <RequireAuth allowedRoles={['warehouse_manager']}>{<WarehouseManagerDashboard />}</RequireAuth>,
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><WarehouseManagerDashboard /></RequireAuth>,
       },
       {
         path: "field",
