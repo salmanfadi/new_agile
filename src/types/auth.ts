@@ -10,6 +10,8 @@ export interface User extends SupabaseUser {
   active?: boolean;
 }
 
+export type UserRole = 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator' | 'customer';
+
 export interface AuthContextType {
   session: Session | null;
   user: User | null;

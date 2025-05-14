@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Sidebar } from '@/components/layout/Sidebar';
+import Sidebar from '@/components/layout/Sidebar';
 import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
 import { Bell, ChevronRight, LogOut, Menu, User } from 'lucide-react';
@@ -17,12 +17,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { useMediaQuery } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const MainLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
 
   const toggleSidebar = () => {
@@ -36,7 +36,7 @@ export const MainLayout = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
+    await signOut();
     navigate('/login');
   };
 
@@ -88,8 +88,7 @@ export const MainLayout = () => {
               <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
                 <Avatar className="h-9 w-9">
                   <AvatarImage 
-                    // Use optional chaining for avatar_url
-                    src={user?.avatar_url || undefined} 
+                    src={user?.avatar_url} 
                     alt={user?.name || 'User'} 
                   />
                   <AvatarFallback>{getUserInitials()}</AvatarFallback>

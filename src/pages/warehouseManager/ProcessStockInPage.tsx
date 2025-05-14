@@ -1,139 +1,163 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { StockInDetails } from '@/components/StockInDetails';
+import { useToast } from "@/components/ui/use-toast"
 
-import React from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { useAuth } from '@/context/AuthContext';
-import { processStockIn } from '@/utils/stockInProcessor';
-import { toast } from '@/hooks/use-toast';
-import { useStockInBoxes } from '@/hooks/useStockInBoxes';
-import { useStockInData, StockInData as StockInDataType } from '@/hooks/useStockInData';
-import { useWarehouseData } from '@/hooks/useWarehouseData';
-import { StockInDetails } from '@/components/warehouse/StockInDetails';
-import { DefaultValuesSection } from '@/components/warehouse/DefaultValuesSection';
-import { BoxDetailsSection } from '@/components/warehouse/BoxDetailsSection';
-import { ProcessingActions } from '@/components/warehouse/ProcessingActions';
-import { LoadingState } from '@/components/warehouse/LoadingState';
-import { ErrorState } from '@/components/warehouse/ErrorState';
-import { BackButton } from '@/components/warehouse/BackButton';
+// Add a type for the processed stockIn data
+interface ProcessableStockIn {
+  id: string;
+  boxes: number;
+  status: "pending" | "approved" | "rejected" | "completed" | "processing";
+  created_at: string;
+  source: string;
+  notes?: string;
+  product: {
+    id: string;
+    name: string;
+    sku?: string;
+    category?: string;
+  };
+  submitter: {
+    id: string;
+    name: string;
+    username: string;
+  };
+}
+
+interface StockInData {
+  stockIn?: ProcessableStockIn | null;
+  loading: boolean;
+  error: Error | null;
+}
 
 const ProcessStockInPage: React.FC = () => {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { stockInId } = useParams<{ stockInId: string }>();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast()
 
-  // Fetch stock in data
-  const { stockInData: originalStockInData, isLoadingStockIn } = useStockInData(stockInId);
-  
-  // Make sure stockInData conforms to the expected structure for useStockInBoxes
-  const stockInData = originalStockInData ? {
-    ...originalStockInData,
-    // Ensure product is defined if it's not
-    product: originalStockInData.product || { name: 'Unknown Product' }
-  } : null;
-
-  // Initialize box data with the hook
-  const {
-    boxesData,
-    defaultValues,
-    setDefaultValues,
-    handleBoxUpdate,
-    applyDefaultsToAll,
-    isMissingRequiredData
-  } = useStockInBoxes(stockInData, true);
-
-  // Fetch warehouse data
-  const { warehouses, locations } = useWarehouseData(defaultValues.warehouse);
-
-  // Process stock in mutation
-  const processStockInMutation = useMutation({
-    mutationFn: async (data: { stockInId: string; boxes: typeof boxesData }) => {
-      return processStockIn(data.stockInId, data.boxes, user?.id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      toast({
-        title: 'Stock In Processed',
-        description: 'The stock in has been processed and added to inventory.',
-      });
-      // Navigate back to the stock in list
-      navigate('/manager/stock-in');
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Processing failed',
-        description: error instanceof Error ? error.message : 'Failed to process stock in',
-      });
-    },
+  const [stockInData, setStockInData] = useState<StockInData>({
+    stockIn: null,
+    loading: true,
+    error: null,
   });
+  const [details, setDetails] = useState<any[]>([]);
+  const [currentStockIn, setCurrentStockIn] = useState<ProcessableStockIn | null>(null);
+  const [approvalNotes, setApprovalNotes] = useState<string>('');
 
-  const handleProcessingSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stockInId || !stockInData) return;
+  useEffect(() => {
+    const fetchStockIn = async () => {
+      setStockInData({ ...stockInData, loading: true, error: null });
+      try {
+        if (!stockInId) {
+          throw new Error("Stock In ID is missing.");
+        }
 
-    if (isMissingRequiredData()) {
-      toast({
-        variant: 'destructive',
-        title: 'Incomplete data',
-        description: 'Please fill in all required fields for each box.',
-      });
+        const { data: stockIn, error: stockInError } = await supabase
+          .from('stock_in')
+          .select(`
+            id, boxes, status, created_at, source, notes,
+            product (id, name, sku, category),
+            submitter: submitted_by (id, name, username)
+          `)
+          .eq('id', stockInId)
+          .single();
+
+        if (stockInError) {
+          throw stockInError;
+        }
+
+        if (!stockIn) {
+          throw new Error("Stock In record not found.");
+        }
+
+        setCurrentStockIn(stockIn as ProcessableStockIn);
+        setStockInData({ stockIn: stockIn as ProcessableStockIn, loading: false, error: null });
+
+      } catch (error: any) {
+        console.error('Error fetching stock in:', error);
+        setStockInData({ ...stockInData, loading: false, error: error });
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load stock in details."
+        })
+      }
+    };
+
+    fetchStockIn();
+  }, [stockInId]);
+
+  const handleApproval = async (approved: boolean) => {
+    if (!stockInId) {
+      console.error("Stock In ID is missing.");
       return;
     }
 
-    processStockInMutation.mutate({
-      stockInId: stockInId,
-      boxes: boxesData,
-    });
+    try {
+      const { error } = await supabase
+        .from('stock_in')
+        .update({
+          status: approved ? 'approved' : 'rejected',
+          notes: approvalNotes,
+        })
+        .eq('id', stockInId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: `Stock In ${approved ? 'approved' : 'rejected'} successfully.`,
+      })
+      navigate('/manager/stock-in');
+    } catch (error: any) {
+      console.error('Error updating stock in status:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update stock in status."
+      })
+    }
   };
 
-  const navigateBack = () => navigate('/manager/stock-in');
-
-  if (isLoadingStockIn) {
-    return <LoadingState />;
+  if (stockInData.loading) {
+    return <div>Loading stock in details...</div>;
   }
 
-  if (!stockInData) {
-    return <ErrorState onNavigateBack={navigateBack} />;
+  if (stockInData.error) {
+    return <div>Error: {stockInData.error.message}</div>;
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <PageHeader 
-        title="Process Stock In" 
-        description={`Processing stock for ${stockInData.product?.name || 'Unknown Product'}`} 
-      />
-      
-      <BackButton onClick={navigateBack} className="mb-4" />
-      
-      <form onSubmit={handleProcessingSubmit}>
-        <div className="space-y-6">
-          <StockInDetails stockInData={stockInData} />
-          
-          <DefaultValuesSection 
-            defaultValues={defaultValues}
-            setDefaultValues={setDefaultValues}
-            applyDefaultsToAll={applyDefaultsToAll}
-            warehouses={warehouses}
-            locations={locations}
-          />
-          
-          <BoxDetailsSection 
-            boxesData={boxesData}
-            handleBoxUpdate={handleBoxUpdate}
-            warehouses={warehouses}
-            locations={locations}
-          />
-          
-          <ProcessingActions 
-            onCancel={navigateBack} 
-            isSubmitting={processStockInMutation.isPending} 
-            isDisabled={isMissingRequiredData()} 
-          />
-        </div>
-      </form>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-semibold mb-4">Process Stock In</h1>
+      {currentStockIn && (
+        <StockInDetails
+          stockInData={stockInData}
+          stockIn={currentStockIn as any}
+          details={details}
+        />
+      )}
+      <div className="mb-4">
+        <Label htmlFor="approvalNotes">Approval Notes</Label>
+        <Textarea
+          id="approvalNotes"
+          placeholder="Enter any notes for approval or rejection"
+          value={approvalNotes}
+          onChange={(e) => setApprovalNotes(e.target.value)}
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button variant="secondary" onClick={() => handleApproval(true)}>Approve</Button>
+        <Button variant="destructive" onClick={() => handleApproval(false)}>Reject</Button>
+        <Button variant="ghost" onClick={() => navigate('/manager/stock-in')}>Cancel</Button>
+      </div>
     </div>
   );
 };

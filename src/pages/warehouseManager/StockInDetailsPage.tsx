@@ -1,139 +1,259 @@
-
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { StockInDetails } from '@/components/warehouse/StockInDetails';
-import { supabase } from '@/integrations/supabase/client';
-import { StockIn, StockInDetail, StockInStatus } from '@/types/stockIn';
-import { StockInData } from '@/hooks/useStockInBoxes';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
-export const StockInDetailsPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [stockIn, setStockIn] = useState<StockIn | null>(null);
-  const [details, setDetails] = useState<StockInDetail[]>([]);
-  const [stockInData, setStockInData] = useState<StockInData | null>(null);
+interface StockInDetail {
+  id: string;
+  stock_in_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string;
+  product: {
+    id: string;
+    name: string;
+  };
+}
 
-  useEffect(() => {
-    const fetchStockInData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+interface StockInData {
+  loading: boolean;
+  error: string | null;
+}
 
-        // Fetch stock in data
-        const { data: stockInData, error: stockInError } = await supabase
-          .from('stock_in')
-          .select(`
-            *,
-            product:products(*),
-            submitter:profiles!stock_in_submitted_by_fkey(*),
-            processor:profiles!stock_in_processed_by_fkey(*)
-          `)
-          .eq('id', id)
-          .single();
+// Add batch_id, processing_started_at, and processing_completed_at to the StockIn type used in this component
+interface StockInWithExtras {
+  boxes: number;
+  created_at: string;
+  id: string;
+  notes: string;
+  processed_by: string;
+  product_id: string;
+  rejection_reason: string;
+  source: string;
+  status: "pending" | "approved" | "rejected" | "completed" | "processing";
+  submitted_by: string;
+  updated_at: string;
+  product: {
+    id: string;
+    name: string;
+  };
+  submitter: {
+    id: string;
+    name: string;
+  };
+  processor: {
+    id: string;
+    name: string;
+  };
+  batch_id?: string;
+  processing_started_at?: string;
+  processing_completed_at?: string;
+}
 
-        if (stockInError) throw stockInError;
-        if (!stockInData) throw new Error('Stock in not found');
+interface StockInDetailsProps {
+  stockInData: StockInData;
+  stockIn: StockInWithExtras;
+  details: StockInDetail[];
+}
 
-        // Create StockIn object with properly typed status
-        const typedStockIn: StockIn = {
-          id: stockInData.id,
-          product_id: stockInData.product_id,
-          source: stockInData.source,
-          notes: stockInData.notes || '',
-          status: stockInData.status as StockInStatus,
-          submitted_by: stockInData.submitted_by,
-          processed_by: stockInData.processed_by,
-          batch_id: stockInData.batch_id,
-          processing_started_at: stockInData.processing_started_at,
-          processing_completed_at: stockInData.processing_completed_at,
-          created_at: stockInData.created_at,
-          updated_at: stockInData.updated_at
-        };
-        
-        setStockIn(typedStockIn);
-
-        // Fetch stock in details
-        const { data: detailsData, error: detailsError } = await supabase
-          .from('stock_in_details')
-          .select('*')
-          .eq('stock_in_id', id)
-          .order('processing_order', { ascending: true });
-
-        if (detailsError) throw detailsError;
-        setDetails((detailsData || []).map((d: any) => ({
-          ...d,
-          status: d.status || 'pending',
-          batch_number: d.batch_number || null,
-          processing_order: d.processing_order || null,
-          processed_at: d.processed_at || null,
-          error_message: d.error_message || null
-        })));
-
-        // Transform data for StockInData type
-        const transformedData: StockInData = {
-          id: stockInData.id,
-          product: stockInData.product,
-          boxes: stockInData.boxes,
-          source: stockInData.source,
-          notes: stockInData.notes,
-          submitter: stockInData.submitter,
-          status: stockInData.status,
-          created_at: stockInData.created_at
-        };
-
-        setStockInData(transformedData);
-      } catch (err) {
-        console.error('Error fetching stock in data:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (id) {
-      fetchStockInData();
-    }
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
+const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData, stockIn, details }) => {
+  if (stockInData.loading) {
+    return <p>Loading stock in details...</p>;
   }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
+  if (stockInData.error) {
+    return <p>Error: {stockInData.error}</p>;
   }
 
-  if (!stockIn || !stockInData) {
-    return (
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Not Found</AlertTitle>
-        <AlertDescription>Stock in request not found</AlertDescription>
-      </Alert>
-    );
+  if (!stockIn) {
+    return <p>Stock In details not found.</p>;
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <h1 className="text-2xl font-bold">Stock In Details</h1>
-      <StockInDetails
-        stockInData={stockInData}
-        stockIn={stockIn}
-        details={details}
-      />
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>Stock In Details</CardTitle>
+        <CardDescription>Details of stock in {stockIn.id}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4">
+          <div className="flex items-center space-x-4">
+            <span>Status:</span>
+            <Badge variant="secondary">{stockIn.status}</Badge>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span>Product:</span>
+            <span>{stockIn.product.name}</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span>Boxes:</span>
+            <span>{stockIn.boxes}</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span>Source:</span>
+            <span>{stockIn.source}</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span>Notes:</span>
+            <span>{stockIn.notes}</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span>Submitted By:</span>
+            <span>{stockIn.submitter.name}</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span>Created At:</span>
+            <span>{new Date(stockIn.created_at).toLocaleDateString()}</span>
+          </div>
+          {stockIn.batch_id && (
+            <div className="flex items-center space-x-4">
+              <span>Batch ID:</span>
+              <span>{stockIn.batch_id}</span>
+            </div>
+          )}
+          {stockIn.processing_started_at && (
+            <div className="flex items-center space-x-4">
+              <span>Processing Started At:</span>
+              <span>{new Date(stockIn.processing_started_at).toLocaleDateString()}</span>
+            </div>
+          )}
+          {stockIn.processing_completed_at && (
+            <div className="flex items-center space-x-4">
+              <span>Processing Completed At:</span>
+              <span>{new Date(stockIn.processing_completed_at).toLocaleDateString()}</span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+      <CardFooter>
+        <Link to="/manager/stock-in">
+          <Button variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Stock In List
+          </Button>
+        </Link>
+      </CardFooter>
+    </Card>
+  );
+};
+
+// Update the component to use StockInWithExtras
+const StockInDetailsPage: React.FC = () => {
+  const { stockInId } = useParams<{ stockInId: string }>();
+  const [stockInData, setStockInData] = useState<StockInData>({ loading: true, error: null });
+  const [stockIn, setStockIn] = useState<StockInWithExtras | null>(null);
+  const [details, setDetails] = useState<StockInDetail[]>([]);
+
+  useEffect(() => {
+    const fetchStockInDetails = async () => {
+      if (!stockInId) {
+        setStockInData({ loading: false, error: 'StockIn ID is missing' });
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('stock_in')
+          .select(`
+            *,
+            product:product_id (id, name),
+            submitter:submitted_by (id, name),
+            processor:processed_by (id, name)
+          `)
+          .eq('id', stockInId)
+          .single();
+
+        if (error) {
+          console.error('Supabase error:', error);
+          setStockInData({ loading: false, error: error.message });
+          toast.error(`Failed to fetch stock in details: ${error.message}`);
+          return;
+        }
+
+        if (data) {
+          setStockIn(data as StockInWithExtras);
+          setStockInData({ loading: false, error: null });
+          toast.success('Stock in details fetched successfully!');
+        } else {
+          setStockInData({ loading: false, error: 'Stock In details not found' });
+          toast.error('Stock In details not found');
+        }
+      } catch (error: any) {
+        console.error('Unexpected error:', error);
+        setStockInData({ loading: false, error: error.message });
+        toast.error(`Unexpected error: ${error.message}`);
+      }
+    };
+
+    fetchStockInDetails();
+  }, [stockInId]);
+
+  useEffect(() => {
+    const fetchStockInDetailsData = async () => {
+      if (!stockInId) {
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('stock_in_details')
+          .select(`
+            *,
+            product:product_id (id, name)
+          `)
+          .eq('stock_in_id', stockInId);
+
+        if (error) {
+          console.error('Supabase error:', error);
+          toast.error(`Failed to fetch stock in details data: ${error.message}`);
+          return;
+        }
+
+        if (data) {
+          setDetails(data);
+          toast.success('Stock in details data fetched successfully!');
+        }
+      } catch (error: any) {
+        console.error('Unexpected error:', error);
+        toast.error(`Unexpected error: ${error.message}`);
+      }
+    };
+
+    fetchStockInDetailsData();
+  }, [stockInId]);
+  
+  // When setting the stockIn state, cast it to StockInWithExtras
+  if (!stockInId) {
+    return (
+      <div className="container mx-auto p-4">
+        <p>StockIn ID is missing.</p>
+      </div>
+    );
+  }
+  
+  // Update the StockInDetails component props to match requirements
+  return (
+    <div className="container mx-auto p-4">
+      <Button asChild>
+        <Link to="/manager/stock-in">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Stock In List
+        </Link>
+      </Button>
+      {stockIn && (
+        <StockInDetails
+          stockInData={stockInData}
+          stockIn={stockIn as any}
+          details={details}
+        />
+      )}
     </div>
   );
 };
+
+export default StockInDetailsPage;
