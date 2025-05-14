@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -8,107 +7,79 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Printer, Eye, Boxes } from 'lucide-react';
-import { ProcessedBatchData } from '@/hooks/useProcessedBatches';
+import { Eye } from 'lucide-react';
+import { 
+  useProcessedBatches, 
+  ProcessedBatchType
+} from '@/hooks/useProcessedBatches';
+import { format } from 'date-fns';
 
 interface ProcessedBatchesTableProps {
-  batches: ProcessedBatchData[];
-  isLoading: boolean;
-  onViewDetails: (batchId: string) => void;
-  onPrintBarcodes: (batchId: string) => void;
+  filters: Record<string, any>;
 }
 
-export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
-  batches,
-  isLoading,
-  onViewDetails,
-  onPrintBarcodes
-}) => {
+export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({ filters }) => {
   const navigate = useNavigate();
+  const pageSize = 10; // Define pageSize here
+  const { data: processedBatches, isLoading, error } = useProcessedBatches(1, pageSize, filters);
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    return <Card>Loading processed batches...</Card>;
   }
 
-  if (!batches || batches.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <p>No processed batches found</p>
-      </div>
-    );
+  if (error) {
+    return <Card>Error: {error.message}</Card>;
   }
+
+  const handleViewDetails = (batchId: string) => {
+    navigate(`/manager/inventory/barcodes/${batchId}`);
+  };
 
   return (
-    <div className="overflow-x-auto">
+    <Card>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Batch ID</TableHead>
             <TableHead>Product</TableHead>
-            <TableHead>Date Processed</TableHead>
-            <TableHead>Quantity</TableHead>
-            <TableHead>Boxes</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Processor</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead>Warehouse</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Processed At</TableHead>
+            <TableHead>Total Boxes</TableHead>
+            <TableHead>Total Quantity</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {batches.map((batch) => (
-            <TableRow key={batch.id} className="hover:bg-slate-50">
-              <TableCell className="font-mono text-xs">{batch.id.substring(0, 8)}...</TableCell>
+          {processedBatches?.map((batch: ProcessedBatchType) => (
+            <TableRow key={batch.id}>
+              <TableCell>{batch.id}</TableCell>
+              <TableCell>{batch.product?.name}</TableCell>
+              <TableCell>{batch.warehouse?.name}</TableCell>
               <TableCell>
-                <div>
-                  <span className="font-medium">{batch.productName}</span>
-                  {batch.productSku && (
-                    <span className="block text-xs text-slate-500">SKU: {batch.productSku}</span>
-                  )}
-                </div>
+                <Badge variant="secondary">{batch.status}</Badge>
               </TableCell>
-              <TableCell>{new Date(batch.processed_at).toLocaleDateString()}</TableCell>
-              <TableCell>{batch.total_quantity}</TableCell>
+              <TableCell>{format(new Date(batch.processed_at), 'MMM d, yyyy h:mm a')}</TableCell>
               <TableCell>{batch.total_boxes}</TableCell>
-              <TableCell>{batch.source || '-'}</TableCell>
-              <TableCell>{batch.processorName}</TableCell>
-              <TableCell className="text-right space-x-1">
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  className="text-blue-600"
-                  onClick={() => onViewDetails(batch.id)}
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  Details
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  className="text-green-600"
-                  onClick={() => onPrintBarcodes(batch.id)}
-                >
-                  <Printer className="h-4 w-4 mr-1" />
-                  Barcodes
-                </Button>
+              <TableCell>{batch.total_quantity}</TableCell>
+              <TableCell>
                 <Button
-                  size="sm"
                   variant="outline"
-                  className="text-purple-600"
-                  onClick={() => navigate(`/inventory?batchId=${batch.id}`)}
+                  size="sm"
+                  onClick={() => handleViewDetails(batch.id)}
                 >
-                  <Boxes className="h-4 w-4 mr-1" />
-                  Inventory
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Details
                 </Button>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </div>
+    </Card>
   );
 };

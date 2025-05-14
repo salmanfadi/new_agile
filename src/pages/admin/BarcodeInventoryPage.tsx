@@ -2,122 +2,153 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
-import BarcodeGenerator from '@/components/barcode/BarcodeGenerator';
-import BarcodePrinter from '@/components/barcode/BarcodePrinter';
-import { useBatchItems } from '@/hooks/useProcessedBatches';
+import { useProcessedBatchDetails } from '@/hooks/useProcessedBatches';
+import { useToast } from '@/components/ui/use-toast';
+import { Printer, ArrowLeft, Tag } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import BarcodeInventoryTable from '@/components/barcode/BarcodeInventoryTable';
+import { BarcodePrinter } from '@/components/barcode/BarcodePrinter';
 
 const AdminBarcodeInventoryPage: React.FC = () => {
   const { batchId } = useParams<{ batchId: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [printerOpen, setPrinterOpen] = useState(false);
   const [selectedBarcodes, setSelectedBarcodes] = useState<string[]>([]);
-  const [showPrintDialog, setShowPrintDialog] = useState<boolean>(false);
   
-  const { data: batchItems, isLoading, error } = useBatchItems(batchId || null);
+  const { 
+    data: batchDetails,
+    isLoading,
+    error 
+  } = useProcessedBatchDetails(batchId || '');
   
-  const handleBack = () => {
-    navigate('/admin/inventory/batches');
-  };
-  
-  const handleSelectBarcode = (barcode: string, isSelected: boolean) => {
-    if (isSelected) {
-      setSelectedBarcodes(prev => [...prev, barcode]);
-    } else {
-      setSelectedBarcodes(prev => prev.filter(code => code !== barcode));
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load batch details',
+        variant: 'destructive'
+      });
     }
-  };
+  }, [error, toast]);
   
   const handlePrintSelected = () => {
-    if (selectedBarcodes.length > 0) {
-      setShowPrintDialog(true);
+    if (selectedBarcodes.length === 0) {
+      toast({
+        title: 'No barcodes selected',
+        description: 'Please select at least one barcode to print',
+        variant: 'destructive'
+      });
+      return;
     }
+    
+    setPrinterOpen(true);
   };
   
   const handlePrintAll = () => {
-    if (batchItems && batchItems.length > 0) {
-      setSelectedBarcodes(batchItems.map(item => item.barcode));
-      setShowPrintDialog(true);
+    if (!batchDetails?.items || batchDetails.items.length === 0) {
+      toast({
+        title: 'No barcodes available',
+        description: 'This batch has no barcodes to print',
+        variant: 'destructive'
+      });
+      return;
     }
+    
+    const allBarcodes = batchDetails.items.map(item => item.barcode);
+    setSelectedBarcodes(allBarcodes);
+    setPrinterOpen(true);
   };
-
-  return (
-    <div className="space-y-6 p-6">
-      <PageHeader 
-        title="Barcode Management" 
-        description="Print and manage barcodes for the selected batch"
-      />
-      
-      <div className="flex justify-between items-center mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleBack}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Batches
-        </Button>
-        
-        <div className="space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handlePrintSelected}
-            disabled={selectedBarcodes.length === 0}
-          >
-            Print Selected ({selectedBarcodes.length})
-          </Button>
-          
-          <Button 
-            variant="default" 
-            size="sm"
-            onClick={handlePrintAll}
-            disabled={!batchItems || batchItems.length === 0}
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Print All Barcodes
-          </Button>
-        </div>
+  
+  const handleBackToBatches = () => {
+    navigate('/admin/inventory/batches');
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader 
+          title={<Skeleton className="h-8 w-48" />} 
+          description={<Skeleton className="h-4 w-72" />} 
+        />
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40 mb-2" />
+            <Skeleton className="h-4 w-60" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Array(5).fill(null).map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
+          </CardContent>
+        </Card>
       </div>
+    );
+  }
+  
+  if (!batchDetails) {
+    return (
+      <div className="space-y-6">
+        <PageHeader 
+          title="Batch Not Found" 
+          description="The requested batch could not be found"
+          actions={
+            <Button onClick={handleBackToBatches} variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Batches
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-6">
+      <PageHeader 
+        title={`Barcodes for ${batchDetails.product.name || 'Batch'}`}
+        description={`Batch ID: ${batchId} • Generated on ${new Date(batchDetails.processed_at).toLocaleDateString()}`}
+        actions={
+          <div className="flex space-x-2">
+            <Button onClick={handleBackToBatches} variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Batches
+            </Button>
+            <Button onClick={handlePrintAll} variant="outline">
+              <Printer className="h-4 w-4 mr-2" />
+              Print All
+            </Button>
+            <Button onClick={handlePrintSelected} disabled={selectedBarcodes.length === 0}>
+              <Tag className="h-4 w-4 mr-2" />
+              Print Selected ({selectedBarcodes.length})
+            </Button>
+          </div>
+        }
+      />
       
       <Card>
         <CardHeader>
-          <CardTitle>Batch Barcodes</CardTitle>
-          <CardDescription>Manage and print barcodes for this batch</CardDescription>
+          <CardTitle>Barcode Inventory</CardTitle>
+          <CardDescription>
+            View and manage barcodes for this batch. Select barcodes to print or view details.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {error ? (
-            <div className="p-4 text-red-500">
-              Error loading barcode data. Please try again.
-            </div>
-          ) : (
-            <BarcodeInventoryTable 
-              batchItems={batchItems || []}
-              isLoading={isLoading}
-              selectedBarcodes={selectedBarcodes}
-              onSelectBarcode={handleSelectBarcode}
-            />
-          )}
+          <BarcodeInventoryTable 
+            batchItems={batchDetails.items || []}
+            onSelectionChange={setSelectedBarcodes}
+          />
         </CardContent>
       </Card>
       
-      {/* Barcode Printer Dialog */}
-      {showPrintDialog && (
+      {printerOpen && (
         <BarcodePrinter 
-          open={showPrintDialog}
-          onOpenChange={setShowPrintDialog}
-          barcodes={selectedBarcodes}
-          batchItems={batchItems?.filter(item => 
-            selectedBarcodes.includes(item.barcode)
-          ) || []}
+          open={printerOpen}
+          onOpenChange={setPrinterOpen}
+          barcodes={selectedBarcodes} 
+          batchItems={batchDetails.items || []}
         />
       )}
     </div>

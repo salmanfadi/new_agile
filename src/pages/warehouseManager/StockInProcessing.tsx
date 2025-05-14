@@ -1,211 +1,197 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
-import { useAuth } from '@/context/AuthContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
-import { RejectStockInDialog } from '@/components/warehouse/RejectStockInDialog';
-import { ProcessStockInDialog } from '@/components/warehouse/ProcessStockInDialog'; 
-import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
-import { useQueryClient } from '@tanstack/react-query';
+import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTable';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { useStockInRequests } from '@/hooks/useStockInRequests';
+import { useProcessedBatches } from '@/hooks/useProcessedBatches';
+import { StockInFilters } from '@/components/warehouse/StockInFilters';
+import { ProcessedBatchesFilters } from '@/components/warehouse/ProcessedBatchesFilters';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { Plus, RefreshCw } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+
+interface StockInUpdate {
+  id: string;
+  status: string;
+  [key: string]: any;
+}
 
 const StockInProcessing: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('pending');
+  const [stockInFilters, setStockInFilters] = useState({});
+  const [processedFilters, setProcessedFilters] = useState({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
-  const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+  const { refetch: refetchStockIn } = useStockInRequests(stockInFilters);
+  const { refetch: refetchProcessed } = useProcessedBatches(1, 10, processedFilters);
 
-  // Fetch stock in requests with improved query to get submitter name
-  const { 
-    data: stockInRequests, 
-    isLoading, 
-    error, 
-    refetch 
-  } = useStockInRequests('pending');
-
-  // Force refresh when component mounts
+  // Handle real-time updates for stock in requests
   useEffect(() => {
-    console.log("StockInProcessing component mounted, refreshing data");
-    queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-  }, [queryClient]);
-
-  // Setup Supabase real-time subscription for completed batch processing
-  useEffect(() => {
-    console.log("Setting up batch processing status subscription");
-    
-    // Subscribe to stock-in status changes
-    const channel: RealtimeChannel = supabase
-      .channel('stock-in-status-changes')
-      .on(
-        'postgres_changes', 
-        { event: '*', schema: 'public', table: 'stock_in' }, 
-        (payload) => {
-          console.log('Stock-in status changed:', payload);
-          
-          // Immediately refetch the data when stock-in status changes
-          queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-          
-          // Show toast notification for completed processing
-          if (payload.new && payload.new.status === 'completed') {
-            toast({
-              title: 'Stock In Completed',
-              description: 'A stock in request has been processed and completed',
-            });
-          }
-        }
-      )
-      .subscribe((response) => {
-        if (response) {
-          console.log("Subscription response received:", response);
-          // Type-safe access of status property with type guard
-          if (typeof response === 'object' && response !== null && 'status' in response) {
-            console.log("Subscription status:", response.status || 'unknown');
-          }
-        }
-      });
-
-    // Subscribe to processed batches
-    const batchesChannel: RealtimeChannel = supabase
-      .channel('processed-batches-changes')
+    // Create a channel for real-time updates
+    const channel = supabase
+      .channel('stock-in-updates')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'processed_batches' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'stock_in'
+        },
         (payload) => {
-          console.log('Processed batch change detected:', payload);
+          console.log('Stock in change received:', payload);
           
-          // Invalidate the processed batches data
-          queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
+          // Check if the payload has necessary data
+          const newRecord = payload.new as StockInUpdate;
           
-          if (payload.eventType === 'INSERT') {
-            toast({
-              title: 'New Batch Processed',
-              description: 'A new batch has been successfully processed',
-            });
+          if (newRecord && newRecord.status) {
+            // Determine which query to invalidate based on the status
+            if (newRecord.status === 'pending' || newRecord.status === 'processing') {
+              queryClient.invalidateQueries({ queryKey: ['stockInRequests'] });
+              toast({
+                title: 'Stock In Request Updated',
+                description: `A stock in request has been updated to ${newRecord.status}`,
+              });
+            } else if (newRecord.status === 'completed') {
+              queryClient.invalidateQueries({ queryKey: ['processedBatches'] });
+              toast({
+                title: 'Stock In Processing Complete',
+                description: 'A stock in request has been processed and completed.',
+              });
+            }
           }
         }
       )
-      .subscribe();
-
-    // Clean up the subscriptions when component unmounts
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+        
+        // Use optional chaining to safely access the status property
+        if (status && status.status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to stock-in-updates');
+        }
+      });
+    
     return () => {
-      console.log("Cleaning up stock-in status subscription");
+      // Unsubscribe when component unmounts
       supabase.removeChannel(channel);
-      supabase.removeChannel(batchesChannel);
     };
   }, [queryClient]);
-
-  // Navigate to batch processing page with the stock in ID
-  const handleProcess = (stockIn: StockInRequestData) => {
-    console.log("Navigating to batch processing for stock in:", stockIn.id);
-    navigate(`/manager/stock-in/batch/${stockIn.id}`);
-  };
-
-  // Open dialog for immediate processing
-  const handleQuickProcess = (stockIn: StockInRequestData) => {
-    console.log("Opening quick process dialog for stock in:", stockIn.id);
-    setSelectedStockIn(stockIn);
-    setIsProcessDialogOpen(true);
-  };
-
-  const handleReject = (stockIn: StockInRequestData) => {
-    setSelectedStockIn(stockIn);
-    setIsRejectDialogOpen(true);
-  };
   
-  const handleManualRefresh = () => {
-    console.log("Manual refresh requested");
-    toast({
-      title: "Refreshing data",
-      description: "Getting the latest stock in requests..."
-    });
-    queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-    refetch();
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (activeTab === 'pending' || activeTab === 'processing') {
+        await refetchStockIn();
+      } else {
+        await refetchProcessed();
+      }
+      toast({
+        title: 'Refreshed',
+        description: 'Data has been refreshed successfully',
+      });
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast({
+        title: 'Refresh Failed',
+        description: 'Failed to refresh data. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader 
-        title="Stock In Processing" 
-        description="Process incoming stock requests"
+        title="Stock-In Processing" 
+        description="Manage stock-in requests and view processed batches"
+        actions={
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button size="sm" onClick={() => navigate('/manager/stock-in/batch')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Process New Batch
+            </Button>
+          </div>
+        }
       />
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate('/manager')}
-        className="mb-4"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Dashboard
-      </Button>
-      
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-medium">Pending Requests</h2>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={handleManualRefresh}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Stock In Requests</CardTitle>
-          <CardDescription>Review and process incoming stock requests</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error ? (
-            <div className="p-4 text-red-500">
-              Error loading stock in requests. Please try again.
-            </div>
-          ) : (
-            <StockInRequestsTable 
-              stockInRequests={stockInRequests || []}
-              isLoading={isLoading}
-              onProcess={handleProcess}
-              onQuickProcess={handleQuickProcess}
-              onReject={handleReject}
-              userId={user?.id}
-              onRefresh={handleManualRefresh}
-            />
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Rejection Dialog */}
-      <RejectStockInDialog
-        open={isRejectDialogOpen}
-        onOpenChange={setIsRejectDialogOpen}
-        selectedStockIn={selectedStockIn}
-        userId={user?.id}
-      />
-      
-      {/* Process Dialog for quick processing */}
-      <ProcessStockInDialog 
-        open={isProcessDialogOpen}
-        onOpenChange={setIsProcessDialogOpen}
-        selectedStockIn={selectedStockIn}
-        userId={user?.id}
-      />
+      <Tabs defaultValue="pending" onValueChange={handleTabChange}>
+        <div className="flex items-center justify-between mb-4">
+          <TabsList className="grid grid-cols-3 w-[400px]">
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="processing">Processing</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+          </TabsList>
+        </div>
+        
+        <TabsContent value="pending" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pending Stock-In Requests</CardTitle>
+              <CardDescription>View and process pending stock-in requests submitted by field operators</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <StockInFilters 
+                onFilterChange={setStockInFilters} 
+                showStatus={false}
+                defaultStatus="pending"
+              />
+              <StockInRequestsTable status="pending" filters={stockInFilters} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="processing" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>In-Progress Stock-In Requests</CardTitle>
+              <CardDescription>Continue processing stock-in requests that are in progress</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <StockInFilters 
+                onFilterChange={setStockInFilters}
+                showStatus={false} 
+                defaultStatus="processing"
+              />
+              <StockInRequestsTable status="processing" filters={stockInFilters} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="completed" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Processed Batches</CardTitle>
+              <CardDescription>View all processed stock-in batches</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProcessedBatchesFilters onFilterChange={setProcessedFilters} />
+              <ProcessedBatchesTable filters={processedFilters} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
