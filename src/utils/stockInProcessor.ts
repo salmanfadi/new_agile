@@ -111,10 +111,10 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
     console.error('Error processing stock in:', error);
     
     try {
-      // Try to mark the stock_in as failed instead of processing
+      // Try to mark the stock_in with an error status - using 'rejected' instead of 'failed'
       await supabase
         .from('stock_in')
-        .update({ status: 'failed' })
+        .update({ status: 'rejected' })
         .eq('id', stockInId);
     } catch (updateError) {
       console.error('Failed to update status after error:', updateError);
@@ -123,3 +123,4 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
     throw error;
   }
 };
+
