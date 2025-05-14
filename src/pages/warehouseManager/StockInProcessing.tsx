@@ -68,12 +68,14 @@ const StockInProcessing: React.FC = () => {
           }
         }
       )
-      .subscribe((status) => {
-        // Fix: Check if status is an object with a 'status' property before accessing it
-        if (status && typeof status === 'object' && 'status' in status) {
-          console.log("Subscription status:", status.status);
-        } else {
-          console.log("Received subscription response:", status);
+      .subscribe((response) => {
+        // Fix: Use a more type-safe approach to checking the subscription status
+        if (response) {
+          console.log("Subscription response received:", response);
+          // Only try to access status if it's a known object shape with status property
+          if (typeof response === 'object' && response !== null && 'status' in response) {
+            console.log("Subscription status:", response.status);
+          }
         }
       });
 
