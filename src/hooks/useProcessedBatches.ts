@@ -142,7 +142,7 @@ const fetchProcessedBatches = async (
     if (error) throw error;
 
     // Transform the data
-    const processedData = data.map((item: any) => {
+    const processedData = data ? data.map((item: any) => {
       return {
         id: item.id,
         product_id: item.product_id,
@@ -161,7 +161,7 @@ const fetchProcessedBatches = async (
         total_quantity: item.total_quantity || 0,
         warehouse_id: item.warehouse_id,
       };
-    });
+    }) : [];
 
     return {
       data: processedData,

@@ -13,6 +13,8 @@ export interface BatchType {
   color?: string;
   size?: string;
   barcode?: string;
+  quantity_per_box?: number;
+  created_by?: string;
 }
 
 export const useBatchStockIn = (userId: string = '') => {
@@ -80,6 +82,7 @@ export const useBatchStockIn = (userId: string = '') => {
     try {
       // Convert batches to BoxData format
       const boxesData: BoxData[] = batchesToSubmit.map(batch => ({
+        id: '', // Add the required id property with an empty string
         product_id: batch.product_id,
         quantity: batch.boxes_count,
         warehouse_id: batch.warehouse_id,
@@ -104,7 +107,7 @@ export const useBatchStockIn = (userId: string = '') => {
           toast({
             title: "Processing Completed with Warnings",
             description: `Some barcodes had issues. Check the warnings for details.`,
-            variant: "warning",
+            variant: "destructive", // Changed from "warning" to "destructive" as it's the closest valid variant
           });
         } else {
           toast({

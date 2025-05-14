@@ -128,6 +128,7 @@ export const ProcessedBatchesFilters: React.FC<ProcessedBatchesFiltersProps> = (
           <DatePickerWithRange
             date={dateRange}
             onDateChange={setDateRange}
+            className="" // Add empty className to match expected prop
           />
         </div>
         
