@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
-import { Package, Boxes, LogOut, User, Menu, X } from 'lucide-react';
+import { Package, Boxes, LogOut, User, Menu, X, Home, PackageSearch, PackagePlus, PackageMinus, Users, MessageSquare, ListChecks, ScanLine } from 'lucide-react';
 
 export interface MainLayoutProps {
   children?: React.ReactNode;
@@ -21,8 +20,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
+    try {
+      await signOut();
+      // The navigation will be handled by the signOut function
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // If there's an error, force a page reload to ensure clean state
+      window.location.href = '/login';
+    }
   };
   
   // Close mobile menu when route changes
@@ -51,6 +56,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 onClick={() => navigate(item.path)}
                 className="text-sm"
               >
+                {item.icon && <item.icon className="h-4 w-4 mr-2" />}
                 {item.label}
               </Button>
             ))}
@@ -94,6 +100,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                   onClick={() => navigate(item.path)}
                   className="w-full justify-start text-sm"
                 >
+                  {item.icon && <item.icon className="h-4 w-4 mr-2" />}
                   {item.label}
                 </Button>
               ))}
@@ -140,45 +147,53 @@ function formatRole(role?: string): string {
     .join(' ');
 }
 
-function getNavigationForRole(role?: string) {
-  const baseRoutes = [
-    { path: '/', label: 'Dashboard' },
+interface NavigationItem {
+  path: string;
+  label: string;
+  icon?: React.ComponentType<{ className?: string }>;
+}
+
+function getNavigationForRole(role?: string): NavigationItem[] {
+  const baseRoutes: NavigationItem[] = [
+    { path: '/', label: 'Dashboard', icon: Home },
   ];
   
   switch (role) {
     case 'admin':
       return [
-        ...baseRoutes,
-        { path: '/admin/inventory', label: 'Inventory' },
-        { path: '/admin/stock-in', label: 'Stock In' },
-        { path: '/admin/stock-out', label: 'Stock Out' },
-        { path: '/admin/profiles', label: 'User Profiles' },
-        { path: '/admin/sales-inquiries', label: 'Sales Inquiries' },
+        { path: '/admin', label: 'Dashboard', icon: Home },
+        { path: '/admin/inventory', label: 'Inventory', icon: PackageSearch },
+        { path: '/admin/stock-in', label: 'Stock In', icon: PackagePlus },
+        { path: '/admin/stock-out', label: 'Stock Out', icon: PackageMinus },
+        { path: '/admin/profiles', label: 'User Profiles', icon: Users },
+        { path: '/admin/sales-inquiries', label: 'Sales Inquiries', icon: MessageSquare },
       ];
     case 'warehouse_manager':
       return [
-        ...baseRoutes,
-        { path: '/manager/inventory', label: 'Inventory' },
-        { path: '/manager/stock-in', label: 'Stock In' },
-        { path: '/manager/stock-out', label: 'Stock Out' },
+        { path: '/manager', label: 'Dashboard', icon: Home },
+        { path: '/manager/inventory', label: 'Inventory', icon: PackageSearch },
+        { path: '/manager/stock-in', label: 'Stock In', icon: PackagePlus },
+        { path: '/manager/stock-out', label: 'Stock Out', icon: PackageMinus },
       ];
     case 'field_operator':
       return [
-        ...baseRoutes,
-        { path: '/field/inventory', label: 'Inventory' },
-        { path: '/field/stock-in', label: 'Submit Stock' },
+        { path: '/field', label: 'Dashboard', icon: Home },
+        { path: '/field/stock-in', label: 'Submit Stock', icon: PackagePlus },
+        { path: '/field/stock-out', label: 'Stock Out', icon: PackageMinus },
+        { path: '/field/submissions', label: 'My Submissions', icon: ListChecks },
+        { path: '/field/barcode-lookup', label: 'Barcode Lookup', icon: ScanLine },
       ];
     case 'sales_operator':
       return [
-        ...baseRoutes,
-        { path: '/sales/inventory', label: 'Products' },
-        { path: '/sales/inquiries', label: 'Customer Inquiries' },
+        { path: '/sales', label: 'Dashboard', icon: Home },
+        { path: '/sales/inventory', label: 'Products', icon: PackageSearch },
+        { path: '/sales/inquiries', label: 'Customer Inquiries', icon: MessageSquare },
       ];
     case 'customer':
       return [
-        ...baseRoutes,
-        { path: '/customer/products', label: 'Products' },
-        { path: '/customer/inquiries', label: 'My Inquiries' },
+        { path: '/customer/portal', label: 'Dashboard', icon: Home },
+        { path: '/customer/products', label: 'Products', icon: PackageSearch },
+        { path: '/customer/inquiries', label: 'My Inquiries', icon: MessageSquare },
       ];
     default:
       return baseRoutes;

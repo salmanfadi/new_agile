@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import BatchStockInComponent from '@/components/warehouse/BatchStockInComponent';
@@ -41,12 +40,6 @@ const StockInProcessing: React.FC = () => {
   const handleProcess = (stockIn: any) => {
     const stockInId = stockIn.id;
     navigate(`/manager/stock-in/process/${stockInId}`);
-  };
-  
-  const handleQuickProcess = (stockIn: any) => {
-    // Set the stock in ID and open the sheet
-    setSelectedStockInId(stockIn.id);
-    setIsSheetOpen(true);
   };
   
   const handleReject = (stockIn: any) => {
@@ -148,7 +141,6 @@ const StockInProcessing: React.FC = () => {
             status="pending" 
             filters={pendingFilters} 
             onProcess={handleProcess}
-            onQuickProcess={handleQuickProcess}
             onReject={handleReject}
             userId={userId}
           />
@@ -185,25 +177,6 @@ const StockInProcessing: React.FC = () => {
           />
         </TabsContent>
       </Tabs>
-      
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-xl md:max-w-2xl lg:max-w-4xl xl:max-w-6xl overflow-y-scroll">
-          <SheetHeader>
-            <SheetTitle>Process Stock In Request</SheetTitle>
-            <SheetDescription>
-              Create batches and inventory for this stock in request
-            </SheetDescription>
-          </SheetHeader>
-          {selectedStockInId && (
-            <div className="mt-6">
-              <BatchStockInComponent 
-                sheetMode={true} 
-                onClose={handleSheetClose}
-              />
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 };

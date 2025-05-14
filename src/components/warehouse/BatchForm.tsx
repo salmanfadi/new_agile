@@ -79,18 +79,20 @@ export const BatchForm: React.FC<BatchFormProps> = ({
   });
 
   // Fetch warehouses
-  const { data: warehouses, isLoading: isLoadingWarehouses } = useQuery({
+  const { data: warehouses, isLoading: isLoadingWarehouses, error: warehousesError } = useQuery({
     queryKey: ['warehouses'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('warehouses')
         .select('*')
         .order('name');
-      
       if (error) throw error;
       return data as Warehouse[];
     }
   });
+
+  // Debugging: log warehouses
+  console.log('Warehouses loaded:', warehouses, 'Error:', warehousesError);
 
   // Fetch locations based on selected warehouse
   const { data: locations, isLoading: isLoadingLocations } = useQuery({
@@ -203,7 +205,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
             <Label htmlFor="product">Product</Label>
             <Select 
               onValueChange={handleProductChange} 
-              disabled={isLoadingProducts || isSubmitting || !!stockInData?.product?.id || !!editingBatch}
+              disabled={isLoadingProducts || isSubmitting || !!editingBatch}
               value={batchData.product?.id || ''}
               defaultValue={stockInData?.product?.id}
             >
@@ -252,7 +254,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
                   const val = e.target.value;
                   handleChange('boxes_count', val === '' ? undefined : parseInt(val));
                 }}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !!editingBatch}
                 placeholder="Enter number of boxes"
                 className={maxBoxes !== undefined && batchData.boxes_count > maxBoxes ? "border-red-500" : ""}
               />
@@ -271,7 +273,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
                 min={1}
                 value={batchData.quantity_per_box}
                 onChange={(e) => handleChange('quantity_per_box', parseInt(e.target.value) || 1)}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !!editingBatch}
               />
             </div>
           </div>
@@ -280,7 +282,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
             <Label htmlFor="warehouse">Warehouse</Label>
             <Select 
               onValueChange={handleWarehouseChange} 
-              disabled={isLoadingWarehouses || isSubmitting}
+              disabled={isLoadingWarehouses || isSubmitting || !!editingBatch}
               value={batchData.warehouse?.id || ''}
             >
               <SelectTrigger id="warehouse">
@@ -292,12 +294,20 @@ export const BatchForm: React.FC<BatchFormProps> = ({
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Loading warehouses...
                   </SelectItem>
-                ) : (
-                  warehouses?.map((warehouse) => (
+                ) : warehousesError ? (
+                  <SelectItem value="error" disabled>
+                    Error loading warehouses
+                  </SelectItem>
+                ) : warehouses && warehouses.length > 0 ? (
+                  warehouses.map((warehouse) => (
                     <SelectItem key={warehouse.id} value={warehouse.id}>
                       {warehouse.name}
                     </SelectItem>
                   ))
+                ) : (
+                  <SelectItem value="none" disabled>
+                    No warehouses found
+                  </SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -307,7 +317,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
             <Label htmlFor="location">Location</Label>
             <Select 
               onValueChange={handleLocationChange} 
-              disabled={!batchData.warehouse || isLoadingLocations || isSubmitting}
+              disabled={!batchData.warehouse || isLoadingLocations || isSubmitting || !!editingBatch}
               value={batchData.location?.id || ''}
             >
               <SelectTrigger id="location">
@@ -338,7 +348,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
                 value={batchData.color}
                 onChange={(e) => handleChange('color', e.target.value)}
                 placeholder="e.g. Red"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !!editingBatch}
               />
             </div>
             <div className="space-y-2">
@@ -348,7 +358,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
                 value={batchData.size}
                 onChange={(e) => handleChange('size', e.target.value)}
                 placeholder="e.g. Large"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !!editingBatch}
               />
             </div>
           </div>

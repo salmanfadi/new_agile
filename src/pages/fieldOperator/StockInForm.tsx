@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +30,7 @@ import { supabase } from '@/integrations/supabase/client';
 const StockInForm: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
@@ -70,24 +70,40 @@ const StockInForm: React.FC = () => {
       source: string;
       notes?: string;
     }) => {
-      console.log("Submitting with user ID:", data.submitted_by);
+      console.log("Submitting stock in request:", data);
       const { data: result, error } = await supabase
         .from('stock_in')
-        .insert([data])
+        .insert([{
+          ...data,
+          status: 'pending' // Add initial status
+        }])
         .select();
         
-      if (error) throw error;
+      if (error) {
+        console.error("Database error:", error);
+        throw error;
+      }
+      
+      if (!result || result.length === 0) {
+        throw new Error('Failed to create stock in record');
+      }
+      
       return result;
     },
     onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['user-stock-in', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['operator-stats', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['operator-recent-activities', user?.id] });
+      
       toast({
         title: 'Stock In request submitted!',
         description: `${formData.numberOfBoxes} boxes of the selected product have been submitted for processing.`,
       });
-      // Fix navigation path to match route in App.tsx
-      navigate('/operator/submissions');
+      navigate('/field/submissions');
     },
     onError: (error) => {
+      console.error("Submission error:", error);
       toast({
         variant: 'destructive',
         title: 'Submission failed',
@@ -247,7 +263,7 @@ const StockInForm: React.FC = () => {
               variant="ghost"
               size="sm"
               className="mb-2 -ml-2"
-              onClick={() => navigate('/operator')}
+              onClick={() => navigate('/field')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Home

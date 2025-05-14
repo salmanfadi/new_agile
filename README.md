@@ -18,6 +18,7 @@ A modern, real-time warehouse management system built with React, TypeScript, an
 - Audit trail for all inventory movements
 - Multi-warehouse support with location tracking
 - Role-based access control (RBAC)
+- **Unified user submissions & activity feed:** Shared logic for fetching stock-in and stock-out submissions and recent activity for each user, ensuring consistency across the dashboard and "My Submissions" page.
 
 ## 🏗️ Architecture
 
@@ -28,6 +29,7 @@ A modern, real-time warehouse management system built with React, TypeScript, an
 - **Real-time Updates**: Supabase real-time subscriptions
 - **Routing**: React Router for navigation
 - **Form Handling**: React Hook Form with validation
+- **Shared User Activity Hook**: `useUserStockActivity` provides a DRY, consistent way to fetch a user's stock-in and stock-out submissions for both the dashboard and "My Submissions" page.
 
 ### Backend (Supabase)
 - **Database**: PostgreSQL with Row Level Security
@@ -197,3 +199,24 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🤝 Support
 
 For support, please open an issue in the repository or contact the development team.
+
+## 🧑‍💻 Developer Notes
+
+### Shared User Stock Activity Hook
+
+A single hook, `useUserStockActivity`, is used to fetch both stock-in and stock-out submissions for the current user. This ensures that the "My Submissions" page and the field operator dashboard's recent activity table always show consistent, up-to-date data.
+
+**Usage Example:**
+```ts
+import { useUserStockActivity } from '@/hooks/useUserStockActivity';
+
+const { data, isLoading } = useUserStockActivity(userId, { limit: 5 });
+// data.stockIn and data.stockOut are arrays of recent submissions
+```
+- Use with or without a `limit` parameter for full history or recent activity.
+- Automatically refetches every 5 seconds for real-time updates.
+
+### Why?
+- **DRY principle:** No duplicate query logic between dashboard and submissions page.
+- **Consistency:** All user-facing tables show the same data for the same user.
+- **Easy maintenance:** Update the hook to change logic everywhere at once.

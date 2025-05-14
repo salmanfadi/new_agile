@@ -20,6 +20,7 @@ interface BatchListProps {
   isProcessing: boolean;
   formSubmitted: boolean;
   barcodeValidationErrors?: { barcode: string; error: string }[];
+  remainingBoxes: number;
 }
 
 export const BatchList: React.FC<BatchListProps> = ({
@@ -30,7 +31,8 @@ export const BatchList: React.FC<BatchListProps> = ({
   isSubmitting,
   isProcessing,
   formSubmitted,
-  barcodeValidationErrors = []
+  barcodeValidationErrors = [],
+  remainingBoxes
 }) => {
   // Count unique valid barcodes to ensure there are no duplicates within this batch
   const barcodeCount = new Set(batches.flatMap(batch => 
@@ -91,7 +93,7 @@ export const BatchList: React.FC<BatchListProps> = ({
                   <Button 
                     onClick={handleBatchSubmission} 
                     className={`w-full mt-4 apple-shadow-sm ${formSubmitted && !barcodeValidationErrors.length ? "bg-green-600 hover:bg-green-700" : ""}`}
-                    disabled={batches.length === 0 || isSubmitting || isProcessing || (formSubmitted && !barcodeValidationErrors.length) || hasDuplicateBarcodes}
+                    disabled={batches.length === 0 || isSubmitting || isProcessing || (formSubmitted && !barcodeValidationErrors.length) || hasDuplicateBarcodes || remainingBoxes > 0}
                   >
                     {isSubmitting || isProcessing ? (
                       <span className="flex items-center gap-2">

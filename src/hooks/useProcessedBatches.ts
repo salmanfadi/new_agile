@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
@@ -81,13 +80,33 @@ const fetchProcessedBatches = async (
   count: number;
 }> => {
   try {
-    // Start with the base query
-    let query = supabase
+    // 1. Get the total count (without range or joins)
+    let countQuery = supabase
+      .from('processed_batches')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'completed');
+    if (filters.warehouse_id) {
+      countQuery = countQuery.eq('warehouse_id', filters.warehouse_id);
+    }
+    if (filters.fromDate) {
+      countQuery = countQuery.gte('processed_at', filters.fromDate.toISOString());
+    }
+    if (filters.toDate) {
+      const toDate = new Date(filters.toDate);
+      toDate.setHours(23, 59, 59, 999);
+      countQuery = countQuery.lte('processed_at', toDate.toISOString());
+    }
+    const { count: totalCount, error: countError } = await countQuery;
+    if (countError) throw countError;
+
+    // 2. Get the paginated data with joins
+    let dataQuery = supabase
       .from('processed_batches')
       .select(`
         id,
         product_id,
         processed_by,
+        submitted_by,
         total_boxes,
         status,
         source,
@@ -98,48 +117,35 @@ const fetchProcessedBatches = async (
         products:product_id (
           name,
           sku
-        )
-      `, { count: 'exact' })
+        ),
+        processor:processed_by (name)
+      `)
       .eq('status', 'completed')
       .order('processed_at', { ascending: false });
-
-    // Apply filters
-    if (filters.searchTerm) {
-      // Search across multiple fields
-      const term = `%${filters.searchTerm}%`;
-      query = query.or(`id.ilike.${term},source.ilike.${term}`);
-    }
-
     if (filters.warehouse_id) {
-      query = query.eq('warehouse_id', filters.warehouse_id);
+      dataQuery = dataQuery.eq('warehouse_id', filters.warehouse_id);
     }
-
     if (filters.fromDate) {
-      query = query.gte('processed_at', filters.fromDate.toISOString());
+      dataQuery = dataQuery.gte('processed_at', filters.fromDate.toISOString());
     }
-
     if (filters.toDate) {
       const toDate = new Date(filters.toDate);
       toDate.setHours(23, 59, 59, 999);
-      query = query.lte('processed_at', toDate.toISOString());
+      dataQuery = dataQuery.lte('processed_at', toDate.toISOString());
     }
-
-    // Add pagination
+    // Pagination
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
-
-    // Execute the query
-    const { data, error, count } = await query.range(from, to);
-
+    dataQuery = dataQuery.range(from, to);
+    const { data, error } = await dataQuery;
     if (error) throw error;
 
-    // Transform the data with proper error handling
+    // Transform the data
     const processedData = data ? data.map((item: any) => {
-      // Use optional chaining and nullish coalescing to safely access properties
       return {
         id: item.id || '',
         product_id: item.product_id || '',
-        submitted_by: '',
+        submitted_by: item.submitted_by || '',
         processed_by: item.processed_by || '',
         boxes: item.total_boxes || 0,
         status: item.status || 'completed',
@@ -149,8 +155,8 @@ const fetchProcessedBatches = async (
         completed_at: item.processed_at || null,
         product_name: item.products?.name || 'Unknown Product',
         product_sku: item.products?.sku || '',
-        submitter_name: '', // No submitter in this schema
-        processor_name: '', // Will be fetched separately if needed
+        submitter_name: item.submitted_by || '',
+        processor_name: item.processor?.name || '',
         total_quantity: item.total_quantity || 0,
         warehouse_id: item.warehouse_id || '',
       };
@@ -158,7 +164,7 @@ const fetchProcessedBatches = async (
 
     return {
       data: processedData,
-      count: count || 0,
+      count: totalCount || 0,
     };
   } catch (error) {
     console.error('Error fetching processed batches:', error);
@@ -299,6 +305,7 @@ export const useProcessedBatches = (
   const query = useQuery({
     queryKey: ['processedBatches', page, currentPageSize, filters],
     queryFn: () => fetchProcessedBatches(page, currentPageSize, filters),
+    refetchInterval: 5000,
   });
 
   const setPageSize = (newSize: number) => {

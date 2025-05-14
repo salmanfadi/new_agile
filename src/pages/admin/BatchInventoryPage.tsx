@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -22,9 +21,11 @@ const AdminBatchInventoryPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [showBatchDetails, setShowBatchDetails] = useState<boolean>(false);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10); // You can make this adjustable if needed
 
   // No need to pass data to the table component as it fetches its own data
-  const { isLoading, error } = useProcessedBatches();
+  const { isLoading, error } = useProcessedBatches(page, pageSize);
 
   const handleRefresh = () => {
     toast({
@@ -86,6 +87,9 @@ const AdminBatchInventoryPage: React.FC = () => {
               filters={{}}
               onViewDetails={handleViewDetails}
               onPrintBarcodes={handlePrintBarcodes}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
             />
           )}
         </CardContent>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   createBrowserRouter,
@@ -11,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { MainLayout } from '@/layouts/MainLayout';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import LoginPage from './pages/Login';
-import SignUpPage from './pages/Index'; // Using Index as SignUpPage for now
+import SignUpPage from './pages/Index';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import WarehouseManagerDashboard from './pages/warehouseManager/ManagerDashboard';
 import FieldOperatorDashboard from './pages/fieldOperator/OperatorDashboard';
@@ -34,6 +33,11 @@ import AdminBarcodeInventoryPage from '@/pages/admin/BarcodeInventoryPage';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import UnauthorizedPage from '@/pages/Unauthorized';
 import { UserRole } from '@/types/auth';
+import StockInForm from '@/pages/fieldOperator/StockInForm';
+import StockOutForm from '@/pages/fieldOperator/StockOutForm';
+import MySubmissions from '@/pages/fieldOperator/MySubmissions';
+import BarcodeLookup from '@/pages/fieldOperator/BarcodeLookup';
+import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
 
 // Define routes
 const router = createBrowserRouter([
@@ -61,106 +65,117 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    element: 
-      <RequireAuth allowedRoles={['admin', 'warehouse_manager', 'field_operator', 'sales_operator'] as UserRole[]}>
-        <MainLayout>
-          <Outlet />
-        </MainLayout>
-      </RequireAuth>,
+    element: <RequireAuth><MainLayout><Outlet /></MainLayout></RequireAuth>,
     children: [
       {
         path: "admin",
-        element: <AdminDashboard />,
+        element: <RequireAuth allowedRoles={['admin']}><AdminDashboard /></RequireAuth>,
       },
       {
         path: "manager",
-        element: <WarehouseManagerDashboard />,
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><WarehouseManagerDashboard /></RequireAuth>,
       },
       {
         path: "field",
-        element: <FieldOperatorDashboard />,
+        element: <RequireAuth allowedRoles={['field_operator']}><FieldOperatorDashboard /></RequireAuth>,
+      },
+      {
+        path: "field/stock-in",
+        element: <RequireAuth allowedRoles={['field_operator']}><StockInForm /></RequireAuth>,
+      },
+      {
+        path: "field/stock-out",
+        element: <RequireAuth allowedRoles={['field_operator']}><StockOutForm /></RequireAuth>,
+      },
+      {
+        path: "field/submissions",
+        element: <RequireAuth allowedRoles={['field_operator']}><MySubmissions /></RequireAuth>,
+      },
+      {
+        path: "field/barcode-lookup",
+        element: <RequireAuth allowedRoles={['field_operator']}><BarcodeLookup /></RequireAuth>,
       },
       {
         path: "sales",
-        element: <SalesOperatorDashboard />,
+        element: <RequireAuth allowedRoles={['sales_operator']}><SalesOperatorDashboard /></RequireAuth>,
       },
       {
-        path: "customer",
-        element: <CustomerDashboard />,
+        path: "customer/portal",
+        element: <RequireAuth allowedRoles={['customer']}><CustomerDashboard /></RequireAuth>,
       },
       {
         path: "admin/stock-in",
-        element: <AdminStockInManagement />,
+        element: <RequireAuth allowedRoles={['admin']}><AdminStockInManagement /></RequireAuth>,
       },
       {
         path: "manager/stock-in",
-        element: <StockInProcessing />,
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><StockInProcessing /></RequireAuth>,
       },
       {
         path: "admin/stock-in/batch",
-        element: <AdminBatchStockInPage />,
+        element: <RequireAuth allowedRoles={['admin']}><AdminBatchStockInPage /></RequireAuth>,
       },
       {
         path: "admin/stock-in/batch/:stockInId",
-        element: <AdminBatchStockInPage />,
+        element: <RequireAuth allowedRoles={['admin']}><AdminBatchStockInPage /></RequireAuth>,
       },
       {
         path: "manager/stock-in/batch",
-        element: <BatchStockInPage />,
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><BatchStockInPage /></RequireAuth>,
       },
       {
         path: "manager/stock-in/batch/:stockInId",
-        element: <BatchStockInPage />,
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><BatchStockInPage /></RequireAuth>,
       },
       {
         path: "admin/inventory",
-        element: <AdminInventoryView />,
+        element: <RequireAuth allowedRoles={['admin']}><AdminInventoryView /></RequireAuth>,
       },
       {
         path: "manager/inventory",
-        element: <InventoryView />,
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><InventoryView /></RequireAuth>,
       },
       {
         path: "admin/stock-out",
-        element: <AdminStockOutManagement />,
+        element: <RequireAuth allowedRoles={['admin']}><AdminStockOutManagement /></RequireAuth>,
       },
       {
         path: "manager/stock-out",
-        element: <StockOutRequests />,
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><StockOutRequests /></RequireAuth>,
       },
       {
         path: "admin/profiles",
-        element: <ProfilesManagement />,
+        element: <RequireAuth allowedRoles={['admin']}><ProfilesManagement /></RequireAuth>,
       },
       {
         path: "admin/sales-inquiries",
-        element: <SalesInquiriesManagement />,
+        element: <RequireAuth allowedRoles={['admin']}><SalesInquiriesManagement /></RequireAuth>,
       },
-      
-      // Admin routes
       {
         path: "admin/inventory/batches",
-        element: <AdminBatchInventoryPage />
+        element: <RequireAuth allowedRoles={['admin']}><AdminBatchInventoryPage /></RequireAuth>,
       },
       {
         path: "admin/inventory/barcodes/:batchId",
-        element: <AdminBarcodeInventoryPage />
+        element: <RequireAuth allowedRoles={['admin']}><AdminBarcodeInventoryPage /></RequireAuth>,
       },
-      
-      // Manager routes
       {
         path: "manager/inventory/batches",
-        element: <BatchInventoryPage />
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><BatchInventoryPage /></RequireAuth>,
       },
       {
         path: "manager/inventory/barcodes/:batchId",
-        element: <BarcodeInventoryPage />
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><BarcodeInventoryPage /></RequireAuth>,
+      },
+      {
+        path: "manager/stock-in/process/:stockInId",
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><ProcessStockInPage /></RequireAuth>,
       }
     ]
   },
   {
     path: "*",
-    element: <div>Page not found</div>
+    element: <Navigate to="/login" replace />
   }
 ]);
 

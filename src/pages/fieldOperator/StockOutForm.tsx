@@ -534,7 +534,7 @@ const StockOutForm: React.FC = () => {
               variant="ghost"
               size="sm"
               className="mb-2 -ml-2"
-              onClick={() => navigate('/operator')}
+              onClick={() => navigate('/field')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Home

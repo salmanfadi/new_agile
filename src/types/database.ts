@@ -1,4 +1,3 @@
-
 export interface Warehouse {
   id: string;
   name: string;
@@ -195,4 +194,21 @@ export interface CartItem {
   product: Product;
   quantity: number;
   requirements?: string;
+}
+
+export interface StockMovementAudit {
+  id: string;
+  inventory_id: string;
+  movement_type: 'stock_in' | 'stock_out' | 'batch';
+  quantity: number;
+  previous_quantity: number;
+  new_quantity: number;
+  performed_by: string;
+  performed_at: string;
+  notes?: string;
+  reference_id?: string;
+  reference_type?: 'stock_in' | 'stock_out' | 'batch';
+  // Join fields
+  inventory?: Inventory;
+  performer?: Profile;
 }

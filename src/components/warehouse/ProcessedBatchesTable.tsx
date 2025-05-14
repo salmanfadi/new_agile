@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -18,12 +17,18 @@ export interface ProcessedBatchesTableProps {
   filters?: Record<string, any>;
   onViewDetails?: (batchId: string) => void;
   onPrintBarcodes?: (batchId: string) => void;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 }
 
 export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({ 
   filters = {},
   onViewDetails,
-  onPrintBarcodes
+  onPrintBarcodes,
+  page = 1,
+  pageSize = 10,
+  onPageChange
 }) => {
   const navigate = useNavigate();
   const { 
@@ -31,7 +36,9 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
     isLoading, 
     isError, 
     error 
-  } = useProcessedBatches(1, 10, filters);
+  } = useProcessedBatches(page, pageSize, filters);
+  const totalCount = data?.count || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
   
   // Handle batch details view
   const handleViewDetails = (batchId: string) => {
@@ -84,6 +91,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
             <TableHead>Product</TableHead>
             <TableHead>Quantity</TableHead>
             <TableHead>Boxes</TableHead>
+            <TableHead>Submitted By</TableHead>
             <TableHead>Processed By</TableHead>
             <TableHead>Processed Date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -101,6 +109,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
               </TableCell>
               <TableCell>{batch.total_quantity}</TableCell>
               <TableCell>{batch.boxes}</TableCell>
+              <TableCell>{batch.submitter_name || 'Unknown'}</TableCell>
               <TableCell>{batch.processor_name}</TableCell>
               <TableCell>
                 {batch.completed_at ? format(new Date(batch.completed_at), 'MMM d, yyyy h:mm a') : 'N/A'}
@@ -129,6 +138,18 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
           ))}
         </TableBody>
       </Table>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 py-4">
+          <Button size="sm" variant="outline" onClick={() => onPageChange && onPageChange(page - 1)} disabled={page === 1}>
+            Previous
+          </Button>
+          <span>Page {page} of {totalPages}</span>
+          <Button size="sm" variant="outline" onClick={() => onPageChange && onPageChange(page + 1)} disabled={page === totalPages}>
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -117,9 +116,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       return;
     }
     
-    const path = processedBatchId ? 
-      `${adminMode ? '/admin' : '/manager'}/inventory/barcodes/${processedBatchId}` :
-      `${adminMode ? '/admin' : '/manager'}/inventory`;
+    // For warehouse manager, always go to inventory/batches first
+    const path = `${adminMode ? '/admin' : '/manager'}/inventory/batches`;
       
     console.log(`Navigating to: ${path}`);
     navigate(path, { 
@@ -297,6 +295,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                 isProcessing={isProcessing}
                 formSubmitted={formSubmitted}
                 barcodeValidationErrors={barcodeErrors}
+                remainingBoxes={remainingBoxes}
               />
             </div>
           </div>
@@ -315,7 +314,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                 Batch ID: {processedBatchId}
               </p>
             )}
-            <p className="mt-3">Would you like to view the barcodes for this batch or go to inventory?</p>
+            <p className="mt-3">Would you like to view the batch details or go to inventory?</p>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => {
@@ -325,15 +324,15 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
                 onClose();
                 return;
               }
-              navigate(`${adminMode ? '/admin' : '/manager'}/inventory`);
+              navigate(`${adminMode ? '/admin' : '/manager'}/inventory/batches`);
             }}>
-              View Inventory
+              View All Batches
             </Button>
             <Button 
               onClick={handleNavigateToInventory} 
               className="w-full sm:w-auto"
             >
-              {processedBatchId ? 'View Batch Barcodes' : 'View Inventory'}
+              {processedBatchId ? 'View Batch Details' : 'View All Batches'}
             </Button>
           </DialogFooter>
         </DialogContent>

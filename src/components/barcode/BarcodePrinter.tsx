@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Printer, Download } from 'lucide-react';
 import { BatchItemType } from '@/hooks/useProcessedBatches';
 import { formatBarcodeForDisplay } from '@/utils/barcodeUtils';
+import bwipjs from 'bwip-js';
 
 interface BarcodePrinterProps {
   open: boolean;
@@ -27,10 +27,32 @@ const BarcodePrinter: React.FC<BarcodePrinterProps> = ({
   batchItems
 }) => {
   const [isPrinting, setIsPrinting] = useState(false);
+  const canvasRefs = useRef<{ [key: string]: HTMLCanvasElement | null }>({});
 
   // Find batch items matching selected barcodes
   const selectedItems = batchItems.filter(item => barcodes.includes(item.barcode));
   
+  useEffect(() => {
+    // Generate barcodes for each selected item
+    selectedItems.forEach(item => {
+      const canvas = canvasRefs.current[item.barcode];
+      if (canvas) {
+        try {
+          bwipjs.toCanvas(canvas, {
+            bcid: 'code128',
+            text: item.barcode,
+            scale: 3,
+            height: 10,
+            includetext: true,
+            textxalign: 'center',
+          });
+        } catch (error) {
+          console.error('Error generating barcode:', error);
+        }
+      }
+    });
+  }, [selectedItems]);
+
   const handlePrint = () => {
     setIsPrinting(true);
     setTimeout(() => {
@@ -61,8 +83,12 @@ const BarcodePrinter: React.FC<BarcodePrinterProps> = ({
                 className="border rounded-md p-4 print:border-none print:p-0 print:mb-8 page-break-inside-avoid"
               >
                 <div className="flex flex-col items-center">
-                  {/* Mock barcode image */}
-                  <div className="w-full h-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMzAiPjxwYXRoIGQ9Ik0wIDBoMnYzMEgwem0zIDBoMXYzMEgzem00IDBoM3YzMEg3em01IDBoMXYzMGgtMXptMyAwaDJ2MzBoLTJ6bTQgMGgxdjMwaC0xem0yIDBoM3YzMGgtM3ptNSAwaDJ2MzBoLTJ6bTMgMGgzdjMwaC0zem01IDBoMnYzMGgtMnptMyAwaDR2MzBoLTR6bTYgMGgydjMwaC0yem0zIDBoMXYzMGgtMXptMyAwaDJ2MzBoLTJ6bTQgMGgxdjMwaC0xem0zIDBoM3YzMGgtM3ptNSAwaDJ2MzBoLTJ6bTMgMGg1djMwaC01em03IDBoMnYzMGgtMnptNCAwaDJ2MzBoLTJ6bTQgMGgxdjMwaC0xem0yIDBoNHYzMGgtNHptNiAwaDJ2MzBoLTJ6bTMgMGgxdjMwaC0xem0yIDBoMnYzMGgtMnoiLz48L3N2Zz4=')]" />
+                  <canvas 
+                    ref={el => canvasRefs.current[item.barcode] = el}
+                    width={300}
+                    height={100}
+                    className="w-full max-w-[300px]"
+                  />
                   <div className="mt-2 text-center">
                     <p className="font-mono font-bold">{formatBarcodeForDisplay(item.barcode)}</p>
                     <p className="text-sm text-gray-600">{item.warehouses?.name || 'Unknown'} - {item.locations?.zone || 'Unknown'}</p>

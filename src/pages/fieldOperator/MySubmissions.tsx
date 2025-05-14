@@ -18,92 +18,40 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUserStockActivity } from '@/hooks/useUserStockActivity';
+
+interface StockInSubmission {
+  id: string;
+  product: string;
+  boxes: number;
+  timestamp: string;
+  status: string;
+  source: string;
+  notes?: string;
+}
+
+interface StockOutSubmission {
+  id: string;
+  product: string;
+  quantity: number;
+  approved_quantity?: number;
+  destination: string;
+  status: string;
+  timestamp: string;
+  reason?: string;
+}
 
 const MySubmissions: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('stock-in');
 
-  // Fetch user's stock in submissions
-  const { data: stockInSubmissions, isLoading: stockInLoading } = useQuery({
-    queryKey: ['user-stock-in', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      console.log("Fetching submissions for user ID:", user.id);
-      
-      const { data, error } = await supabase
-        .from('stock_in')
-        .select(`
-          id,
-          product:product_id(name),
-          boxes,
-          status,
-          created_at,
-          source
-        `)
-        .eq('submitted_by', user.id)
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        console.error("Error fetching stock in submissions:", error);
-        toast({
-          variant: 'destructive',
-          title: 'Failed to load submissions',
-          description: error.message
-        });
-        throw error;
-      }
-      
-      console.log("Stock in submissions:", data);
-      
-      return data.map(item => ({
-        id: item.id,
-        product: item.product?.name || 'Unknown Product',
-        boxes: item.boxes,
-        timestamp: item.created_at,
-        status: item.status,
-        source: item.source,
-      }));
-    },
-    enabled: !!user?.id,
-    initialData: [],
-  });
+  // Use the shared hook for both stock-in and stock-out
+  const { data, isLoading } = useUserStockActivity(user?.id);
+  const stockInSubmissions = data?.stockIn || [];
+  const stockOutSubmissions = data?.stockOut || [];
 
-  // Fetch user's stock out submissions
-  const { data: stockOutSubmissions, isLoading: stockOutLoading } = useQuery({
-    queryKey: ['user-stock-out', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('stock_out')
-        .select(`
-          id,
-          product:product_id(name),
-          quantity,
-          approved_quantity,
-          destination,
-          status,
-          created_at
-        `)
-        .eq('requested_by', user.id)
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      return data.map(item => ({
-        id: item.id,
-        product: item.product?.name || 'Unknown Product',
-        quantity: item.quantity,
-        approved_quantity: item.approved_quantity,
-        destination: item.destination,
-        status: item.status,
-      }));
-    },
-    enabled: !!user?.id,
-    initialData: [],
-  });
-  
   useEffect(() => {
     if (user?.id) {
       console.log("User is authenticated, user ID:", user.id);
@@ -122,7 +70,7 @@ const MySubmissions: React.FC = () => {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => navigate('/operator')}
+        onClick={() => navigate('/field')}
         className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -147,12 +95,13 @@ const MySubmissions: React.FC = () => {
                       <TableHead>Source</TableHead>
                       <TableHead>Timestamp</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stockInLoading ? (
+                    {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
+                        <TableCell colSpan={6} className="text-center py-8">
                           <div className="flex justify-center">
                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                           </div>
@@ -161,22 +110,24 @@ const MySubmissions: React.FC = () => {
                       </TableRow>
                     ) : stockInSubmissions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                           No stock in submissions found
                         </TableCell>
                       </TableRow>
                     ) : (
                       stockInSubmissions.map((item: any) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.product}</TableCell>
+                          <TableCell className="font-medium">{item.product?.name || item.product || 'Unknown Product'}</TableCell>
                           <TableCell>{item.boxes}</TableCell>
                           <TableCell>{item.source}</TableCell>
-                          <TableCell>{typeof item.timestamp === 'string' 
-                            ? new Date(item.timestamp).toLocaleString() 
-                            : item.timestamp}
+                          <TableCell>
+                            {new Date(item.created_at || item.timestamp).toLocaleString()}
                           </TableCell>
                           <TableCell>
-                            <StatusBadge status={item.status as any} />
+                            <StatusBadge status={item.status} />
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {item.notes || '-'}
                           </TableCell>
                         </TableRow>
                       ))
@@ -198,13 +149,15 @@ const MySubmissions: React.FC = () => {
                       <TableHead>Product</TableHead>
                       <TableHead>Quantity</TableHead>
                       <TableHead>Destination</TableHead>
+                      <TableHead>Timestamp</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Reason</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stockOutLoading ? (
+                    {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
+                        <TableCell colSpan={6} className="text-center py-8">
                           <div className="flex justify-center">
                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                           </div>
@@ -213,14 +166,14 @@ const MySubmissions: React.FC = () => {
                       </TableRow>
                     ) : stockOutSubmissions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                           No stock out submissions found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      stockOutSubmissions.map((item) => (
-                        <TableRow key={item.id} className="bg-blue-50">
-                          <TableCell className="font-medium">{item.product}</TableCell>
+                      stockOutSubmissions.map((item: any) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.product?.name || item.product || 'Unknown Product'}</TableCell>
                           <TableCell>
                             {item.quantity}
                             {item.approved_quantity !== null && item.approved_quantity !== undefined && (
@@ -231,7 +184,13 @@ const MySubmissions: React.FC = () => {
                           </TableCell>
                           <TableCell>{item.destination}</TableCell>
                           <TableCell>
-                            <StatusBadge status={item.status as any} />
+                            {new Date(item.created_at || item.timestamp).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={item.status} />
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {item.reason || '-'}
                           </TableCell>
                         </TableRow>
                       ))

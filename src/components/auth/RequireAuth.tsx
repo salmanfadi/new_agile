@@ -1,9 +1,13 @@
-
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { UserRole, RequireAuthProps } from '@/types/auth';
+import { UserRole } from '@/types/auth';
 import { Progress } from '@/components/ui/progress';
+
+interface RequireAuthProps {
+  allowedRoles?: UserRole[];
+  children: React.ReactNode;
+}
 
 export const RequireAuth: React.FC<RequireAuthProps> = ({ 
   children, 
@@ -46,70 +50,6 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
   // Special case for admins - they always have access to all pages
   if (user?.role === 'admin') {
     console.log("Admin user, granting access");
-    // Handle function children (render prop pattern)
-    if (typeof children === 'function') {
-      return children({ 
-        user: {
-          id: user.id,
-          username: user.username || '',
-          role: user.role,
-          name: user.name || ''
-        } 
-      });
-    }
-    return <>{children}</>;
-  }
-  
-  // Special access rules for batch stock in processing
-  // Allow warehouse_manager to access batch processing pages
-  if ((location.pathname.startsWith('/manager/stock-in/batch') || 
-       location.pathname === '/manager/stock-in') && 
-      user?.role === 'warehouse_manager') {
-    console.log("Warehouse manager accessing stock-in processing, granting access");
-    if (typeof children === 'function') {
-      return children({ 
-        user: {
-          id: user.id,
-          username: user.username || '',
-          role: user.role,
-          name: user.name || ''
-        } 
-      });
-    }
-    return <>{children}</>;
-  }
-  
-  // Special access rule for barcode management
-  // Allow warehouse_manager to access barcode management
-  if (location.pathname === '/admin/barcodes' && user?.role === 'warehouse_manager') {
-    console.log("Warehouse manager accessing barcode management, granting access");
-    if (typeof children === 'function') {
-      return children({ 
-        user: {
-          id: user.id,
-          username: user.username || '',
-          role: user.role,
-          name: user.name || ''
-        } 
-      });
-    }
-    return <>{children}</>;
-  }
-  
-  // Special access rule for product management
-  // Allow warehouse_manager to access product management
-  if (location.pathname === '/admin/products' && user?.role === 'warehouse_manager') {
-    console.log("Warehouse manager accessing product management, granting access");
-    if (typeof children === 'function') {
-      return children({ 
-        user: {
-          id: user.id,
-          username: user.username || '',
-          role: user.role,
-          name: user.name || ''
-        } 
-      });
-    }
     return <>{children}</>;
   }
 
@@ -123,19 +63,5 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
   }
 
   console.log("Access granted to user", user);
-  
-  // Handle function children (render prop pattern)
-  if (typeof children === 'function' && user) {
-    return children({ 
-      user: {
-        id: user.id,
-        username: user.username || '',
-        role: user.role as UserRole,
-        name: user.name || ''
-      } 
-    });
-  }
-
-  // Handle regular ReactNode children
   return <>{children}</>;
 };

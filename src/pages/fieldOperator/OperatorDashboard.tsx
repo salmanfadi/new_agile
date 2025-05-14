@@ -196,14 +196,14 @@ const OperatorDashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <Button 
-                onClick={() => navigate('/operator/stock-in')}
+                onClick={() => navigate('/field/stock-in')}
                 className="w-full flex items-center justify-center gap-2"
               >
                 <LogIn className="h-4 w-4" />
                 New Stock In
               </Button>
               <Button 
-                onClick={() => navigate('/operator/stock-out')}
+                onClick={() => navigate('/field/stock-out')}
                 className="w-full flex items-center justify-center gap-2"
               >
                 <LogOut className="h-4 w-4" />
@@ -211,7 +211,7 @@ const OperatorDashboard = () => {
               </Button>
               <Button 
                 variant="outline"
-                onClick={() => navigate('/operator/submissions')}
+                onClick={() => navigate('/field/submissions')}
                 className="w-full"
               >
                 View All Submissions

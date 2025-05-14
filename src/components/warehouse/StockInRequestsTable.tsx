@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -21,7 +20,6 @@ interface StockInRequestsTableProps {
   status: string;
   filters: Record<string, any>;
   onProcess?: (stockIn: StockInRequestData) => void;
-  onQuickProcess?: (stockIn: StockInRequestData) => void;
   onReject?: (stockIn: StockInRequestData) => void;
   onRefresh?: () => void;
   userId?: string;
@@ -31,7 +29,6 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   status,
   filters,
   onProcess,
-  onQuickProcess,
   onReject,
   onRefresh,
   userId,
@@ -124,12 +121,6 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   const handleProcess = (stockIn: StockInRequestData) => {
     if (onProcess) {
       onProcess(stockIn);
-    }
-  };
-
-  const handleQuickProcess = (stockIn: StockInRequestData) => {
-    if (onQuickProcess) {
-      onQuickProcess(stockIn);
     }
   };
 
@@ -228,19 +219,6 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                           Batch Process
                         </Button>
                       )}
-                      
-                      {onQuickProcess && (
-                        <Button 
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleQuickProcess(stockIn)}
-                          className="text-green-600 border-green-200 hover:bg-green-50"
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
-                          Quick Process
-                        </Button>
-                      )}
-                      
                       {onReject && (
                         <Button 
                           size="sm" 
@@ -254,7 +232,6 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                       )}
                     </>
                   )}
-                  
                   {stockIn.status === 'processing' && (
                     <Button 
                       size="sm" 
@@ -264,7 +241,6 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
                       Continue Processing
                     </Button>
                   )}
-                  
                   {stockIn.status === 'rejected' && stockIn.rejection_reason && (
                     <div className="text-xs text-red-600">
                       Reason: {stockIn.rejection_reason}
