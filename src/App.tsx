@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   createBrowserRouter,
@@ -42,6 +41,9 @@ import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
 import CustomerLogin from './pages/customer/CustomerLogin';
 import InventoryTransfers from './pages/warehouseManager/InventoryTransfers';
 import AdminInventoryTransfers from './pages/admin/InventoryTransfers';
+import FieldOperatorTransfers from './pages/fieldOperator/Transfers';
+import FieldOperatorSubmissions from './pages/fieldOperator/Submissions';
+import FieldOperatorSettings from './pages/fieldOperator/Settings';
 
 // Define routes
 const router = createBrowserRouter([

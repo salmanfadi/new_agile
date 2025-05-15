@@ -137,6 +137,16 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
           icon: ListChecks,
         },
         {
+          href: "/field/stock-out",
+          label: "Stock Out",
+          icon: ShoppingCart,
+        },
+        {
+          href: "/field/transfers",
+          label: "Transfers",
+          icon: ArrowLeftRight,
+        },
+        {
           href: "/field/submissions",
           label: "My Submissions",
           icon: ListChecks,

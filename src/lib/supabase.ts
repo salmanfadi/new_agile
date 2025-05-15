@@ -13,9 +13,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true
-  },
-  realtime: {
-    // Removing the 'channels' property as it doesn't exist in RealtimeClientOptions
   }
 });
 

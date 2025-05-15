@@ -31,7 +31,7 @@ export function useBarcodeProcessor({
     setError(null);
     
     try {
-      // First try to find the inventory item directly using our new database function
+      // First try to find the inventory item directly using our database function
       const { data: inventoryData, error: inventoryError } = await supabase.rpc(
         'find_inventory_by_barcode',
         { search_barcode: scannedBarcode }
@@ -45,6 +45,10 @@ export function useBarcodeProcessor({
       if (inventoryData && inventoryData.length > 0) {
         const item = inventoryData[0];
         
+        // Get warehouse and location IDs
+        const warehouseId = await getWarehouseId(item.warehouse_name);
+        const locationId = await getLocationId(item.floor, item.zone);
+        
         // Log the scan for tracking purposes using inventory_movements
         const logDetails = { 
           inventory_id: item.inventory_id,
@@ -54,18 +58,19 @@ export function useBarcodeProcessor({
           event_type: 'scan'
         };
         
-        // Add an inventory movement record instead of using barcode_logs
-        await supabase.from('inventory_movements').insert({
-          product_id: item.inventory_id,
-          // We need to fetch the warehouse and location IDs from the inventory item
-          warehouse_id: await getWarehouseId(item.warehouse_name),
-          location_id: await getLocationId(item.floor, item.zone),
-          movement_type: 'adjustment', // Using adjustment for scanning/lookup operations
-          quantity: 0, // Zero quantity as this is just a scan, not actual movement
-          status: 'approved',
-          performed_by: user?.id || 'anonymous',
-          details: logDetails
-        });
+        if (warehouseId && locationId) {
+          // Add an inventory movement record instead of using barcode_logs
+          await supabase.from('inventory_movements').insert({
+            product_id: item.inventory_id,
+            warehouse_id: warehouseId,
+            location_id: locationId,
+            movement_type: 'adjustment', // Using adjustment for scanning/lookup operations
+            quantity: 0, // Zero quantity as this is just a scan, not actual movement
+            status: 'approved',
+            performed_by: user?.id || 'anonymous',
+            details: logDetails
+          });
+        }
         
         // Format response for the UI
         const formattedResponse: ScanResponse = {
