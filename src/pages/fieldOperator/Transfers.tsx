@@ -37,6 +37,25 @@ interface ScannedItem {
   quantity: number;
 }
 
+interface InventoryItemResponse {
+  inventory_id: string;
+  product_name: string;
+  product_sku: string;
+  warehouse_name: string;
+  warehouse_location: string;
+  floor: number;
+  zone: string;
+  quantity: number;
+  barcode: string;
+  color: string;
+  size: string;
+  batch_id: string;
+  status: string;
+  // Add the missing fields needed for warehouse and location IDs
+  warehouse_id: string;
+  location_id: string;
+}
+
 const FieldOperatorTransfers: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -112,7 +131,8 @@ const FieldOperatorTransfers: React.FC = () => {
         return;
       }
       
-      const item = data[0];
+      // Explicitly cast the response to include the missing fields
+      const item = data[0] as InventoryItemResponse;
       
       // Add to scanned items
       setScannedItems([...scannedItems, {
@@ -121,9 +141,9 @@ const FieldOperatorTransfers: React.FC = () => {
         product_name: item.product_name,
         product_id: item.inventory_id,
         warehouse_name: item.warehouse_name,
-        warehouse_id: item.warehouse_id,
+        warehouse_id: item.warehouse_id, // Now properly typed
         location_name: `Floor ${item.floor}, Zone ${item.zone}`,
-        location_id: item.location_id,
+        location_id: item.location_id, // Now properly typed
         quantity: item.quantity
       }]);
       
