@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -89,12 +90,12 @@ const CustomerProducts: React.FC = () => {
             All Categories
           </Button>
           
-          {categories.map(category => (
+          {categories.map((category: string) => (
             <Button
               key={category}
               variant={categoryFilter === category ? "default" : "outline"}
               size="sm"
-              onClick={() => setCategoryFilter(category as string)}
+              onClick={() => setCategoryFilter(category)}
             >
               {category}
             </Button>
