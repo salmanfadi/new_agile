@@ -28,7 +28,7 @@ export const useInventoryData = (
   statusFilter: string = '',
   searchTerm: string = '',
 ) => {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['inventory-data', warehouseFilter, batchFilter, statusFilter, searchTerm],
     queryFn: async (): Promise<InventoryItem[]> => {
       console.log('Fetching inventory data with filters:', {
@@ -38,8 +38,8 @@ export const useInventoryData = (
         searchTerm
       });
       
-      // Build query with proper joins to get related data
-      let query = supabase
+      // Build query with proper column hints for relationships
+      let queryBuilder = supabase
         .from('inventory')
         .select(`
           id,
@@ -61,23 +61,23 @@ export const useInventoryData = (
       
       // Apply filters
       if (warehouseFilter) {
-        query = query.eq('warehouse_id', warehouseFilter);
+        queryBuilder = queryBuilder.eq('warehouse_id', warehouseFilter);
       }
       
       if (batchFilter) {
-        query = query.eq('batch_id', batchFilter);
+        queryBuilder = queryBuilder.eq('batch_id', batchFilter);
       }
       
       if (statusFilter) {
-        query = query.eq('status', statusFilter);
+        queryBuilder = queryBuilder.eq('status', statusFilter);
       }
       
       if (searchTerm) {
-        // Search in barcode or product name
-        query = query.or(`barcode.ilike.%${searchTerm}%,products.name.ilike.%${searchTerm}%`);
+        // Search in barcode or related product name
+        queryBuilder = queryBuilder.or(`barcode.ilike.%${searchTerm}%,products.name.ilike.%${searchTerm}%`);
       }
       
-      const { data, error } = await query;
+      const { data, error } = await queryBuilder;
       
       if (error) {
         console.error('Error fetching inventory:', error);
@@ -102,9 +102,16 @@ export const useInventoryData = (
         size: item.size || undefined,
         status: item.status,
         batchId: item.batch_id,
-        source: item.source,
+        source: item.source || undefined,
         lastUpdated: format(new Date(item.updated_at), 'MMM d, yyyy h:mm a')
       }));
     },
   });
+
+  return {
+    inventoryItems: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch
+  };
 };

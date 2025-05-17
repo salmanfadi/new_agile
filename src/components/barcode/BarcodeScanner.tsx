@@ -1,24 +1,110 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Quagga from '@ericblade/quagga2';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Barcode, X } from 'lucide-react';
+import { Barcode, Camera, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import CameraScanner from './CameraScanner';
 
 interface BarcodeScannerProps {
-  onDetected: (barcode: string) => void;
-  onClose: () => void;
+  onDetected?: (barcode: string) => void;
+  onClose?: () => void;
+  onScanComplete?: (data: any) => void;
+  allowManualEntry?: boolean;
+  allowCameraScanning?: boolean;
+  scanButtonLabel?: string;
+  inputValue?: string;
+  onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBarcodeScanned?: (barcode: string) => void;
 }
 
-export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) => {
+const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ 
+  onDetected, 
+  onClose,
+  onScanComplete,
+  allowManualEntry = false,
+  allowCameraScanning = false,
+  scanButtonLabel = "Scan",
+  inputValue,
+  onInputChange,
+  onBarcodeScanned
+}) => {
   const isInitialized = useRef(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [manualBarcode, setManualBarcode] = useState(inputValue || '');
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Handle manual barcode input
+  const handleManualBarcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onInputChange) {
+      onInputChange(e);
+    } else {
+      setManualBarcode(e.target.value);
+    }
+  };
+
+  const handleSubmitManualBarcode = () => {
+    const barcode = inputValue || manualBarcode;
+    if (!barcode) return;
+    
+    if (onBarcodeScanned) {
+      onBarcodeScanned(barcode);
+    } else if (onDetected) {
+      onDetected(barcode);
+    } else if (onScanComplete) {
+      // Simulate a scan response for demo purposes
+      const demoResponse = {
+        box_id: barcode,
+        product: {
+          name: barcode.startsWith('BC') ? 'Demo Product' : 'Unknown Product',
+          sku: `SKU-${barcode.substring(0, 5)}`,
+        },
+        status: barcode === 'BC123456789' ? 'available' : (barcode === 'BC987654321' ? 'reserved' : 'unknown'),
+        box_quantity: 10,
+        location: {
+          warehouse: 'Main Warehouse',
+          zone: 'Zone A',
+          floor: '1',
+        },
+        attributes: {
+          color: 'Blue',
+          size: 'Medium',
+        },
+      };
+      onScanComplete(demoResponse);
+    }
+
+    if (!onInputChange) {
+      setManualBarcode('');
+    }
+    
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  // Camera scanner setup
+  const handleCameraButtonClick = () => {
+    if (isCameraActive) {
+      setIsCameraActive(false);
+    } else {
+      setIsOpen(true);
+      setIsCameraActive(true);
+    }
+  };
 
   useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-
+    if (!isOpen || !isCameraActive || !allowCameraScanning) return;
+    
     const initializeScanner = async () => {
       try {
+        if (isInitialized.current) {
+          Quagga.stop();
+        }
+        
         await Quagga.init({
           inputStream: {
             type: 'LiveStream',
@@ -28,7 +114,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onCl
               height: { min: 300 },
               aspectRatio: { min: 1, max: 2 }
             },
-            target: '#scanner-container',
+            target: videoRef.current as HTMLElement,
           },
           locator: {
             patchSize: 'medium',
@@ -41,13 +127,44 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onCl
           locate: true
         });
 
+        isInitialized.current = true;
         Quagga.start();
 
         Quagga.onDetected((result) => {
           if (result && result.codeResult && result.codeResult.code) {
             const code = result.codeResult.code;
             console.log('Barcode detected:', code);
-            onDetected(code);
+            
+            if (onBarcodeScanned) {
+              onBarcodeScanned(code);
+            } else if (onDetected) {
+              onDetected(code);
+            } else if (onScanComplete) {
+              // Simulate a scan response for demo
+              const demoResponse = {
+                box_id: code,
+                product: {
+                  name: code.startsWith('BC') ? 'Demo Product' : 'Unknown Product',
+                  sku: `SKU-${code.substring(0, 5)}`,
+                },
+                status: code === 'BC123456789' ? 'available' : (code === 'BC987654321' ? 'reserved' : 'unknown'),
+                box_quantity: 10,
+                location: {
+                  warehouse: 'Main Warehouse',
+                  zone: 'Zone A',
+                  floor: '1',
+                },
+                attributes: {
+                  color: 'Blue',
+                  size: 'Medium',
+                },
+              };
+              onScanComplete(demoResponse);
+            }
+            
+            setIsCameraActive(false);
+            setIsOpen(false);
+            setManualBarcode('');
             Quagga.stop();
           }
         });
@@ -67,39 +184,89 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onCl
         }
       }
     };
-  }, [onDetected]);
+  }, [isOpen, isCameraActive, allowCameraScanning, onDetected, onScanComplete, onBarcodeScanned]);
 
+  // Dialog for camera scanning
+  if (isOpen && isCameraActive && allowCameraScanning) {
+    return (
+      <Dialog open={isOpen} onOpenChange={() => {
+        setIsOpen(false);
+        setIsCameraActive(false);
+        if (onClose) onClose();
+      }}>
+        <DialogContent className="w-full max-w-md p-0">
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle className="flex items-center">
+              <Barcode className="mr-2 h-5 w-5" />
+              Scan Barcode
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="p-4">
+            <CameraScanner videoRef={videoRef} canvasRef={canvasRef} />
+            
+            <p className="text-center text-sm text-muted-foreground mt-4">
+              Point your camera at a barcode to scan
+            </p>
+            
+            <div className="mt-4 flex justify-center">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsCameraActive(false);
+                  if (onClose) onClose();
+                }}
+                className="flex items-center"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Main barcode scanner interface
   return (
-    <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="w-full max-w-md p-0">
-        <DialogHeader className="p-4 border-b">
-          <DialogTitle className="flex items-center">
-            <Barcode className="mr-2 h-5 w-5" />
-            Scan Barcode
-          </DialogTitle>
-        </DialogHeader>
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {allowManualEntry && (
+          <div className="flex-1">
+            <Input
+              placeholder="Enter barcode"
+              value={inputValue !== undefined ? inputValue : manualBarcode}
+              onChange={handleManualBarcodeChange}
+              className="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSubmitManualBarcode();
+                }
+              }}
+            />
+          </div>
+        )}
         
-        <div className="p-4">
-          <div id="scanner-container" className="relative overflow-hidden bg-black rounded-md aspect-video">
-            <div className="absolute inset-0 border-2 border-dashed border-primary opacity-70 pointer-events-none"></div>
-          </div>
-          
-          <p className="text-center text-sm text-muted-foreground mt-4">
-            Point your camera at a barcode to scan
-          </p>
-          
-          <div className="mt-4 flex justify-center">
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              className="flex items-center"
-            >
-              <X className="mr-2 h-4 w-4" />
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        <Button onClick={handleSubmitManualBarcode} type="button">
+          {scanButtonLabel}
+        </Button>
+        
+        {allowCameraScanning && (
+          <Button
+            variant="outline" 
+            type="button" 
+            onClick={handleCameraButtonClick}
+            title="Use camera to scan"
+          >
+            <Camera className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    </div>
   );
 };
+
+export { BarcodeScanner };
+export default BarcodeScanner;
