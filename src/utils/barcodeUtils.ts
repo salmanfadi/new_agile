@@ -1,5 +1,5 @@
-
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/lib/supabase';
 
 /**
  * Generates a unique barcode string
@@ -8,11 +8,11 @@ import { v4 as uuidv4 } from 'uuid';
  * @param boxNumber Optional box number
  * @returns A unique barcode string
  */
-export const generateBarcodeString = (
+export const generateBarcodeString = async (
   category?: string,
   sku?: string,
   boxNumber?: number
-): string => {
+): Promise<string> => {
   const uuid = uuidv4().substring(0, 8);
   const parts = [];
   
@@ -22,7 +22,21 @@ export const generateBarcodeString = (
   
   parts.push(uuid);
   
-  return parts.join('-');
+  const barcode = parts.join('-');
+  
+  // Check if the barcode already exists in the inventory
+  const { data } = await supabase
+    .from('inventory')
+    .select('barcode')
+    .eq('barcode', barcode)
+    .limit(1);
+    
+  // If the barcode already exists, generate a new one recursively
+  if (data && data.length > 0) {
+    return generateBarcodeString(category, sku, boxNumber);
+  }
+  
+  return barcode;
 };
 
 /**
@@ -97,4 +111,19 @@ export const createBarcodeImageUrl = (barcode: string, format: string = 'code128
   
   // Placeholder SVG for a barcode:
   return `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTAwIj48ZyBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiPjxsaW5lIHgxPSIxMCIgeTE9IjEwIiB4Mj0iMTAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTUiIHkxPSIxMCIgeDI9IjE1IiB5Mj0iOTAiIC8+PGxpbmUgeDE9IjIwIiB5MT0iMTAiIHgyPSIyMCIgeTI9IjkwIiAvPjxsaW5lIHgxPSIzMCIgeTE9IjEwIiB4Mj0iMzAiIHkyPSI5MCIgLz48bGluZSB4MT0iNDAiIHkxPSIxMCIgeDI9IjQwIiB5Mj0iOTAiIC8+PGxpbmUgeDE9IjUwIiB5MT0iMTAiIHgyPSI1MCIgeTI9IjkwIiAvPjxsaW5lIHgxPSI2MCIgeTE9IjEwIiB4Mj0iNjAiIHkyPSI5MCIgLz48bGluZSB4MT0iNzAiIHkxPSIxMCIgeDI9IjcwIiB5Mj0iOTAiIC8+PGxpbmUgeDE9IjgwIiB5MT0iMTAiIHgyPSI4MCIgeTI9IjkwIiAvPjxsaW5lIHgxPSI5MCIgeTE9IjEwIiB4Mj0iOTAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTAwIiB5MT0iMTAiIHgyPSIxMDAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTE1IiB5MT0iMTAiIHgyPSIxMTUiIHkyPSI5MCIgLz48bGluZSB4MT0iMTIwIiB5MT0iMTAiIHgyPSIxMjAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTMwIiB5MT0iMTAiIHgyPSIxMzAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTQwIiB5MT0iMTAiIHgyPSIxNDAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTUwIiB5MT0iMTAiIHgyPSIxNTAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTYwIiB5MT0iMTAiIHgyPSIxNjAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTcwIiB5MT0iMTAiIHgyPSIxNzAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTgwIiB5MT0iMTAiIHgyPSIxODAiIHkyPSI5MCIgLz48bGluZSB4MT0iMTkwIiB5MT0iMTAiIHgyPSIxOTAiIHkyPSI5MCIgLz48L2c+PC9zdmc+`;
+};
+
+/**
+ * Calculate check digit for CODE128 barcode
+ * @param data The barcode data without check digit
+ * @returns The check digit
+ */
+export const calculateCheckDigit = (data: string): number => {
+  let sum = 0;
+  
+  for (let i = 0; i < data.length; i++) {
+    sum += (data.charCodeAt(i) - 32) * (i + 1);
+  }
+  
+  return (sum % 103) + 32;
 };

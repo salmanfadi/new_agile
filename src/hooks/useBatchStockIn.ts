@@ -231,7 +231,7 @@ export const useBatchStockIn = (userId: string = '') => {
         }
       }
       
-      // IMPROVED: Always update stock_in status to completed when all batches are processed
+      // ALWAYS update stock_in status to completed when all batches are processed
       try {
         const { error: updateError } = await supabase
           .from('stock_in')

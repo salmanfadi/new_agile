@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Package, Printer, Download, Filter } from 'lucide-react';
 import { useStockInBatches } from '@/hooks/useStockInBatches';
@@ -24,7 +23,7 @@ const BatchOverviewPage: React.FC = () => {
   );
   
   const { data: batches, isLoading, error, isError } = useStockInBatches(stockInId);
-  const { stockInData, isLoadingStockIn, errorStockIn } = useStockInData(stockInId);
+  const { stockInData, isLoadingStockIn, error: stockInError } = useStockInData(stockInId);
   
   useEffect(() => {
     // If a batch ID was passed in location state, highlight it
@@ -87,10 +86,10 @@ const BatchOverviewPage: React.FC = () => {
       
       {isLoadingStockIn || isLoading ? (
         <LoadingState message="Loading batch data..." />
-      ) : isError || errorStockIn ? (
+      ) : isError || stockInError ? (
         <ErrorState 
-          message="Error loading batch data" 
-          details={error?.message || errorStockIn?.message} 
+          message={`Error loading batch data`}
+          details={error?.message || stockInError?.message || "Unknown error"} 
         />
       ) : (
         <div className="space-y-6">

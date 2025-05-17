@@ -74,7 +74,7 @@ export const useStockInBatches = (stockInId?: string) => {
         return acc;
       }, {} as Record<string, any[]>) || {};
 
-      // Map the data to our ProcessedBatch type
+      // Map the data to our ProcessedBatch type with proper type casting
       return batchesData.map(batch => {
         const items = itemsByBatch[batch.id] || [];
         const barcodes = items.map(item => item.barcode);
@@ -89,10 +89,10 @@ export const useStockInBatches = (stockInId?: string) => {
           quantity_per_box: batch.total_quantity / batch.total_boxes,
           barcodes,
           created_by: batch.processed_by,
-          product: batch.products,
-          warehouse: batch.warehouses,
+          product: batch.products as unknown as Product,
+          warehouse: batch.warehouses as unknown as Warehouse,
           warehouseLocation,
-          submitter: batch.profiles,
+          submitter: batch.profiles as unknown as Profile,
           created_at: batch.processed_at
         } as ProcessedBatch;
       });
