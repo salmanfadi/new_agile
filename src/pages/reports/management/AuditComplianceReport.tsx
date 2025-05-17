@@ -117,10 +117,15 @@ const AuditComplianceReport: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <LineChart
-          data={mockAuditTrendData}
+          data={mockAuditTrendData.map(item => ({
+            name: item.date,
+            events: item.events,
+            warnings: item.warnings,
+            critical: item.critical
+          }))}
           keys={['events', 'warnings', 'critical']}
           title="Audit Activity Trend"
-          xAxisKey="date"
+          xAxisKey="name"
           xAxisLabel="Month"
           yAxisLabel="Events"
         />

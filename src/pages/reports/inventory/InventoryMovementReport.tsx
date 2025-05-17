@@ -165,10 +165,16 @@ const InventoryMovementReport: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <LineChart
-          data={mockMovementTrendData}
+          data={mockMovementTrendData.map(item => ({
+            name: item.date,
+            'Stock In': item['Stock In'],
+            'Stock Out': item['Stock Out'],
+            'Transfer': item['Transfer'],
+            'Adjustment': item['Adjustment']
+          }))}
           keys={['Stock In', 'Stock Out', 'Transfer', 'Adjustment']}
           title="Movement Trend"
-          xAxisKey="date"
+          xAxisKey="name"
           xAxisLabel="Month"
           yAxisLabel="Quantity"
         />

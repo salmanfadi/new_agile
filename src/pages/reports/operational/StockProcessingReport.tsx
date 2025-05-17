@@ -114,10 +114,14 @@ const StockProcessingReport: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <LineChart
-          data={mockProcessingTimeData}
+          data={mockProcessingTimeData.map(item => ({
+            name: item.month,
+            stockIn: item.stockIn,
+            stockOut: item.stockOut
+          }))}
           keys={['stockIn', 'stockOut']}
           title="Average Processing Time (Days)"
-          xAxisKey="month"
+          xAxisKey="name"
           xAxisLabel="Month"
           yAxisLabel="Days"
         />

@@ -109,10 +109,15 @@ const TransferMovementReport: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <LineChart
-          data={mockTransferTrendsData}
+          data={mockTransferTrendsData.map(item => ({
+            name: item.month,
+            inbound: item.inbound,
+            outbound: item.outbound,
+            internal: item.internal
+          }))}
           keys={['inbound', 'outbound', 'internal']}
           title="Transfer Trends"
-          xAxisKey="month"
+          xAxisKey="name"
           xAxisLabel="Month"
           yAxisLabel="Count"
         />

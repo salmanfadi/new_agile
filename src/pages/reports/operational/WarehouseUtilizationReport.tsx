@@ -78,10 +78,15 @@ const WarehouseUtilizationReport: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <LineChart
-          data={mockUtilizationTrendData}
+          data={mockUtilizationTrendData.map(item => ({
+            name: item.date,
+            warehouseA: item.warehouseA,
+            warehouseB: item.warehouseB,
+            warehouseC: item.warehouseC
+          }))}
           keys={['warehouseA', 'warehouseB', 'warehouseC']}
           title="Utilization Rate Trend"
-          xAxisKey="date"
+          xAxisKey="name"
           xAxisLabel="Month"
           yAxisLabel="Utilization %"
         />

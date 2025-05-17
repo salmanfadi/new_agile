@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   LineChart as RechartsLineChart,
@@ -9,6 +10,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type DataItem = {
   name: string;

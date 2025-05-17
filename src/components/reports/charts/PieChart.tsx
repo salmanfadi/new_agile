@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   PieChart as RechartsPieChart,
@@ -7,6 +8,7 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type DataItem = {
   name: string;
