@@ -1,6 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { InventoryStatus } from '@/types/stockIn';
+import { MovementStatus, MovementType } from '@/types/inventory';
 
 // Type definitions for our test data
 interface TestWarehouse {
@@ -44,7 +45,7 @@ interface TestInventoryItem {
   quantity: number;
   color?: string;
   size?: string;
-  status: 'available' | 'reserved' | 'sold' | 'damaged';
+  status: InventoryStatus;
   batchId?: string;
 }
 
@@ -300,6 +301,9 @@ const processStockIns = async (
       for (let i = 0; i < batch.totalBoxes; i++) {
         const randomLocation = batchLocations[Math.floor(Math.random() * batchLocations.length)];
         
+        // Fix: Use proper InventoryStatus type values
+        const inventoryStatuses: InventoryStatus[] = ['available', 'reserved', 'sold', 'damaged'];
+        
         // Create inventory item
         const inventoryItem: TestInventoryItem = {
           id: uuidv4(),
@@ -310,7 +314,7 @@ const processStockIns = async (
           quantity: Math.floor(Math.random() * 20) + 1, // 1-20 quantity
           color: ['Red', 'Blue', 'Green', 'Black', 'White'][Math.floor(Math.random() * 5)],
           size: ['Small', 'Medium', 'Large', null][Math.floor(Math.random() * 4)],
-          status: ['available', 'reserved', 'sold', 'damaged'][Math.floor(Math.random() * 4)],
+          status: inventoryStatuses[Math.floor(Math.random() * inventoryStatuses.length)],
           batchId: batch.id
         };
         
@@ -353,15 +357,15 @@ const processStockIns = async (
     if (error) throw new Error(`Failed to create inventory item: ${error.message}`);
   }
   
-  // Create inventory movements for each inventory item
+  // Fix: Use correct MovementStatus types for inventory movements
   for (const item of inventoryItems) {
     const { error } = await supabase.from('inventory_movements').insert({
       product_id: item.productId,
       warehouse_id: item.warehouseId,
       location_id: item.locationId,
-      movement_type: 'in',
+      movement_type: 'in' as MovementType,
       quantity: item.quantity,
-      status: 'approved',
+      status: 'approved' as MovementStatus,
       performed_by: userId,
       details: {
         barcode: item.barcode,
@@ -412,15 +416,15 @@ const generateInventoryTransfers = async (
     if (transferError) throw new Error(`Failed to create transfer: ${transferError.message}`);
     
     // Create inventory movements for the transfer
-    const statuses = ['pending', 'approved'];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const movementStatuses: MovementStatus[] = ['pending', 'approved'];
+    const status = movementStatuses[Math.floor(Math.random() * movementStatuses.length)];
     
     // Outgoing movement
     const { error: outError } = await supabase.from('inventory_movements').insert({
       product_id: item.productId,
       warehouse_id: item.warehouseId,
       location_id: item.locationId,
-      movement_type: 'transfer',
+      movement_type: 'transfer' as MovementType,
       quantity: item.quantity,
       status: status,
       performed_by: userId,
@@ -441,7 +445,7 @@ const generateInventoryTransfers = async (
       product_id: item.productId,
       warehouse_id: targetLocation.warehouseId,
       location_id: targetLocation.id,
-      movement_type: 'transfer',
+      movement_type: 'transfer' as MovementType,
       quantity: item.quantity,
       status: status,
       performed_by: userId,

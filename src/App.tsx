@@ -232,6 +232,17 @@ const router = createBrowserRouter([
   }
 ]);
 
+// Fix for the TestDataPage route
+// The route was improperly nested with MainLayout
+router.routes.push({
+  path: '/admin/test-data',
+  element: (
+    <RequireAuth allowedRoles={['admin']}>
+      <TestDataPage />
+    </RequireAuth>
+  )
+});
+
 function App() {
   return (
     <RouterProvider router={router} />
