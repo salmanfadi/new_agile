@@ -10,7 +10,7 @@ export const MainLayout = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header
-        // Remove isSidebarOpen and setIsSidebarOpen props if they don't exist on Header component
+        isCollapsed={!isSidebarOpen}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       <div className="flex flex-1">

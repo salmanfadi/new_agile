@@ -8,11 +8,12 @@ import { ModeToggle } from '@/components/ui/mode-toggle';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
-  isCollapsed: boolean;
+  isCollapsed?: boolean;
   className?: string;
+  toggleSidebar?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isCollapsed, className }) => {
+const Header: React.FC<HeaderProps> = ({ isCollapsed = false, className, toggleSidebar }) => {
   const { user } = useAuth();
   
   return (
