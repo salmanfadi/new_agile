@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   createBrowserRouter,
@@ -215,14 +216,8 @@ const router = createBrowserRouter([
         element: <RequireAuth allowedRoles={['admin']}><AdminInventoryTransfers /></RequireAuth>,
       },
       {
-        path: '/admin/test-data',
-        element: (
-          <RequireAuth allowedRoles={['admin']}>
-            <MainLayout>
-              <TestDataPage />
-            </MainLayout>
-          </RequireAuth>
-        )
+        path: "admin/test-data",
+        element: <RequireAuth allowedRoles={['admin']}><TestDataPage /></RequireAuth>,
       },
     ]
   },
@@ -231,17 +226,6 @@ const router = createBrowserRouter([
     element: <Navigate to="/login" replace />
   }
 ]);
-
-// Fix for the TestDataPage route
-// The route was improperly nested with MainLayout
-router.routes.push({
-  path: '/admin/test-data',
-  element: (
-    <RequireAuth allowedRoles={['admin']}>
-      <TestDataPage />
-    </RequireAuth>
-  )
-});
 
 function App() {
   return (
