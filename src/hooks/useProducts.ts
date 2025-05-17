@@ -4,13 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Product } from '@/types/database';
+import { useAuth } from '@/hooks/useAuth';
 
 // Define a type for the minimum required fields when creating a product
 interface CreateProductData {
   name: string; // Name is required by the database schema
   description?: string | null;
   specifications?: string | null;
-  sku?: string | null;
+  sku: string; // Now required by the database schema
   category?: string | null;
   image_url?: string | null;
   is_active?: boolean;
@@ -18,6 +19,7 @@ interface CreateProductData {
 
 export function useProducts() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<boolean | null>(null);
@@ -53,16 +55,46 @@ export function useProducts() {
     },
   });
 
+  // Upload image to Supabase storage
+  const uploadProductImage = async (file: File, productId: string): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${productId}.${fileExt}`;
+    const filePath = `${fileName}`;
+    
+    const { data, error } = await supabase.storage
+      .from('product-images')
+      .upload(filePath, file, {
+        upsert: true,
+      });
+      
+    if (error) {
+      throw error;
+    }
+    
+    // Get the public URL for the uploaded file
+    const { data: urlData } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(filePath);
+      
+    return urlData?.publicUrl || null;
+  };
+
   // Create product
   const createProduct = useMutation({
     mutationFn: async (productData: CreateProductData) => {
-      const { data, error } = await supabase
+      // First insert the product to get the ID
+      const { data: insertResult, error } = await supabase
         .from('products')
-        .insert(productData)
+        .insert({
+          ...productData,
+          created_by: user?.id || null,
+          updated_by: user?.id || null
+        })
         .select();
-
+        
       if (error) throw error;
-      return data[0];
+      
+      return insertResult[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -75,7 +107,11 @@ export function useProducts() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create product',
+        description: error instanceof Error ? 
+          (error.message.includes('products_sku_unique') ? 
+            'A product with this SKU already exists' : 
+            error.message) : 
+          'Failed to create product',
       });
     },
   });
@@ -83,9 +119,14 @@ export function useProducts() {
   // Update product
   const updateProduct = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Product> }) => {
+      const updateData = {
+        ...data,
+        updated_by: user?.id || null
+      };
+
       const { data: updatedData, error } = await supabase
         .from('products')
-        .update(data)
+        .update(updateData)
         .eq('id', id)
         .select();
 
@@ -103,7 +144,11 @@ export function useProducts() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update product',
+        description: error instanceof Error ? 
+          (error.message.includes('products_sku_unique') ? 
+            'A product with this SKU already exists' : 
+            error.message) : 
+          'Failed to update product',
       });
     },
   });
@@ -111,6 +156,16 @@ export function useProducts() {
   // Delete product
   const deleteProduct = useMutation({
     mutationFn: async (id: string) => {
+      // First try to delete the image if it exists
+      try {
+        await supabase.storage
+          .from('product-images')
+          .remove([`${id}.jpg`, `${id}.jpeg`, `${id}.png`, `${id}.gif`]);
+      } catch (error) {
+        console.error('Error deleting product image:', error);
+        // Continue with product deletion even if image deletion fails
+      }
+
       const { error } = await supabase
         .from('products')
         .delete()
@@ -166,6 +221,7 @@ export function useProducts() {
     statusFilter,
     setStatusFilter,
     categories,
+    uploadProductImage
   };
 }
 

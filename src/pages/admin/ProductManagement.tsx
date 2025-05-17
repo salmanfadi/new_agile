@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/types/database';
 import {
   Table,
@@ -25,7 +24,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Edit, Plus, Trash2, Package, Image } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Trash2, Package, Image, AlertCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -33,19 +32,30 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useProducts } from '@/hooks/useProducts';
+import { Badge } from '@/components/ui/badge';
 
 interface ProductFormData {
   name: string;
   description: string;
   sku: string;
   specifications: string;
-  category?: string; // Added category field
+  category: string;
   image_file: File | null;
+  is_active: boolean;
 }
 
 const ProductManagement: React.FC = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const { 
+    products, 
+    isLoading, 
+    createProduct, 
+    updateProduct, 
+    deleteProduct, 
+    uploadProductImage, 
+    categories: existingCategories 
+  } = useProducts();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -56,178 +66,28 @@ const ProductManagement: React.FC = () => {
     description: '',
     sku: '',
     specifications: '',
-    category: '', // Initialize category
-    image_file: null
+    category: '',
+    image_file: null,
+    is_active: true
   });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [skuError, setSkuError] = useState<string | null>(null);
   
-  // Fetch products
-  const { data: products, isLoading } = useQuery({
-    queryKey: ['admin-products'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('name');
-        
-      if (error) throw error;
-      return data as Product[];
-    },
-  });
-  
-  // Upload image to Supabase storage
-  const uploadImage = async (file: File, productId: string): Promise<string | null> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${productId}-${Date.now()}.${fileExt}`;
-    const filePath = `products/${fileName}`;
-    
-    const { data, error } = await supabase.storage
-      .from('product-images')
-      .upload(filePath, file);
-      
-    if (error) {
-      throw error;
+  useEffect(() => {
+    if (formData.sku) {
+      // Clear SKU error when the SKU is changed
+      setSkuError(null);
     }
-    
-    // Get the public URL for the uploaded file
-    const { data: urlData } = supabase.storage
-      .from('product-images')
-      .getPublicUrl(filePath);
-      
-    return urlData?.publicUrl || null;
-  };
-  
-  // Create product mutation
-  const createProductMutation = useMutation({
-    mutationFn: async (data: ProductFormData) => {
-      // First insert the product to get the ID
-      const { data: insertResult, error } = await supabase
-        .from('products')
-        .insert([{
-          name: data.name,
-          description: data.description || null,
-          sku: data.sku || null,
-          specifications: data.specifications || null
-        }])
-        .select();
-        
-      if (error) throw error;
-      
-      if (!insertResult || insertResult.length === 0) {
-        throw new Error('Failed to insert product');
-      }
-      
-      const newProduct = insertResult[0] as Product;
-      
-      // If there's an image file, upload it and update the product
-      if (data.image_file) {
-        const imageUrl = await uploadImage(data.image_file, newProduct.id);
-        
-        if (imageUrl) {
-          const { error: updateError } = await supabase
-            .from('products')
-            .update({ image_url: imageUrl })
-            .eq('id', newProduct.id);
-            
-          if (updateError) throw updateError;
-        }
-      }
-      
-      return insertResult;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-      setIsDialogOpen(false);
-      resetForm();
-      toast({
-        title: 'Success',
-        description: 'Product has been created successfully.',
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create product',
-      });
-    },
-  });
-  
-  // Update product mutation
-  const updateProductMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: ProductFormData }) => {
-      // Check if we need to update the image
-      let imageUrl = null;
-      if (data.image_file) {
-        imageUrl = await uploadImage(data.image_file, id);
-      }
-      
-      // Update the product
-      const updateData = {
-        name: data.name,
-        description: data.description || null,
-        sku: data.sku || null,
-        specifications: data.specifications || null,
-        ...(imageUrl ? { image_url: imageUrl } : {})
-      };
-      
-      const { data: result, error } = await supabase
-        .from('products')
-        .update(updateData)
-        .eq('id', id)
-        .select();
-        
-      if (error) throw error;
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-      setIsDialogOpen(false);
-      resetForm();
-      toast({
-        title: 'Success',
-        description: 'Product has been updated successfully.',
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update product',
-      });
-    },
-  });
-  
-  // Delete product mutation
-  const deleteProductMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-      setIsDeleteDialogOpen(false);
-      toast({
-        title: 'Success',
-        description: 'Product has been deleted successfully.',
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete product',
-      });
-    },
-  });
+  }, [formData.sku]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setFormData(prev => ({ ...prev, [name]: checked }));
   };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -245,7 +105,7 @@ const ProductManagement: React.FC = () => {
     }
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name.trim()) {
@@ -256,14 +116,72 @@ const ProductManagement: React.FC = () => {
       });
       return;
     }
+
+    if (!formData.sku.trim()) {
+      setSkuError('SKU is required');
+      return;
+    }
     
-    if (editingProduct) {
-      updateProductMutation.mutate({
-        id: editingProduct.id,
-        data: formData
-      });
-    } else {
-      createProductMutation.mutate(formData);
+    try {
+      if (editingProduct) {
+        // Update existing product
+        const productData = {
+          name: formData.name,
+          description: formData.description || null,
+          sku: formData.sku,
+          specifications: formData.specifications || null,
+          category: formData.category || null,
+          is_active: formData.is_active
+        };
+
+        // Update the product metadata
+        await updateProduct.mutateAsync({
+          id: editingProduct.id,
+          data: productData
+        });
+        
+        // If there's a new image file, upload it
+        if (formData.image_file) {
+          const imageUrl = await uploadProductImage(formData.image_file, editingProduct.id);
+          
+          if (imageUrl) {
+            await updateProduct.mutateAsync({
+              id: editingProduct.id,
+              data: { image_url: imageUrl }
+            });
+          }
+        }
+      } else {
+        // Create new product
+        const newProduct = await createProduct.mutateAsync({
+          name: formData.name,
+          description: formData.description || null,
+          sku: formData.sku,
+          specifications: formData.specifications || null,
+          category: formData.category || null,
+          is_active: formData.is_active
+        });
+        
+        // If there's an image file and the product was created successfully, upload it
+        if (formData.image_file && newProduct && newProduct.id) {
+          const imageUrl = await uploadProductImage(formData.image_file, newProduct.id);
+          
+          if (imageUrl) {
+            await updateProduct.mutateAsync({
+              id: newProduct.id,
+              data: { image_url: imageUrl }
+            });
+          }
+        }
+      }
+      
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('products_sku_unique')) {
+        setSkuError('A product with this SKU already exists');
+      }
+      // Other errors are handled by the mutation error handlers
     }
   };
   
@@ -274,8 +192,9 @@ const ProductManagement: React.FC = () => {
       description: product.description || '',
       sku: product.sku || '',
       specifications: product.specifications || '',
-      category: '', // Initialize category
-      image_file: null
+      category: product.category || '',
+      image_file: null,
+      is_active: product.is_active
     });
     setPreviewUrl(product.image_url);
     setIsDialogOpen(true);
@@ -288,7 +207,7 @@ const ProductManagement: React.FC = () => {
   
   const confirmDelete = () => {
     if (selectedProductId) {
-      deleteProductMutation.mutate(selectedProductId);
+      deleteProduct.mutate(selectedProductId);
     }
   };
   
@@ -304,11 +223,16 @@ const ProductManagement: React.FC = () => {
       description: '',
       sku: '',
       specifications: '',
-      category: '', // Initialize category
-      image_file: null
+      category: '',
+      image_file: null,
+      is_active: true
     });
     setPreviewUrl(null);
+    setSkuError(null);
   };
+
+  // Import toast directly where it's used
+  const { toast } = require('@/hooks/use-toast');
   
   return (
     <div className="space-y-6">
@@ -359,7 +283,8 @@ const ProductManagement: React.FC = () => {
                     <TableHead>Image</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>SKU</TableHead>
-                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Created At</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -382,7 +307,12 @@ const ProductManagement: React.FC = () => {
                       </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.sku || '-'}</TableCell>
-                      <TableCell className="max-w-xs truncate">{product.description || '-'}</TableCell>
+                      <TableCell>{product.category || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={product.is_active ? "success" : "secondary"}>
+                          {product.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{new Date(product.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button 
@@ -422,7 +352,7 @@ const ProductManagement: React.FC = () => {
           <form onSubmit={handleSubmit}>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Product Name</Label>
+                <Label htmlFor="name">Product Name*</Label>
                 <Input 
                   id="name"
                   name="name"
@@ -434,14 +364,43 @@ const ProductManagement: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
+                <Label htmlFor="sku">
+                  SKU (Stock Keeping Unit)*
+                </Label>
                 <Input 
                   id="sku"
                   name="sku"
                   value={formData.sku}
                   onChange={handleInputChange}
                   placeholder="Enter product SKU"
+                  className={skuError ? "border-red-500" : ""}
+                  required
                 />
+                {skuError && (
+                  <div className="text-sm text-red-500 flex items-center mt-1">
+                    <AlertCircle className="h-4 w-4 mr-1" /> {skuError}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">
+                  A unique identifier for the product. Required and must be unique.
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Input 
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  placeholder="Enter product category"
+                  list="category-suggestions"
+                />
+                <datalist id="category-suggestions">
+                  {existingCategories?.map((category, index) => (
+                    <option key={index} value={category} />
+                  ))}
+                </datalist>
               </div>
               
               <div className="space-y-2">
@@ -469,14 +428,20 @@ const ProductManagement: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Input 
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  placeholder="Enter product category"
-                />
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox" 
+                    id="is_active"
+                    name="is_active"
+                    checked={formData.is_active}
+                    onChange={handleCheckboxChange}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <Label htmlFor="is_active">Product is active</Label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Inactive products will not be visible to customers.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -520,11 +485,13 @@ const ProductManagement: React.FC = () => {
                 type="submit"
                 disabled={
                   !formData.name.trim() || 
-                  createProductMutation.isPending || 
-                  updateProductMutation.isPending
+                  !formData.sku.trim() || 
+                  createProduct.isPending || 
+                  updateProduct.isPending ||
+                  !!skuError
                 }
               >
-                {createProductMutation.isPending || updateProductMutation.isPending ? 
+                {createProduct.isPending || updateProduct.isPending ? 
                   'Saving...' : 
                   editingProduct ? 'Update Product' : 'Create Product'
                 }
@@ -555,9 +522,9 @@ const ProductManagement: React.FC = () => {
             <Button 
               variant="destructive"
               onClick={confirmDelete}
-              disabled={deleteProductMutation.isPending}
+              disabled={deleteProduct.isPending}
             >
-              {deleteProductMutation.isPending ? 'Deleting...' : 'Delete Product'}
+              {deleteProduct.isPending ? 'Deleting...' : 'Delete Product'}
             </Button>
           </DialogFooter>
         </DialogContent>
