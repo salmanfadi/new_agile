@@ -1,31 +1,25 @@
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
-const Login = () => {
+const SignupPage = () => {
   const navigate = useNavigate();
   
-  // Simple login navigation function
-  const handleLogin = () => {
-    // In a real implementation, this would authenticate the user
-    navigate('/admin');
-  };
-
   return (
     <div className="min-h-screen flex justify-center items-center bg-slate-50">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-lg">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Agile Warehouse Management</h1>
-          <p className="text-gray-600 mt-2">Sign in to your account</p>
+          <h1 className="text-2xl font-bold">Create an Account</h1>
+          <p className="text-gray-600 mt-2">Sign up for Agile Warehouse Management</p>
         </div>
         
         <div className="mt-8 space-y-6">
           <Button 
             className="w-full" 
-            onClick={handleLogin}
+            onClick={() => navigate('/login')}
           >
-            Sign in
+            Go to Login
           </Button>
         </div>
       </div>
@@ -33,4 +27,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default SignupPage;
