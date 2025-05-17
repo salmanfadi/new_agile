@@ -1,7 +1,8 @@
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { MovementType, MovementStatus } from '@/types/inventory';
+import { MovementType, MovementStatus, InventoryMovement } from '@/types/inventory';
 
 // Function to create a single inventory movement
 export const createInventoryMovement = async (

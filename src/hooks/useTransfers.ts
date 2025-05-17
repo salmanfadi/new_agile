@@ -1,3 +1,4 @@
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -51,7 +52,7 @@ export const useTransfers = () => {
             approved_by,
             created_at,
             updated_at,
-            products:product_id(id, name, sku),
+            products(id, name, sku),
             source_warehouse:source_warehouse_id(id, name, location),
             source_location:source_location_id(id, floor, zone),
             destination_warehouse:destination_warehouse_id(id, name, location),
@@ -121,7 +122,7 @@ export const useTransfers = () => {
             notes,
             initiated_by,
             created_at,
-            products:product_id(id, name, sku),
+            products(id, name, sku),
             source_warehouse:source_warehouse_id(id, name, location),
             source_location:source_location_id(id, floor, zone),
             destination_warehouse:destination_warehouse_id(id, name, location),
