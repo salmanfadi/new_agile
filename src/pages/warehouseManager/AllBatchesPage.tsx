@@ -1,298 +1,350 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Package, Filter, ArrowLeft, Search } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { LoadingState } from '@/components/warehouse/LoadingState';
-import { ErrorState } from '@/components/warehouse/ErrorState';
 import { supabase } from '@/lib/supabase';
-import { ProcessedBatch } from '@/types/batchStockIn';
+import { useQuery } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BatchCard } from '@/components/warehouse/BatchCard';
+import { ProcessedBatch } from '@/types/batchStockIn';
 import { Product, Warehouse, WarehouseLocation, Profile } from '@/types/database';
 
-const AllBatchesPage: React.FC = () => {
+const AllBatchesPage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
-  
-  // Fetch all warehouses for the filter
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterWarehouse, setFilterWarehouse] = useState<string | null>(null);
+
+  // Fetch all processed batches
+  const { data: batches, isLoading, error } = useQuery({
+    queryKey: ['processed-batches'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processed_batches')
+        .select(`
+          id,
+          product_id,
+          warehouse_id,
+          location_id,
+          boxes_count,
+          quantity_per_box,
+          color,
+          size,
+          created_by,
+          barcodes,
+          created_at,
+          stock_in_id
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return data || [];
+    }
+  });
+
+  // Fetch additional batch details (products, warehouses, locations)
+  const { data: batchDetails } = useQuery({
+    queryKey: ['batch-details', batches],
+    queryFn: async () => {
+      if (!batches || batches.length === 0) return { products: {}, warehouses: {}, profiles: {} };
+      
+      // Extract unique IDs for products, warehouses, locations
+      const productIds = [...new Set(batches.map(batch => batch.product_id))];
+      const warehouseIds = [...new Set(batches.map(batch => batch.warehouse_id))];
+      const locationIds = [...new Set(batches.map(batch => batch.location_id))];
+      const userIds = [...new Set(batches.map(batch => batch.created_by))];
+      
+      // Fetch products
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('id, name, sku')
+        .in('id', productIds);
+      
+      // Fetch warehouses
+      const { data: warehousesData } = await supabase
+        .from('warehouses')
+        .select('id, name, location')
+        .in('id', warehouseIds);
+        
+      // Fetch warehouse locations
+      const { data: locationsData } = await supabase
+        .from('warehouse_locations')
+        .select('id, warehouse_id, zone, floor')
+        .in('id', locationIds);
+        
+      // Fetch profiles
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name, username')
+        .in('id', userIds);
+        
+      // Map data to objects for easy lookup
+      const products = (productsData || []).reduce((acc, product) => ({
+        ...acc,
+        [product.id]: product
+      }), {});
+      
+      const warehouses = (warehousesData || []).reduce((acc, warehouse) => ({
+        ...acc,
+        [warehouse.id]: warehouse
+      }), {});
+      
+      const locations = (locationsData || []).reduce((acc, location) => ({
+        ...acc,
+        [location.id]: location
+      }), {});
+      
+      const profiles = (profilesData || []).reduce((acc, profile) => ({
+        ...acc,
+        [profile.id]: profile
+      }), {});
+      
+      return { products, warehouses, locations, profiles };
+    },
+    enabled: batches !== undefined && batches.length > 0
+  });
+
+  // Fetch all warehouses for filter dropdown
+  const { data: warehousesList } = useQuery({
+    queryKey: ['warehouses-list'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('warehouses')
-        .select('id, name');
+        .select('id, name')
+        .order('name');
         
       if (error) throw error;
       return data || [];
     }
   });
-  
-  // Fetch all processed batches with filters
-  const { data: batches, isLoading, error } = useQuery({
-    queryKey: ['all-batches', searchQuery, warehouseFilter],
-    queryFn: async () => {
-      let query = supabase
-        .from('processed_batches')
-        .select(`
-          id, 
-          product_id, 
-          warehouse_id, 
-          source, 
-          notes,
-          status, 
-          total_boxes, 
-          total_quantity,
-          processed_at,
-          processed_by,
-          stock_in_id,
-          products:product_id (id, name, sku),
-          warehouses:warehouse_id (id, name, location),
-          profiles:processed_by (id, name, username)
-        `)
-        .order('processed_at', { ascending: false });
-      
-      // Apply warehouse filter if selected
-      if (warehouseFilter !== 'all') {
-        query = query.eq('warehouse_id', warehouseFilter);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      // Apply search filter client-side
-      let filteredData = data || [];
-      
-      if (searchQuery) {
-        const lowerQuery = searchQuery.toLowerCase();
-        filteredData = filteredData.filter(batch => 
-          (batch.products?.name || '').toLowerCase().includes(lowerQuery) ||
-          (batch.products?.sku || '').toLowerCase().includes(lowerQuery) ||
-          (batch.warehouses?.name || '').toLowerCase().includes(lowerQuery) ||
-          (batch.profiles?.name || '').toLowerCase().includes(lowerQuery)
-        );
-      }
-      
-      // Get batch items for each batch
-      const batchIds = filteredData.map(batch => batch.id);
-      
-      if (batchIds.length === 0) {
-        return [];
-      }
-      
-      const { data: batchItems, error: itemsError } = await supabase
-        .from('batch_items')
-        .select(`
-          id,
-          batch_id,
-          barcode,
-          quantity,
-          color,
-          size,
-          warehouse_id,
-          location_id,
-          status,
-          warehouse_locations:location_id (id, floor, zone)
-        `)
-        .in('batch_id', batchIds);
-        
-      if (itemsError) throw itemsError;
-      
-      // Group items by batch_id
-      const itemsByBatch = batchItems?.reduce((acc, item) => {
-        if (!acc[item.batch_id]) {
-          acc[item.batch_id] = [];
-        }
-        acc[item.batch_id].push(item);
-        return acc;
-      }, {} as Record<string, any[]>) || {};
-      
-      // Map the data to our ProcessedBatch type
-      return filteredData.map(batch => {
-        const items = itemsByBatch[batch.id] || [];
-        const barcodes = items.map(item => item.barcode);
-        const warehouseLocation = items.length > 0 ? items[0].warehouse_locations : null;
-        
-        // Create a properly typed ProcessedBatch object
-        const processedBatch: ProcessedBatch = {
-          id: batch.id,
-          product_id: batch.product_id,
-          warehouse_id: batch.warehouse_id,
-          location_id: warehouseLocation?.id,
-          boxes_count: batch.total_boxes,
-          quantity_per_box: batch.total_quantity / batch.total_boxes,
-          barcodes,
-          created_by: batch.processed_by,
-          product: {
-            id: batch.products?.id,
-            name: batch.products?.name,
-            description: '',
-            created_at: '',
-            updated_at: '',
-            sku: batch.products?.sku
-          } as Product,
-          warehouse: {
-            id: batch.warehouses?.id,
-            name: batch.warehouses?.name,
-            location: batch.warehouses?.location,
-            created_at: '',
-            updated_at: ''
-          } as Warehouse,
-          warehouseLocation: warehouseLocation as WarehouseLocation,
-          submitter: {
-            id: batch.profiles?.id,
-            name: batch.profiles?.name,
-            username: batch.profiles?.username,
-            role: 'admin', // Default role
-            active: true,
-            created_at: '',
-            updated_at: ''
-          } as Profile,
-          created_at: batch.processed_at,
-          stock_in_id: batch.stock_in_id
-        };
-        
-        return processedBatch;
-      });
-    }
-  });
 
-  const handleViewDetails = (batchId: string, stockInId?: string) => {
-    if (stockInId) {
-      navigate(`/manager/stock-in/batches/${stockInId}`, { state: { batchId } });
-    } else {
-      // If no stockInId, just navigate to the barcodes view
-      navigate(`/manager/inventory/barcodes/${batchId}`);
+  // Transform batch data to include full details
+  const transformBatchData = (batch: any): ProcessedBatch => {
+    if (!batchDetails) {
+      return {
+        ...batch,
+        product_id: batch.product_id,
+        warehouse_id: batch.warehouse_id,
+        location_id: batch.location_id,
+        boxes_count: batch.boxes_count,
+        quantity_per_box: batch.quantity_per_box,
+        color: batch.color,
+        size: batch.size,
+        created_by: batch.created_by,
+        barcodes: batch.barcodes || [],
+        product: undefined,
+        warehouse: undefined,
+        warehouseLocation: undefined,
+        submitter: undefined,
+        created_at: batch.created_at,
+        stock_in_id: batch.stock_in_id
+      } as unknown as ProcessedBatch;
     }
+
+    const product = batchDetails.products[batch.product_id] as Product;
+    const warehouse = batchDetails.warehouses[batch.warehouse_id] as Warehouse;
+    const location = batchDetails.locations[batch.location_id];
+    const submitter = batchDetails.profiles[batch.created_by] as Profile;
+    
+    return {
+      id: batch.id,
+      product_id: batch.product_id,
+      warehouse_id: batch.warehouse_id,
+      location_id: batch.location_id,
+      boxes_count: batch.boxes_count,
+      quantity_per_box: batch.quantity_per_box,
+      color: batch.color,
+      size: batch.size,
+      created_by: batch.created_by,
+      barcodes: batch.barcodes || [],
+      product,
+      warehouse,
+      warehouseLocation: location,
+      submitter,
+      created_at: batch.created_at,
+      stock_in_id: batch.stock_in_id
+    } as unknown as ProcessedBatch;
   };
 
-  // Mock functions for required props
-  const handleEdit = () => {};
-  const handleDelete = () => {};
+  // Filter batches based on search term and selected warehouse
+  const filteredBatches = React.useMemo(() => {
+    if (!batches || !batchDetails) return [];
+    
+    return batches
+      .filter(batch => {
+        if (filterWarehouse && batch.warehouse_id !== filterWarehouse) return false;
+        
+        const product = batchDetails.products[batch.product_id];
+        if (!product) return false;
+        
+        if (!searchTerm) return true;
+        
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          product.name?.toLowerCase().includes(searchLower) ||
+          product.sku?.toLowerCase().includes(searchLower) ||
+          (batch.barcodes && batch.barcodes.some(barcode => barcode.toLowerCase().includes(searchLower)))
+        );
+      })
+      .map(transformBatchData);
+  }, [batches, batchDetails, searchTerm, filterWarehouse]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="h-12 w-12 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4">Loading batches...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+          <div className="flex items-start">
+            <div>
+              <h3 className="font-medium text-red-800">Error loading batches</h3>
+              <p className="text-sm text-red-700 mt-1">
+                {error instanceof Error ? error.message : 'Failed to load batch data'}
+              </p>
+            </div>
+          </div>
+        </div>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <Button
-          variant="ghost"
-          className="flex items-center gap-2"
-          onClick={() => navigate(-1)}
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
+    <div className="p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">All Processed Batches</h1>
+          <p className="text-muted-foreground">
+            View all processed stock batches across warehouses
+          </p>
+        </div>
       </div>
-      
-      <PageHeader 
-        title="All Processed Batches" 
-        description="View and manage all processed inventory batches across warehouses" 
-      />
-      
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Processed Batches</CardTitle>
-            <CardDescription>
-              {batches ? `${batches.length} batches found` : 'Loading batches...'}
-            </CardDescription>
-          </div>
-          
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm" className="hidden md:flex">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-          </div>
-        </CardHeader>
-        
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+
+      <Card className="mb-8">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="search">Search</Label>
               <Input
-                placeholder="Search batches..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                id="search"
+                placeholder="Search by product name, SKU, or barcode"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             
-            <Select
-              value={warehouseFilter}
-              onValueChange={setWarehouseFilter}
-            >
-              <SelectTrigger className="w-full md:w-[200px]">
-                <SelectValue placeholder="Select warehouse" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Warehouses</SelectItem>
-                {warehouses?.map(warehouse => (
-                  <SelectItem key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {isLoading ? (
-            <LoadingState message="Loading batch data..." />
-          ) : error ? (
-            <ErrorState 
-              message="Error loading batch data"
-              details={error instanceof Error ? error.message : "Unknown error"} 
-              onNavigateBack={() => navigate('/manager')}
-            />
-          ) : (
-            <>
-              {batches && batches.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {batches.map((batch, index) => (
-                    <div key={batch.id}>
-                      <BatchCard 
-                        batch={batch}
-                        index={index}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        showBarcodes={false}
-                      />
-                      <div className="flex justify-end mt-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex gap-1"
-                          onClick={() => handleViewDetails(batch.id!, batch.stock_in_id)}
-                        >
-                          <Package className="h-4 w-4" /> View Details
-                        </Button>
-                      </div>
-                    </div>
+            <div className="space-y-2">
+              <Label htmlFor="warehouse-filter">Filter by Warehouse</Label>
+              <Select
+                value={filterWarehouse || ''}
+                onValueChange={(value) => setFilterWarehouse(value || null)}
+              >
+                <SelectTrigger id="warehouse-filter">
+                  <SelectValue placeholder="All Warehouses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Warehouses</SelectItem>
+                  {warehousesList?.map(warehouse => (
+                    <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
                   ))}
-                </div>
-              ) : (
-                <div className="text-center p-8 text-muted-foreground">
-                  <Package className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                  <p className="text-lg font-medium">No batches found</p>
-                  <p className="text-sm mt-1">
-                    Try adjusting your search or filter criteria.
-                  </p>
-                </div>
-              )}
-            </>
-          )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      {filteredBatches.length === 0 ? (
+        <div className="text-center p-8 bg-slate-50 rounded-lg border border-slate-200">
+          <h3 className="font-medium text-lg">No batches found</h3>
+          <p className="text-muted-foreground mt-1">
+            Try changing your search or filter parameters
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="hidden md:block overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Created By</TableHead>
+                  <TableHead>Created At</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredBatches.map((batch) => (
+                  <TableRow key={batch.id}>
+                    <TableCell>
+                      <div className="font-medium">{batch.product?.name}</div>
+                      <div className="text-sm text-muted-foreground">{batch.product?.sku}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{batch.warehouse?.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {batch.warehouseLocation ? 
+                          `Floor ${batch.warehouseLocation.floor}, Zone ${batch.warehouseLocation.zone}` : 
+                          'Unknown location'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{batch.boxes_count} boxes</div>
+                      <div className="text-sm text-muted-foreground">{batch.quantity_per_box} per box</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{batch.submitter?.name}</div>
+                      <div className="text-sm text-muted-foreground">{batch.submitter?.username}</div>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(batch.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => navigate(`/manager/stock-in/batches/${batch.stock_in_id}`)}
+                      >
+                        View Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="md:hidden space-y-4">
+            {filteredBatches.map((batch, index) => (
+              <BatchCard 
+                key={batch.id} 
+                batch={batch} 
+                index={index} 
+                showBarcodes={false}
+                onEdit={() => {}}
+                onDelete={() => {}}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

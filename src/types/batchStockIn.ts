@@ -40,7 +40,7 @@ export interface ProcessedBatch {
   warehouseLocation?: WarehouseLocation;
   submitter?: Profile;
   created_at?: string;
-  stock_in_id?: string; // Add this field to match what's needed in AllBatchesPage
+  stock_in_id?: string; // Added to match what's needed in AllBatchesPage
 }
 
 export interface StockInBatchSubmission {

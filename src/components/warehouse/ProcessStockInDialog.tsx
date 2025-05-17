@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -82,7 +83,7 @@ export const ProcessStockInDialog: React.FC<ProcessStockInDialogProps> = ({
         color: box.color,
         size: box.size,
         warehouse: box.warehouse_id, // Use warehouse_id as warehouse
-        location: box.location_id,    // Use location_id as location
+        location: box.location_id,   // Use location_id as location
         product_id: selectedStockIn.product.id // Add required product_id
       }));
       
