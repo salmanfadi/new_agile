@@ -1,30 +1,29 @@
 
-import { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { UserRole } from "@/types/auth";
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 interface RequireAuthProps {
-  children: ReactNode;
-  allowedRoles?: UserRole[];
+  children: React.ReactNode;
+  allowedRoles: string[];
 }
 
-export const RequireAuth = ({ children, allowedRoles }: RequireAuthProps) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
-
+export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => {
+  const { user, isLoading } = useAuth();
+  
   if (isLoading) {
     return <div>Loading...</div>;
   }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  
+  if (!user) {
+    // Redirect to login if not authenticated
+    return <Navigate to="/login" />;
   }
-
-  // If roles are specified, check if user has one of them
-  if (allowedRoles && user && !allowedRoles.includes(user.role as UserRole)) {
-    return <Navigate to="/unauthorized" replace />;
+  
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    // Redirect to unauthorized page or another appropriate route
+    return <Navigate to="/unauthorized" />;
   }
-
+  
   return <>{children}</>;
 };

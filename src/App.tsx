@@ -2,8 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { RequireAuth } from './components/auth/RequireAuth';
 import MainLayout from './layouts/MainLayout';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ManagerDashboard from './pages/warehouseManager/ManagerDashboard';
 import SalesOperatorDashboard from './pages/salesOperator/SalesOperatorDashboard';
@@ -15,7 +18,6 @@ import BatchOverviewPage from './pages/warehouseManager/BatchOverviewPage';
 import BatchStockInPage from './pages/admin/BatchStockInPage';
 import StockInDetailsPage from './pages/warehouseManager/StockInDetailsPage';
 import ReportsDashboard from './pages/reports/ReportsDashboard';
-import { RequireAuth } from './components/auth/RequireAuth';
 import Index from './pages/Index';
 
 const queryClient = new QueryClient({
@@ -57,6 +59,8 @@ function App() {
           <Routes>
             {/* Default Route */}
             <Route path="/" element={<Index />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
             
             {/* Admin Routes */}
             <Route 

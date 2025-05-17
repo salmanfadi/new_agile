@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BatchCard } from '@/components/warehouse/BatchCard';
+import { Product, Warehouse, WarehouseLocation, Profile } from '@/types/database';
 
 const AllBatchesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -77,10 +78,10 @@ const AllBatchesPage: React.FC = () => {
       if (searchQuery) {
         const lowerQuery = searchQuery.toLowerCase();
         filteredData = filteredData.filter(batch => 
-          batch.products?.name?.toLowerCase().includes(lowerQuery) ||
-          batch.products?.sku?.toLowerCase().includes(lowerQuery) ||
-          batch.warehouses?.name?.toLowerCase().includes(lowerQuery) ||
-          batch.profiles?.name?.toLowerCase().includes(lowerQuery)
+          (batch.products?.name || '').toLowerCase().includes(lowerQuery) ||
+          (batch.products?.sku || '').toLowerCase().includes(lowerQuery) ||
+          (batch.warehouses?.name || '').toLowerCase().includes(lowerQuery) ||
+          (batch.profiles?.name || '').toLowerCase().includes(lowerQuery)
         );
       }
       
@@ -124,7 +125,8 @@ const AllBatchesPage: React.FC = () => {
         const barcodes = items.map(item => item.barcode);
         const warehouseLocation = items.length > 0 ? items[0].warehouse_locations : null;
         
-        return {
+        // Create a properly typed ProcessedBatch object
+        const processedBatch: ProcessedBatch = {
           id: batch.id,
           product_id: batch.product_id,
           warehouse_id: batch.warehouse_id,
@@ -133,13 +135,36 @@ const AllBatchesPage: React.FC = () => {
           quantity_per_box: batch.total_quantity / batch.total_boxes,
           barcodes,
           created_by: batch.processed_by,
-          product: batch.products,
-          warehouse: batch.warehouses,
-          warehouseLocation,
-          submitter: batch.profiles,
+          product: {
+            id: batch.products?.id,
+            name: batch.products?.name,
+            description: '',
+            created_at: '',
+            updated_at: '',
+            sku: batch.products?.sku
+          } as Product,
+          warehouse: {
+            id: batch.warehouses?.id,
+            name: batch.warehouses?.name,
+            location: batch.warehouses?.location,
+            created_at: '',
+            updated_at: ''
+          } as Warehouse,
+          warehouseLocation: warehouseLocation as WarehouseLocation,
+          submitter: {
+            id: batch.profiles?.id,
+            name: batch.profiles?.name,
+            username: batch.profiles?.username,
+            role: 'admin', // Default role
+            active: true,
+            created_at: '',
+            updated_at: ''
+          } as Profile,
           created_at: batch.processed_at,
           stock_in_id: batch.stock_in_id
-        } as ProcessedBatch;
+        };
+        
+        return processedBatch;
       });
     }
   });
@@ -152,6 +177,10 @@ const AllBatchesPage: React.FC = () => {
       navigate(`/manager/inventory/barcodes/${batchId}`);
     }
   };
+
+  // Mock functions for required props
+  const handleEdit = () => {};
+  const handleDelete = () => {};
 
   return (
     <div className="space-y-6">
@@ -234,6 +263,8 @@ const AllBatchesPage: React.FC = () => {
                       <BatchCard 
                         batch={batch}
                         index={index}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
                         showBarcodes={false}
                       />
                       <div className="flex justify-end mt-2">
