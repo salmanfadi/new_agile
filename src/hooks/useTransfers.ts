@@ -27,41 +27,52 @@ export const useTransfers = () => {
     return useQuery({
       queryKey: ['pending-transfers'],
       queryFn: async () => {
-        const { data, error } = await supabase
-          .from('inventory_transfers')
-          .select(`
-            id,
-            product_id,
-            source_warehouse_id,
-            source_location_id,
-            destination_warehouse_id,
-            destination_location_id,
-            quantity,
-            status,
-            transfer_reason,
-            notes,
-            initiated_by,
-            approved_by,
-            created_at,
-            updated_at,
-            created_by,
-            updated_by,
-            products(name, sku),
-            initiator:profiles!initiated_by(name, username),
-            source_warehouse:warehouses!source_warehouse_id(name, location),
-            source_location:warehouse_locations!source_location_id(floor, zone),
-            destination_warehouse:warehouses!destination_warehouse_id(name, location),
-            destination_location:warehouse_locations!destination_location_id(floor, zone)
-          `)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false });
+        try {
+          const { data, error } = await supabase
+            .from('inventory_transfers')
+            .select(`
+              id,
+              product_id,
+              source_warehouse_id,
+              source_location_id,
+              destination_warehouse_id,
+              destination_location_id,
+              quantity,
+              status,
+              transfer_reason,
+              notes,
+              initiated_by,
+              approved_by,
+              created_at,
+              updated_at,
+              created_by,
+              updated_by,
+              products(name, sku),
+              initiator:profiles!initiated_by(name, username),
+              source_warehouse:warehouses!source_warehouse_id(name, location),
+              source_location:warehouse_locations!source_location_id(floor, zone),
+              destination_warehouse:warehouses!destination_warehouse_id(name, location),
+              destination_location:warehouse_locations!destination_location_id(floor, zone)
+            `)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+            
+          if (error) {
+            console.error('Error fetching pending transfers:', error);
+            throw error;
+          }
           
-        if (error) {
-          console.error('Error fetching pending transfers:', error);
-          throw error;
+          return data || [];
+        } catch (error) {
+          console.error('Error in getPendingTransfers:', error);
+          return []; // Return empty array on error
         }
-        
-        return data || [];
+      },
+      // Handle errors gracefully with empty default
+      meta: {
+        onError: (error: any) => {
+          console.error('Pending transfers query failed:', error);
+        }
       }
     });
   };
@@ -71,41 +82,46 @@ export const useTransfers = () => {
     return useQuery({
       queryKey: ['transfer-history'],
       queryFn: async () => {
-        const { data, error } = await supabase
-          .from('inventory_transfers')
-          .select(`
-            id,
-            product_id,
-            source_warehouse_id,
-            source_location_id,
-            destination_warehouse_id,
-            destination_location_id,
-            quantity,
-            status,
-            transfer_reason,
-            notes,
-            initiated_by,
-            approved_by,
-            created_at,
-            updated_at,
-            created_by,
-            updated_by,
-            products(name, sku),
-            initiator:profiles!initiated_by(name, username),
-            approver:profiles!approved_by(name, username),
-            source_warehouse:warehouses!source_warehouse_id(name, location),
-            source_location:warehouse_locations!source_location_id(floor, zone),
-            destination_warehouse:warehouses!destination_warehouse_id(name, location),
-            destination_location:warehouse_locations!destination_location_id(floor, zone)
-          `)
-          .order('created_at', { ascending: false });
+        try {
+          const { data, error } = await supabase
+            .from('inventory_transfers')
+            .select(`
+              id,
+              product_id,
+              source_warehouse_id,
+              source_location_id,
+              destination_warehouse_id,
+              destination_location_id,
+              quantity,
+              status,
+              transfer_reason,
+              notes,
+              initiated_by,
+              approved_by,
+              created_at,
+              updated_at,
+              created_by,
+              updated_by,
+              products(name, sku),
+              initiator:profiles!initiated_by(name, username),
+              approver:profiles!approved_by(name, username),
+              source_warehouse:warehouses!source_warehouse_id(name, location),
+              source_location:warehouse_locations!source_location_id(floor, zone),
+              destination_warehouse:warehouses!destination_warehouse_id(name, location),
+              destination_location:warehouse_locations!destination_location_id(floor, zone)
+            `)
+            .order('created_at', { ascending: false });
+            
+          if (error) {
+            console.error('Error fetching transfer history:', error);
+            throw error;
+          }
           
-        if (error) {
-          console.error('Error fetching transfer history:', error);
-          throw error;
+          return data || [];
+        } catch (error) {
+          console.error('Error in getTransferHistory:', error);
+          return []; // Return empty array on error
         }
-        
-        return data || [];
       },
       // Handle errors gracefully with empty default
       meta: {
