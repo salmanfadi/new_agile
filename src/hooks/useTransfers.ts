@@ -1,7 +1,8 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { InventoryMovement, MovementType } from '@/types/inventory';
+import { InventoryTransfer } from '@/types/database';
 import { useAuth } from '@/context/AuthContext';
 
 export interface TransferFormData {
@@ -12,6 +13,7 @@ export interface TransferFormData {
   toLocationId: string;
   quantity: number;
   notes?: string;
+  transferReason?: string;
 }
 
 export const useTransfers = () => {
@@ -24,27 +26,29 @@ export const useTransfers = () => {
       queryKey: ['pending-transfers'],
       queryFn: async () => {
         const { data, error } = await supabase
-          .from('inventory_movements')
+          .from('inventory_transfers')
           .select(`
             id,
             product_id,
-            warehouse_id,
-            location_id,
-            movement_type,
+            source_warehouse_id,
+            source_location_id,
+            destination_warehouse_id,
+            destination_location_id,
             quantity,
             status,
-            reference_table,
-            reference_id,
-            performed_by,
+            transfer_reason,
+            notes,
+            initiated_by,
+            approved_by,
             created_at,
-            details,
-            transfer_reference_id,
+            updated_at,
             products:product_id (name, sku),
-            warehouses:warehouse_id (name, location),
-            warehouse_locations:location_id (floor, zone),
-            profiles:performed_by (name, username)
+            source_warehouse:source_warehouse_id (name, location),
+            source_location:source_location_id (floor, zone),
+            destination_warehouse:destination_warehouse_id (name, location),
+            destination_location:destination_location_id (floor, zone),
+            initiator:initiated_by (name, username)
           `)
-          .eq('movement_type', 'transfer')
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
           
@@ -64,27 +68,30 @@ export const useTransfers = () => {
       queryKey: ['transfer-history'],
       queryFn: async () => {
         const { data, error } = await supabase
-          .from('inventory_movements')
+          .from('inventory_transfers')
           .select(`
             id,
             product_id,
-            warehouse_id,
-            location_id,
-            movement_type,
+            source_warehouse_id,
+            source_location_id,
+            destination_warehouse_id,
+            destination_location_id,
             quantity,
             status,
-            reference_table,
-            reference_id,
-            performed_by,
+            transfer_reason,
+            notes,
+            initiated_by,
+            approved_by,
             created_at,
-            details,
-            transfer_reference_id,
+            updated_at,
             products:product_id (name, sku),
-            warehouses:warehouse_id (name, location),
-            warehouse_locations:location_id (floor, zone),
-            profiles:performed_by (name, username)
+            source_warehouse:source_warehouse_id (name, location),
+            source_location:source_location_id (floor, zone),
+            destination_warehouse:destination_warehouse_id (name, location),
+            destination_location:destination_location_id (floor, zone),
+            initiator:initiated_by (name, username),
+            approver:approved_by (name, username)
           `)
-          .eq('movement_type', 'transfer')
           .order('created_at', { ascending: false });
           
         if (error) {
@@ -105,54 +112,24 @@ export const useTransfers = () => {
       }
       
       try {
-        // Generate a unique reference ID for linking the two transfer operations
-        const transferReferenceId = crypto.randomUUID();
-        
-        // Create the "out" movement from source location
-        const { error: outError } = await supabase
-          .from('inventory_movements')
+        const { error } = await supabase
+          .from('inventory_transfers')
           .insert({
             product_id: formData.productId,
-            warehouse_id: formData.fromWarehouseId,
-            location_id: formData.fromLocationId,
-            movement_type: 'transfer',
-            quantity: -formData.quantity, // Negative to indicate removal
+            source_warehouse_id: formData.fromWarehouseId,
+            source_location_id: formData.fromLocationId,
+            destination_warehouse_id: formData.toWarehouseId,
+            destination_location_id: formData.toLocationId,
+            quantity: formData.quantity,
             status: 'pending',
-            transfer_reference_id: transferReferenceId,
-            performed_by: user.id,
-            details: { 
-              notes: formData.notes,
-              direction: 'out',
-              to_warehouse_id: formData.toWarehouseId,
-              to_location_id: formData.toLocationId
-            }
+            transfer_reason: formData.transferReason || null,
+            notes: formData.notes || null,
+            initiated_by: user.id
           });
           
-        if (outError) throw outError;
+        if (error) throw error;
         
-        // Create the "in" movement to destination location
-        const { error: inError } = await supabase
-          .from('inventory_movements')
-          .insert({
-            product_id: formData.productId,
-            warehouse_id: formData.toWarehouseId,
-            location_id: formData.toLocationId,
-            movement_type: 'transfer',
-            quantity: formData.quantity, // Positive to indicate addition
-            status: 'pending',
-            transfer_reference_id: transferReferenceId,
-            performed_by: user.id,
-            details: { 
-              notes: formData.notes,
-              direction: 'in',
-              from_warehouse_id: formData.fromWarehouseId,
-              from_location_id: formData.fromLocationId
-            }
-          });
-          
-        if (inError) throw inError;
-        
-        return { success: true, transferReferenceId };
+        return { success: true };
       } catch (error) {
         console.error('Error creating transfer:', error);
         throw error;
@@ -166,7 +143,6 @@ export const useTransfers = () => {
       
       queryClient.invalidateQueries({ queryKey: ['pending-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-history'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
     },
     onError: (error) => {
       console.error('Failed to create transfer:', error);
@@ -180,34 +156,21 @@ export const useTransfers = () => {
   
   // Approve a transfer
   const approveTransfer = useMutation({
-    mutationFn: async (transferReferenceId: string) => {
+    mutationFn: async (transferId: string) => {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
       
-      const { data: relatedMovements, error: fetchError } = await supabase
-        .from('inventory_movements')
-        .select('id')
-        .eq('transfer_reference_id', transferReferenceId)
-        .eq('status', 'pending');
-        
-      if (fetchError) throw fetchError;
-      
-      if (!relatedMovements || relatedMovements.length === 0) {
-        throw new Error('No pending transfer movements found with this reference ID');
-      }
-      
-      // Update all related movements to approved status
-      const { error: updateError } = await supabase
-        .from('inventory_movements')
+      const { error } = await supabase
+        .from('inventory_transfers')
         .update({ 
           status: 'approved',
-          details: JSON.stringify({ approved_by: user.id })
+          approved_by: user.id
         })
-        .eq('transfer_reference_id', transferReferenceId)
+        .eq('id', transferId)
         .eq('status', 'pending');
         
-      if (updateError) throw updateError;
+      if (error) throw error;
       
       return { success: true };
     },
@@ -219,7 +182,6 @@ export const useTransfers = () => {
       
       queryClient.invalidateQueries({ queryKey: ['pending-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-history'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
     },
     onError: (error) => {
       console.error('Failed to approve transfer:', error);
@@ -233,18 +195,18 @@ export const useTransfers = () => {
   
   // Reject a transfer
   const rejectTransfer = useMutation({
-    mutationFn: async ({ transferReferenceId, reason }: { transferReferenceId: string, reason: string }) => {
+    mutationFn: async ({ transferId, reason }: { transferId: string, reason: string }) => {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
       
       const { error } = await supabase
-        .from('inventory_movements')
+        .from('inventory_transfers')
         .update({ 
           status: 'rejected',
-          details: JSON.stringify({ rejection_reason: reason })
+          notes: reason
         })
-        .eq('transfer_reference_id', transferReferenceId)
+        .eq('id', transferId)
         .eq('status', 'pending');
         
       if (error) throw error;
@@ -259,7 +221,6 @@ export const useTransfers = () => {
       
       queryClient.invalidateQueries({ queryKey: ['pending-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-history'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
     },
     onError: (error) => {
       console.error('Failed to reject transfer:', error);

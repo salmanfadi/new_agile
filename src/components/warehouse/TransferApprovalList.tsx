@@ -1,14 +1,6 @@
 
 import React, { useState } from 'react';
 import { useTransfers } from '@/hooks/useTransfers';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -38,37 +30,19 @@ const TransferApprovalList: React.FC = () => {
   const [selectedTransfer, setSelectedTransfer] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   
-  // Group transfers by reference ID
-  const groupedTransfers = React.useMemo(() => {
-    if (!pendingTransfers) return new Map();
-    
-    const grouped = new Map();
-    for (const transfer of pendingTransfers) {
-      if (!transfer.transfer_reference_id) continue;
-      
-      if (!grouped.has(transfer.transfer_reference_id)) {
-        grouped.set(transfer.transfer_reference_id, []);
-      }
-      
-      grouped.get(transfer.transfer_reference_id).push(transfer);
-    }
-    
-    return grouped;
-  }, [pendingTransfers]);
-  
-  const handleApproveClick = (referenceId: string) => {
-    approveTransfer.mutate(referenceId);
+  const handleApproveClick = (transferId: string) => {
+    approveTransfer.mutate(transferId);
   };
   
-  const handleRejectClick = (referenceId: string) => {
-    setSelectedTransfer(referenceId);
+  const handleRejectClick = (transferId: string) => {
+    setSelectedTransfer(transferId);
     setIsDialogOpen(true);
   };
   
   const handleRejectConfirm = () => {
     if (selectedTransfer) {
       rejectTransfer.mutate({ 
-        transferReferenceId: selectedTransfer, 
+        transferId: selectedTransfer, 
         reason: rejectionReason 
       });
       setIsDialogOpen(false);
@@ -101,7 +75,7 @@ const TransferApprovalList: React.FC = () => {
     );
   }
   
-  if (!pendingTransfers || pendingTransfers.length === 0 || groupedTransfers.size === 0) {
+  if (!pendingTransfers || pendingTransfers.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -121,30 +95,17 @@ const TransferApprovalList: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {Array.from(groupedTransfers.entries()).map(([referenceId, transfers]) => {
-              // Find the source and destination transfers
-              const sourceTransfer = transfers.find(t => 
-                t.details && typeof t.details === 'object' && t.details.direction === 'out'
-              );
-              
-              const destinationTransfer = transfers.find(t => 
-                t.details && typeof t.details === 'object' && t.details.direction === 'in'
-              );
-              
-              // Skip if we don't have both source and destination
-              if (!sourceTransfer || !destinationTransfer) return null;
-              
-              const product = sourceTransfer.products;
-              const sourceWarehouse = sourceTransfer.warehouses;
-              const sourceLocation = sourceTransfer.warehouse_locations;
-              const destinationWarehouse = destinationTransfer.warehouses;
-              const destinationLocation = destinationTransfer.warehouse_locations;
-              const requester = sourceTransfer.profiles;
-              const quantity = Math.abs(sourceTransfer.quantity); // Absolute value since source is negative
-              const requestDate = new Date(sourceTransfer.created_at).toLocaleString();
+            {pendingTransfers.map(transfer => {
+              const sourceWarehouse = transfer.source_warehouse;
+              const sourceLocation = transfer.source_location;
+              const destinationWarehouse = transfer.destination_warehouse;
+              const destinationLocation = transfer.destination_location;
+              const product = transfer.products;
+              const requester = transfer.initiator;
+              const requestDate = new Date(transfer.created_at).toLocaleString();
               
               return (
-                <Card key={referenceId} className="border-t border-gray-200">
+                <Card key={transfer.id} className="border-t border-gray-200">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-lg">Transfer Request</CardTitle>
@@ -167,7 +128,7 @@ const TransferApprovalList: React.FC = () => {
                       <div className="flex justify-center items-center">
                         <div className="flex items-center text-gray-500">
                           <ArrowLeft className="h-4 w-4" />
-                          <span className="mx-2">{quantity}</span>
+                          <span className="mx-2">{transfer.quantity}</span>
                           <ArrowRight className="h-4 w-4" />
                         </div>
                       </div>
@@ -188,25 +149,32 @@ const TransferApprovalList: React.FC = () => {
                         {product?.sku && <span className="text-gray-500">({product.sku})</span>}
                       </p>
                     </div>
+
+                    {transfer.transfer_reason && (
+                      <div className="space-y-2 mb-4">
+                        <p className="text-sm font-medium">Transfer Reason</p>
+                        <p className="text-gray-600">{transfer.transfer_reason}</p>
+                      </div>
+                    )}
                     
-                    {sourceTransfer.details && typeof sourceTransfer.details === 'object' && sourceTransfer.details.notes && (
+                    {transfer.notes && (
                       <div className="space-y-2 mb-4">
                         <p className="text-sm font-medium">Notes</p>
-                        <p className="text-gray-600">{sourceTransfer.details.notes}</p>
+                        <p className="text-gray-600">{transfer.notes}</p>
                       </div>
                     )}
                     
                     <div className="flex justify-end space-x-2 mt-4">
                       <Button 
                         variant="outline" 
-                        onClick={() => handleRejectClick(referenceId)}
+                        onClick={() => handleRejectClick(transfer.id)}
                         disabled={rejectTransfer.isPending}
                       >
                         <X className="mr-1 h-4 w-4" />
                         Reject
                       </Button>
                       <Button 
-                        onClick={() => handleApproveClick(referenceId)}
+                        onClick={() => handleApproveClick(transfer.id)}
                         disabled={approveTransfer.isPending}
                       >
                         <Check className="mr-1 h-4 w-4" />

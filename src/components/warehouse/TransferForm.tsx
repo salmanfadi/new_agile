@@ -253,9 +253,19 @@ const TransferForm: React.FC = () => {
             )}
           </div>
           
+          {/* Transfer Reason */}
+          <div className="space-y-2">
+            <Label htmlFor="transferReason">Transfer Reason (Optional)</Label>
+            <Input
+              id="transferReason" 
+              placeholder="Reason for transfer"
+              {...register('transferReason')}
+            />
+          </div>
+          
           {/* Notes */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Label htmlFor="notes">Additional Notes (Optional)</Label>
             <Textarea 
               id="notes" 
               placeholder="Add any additional notes about this transfer"

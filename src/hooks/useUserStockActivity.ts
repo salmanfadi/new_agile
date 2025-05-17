@@ -39,23 +39,21 @@ export const useUserStockActivity = (userId: string | undefined, { limit }: { li
         .eq('requested_by', userId)
         .order('created_at', { ascending: false });
         
-      // Transfers
+      // Transfers - Using the new inventory_transfers table
       let transfersQuery = supabase
-        .from('inventory_movements')
+        .from('inventory_transfers')
         .select(`
           id,
           product:product_id(name),
           quantity,
           status,
           created_at,
-          warehouse:warehouse_id(name),
-          details,
-          transfer_reference_id,
-          reference_table,
-          reference_id
+          source_warehouse:source_warehouse_id(name),
+          destination_warehouse:destination_warehouse_id(name),
+          notes,
+          transfer_reason
         `)
-        .eq('performed_by', userId)
-        .eq('movement_type', 'transfer')
+        .eq('initiated_by', userId)
         .order('created_at', { ascending: false });
 
       if (limit) {
@@ -90,4 +88,4 @@ export const useUserStockActivity = (userId: string | undefined, { limit }: { li
     data: query.data,
     isLoading: query.isLoading,
   };
-}; 
+};

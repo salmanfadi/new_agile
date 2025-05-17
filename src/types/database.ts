@@ -165,6 +165,32 @@ export interface Profile {
   business_reg_number?: string | null;
 }
 
+// Adding the new InventoryTransfer interface
+export interface InventoryTransfer {
+  id: string;
+  source_warehouse_id: string;
+  source_location_id: string;
+  destination_warehouse_id: string;
+  destination_location_id: string;
+  product_id: string;
+  quantity: number;
+  status: string;
+  transfer_reason?: string | null;
+  notes?: string | null;
+  initiated_by: string;
+  approved_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Join fields
+  product?: Product;
+  source_warehouse?: Warehouse;
+  source_location?: WarehouseLocation;
+  destination_warehouse?: Warehouse;
+  destination_location?: WarehouseLocation;
+  initiator?: Profile;
+  approver?: Profile;
+}
+
 export interface SalesInquiry {
   id: string;
   customer_name: string;

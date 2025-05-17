@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   createBrowserRouter,
@@ -107,6 +108,10 @@ const router = createBrowserRouter([
       {
         path: "field/barcode-lookup",
         element: <RequireAuth allowedRoles={['field_operator']}><BarcodeLookup /></RequireAuth>,
+      },
+      {
+        path: "field/transfers",
+        element: <RequireAuth allowedRoles={['field_operator']}><FieldOperatorTransfers /></RequireAuth>,
       },
       {
         path: "sales",

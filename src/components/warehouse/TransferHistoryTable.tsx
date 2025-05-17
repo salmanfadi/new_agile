@@ -17,46 +17,10 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeftRight } from 'lucide-react';
 
 const TransferHistoryTable: React.FC = () => {
   const { getTransferHistory } = useTransfers();
   const { data: transfers, isLoading, error } = getTransferHistory();
-  
-  // Group transfers by reference ID
-  const groupedTransfers = React.useMemo(() => {
-    if (!transfers) return [];
-    
-    const grouped = new Map();
-    for (const transfer of transfers) {
-      if (!transfer.transfer_reference_id) continue;
-      
-      if (!grouped.has(transfer.transfer_reference_id)) {
-        grouped.set(transfer.transfer_reference_id, []);
-      }
-      
-      grouped.get(transfer.transfer_reference_id).push(transfer);
-    }
-    
-    // Convert to array of transfer pairs
-    return Array.from(grouped.entries()).map(([referenceId, movements]) => {
-      const sourceMovement = movements.find(m => 
-        m.details && typeof m.details === 'object' && m.details.direction === 'out'
-      );
-      
-      const destinationMovement = movements.find(m => 
-        m.details && typeof m.details === 'object' && m.details.direction === 'in'
-      );
-      
-      return {
-        referenceId,
-        sourceMovement,
-        destinationMovement,
-        date: sourceMovement?.created_at || '',
-        status: sourceMovement?.status || 'unknown'
-      };
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transfers]);
   
   if (isLoading) {
     return (
@@ -82,7 +46,7 @@ const TransferHistoryTable: React.FC = () => {
     );
   }
   
-  if (!transfers || transfers.length === 0 || groupedTransfers.length === 0) {
+  if (!transfers || transfers.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -116,19 +80,16 @@ const TransferHistoryTable: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {groupedTransfers.map(({ referenceId, sourceMovement, destinationMovement, date, status }) => {
-              if (!sourceMovement || !destinationMovement) return null;
-              
-              const product = sourceMovement.products;
-              const sourceWarehouse = sourceMovement.warehouses;
-              const sourceLocation = sourceMovement.warehouse_locations;
-              const destWarehouse = destinationMovement.warehouses;
-              const destLocation = destinationMovement.warehouse_locations;
-              const quantity = Math.abs(sourceMovement.quantity);
+            {transfers.map((transfer) => {
+              const product = transfer.products;
+              const sourceWarehouse = transfer.source_warehouse;
+              const sourceLocation = transfer.source_location;
+              const destWarehouse = transfer.destination_warehouse;
+              const destLocation = transfer.destination_location;
               
               return (
-                <TableRow key={referenceId}>
-                  <TableCell>{new Date(date).toLocaleDateString()}</TableCell>
+                <TableRow key={transfer.id}>
+                  <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>
                     {product?.name} 
                     {product?.sku && <span className="text-xs text-gray-500 block">{product.sku}</span>}
@@ -145,15 +106,15 @@ const TransferHistoryTable: React.FC = () => {
                       Floor {destLocation?.floor}, Zone {destLocation?.zone}
                     </div>
                   </TableCell>
-                  <TableCell>{quantity}</TableCell>
+                  <TableCell>{transfer.quantity}</TableCell>
                   <TableCell>
                     <Badge variant={
-                      status === 'approved' ? 'success' : 
-                      status === 'rejected' ? 'destructive' : 
-                      status === 'pending' ? 'outline' : 
+                      transfer.status === 'approved' ? 'success' : 
+                      transfer.status === 'rejected' ? 'destructive' : 
+                      transfer.status === 'pending' ? 'outline' : 
                       'secondary'
                     }>
-                      {status?.charAt(0).toUpperCase() + status?.slice(1) || 'Unknown'}
+                      {transfer.status?.charAt(0).toUpperCase() + transfer.status?.slice(1) || 'Unknown'}
                     </Badge>
                   </TableCell>
                 </TableRow>

@@ -242,6 +242,107 @@ export type Database = {
           },
         ]
       }
+      inventory_transfers: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          destination_location_id: string
+          destination_warehouse_id: string
+          id: string
+          initiated_by: string
+          notes: string | null
+          product_id: string
+          quantity: number
+          source_location_id: string
+          source_warehouse_id: string
+          status: string
+          transfer_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          destination_location_id: string
+          destination_warehouse_id: string
+          id?: string
+          initiated_by: string
+          notes?: string | null
+          product_id: string
+          quantity: number
+          source_location_id: string
+          source_warehouse_id: string
+          status?: string
+          transfer_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          destination_location_id?: string
+          destination_warehouse_id?: string
+          id?: string
+          initiated_by?: string
+          notes?: string | null
+          product_id?: string
+          quantity?: number
+          source_location_id?: string
+          source_warehouse_id?: string
+          status?: string
+          transfer_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transfers_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_destination_location_id_fkey"
+            columns: ["destination_location_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_destination_warehouse_id_fkey"
+            columns: ["destination_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_source_location_id_fkey"
+            columns: ["source_location_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_source_warehouse_id_fkey"
+            columns: ["source_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           action_type: string
