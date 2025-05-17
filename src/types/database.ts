@@ -174,7 +174,7 @@ export interface InventoryTransfer {
   destination_location_id: string;
   product_id: string;
   quantity: number;
-  status: string;
+  status: 'pending' | 'approved' | 'rejected' | 'in_transit' | 'completed' | 'cancelled';
   transfer_reason?: string | null;
   notes?: string | null;
   initiated_by: string;
