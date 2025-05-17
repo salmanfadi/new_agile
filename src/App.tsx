@@ -161,6 +161,18 @@ const router = createBrowserRouter([
         element: <RequireAuth allowedRoles={['warehouse_manager']}><StockOutRequests /></RequireAuth>,
       },
       {
+        path: "admin/users",
+        element: <RequireAuth allowedRoles={['admin']}><UsersManagement /></RequireAuth>,
+      },
+      {
+        path: "admin/products",
+        element: <RequireAuth allowedRoles={['admin']}><AdminDashboard /></RequireAuth>, // Placeholder for product management
+      },
+      {
+        path: "admin/warehouses",
+        element: <RequireAuth allowedRoles={['admin']}><AdminDashboard /></RequireAuth>, // Placeholder for warehouse management
+      },
+      {
         path: "admin/profiles",
         element: <RequireAuth allowedRoles={['admin']}><UsersManagement /></RequireAuth>,
       },
