@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { MovementType, MovementStatus } from '@/types/inventory';
+import { MovementType } from '@/types/inventory';
 
 interface CreateMovementParams {
   transferId: string;
@@ -38,7 +38,7 @@ export const useInventoryTransferMovements = () => {
           location_id: sourceLocationId,
           movement_type: 'transfer' as MovementType,
           quantity: quantity,
-          status: 'approved' as MovementStatus, // Now using the updated MovementStatus type
+          status: 'approved', // Use string literal to match DB enum
           performed_by: user.id,
           transfer_reference_id: transferId,
           details: { direction: 'outgoing' }
@@ -51,7 +51,7 @@ export const useInventoryTransferMovements = () => {
           location_id: destinationLocationId,
           movement_type: 'transfer' as MovementType,
           quantity: quantity,
-          status: 'approved' as MovementStatus, // Now using the updated MovementStatus type
+          status: 'approved', // Use string literal to match DB enum
           performed_by: user.id,
           transfer_reference_id: transferId,
           details: { direction: 'incoming' }

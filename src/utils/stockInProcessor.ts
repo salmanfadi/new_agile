@@ -1,7 +1,6 @@
 
 import { supabase } from '@/lib/supabase';
 import { createInventoryMovement } from '@/hooks/useInventoryMovements';
-import { MovementStatus } from '@/types/inventory';
 
 export interface StockInBox {
   barcode: string;
@@ -81,7 +80,7 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
         box.location,
         box.quantity, 
         'in',
-        'approved' as MovementStatus,
+        'approved', // Use literal string matching DB enum
         'stock_in',
         stockInId,
         userId,

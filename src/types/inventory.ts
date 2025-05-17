@@ -2,7 +2,7 @@
 // Define interfaces for inventory movement system
 
 export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release' | 'transfer';
-export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit' | 'completed'; // Updated to match database enum
+export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit'; // Match exact Supabase enum values
 
 export interface InventoryMovement {
   id: string;

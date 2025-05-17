@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { InventoryMovement, MovementStatus, MovementType } from '@/types/inventory';
+import { InventoryMovement, MovementType } from '@/types/inventory';
 
 // Helper function to create inventory movements
 export const createInventoryMovement = async (
@@ -11,7 +11,7 @@ export const createInventoryMovement = async (
   locationId: string,
   quantity: number,
   movementType: MovementType,
-  status: MovementStatus,
+  status: 'pending' | 'approved' | 'rejected' | 'in_transit', // Use literal types matching DB enum
   referenceTable?: string,
   referenceId?: string,
   performedBy?: string,
@@ -73,8 +73,10 @@ export const useInventoryMovements = (filters?: Record<string, any>) => {
           query = query.eq('movement_type', filters.movementType);
         }
         if (filters.status) {
-          // Using type assertion to ensure this is one of the valid statuses
-          query = query.eq('status', filters.status as MovementStatus);
+          // Only use values that match the database enum
+          if (['pending', 'approved', 'rejected', 'in_transit'].includes(filters.status)) {
+            query = query.eq('status', filters.status);
+          }
         }
         if (filters.dateFrom) {
           query = query.gte('created_at', filters.dateFrom);
@@ -132,7 +134,7 @@ export const useCreateInventoryMovement = () => {
       locationId: string;
       quantity: number;
       movementType: MovementType;
-      status: MovementStatus;
+      status: 'pending' | 'approved' | 'rejected' | 'in_transit'; // Match DB enum exactly
       referenceTable?: string;
       referenceId?: string;
       performedBy: string;
@@ -187,7 +189,7 @@ export const useUpdateMovementStatus = () => {
       status 
     }: { 
       movementId: string; 
-      status: MovementStatus;
+      status: 'pending' | 'approved' | 'rejected' | 'in_transit'; // Match DB enum exactly
     }) => {
       const { data, error } = await supabase
         .from('inventory_movements')

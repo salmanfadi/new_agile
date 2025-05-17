@@ -5,6 +5,18 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { TransferStatus } from '@/types/database';
 
+// Add this interface for TransferForm.tsx
+export interface TransferFormData {
+  product_id: string;
+  source_warehouse_id: string;
+  source_location_id: string;
+  destination_warehouse_id: string;
+  destination_location_id: string;
+  quantity: number;
+  transfer_reason?: string;
+  notes?: string;
+}
+
 export const useTransfers = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -31,12 +43,12 @@ export const useTransfers = () => {
             approved_by,
             created_at,
             updated_at,
-            products:product_id (id, name, sku),
-            source_warehouse:source_warehouse_id (id, name, location),
-            source_location:source_location_id (id, floor, zone),
-            destination_warehouse:destination_warehouse_id (id, name, location),
-            destination_location:destination_location_id (id, floor, zone),
-            initiator:initiated_by (id, name, username)
+            products:product_id(id, name, sku),
+            source_warehouse:source_warehouse_id(id, name, location),
+            source_location:source_location_id(id, floor, zone),
+            destination_warehouse:destination_warehouse_id(id, name, location),
+            destination_location:destination_location_id(id, floor, zone),
+            initiator:initiated_by(id, name, username)
           `)
           .order('created_at', { ascending: false });
         
@@ -101,12 +113,12 @@ export const useTransfers = () => {
             notes,
             initiated_by,
             created_at,
-            products:product_id (id, name, sku),
-            source_warehouse:source_warehouse_id (id, name, location),
-            source_location:source_location_id (id, floor, zone),
-            destination_warehouse:destination_warehouse_id (id, name, location),
-            destination_location:destination_location_id (id, floor, zone),
-            initiator:initiated_by (id, name, username)
+            products:product_id(id, name, sku),
+            source_warehouse:source_warehouse_id(id, name, location),
+            source_location:source_location_id(id, floor, zone),
+            destination_warehouse:destination_warehouse_id(id, name, location),
+            destination_location:destination_location_id(id, floor, zone),
+            initiator:initiated_by(id, name, username)
           `)
           .eq('status', 'pending')
           .order('created_at', { ascending: true });
@@ -123,16 +135,7 @@ export const useTransfers = () => {
 
   // Create new transfer
   const createTransfer = useMutation({
-    mutationFn: async (transferData: {
-      product_id: string;
-      source_warehouse_id: string;
-      source_location_id: string;
-      destination_warehouse_id: string;
-      destination_location_id: string;
-      quantity: number;
-      transfer_reason?: string;
-      notes?: string;
-    }) => {
+    mutationFn: async (transferData: TransferFormData) => {
       if (!user?.id) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
@@ -203,14 +206,15 @@ export const useTransfers = () => {
 
   // Reject a transfer
   const rejectTransfer = useMutation({
-    mutationFn: async (transferId: string) => {
+    mutationFn: async ({ transferId, reason }: { transferId: string; reason: string }) => {
       if (!user?.id) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
         .from('inventory_transfers')
         .update({
           status: 'rejected' as TransferStatus,
-          approved_by: user.id
+          approved_by: user.id,
+          notes: reason // Store rejection reason in notes field
         })
         .eq('id', transferId)
         .select();
