@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -177,7 +178,7 @@ export const useBatchStockIn = (userId: string = '') => {
             });
           }
           
-          // 3. Finally create inventory entry with the stock_in_detail_id to satisfy the FK constraint
+          // 3. Create inventory entry with the stock_in_detail_id to satisfy the FK constraint
           const { error: inventoryError, data: inventoryData } = await supabase
             .from('inventory')
             .insert({
@@ -230,19 +231,24 @@ export const useBatchStockIn = (userId: string = '') => {
         }
       }
       
-      // Update stock_in status to completed if this was from a stock_in request
-      if (stockInId) {
+      // IMPROVED: Always update stock_in status to completed when all batches are processed
+      try {
         const { error: updateError } = await supabase
           .from('stock_in')
           .update({ 
-            status: 'completed', 
-            processed_by: userId 
+            status: 'completed',
+            processed_by: userId,
+            processing_completed_at: new Date().toISOString()
           })
           .eq('id', stockInId);
           
         if (updateError) {
           console.error('Error updating stock_in status:', updateError);
+          // Continue execution even if this fails
         }
+      } catch (updateError) {
+        console.error('Exception updating stock_in status:', updateError);
+        // Continue execution even if this fails
       }
       
       if (barcodeErrors.length > 0) {
@@ -321,6 +327,19 @@ export const useBatchStockIn = (userId: string = '') => {
           
         if (stockInError) throw stockInError;
         processingStockInId = stockInData.id;
+      } else {
+        // Update existing stock in to processing status
+        const { error: updateError } = await supabase
+          .from('stock_in')
+          .update({ 
+            status: 'processing',
+            processing_started_at: new Date().toISOString() 
+          })
+          .eq('id', processingStockInId);
+          
+        if (updateError) {
+          console.error('Error updating stock_in status to processing:', updateError);
+        }
       }
       
       const result = await processBatch(processingStockInId, boxes, submission.submittedBy);

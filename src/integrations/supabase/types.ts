@@ -371,6 +371,41 @@ export type Database = {
           },
         ]
       }
+      locations: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locations_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           action_type: string
@@ -666,11 +701,14 @@ export type Database = {
       }
       stock_in: {
         Row: {
+          batch_id: string | null
           boxes: number
           created_at: string
           id: string
           notes: string | null
           processed_by: string | null
+          processing_completed_at: string | null
+          processing_started_at: string | null
           product_id: string
           rejection_reason: string | null
           source: string
@@ -679,11 +717,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          batch_id?: string | null
           boxes: number
           created_at?: string
           id?: string
           notes?: string | null
           processed_by?: string | null
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
           product_id: string
           rejection_reason?: string | null
           source: string
@@ -692,11 +733,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          batch_id?: string | null
           boxes?: number
           created_at?: string
           id?: string
           notes?: string | null
           processed_by?: string | null
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
           product_id?: string
           rejection_reason?: string | null
           source?: string
@@ -738,42 +782,57 @@ export type Database = {
       stock_in_details: {
         Row: {
           barcode: string
+          batch_number: string | null
           color: string | null
           created_at: string
+          error_message: string | null
           id: string
           inventory_id: string | null
           location_id: string
+          processed_at: string | null
+          processing_order: number | null
           product_id: string | null
           quantity: number
           size: string | null
+          status: string | null
           stock_in_id: string
           updated_at: string
           warehouse_id: string
         }
         Insert: {
           barcode: string
+          batch_number?: string | null
           color?: string | null
           created_at?: string
+          error_message?: string | null
           id?: string
           inventory_id?: string | null
           location_id: string
+          processed_at?: string | null
+          processing_order?: number | null
           product_id?: string | null
           quantity: number
           size?: string | null
+          status?: string | null
           stock_in_id: string
           updated_at?: string
           warehouse_id: string
         }
         Update: {
           barcode?: string
+          batch_number?: string | null
           color?: string | null
           created_at?: string
+          error_message?: string | null
           id?: string
           inventory_id?: string | null
           location_id?: string
+          processed_at?: string | null
+          processing_order?: number | null
           product_id?: string | null
           quantity?: number
           size?: string | null
+          status?: string | null
           stock_in_id?: string
           updated_at?: string
           warehouse_id?: string
@@ -1062,6 +1121,14 @@ export type Database = {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      process_stock_in_detail: {
+        Args: {
+          p_detail_id: string
+          p_status: Database["public"]["Enums"]["stock_in_detail_status"]
+          p_error_message?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       movement_status: "pending" | "approved" | "rejected" | "in_transit"
@@ -1072,6 +1139,13 @@ export type Database = {
         | "reserve"
         | "release"
         | "transfer"
+      stock_in_detail_status: "pending" | "processing" | "completed" | "failed"
+      stock_in_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "approved"
+        | "rejected"
       stock_status:
         | "pending"
         | "approved"
@@ -1207,6 +1281,14 @@ export const Constants = {
         "reserve",
         "release",
         "transfer",
+      ],
+      stock_in_detail_status: ["pending", "processing", "completed", "failed"],
+      stock_in_status: [
+        "pending",
+        "processing",
+        "completed",
+        "approved",
+        "rejected",
       ],
       stock_status: [
         "pending",

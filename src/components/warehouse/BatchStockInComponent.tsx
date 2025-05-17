@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -11,8 +12,8 @@ import { StockInRequestDetails } from '@/components/warehouse/StockInRequestDeta
 import { BatchList } from '@/components/warehouse/BatchList';
 import { BatchStockInLoading } from '@/components/warehouse/BatchStockInLoading';
 import { useQueryClient } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessedBatch } from '@/types/batchStockIn';
 
@@ -37,8 +38,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   const [notes, setNotes] = useState<string>('');
   const [remainingBoxes, setRemainingBoxes] = useState<number>(0);
   const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [processedBatchId, setProcessedBatchId] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState<boolean>(false);
   
   // Log stockInData to debug
   useEffect(() => {
@@ -95,38 +96,44 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     }
   }, [isSubmitting, isProcessing, stockInId]);
 
-  // Navigate to inventory page after successful submission with improved navigation
+  // Navigate to batches overview page after successful submission
   useEffect(() => {
-    if (isSuccess && !isProcessing && !isSubmitting) {
+    if (isSuccess && !isProcessing && !isSubmitting && !isNavigating) {
+      setIsNavigating(true);
       queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
       queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
-      setShowSuccessModal(true);
-    }
-  }, [isSuccess, isProcessing, isSubmitting, queryClient]);
-
-  const handleNavigateToInventory = () => {
-    setShowSuccessModal(false);
-    
-    // Reset batches before navigating
-    resetBatches();
-    
-    if (onClose && sheetMode) {
-      onClose();
-      return;
-    }
-    
-    // For warehouse manager, always go to inventory/batches first
-    const path = `${adminMode ? '/admin' : '/manager'}/inventory/batches`;
+      queryClient.invalidateQueries({ queryKey: ['stock-in-batches', stockInId] });
       
-    console.log(`Navigating to: ${path}`);
-    navigate(path, { 
-      state: { 
-        fromBatchProcessing: true,
-        batchId: processedBatchId 
-      }
-    });
-  };
+      // Show success message
+      toast({
+        title: 'Batch Processed Successfully',
+        description: 'All batches have been processed and added to inventory.',
+        variant: 'default',
+      });
+      
+      // Wait a moment to show the success message before navigating
+      setTimeout(() => {
+        // Reset batches before navigating
+        resetBatches();
+        
+        if (onClose && sheetMode) {
+          onClose();
+          return;
+        }
+        
+        // Navigate to batch overview page
+        const path = `${adminMode ? '/admin' : '/manager'}/stock-in/batches/${stockInId}`;
+        console.log(`Navigating to: ${path}`);
+        navigate(path, { 
+          state: { 
+            fromBatchProcessing: true,
+            batchId: processedBatchId 
+          }
+        });
+      }, 500);
+    }
+  }, [isSuccess, isProcessing, isSubmitting, queryClient, navigate, adminMode, stockInId, processedBatchId, onClose, sheetMode, resetBatches, isNavigating]);
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
   useEffect(() => {
@@ -261,6 +268,18 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
             stockInId={stockInId}
           />
           
+          {(isSubmitting || isProcessing) && (
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertTitle className="flex items-center gap-2">
+                <span className="inline-block h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                Processing batches...
+              </AlertTitle>
+              <AlertDescription>
+                Please wait while we process your batches. This may take a moment.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="grid lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               {remainingBoxes === 0 ? (
@@ -301,42 +320,6 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
           </div>
         </div>
       )}
-      
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Batch Processed!</DialogTitle>
-          </DialogHeader>
-          <div className="py-2">
-            <p>Your batch has been processed successfully.</p>
-            {processedBatchId && (
-              <p className="text-sm text-slate-500 mt-1">
-                Batch ID: {processedBatchId}
-              </p>
-            )}
-            <p className="mt-3">Would you like to view the batch details or go to inventory?</p>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => {
-              setShowSuccessModal(false);
-              resetBatches();
-              if (onClose && sheetMode) {
-                onClose();
-                return;
-              }
-              navigate(`${adminMode ? '/admin' : '/manager'}/inventory/batches`);
-            }}>
-              View All Batches
-            </Button>
-            <Button 
-              onClick={handleNavigateToInventory} 
-              className="w-full sm:w-auto"
-            >
-              {processedBatchId ? 'View Batch Details' : 'View All Batches'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };

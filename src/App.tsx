@@ -46,6 +46,7 @@ import FieldOperatorSettings from './pages/fieldOperator/Settings';
 import SalesOperatorInventoryView from './pages/salesOperator/InventoryView';
 import ProductManagement from './pages/admin/ProductManagement';
 import WarehouseManagement from './pages/admin/WarehouseManagement';
+import BatchOverviewPage from './pages/warehouseManager/BatchOverviewPage';
 // Reports pages imports
 import ReportsDashboard from './pages/reports/ReportsDashboard';
 import InventoryStatusReport from './pages/reports/inventory/InventoryStatusReport';
@@ -160,6 +161,14 @@ const router = createBrowserRouter([
       {
         path: "manager/stock-in/batch/:stockInId",
         element: <RequireAuth allowedRoles={['warehouse_manager']}><BatchStockInPage /></RequireAuth>,
+      },
+      {
+        path: "manager/stock-in/batches/:stockInId",
+        element: <RequireAuth allowedRoles={['warehouse_manager']}><BatchOverviewPage /></RequireAuth>,
+      },
+      {
+        path: "admin/stock-in/batches/:stockInId",
+        element: <RequireAuth allowedRoles={['admin']}><BatchOverviewPage /></RequireAuth>,
       },
       {
         path: "admin/inventory",
