@@ -11,7 +11,7 @@ import {
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { InventoryItem } from '@/hooks/useInventoryData';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Package, Search, Info, ExternalLink, History, Truck } from 'lucide-react';
+import { AlertTriangle, Package, Search, Info, ExternalLink, History, Truck, ArrowDown, ArrowUp } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -31,6 +31,9 @@ interface InventoryTableProps {
   isLoading: boolean;
   error: Error | null;
   highlightedBarcode: string | null;
+  onSort?: (field: keyof InventoryItem) => void; // Make onSort optional
+  sortField?: keyof InventoryItem;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export const InventoryTable: React.FC<InventoryTableProps> = ({
@@ -38,6 +41,9 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   isLoading,
   error,
   highlightedBarcode,
+  onSort,
+  sortField,
+  sortDirection,
 }) => {
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
   const navigate = useNavigate();
@@ -201,9 +207,37 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Product</TableHead>
+            <TableHead>
+              {onSort ? (
+                <div 
+                  className="flex items-center cursor-pointer" 
+                  onClick={() => onSort('productName')}
+                >
+                  Product
+                  {sortField === 'productName' && (
+                    sortDirection === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
+                  )}
+                </div>
+              ) : (
+                "Product"
+              )}
+            </TableHead>
             <TableHead>Barcode</TableHead>
-            <TableHead>Quantity</TableHead>
+            <TableHead>
+              {onSort ? (
+                <div 
+                  className="flex items-center cursor-pointer" 
+                  onClick={() => onSort('quantity')}
+                >
+                  Quantity
+                  {sortField === 'quantity' && (
+                    sortDirection === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
+                  )}
+                </div>
+              ) : (
+                "Quantity"
+              )}
+            </TableHead>
             <TableHead>Warehouse</TableHead>
             <TableHead>Location</TableHead>
             <TableHead>Status</TableHead>
@@ -211,7 +245,21 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             <TableHead>Size</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>Actions</TableHead>
-            <TableHead className="text-right">Last Updated</TableHead>
+            <TableHead className="text-right">
+              {onSort ? (
+                <div 
+                  className="flex items-center cursor-pointer justify-end" 
+                  onClick={() => onSort('lastUpdated')}
+                >
+                  Last Updated
+                  {sortField === 'lastUpdated' && (
+                    sortDirection === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
+                  )}
+                </div>
+              ) : (
+                "Last Updated"
+              )}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

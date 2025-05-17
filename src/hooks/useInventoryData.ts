@@ -5,17 +5,17 @@ import { format } from 'date-fns';
 
 // Define interface for related data returned from Supabase
 interface ProductData {
-  name: string;
-  sku?: string;
+  name?: string | null;
+  sku?: string | null;
 }
 
 interface WarehouseData {
-  name: string;
+  name?: string | null;
 }
 
 interface LocationData {
-  floor: number;
-  zone: string;
+  floor?: number | null;
+  zone?: string | null;
 }
 
 // Define proper types for inventory items
@@ -35,6 +35,7 @@ export interface InventoryItem {
   status: string;
   batchId?: string | null;
   lastUpdated: string;
+  source?: string | null;  // Add source property
 }
 
 // Interface for raw inventory data from Supabase
@@ -45,15 +46,18 @@ interface RawInventoryItem {
   location_id: string;
   barcode: string;
   quantity: number;
-  color?: string;
-  size?: string;
+  color?: string | null;
+  size?: string | null;
   status: string;
   batch_id?: string | null;
   created_at: string;
   updated_at: string;
-  products: ProductData | null;
-  warehouses: WarehouseData | null;
-  warehouse_locations: LocationData | null;
+  products?: ProductData | null;
+  warehouses?: WarehouseData | null;
+  warehouse_locations?: LocationData | null;
+  details?: {
+    source?: string | null;
+  } | null;
 }
 
 export const useInventoryData = (
@@ -90,16 +94,17 @@ export const useInventoryData = (
             created_at,
             updated_at,
             products:product_id (
-              name:name,
-              sku:sku
+              name,
+              sku
             ),
             warehouses:warehouse_id (
-              name:name
+              name
             ),
             warehouse_locations:location_id (
-              floor:floor,
-              zone:zone
-            )
+              floor,
+              zone
+            ),
+            details
           `);
         
         // Apply filters
@@ -130,27 +135,31 @@ export const useInventoryData = (
         console.log('Raw inventory data:', data);
         
         // Transform the data with proper type handling
-        return (data || []).map((item: RawInventoryItem) => {
+        return (data as RawInventoryItem[] || []).map((item: RawInventoryItem) => {
           // Extract product info with safe type handling
           const productData = item.products || {};
-          const productName = typeof productData.name === 'string' ? productData.name : 'Unknown Product';
-          const productSku = typeof productData.sku === 'string' ? productData.sku : undefined;
+          const productName = productData?.name || 'Unknown Product';
+          const productSku = productData?.sku || undefined;
           
           // Extract warehouse info
           const warehouseData = item.warehouses || {};
-          const warehouseName = typeof warehouseData.name === 'string' ? warehouseData.name : 'Unknown Warehouse';
+          const warehouseName = warehouseData?.name || 'Unknown Warehouse';
           
           // Extract location info
           const locationData = item.warehouse_locations || {};
           let locationDetails = 'Unknown Location';
           
           // Safe access to potentially undefined properties
-          const floor = locationData && 'floor' in locationData ? locationData.floor : undefined;
-          const zone = locationData && 'zone' in locationData ? locationData.zone : undefined;
+          const floor = locationData?.floor;
+          const zone = locationData?.zone;
           
           if (floor !== undefined && zone !== undefined) {
             locationDetails = `Floor ${floor}, Zone ${zone}`;
           }
+
+          // Extract source from details if available
+          const details = item.details || {};
+          const source = details.source || null;
           
           return {
             id: item.id,
@@ -167,7 +176,8 @@ export const useInventoryData = (
             size: item.size || undefined,
             status: item.status,
             batchId: item.batch_id,
-            lastUpdated: format(new Date(item.updated_at), 'MMM d, yyyy h:mm a')
+            lastUpdated: format(new Date(item.updated_at), 'MMM d, yyyy h:mm a'),
+            source
           };
         });
       } catch (err) {
