@@ -2,7 +2,7 @@
 // Define interfaces for inventory movement system
 
 export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release' | 'transfer';
-export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'failed';
+export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit'; // Updated to match database enum
 
 export interface InventoryMovement {
   id: string;

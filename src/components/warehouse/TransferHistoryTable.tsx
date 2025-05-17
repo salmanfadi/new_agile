@@ -69,7 +69,7 @@ const TransferHistoryTable: React.FC = () => {
       case 'completed':
         return 'success';
       case 'in_transit':
-        return 'secondary'; // Changed from warning to secondary which is a valid variant
+        return 'secondary'; 
       case 'cancelled':
         return 'secondary';
       default:

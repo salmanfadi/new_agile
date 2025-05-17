@@ -38,7 +38,7 @@ export const useInventoryTransferMovements = () => {
           location_id: sourceLocationId,
           movement_type: 'transfer' as MovementType,
           quantity: quantity,
-          status: 'completed' as MovementStatus,
+          status: 'approved' as MovementStatus, // Changed from 'completed' to 'approved'
           performed_by: user.id,
           transfer_reference_id: transferId,
           details: { direction: 'outgoing' }
@@ -51,7 +51,7 @@ export const useInventoryTransferMovements = () => {
           location_id: destinationLocationId,
           movement_type: 'transfer' as MovementType,
           quantity: quantity,
-          status: 'completed' as MovementStatus,
+          status: 'approved' as MovementStatus, // Changed from 'completed' to 'approved'
           performed_by: user.id,
           transfer_reference_id: transferId,
           details: { direction: 'incoming' }

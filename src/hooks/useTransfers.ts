@@ -45,8 +45,6 @@ export const useTransfers = () => {
               approved_by,
               created_at,
               updated_at,
-              created_by,
-              updated_by,
               products(name, sku),
               initiator:profiles!initiated_by(name, username),
               source_warehouse:warehouses!source_warehouse_id(name, location),
@@ -62,16 +60,20 @@ export const useTransfers = () => {
             throw error;
           }
           
-          return data || [];
+          return data as InventoryTransfer[] || [];
         } catch (error) {
           console.error('Error in getPendingTransfers:', error);
           return []; // Return empty array on error
         }
       },
-      // Handle errors gracefully with empty default
       meta: {
         onError: (error: any) => {
           console.error('Pending transfers query failed:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to fetch pending transfers.',
+          });
         }
       }
     });
@@ -100,8 +102,6 @@ export const useTransfers = () => {
               approved_by,
               created_at,
               updated_at,
-              created_by,
-              updated_by,
               products(name, sku),
               initiator:profiles!initiated_by(name, username),
               approver:profiles!approved_by(name, username),
@@ -117,16 +117,20 @@ export const useTransfers = () => {
             throw error;
           }
           
-          return data || [];
+          return data as InventoryTransfer[] || [];
         } catch (error) {
           console.error('Error in getTransferHistory:', error);
           return []; // Return empty array on error
         }
       },
-      // Handle errors gracefully with empty default
       meta: {
         onError: (error: any) => {
           console.error('Transfer history query failed:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to fetch transfer history.',
+          });
         }
       }
     });
@@ -152,8 +156,7 @@ export const useTransfers = () => {
             status: 'pending' as TransferStatus,
             transfer_reason: formData.transferReason || null,
             notes: formData.notes || null,
-            initiated_by: user.id,
-            created_by: user.id
+            initiated_by: user.id
           })
           .select('id')
           .single();
@@ -210,8 +213,7 @@ export const useTransfers = () => {
         .from('inventory_transfers')
         .update({ 
           status: 'approved' as TransferStatus,
-          approved_by: user.id,
-          updated_by: user.id
+          approved_by: user.id
         })
         .eq('id', transferId)
         .eq('status', 'pending');
@@ -277,8 +279,7 @@ export const useTransfers = () => {
         .update({ 
           status: 'rejected' as TransferStatus,
           notes: reason,
-          approved_by: user.id,
-          updated_by: user.id
+          approved_by: user.id
         })
         .eq('id', transferId)
         .eq('status', 'pending');

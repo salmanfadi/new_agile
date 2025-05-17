@@ -1,4 +1,3 @@
-
 export interface Warehouse {
   id: string;
   name: string;
@@ -36,8 +35,8 @@ export type InventoryStatus = 'available' | 'reserved' | 'sold' | 'damaged';
 export type BatchStatus = 'completed' | 'processing' | 'failed' | 'cancelled';
 export type StockStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing' | 'failed';
 export type TransferStatus = 'pending' | 'approved' | 'rejected' | 'in_transit' | 'completed' | 'cancelled';
-export type MovementType = 'in' | 'out' | 'transfer' | 'adjustment' | 'reserve' | 'release';
-export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'failed';
+export type MovementType = 'in' | 'out' | 'transfer' | 'adjustment' | 'reserve' | 'release'; 
+export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit';
 
 export interface Inventory {
   id: string;

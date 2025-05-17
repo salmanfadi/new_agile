@@ -66,7 +66,7 @@ export function useBarcodeProcessor({
             location_id: locationId,
             movement_type: 'adjustment' as MovementType, // Using adjustment for scanning/lookup operations
             quantity: 0, // Zero quantity as this is just a scan, not actual movement
-            status: 'completed' as MovementStatus, // Use 'completed' instead of 'approved'
+            status: 'approved' as MovementStatus, // Changed from 'completed' to 'approved' to match enum
             performed_by: user?.id || 'anonymous',
             details: logDetails
           });
