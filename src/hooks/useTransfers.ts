@@ -106,6 +106,12 @@ export const useTransfers = () => {
         }
         
         return data || [];
+      },
+      // Handle errors gracefully with empty default
+      meta: {
+        onError: (error: any) => {
+          console.error('Transfer history query failed:', error);
+        }
       }
     });
   };

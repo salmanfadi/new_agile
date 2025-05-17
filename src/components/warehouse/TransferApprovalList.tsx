@@ -95,7 +95,7 @@ const TransferApprovalList: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {pendingTransfers.map(transfer => (
+            {pendingTransfers && pendingTransfers.map(transfer => (
               <Card key={transfer.id} className="border-t border-gray-200">
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-center">

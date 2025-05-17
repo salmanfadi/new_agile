@@ -69,7 +69,7 @@ const TransferHistoryTable: React.FC = () => {
       case 'completed':
         return 'success';
       case 'in_transit':
-        return 'warning';
+        return 'secondary'; // Changed from warning to secondary which is a valid variant
       case 'cancelled':
         return 'secondary';
       default:
@@ -100,7 +100,7 @@ const TransferHistoryTable: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transfers.map((transfer) => (
+            {transfers && transfers.map((transfer) => (
               <TableRow key={transfer.id}>
                 <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>

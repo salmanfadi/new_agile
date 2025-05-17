@@ -2,7 +2,7 @@
 // Define interfaces for inventory movement system
 
 export type MovementType = 'in' | 'out' | 'adjustment' | 'reserve' | 'release' | 'transfer';
-export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit';
+export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'failed';
 
 export interface InventoryMovement {
   id: string;

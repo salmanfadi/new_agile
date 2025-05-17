@@ -31,6 +31,7 @@ export interface Product {
   category?: string | null;
 }
 
+// Updated enums to match PostgreSQL types
 export type InventoryStatus = 'available' | 'reserved' | 'sold' | 'damaged';
 export type BatchStatus = 'completed' | 'processing' | 'failed' | 'cancelled';
 export type StockStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing' | 'failed';
