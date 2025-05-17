@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { InventoryTransfer } from '@/types/database';
 import { useAuth } from '@/context/AuthContext';
+import { useInventoryTransferMovements } from './useInventoryTransferMovements';
 
 export interface TransferFormData {
   productId: string;
@@ -19,6 +20,7 @@ export interface TransferFormData {
 export const useTransfers = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { createTransferMovements } = useInventoryTransferMovements();
   
   // Get pending transfers that require approval
   const getPendingTransfers = () => {
@@ -112,7 +114,7 @@ export const useTransfers = () => {
       }
       
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('inventory_transfers')
           .insert({
             product_id: formData.productId,
@@ -125,11 +127,13 @@ export const useTransfers = () => {
             transfer_reason: formData.transferReason || null,
             notes: formData.notes || null,
             initiated_by: user.id
-          });
+          })
+          .select('id')
+          .single();
           
         if (error) throw error;
         
-        return { success: true };
+        return { success: true, transferId: data.id };
       } catch (error) {
         console.error('Error creating transfer:', error);
         throw error;
@@ -163,7 +167,19 @@ export const useTransfers = () => {
         throw new Error('User not authenticated');
       }
       
-      const { error } = await supabase
+      // First, get the transfer details to create movements after approval
+      const { data: transfer, error: fetchError } = await supabase
+        .from('inventory_transfers')
+        .select('*')
+        .eq('id', transferId)
+        .eq('status', 'pending')
+        .single();
+      
+      if (fetchError) throw fetchError;
+      if (!transfer) throw new Error('Transfer not found or already processed');
+      
+      // Update the transfer status
+      const { error: updateError } = await supabase
         .from('inventory_transfers')
         .update({ 
           status: 'approved',
@@ -172,15 +188,39 @@ export const useTransfers = () => {
         .eq('id', transferId)
         .eq('status', 'pending');
         
-      if (error) throw error;
+      if (updateError) throw updateError;
       
-      return { success: true };
+      return { 
+        success: true,
+        transfer: {
+          id: transfer.id,
+          productId: transfer.product_id,
+          sourceWarehouseId: transfer.source_warehouse_id,
+          sourceLocationId: transfer.source_location_id,
+          destinationWarehouseId: transfer.destination_warehouse_id,
+          destinationLocationId: transfer.destination_location_id,
+          quantity: transfer.quantity
+        }
+      };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       toast({
         title: 'Transfer Approved',
         description: 'The transfer has been approved successfully.',
       });
+      
+      // Create inventory movements for the transfer
+      if (result.transfer) {
+        createTransferMovements.mutate({
+          transferId: result.transfer.id,
+          productId: result.transfer.productId,
+          sourceWarehouseId: result.transfer.sourceWarehouseId,
+          sourceLocationId: result.transfer.sourceLocationId,
+          destinationWarehouseId: result.transfer.destinationWarehouseId,
+          destinationLocationId: result.transfer.destinationLocationId,
+          quantity: result.transfer.quantity
+        });
+      }
       
       queryClient.invalidateQueries({ queryKey: ['pending-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-history'] });
@@ -208,7 +248,8 @@ export const useTransfers = () => {
         .from('inventory_transfers')
         .update({ 
           status: 'rejected',
-          notes: reason
+          notes: reason,
+          approved_by: user.id
         })
         .eq('id', transferId)
         .eq('status', 'pending');
