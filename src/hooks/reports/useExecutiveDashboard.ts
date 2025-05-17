@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ReportFilters } from '@/types/reports';
 import { format, parseISO, subDays } from 'date-fns';
@@ -50,7 +50,14 @@ export const useExecutiveDashboard = (initialFilters: ReportFilters) => {
       // 1. Get inventory value and count
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
-        .select('quantity, product_id, products:product_id(name, sku)')
+        .select(`
+          quantity,
+          product_id,
+          products:product_id (
+            name, 
+            sku
+          )
+        `)
         .gt('quantity', 0);
 
       if (inventoryError) throw inventoryError;
@@ -58,7 +65,11 @@ export const useExecutiveDashboard = (initialFilters: ReportFilters) => {
       // Calculate inventory value (using a dummy average value per item for simplicity)
       // In a real implementation, you would join with a price table or use product prices
       const averageItemValue = 100; // $100 per item
-      const totalInventoryValue = inventoryData.reduce((sum, item) => sum + (item.quantity * averageItemValue), 0);
+      const totalInventoryValue = inventoryData.reduce((sum, item) => {
+        // Use optional chaining and type checking to safely access product name
+        const productDetails = item.products as { name?: string; sku?: string } | null;
+        return sum + (item.quantity * averageItemValue);
+      }, 0);
       
       // 2. Get stock movements for turnover calculation
       const { data: movementsData, error: movementsError } = await supabase
@@ -86,7 +97,8 @@ export const useExecutiveDashboard = (initialFilters: ReportFilters) => {
       // 3. Get top products by quantity
       const productSummary = inventoryData.reduce((acc, item) => {
         const productId = item.product_id;
-        const productName = item.products?.name || 'Unknown Product';
+        const productDetails = item.products as { name?: string; sku?: string } | null;
+        const productName = productDetails?.name || 'Unknown Product';
         
         if (!acc[productId]) {
           acc[productId] = {
@@ -183,7 +195,7 @@ export const useExecutiveDashboard = (initialFilters: ReportFilters) => {
   };
 
   // Fetch data on mount and when filters change
-  React.useEffect(() => {
+  useEffect(() => {
     fetchDashboardData();
   }, [filters]);
 

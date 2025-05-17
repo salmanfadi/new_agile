@@ -130,6 +130,7 @@ const ExecutiveDashboard: React.FC = () => {
               xAxisLabel="Date"
               yAxisLabel="Quantity"
               height={300}
+              title="Stock Movement Trend"
             />
           </CardContent>
         </Card>
@@ -171,6 +172,7 @@ const ExecutiveDashboard: React.FC = () => {
               xAxisLabel="Metric"
               yAxisLabel="Value"
               height={300}
+              title="Key Operational Metrics"
             />
           </CardContent>
         </Card>
@@ -183,6 +185,7 @@ const ExecutiveDashboard: React.FC = () => {
             <PieChart
               data={warehouseDistributionData}
               height={300}
+              title="Inventory Distribution by Warehouse"
             />
           </CardContent>
         </Card>

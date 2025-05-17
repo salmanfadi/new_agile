@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   LineChart as RechartsLineChart,
@@ -10,15 +9,13 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type DataItem = {
-  date?: string;
-  name?: string;
-  [key: string]: string | number | undefined;
+  name: string;
+  [key: string]: string | number;
 };
 
-interface LineChartProps {
+export interface LineChartProps {
   data: DataItem[];
   keys: string[];
   title: string;
@@ -33,7 +30,7 @@ export function LineChart({
   data,
   keys,
   title,
-  xAxisKey = 'date',
+  xAxisKey = 'name',
   xAxisLabel,
   yAxisLabel,
   colors = ['#1d4ed8', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'],
