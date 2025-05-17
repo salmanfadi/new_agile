@@ -182,7 +182,7 @@ export interface InventoryTransfer {
   created_at: string;
   updated_at: string;
   // Join fields
-  product?: Product;
+  products?: Product;
   source_warehouse?: Warehouse;
   source_location?: WarehouseLocation;
   destination_warehouse?: Warehouse;

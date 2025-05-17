@@ -95,96 +95,86 @@ const TransferApprovalList: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {pendingTransfers.map(transfer => {
-              const sourceWarehouse = transfer.source_warehouse;
-              const sourceLocation = transfer.source_location;
-              const destinationWarehouse = transfer.destination_warehouse;
-              const destinationLocation = transfer.destination_location;
-              const product = transfer.products;
-              const requester = transfer.initiator;
-              const requestDate = new Date(transfer.created_at).toLocaleString();
-              
-              return (
-                <Card key={transfer.id} className="border-t border-gray-200">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-lg">Transfer Request</CardTitle>
-                      <Badge variant="outline">Pending</Badge>
-                    </div>
-                    <CardDescription>
-                      Requested by {requester?.name || requester?.username || 'Unknown'} on {requestDate}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center mb-4">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">From</p>
-                        <p className="font-medium">{sourceWarehouse?.name || 'Unknown Warehouse'}</p>
-                        <p className="text-sm text-gray-500">
-                          Floor {sourceLocation?.floor}, Zone {sourceLocation?.zone}
-                        </p>
-                      </div>
-                      
-                      <div className="flex justify-center items-center">
-                        <div className="flex items-center text-gray-500">
-                          <ArrowLeft className="h-4 w-4" />
-                          <span className="mx-2">{transfer.quantity}</span>
-                          <ArrowRight className="h-4 w-4" />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">To</p>
-                        <p className="font-medium">{destinationWarehouse?.name || 'Unknown Warehouse'}</p>
-                        <p className="text-sm text-gray-500">
-                          Floor {destinationLocation?.floor}, Zone {destinationLocation?.zone}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2 mb-4">
-                      <p className="text-sm font-medium">Product</p>
-                      <p>
-                        {product?.name || 'Unknown Product'}{' '}
-                        {product?.sku && <span className="text-gray-500">({product.sku})</span>}
+            {pendingTransfers.map(transfer => (
+              <Card key={transfer.id} className="border-t border-gray-200">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg">Transfer Request</CardTitle>
+                    <Badge variant="outline">Pending</Badge>
+                  </div>
+                  <CardDescription>
+                    Requested by {transfer.initiator?.name || transfer.initiator?.username || 'Unknown'} on {new Date(transfer.created_at).toLocaleString()}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center mb-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">From</p>
+                      <p className="font-medium">{transfer.source_warehouse?.name || 'Unknown Warehouse'}</p>
+                      <p className="text-sm text-gray-500">
+                        Floor {transfer.source_location?.floor}, Zone {transfer.source_location?.zone}
                       </p>
                     </div>
-
-                    {transfer.transfer_reason && (
-                      <div className="space-y-2 mb-4">
-                        <p className="text-sm font-medium">Transfer Reason</p>
-                        <p className="text-gray-600">{transfer.transfer_reason}</p>
-                      </div>
-                    )}
                     
-                    {transfer.notes && (
-                      <div className="space-y-2 mb-4">
-                        <p className="text-sm font-medium">Notes</p>
-                        <p className="text-gray-600">{transfer.notes}</p>
+                    <div className="flex justify-center items-center">
+                      <div className="flex items-center text-gray-500">
+                        <ArrowLeft className="h-4 w-4" />
+                        <span className="mx-2">{transfer.quantity}</span>
+                        <ArrowRight className="h-4 w-4" />
                       </div>
-                    )}
-                    
-                    <div className="flex justify-end space-x-2 mt-4">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleRejectClick(transfer.id)}
-                        disabled={rejectTransfer.isPending}
-                      >
-                        <X className="mr-1 h-4 w-4" />
-                        Reject
-                      </Button>
-                      <Button 
-                        onClick={() => handleApproveClick(transfer.id)}
-                        disabled={approveTransfer.isPending}
-                      >
-                        <Check className="mr-1 h-4 w-4" />
-                        Approve
-                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">To</p>
+                      <p className="font-medium">{transfer.destination_warehouse?.name || 'Unknown Warehouse'}</p>
+                      <p className="text-sm text-gray-500">
+                        Floor {transfer.destination_location?.floor}, Zone {transfer.destination_location?.zone}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 mb-4">
+                    <p className="text-sm font-medium">Product</p>
+                    <p>
+                      {transfer.products?.name || 'Unknown Product'}{' '}
+                      {transfer.products?.sku && <span className="text-gray-500">({transfer.products.sku})</span>}
+                    </p>
+                  </div>
+
+                  {transfer.transfer_reason && (
+                    <div className="space-y-2 mb-4">
+                      <p className="text-sm font-medium">Transfer Reason</p>
+                      <p className="text-gray-600">{transfer.transfer_reason}</p>
+                    </div>
+                  )}
+                  
+                  {transfer.notes && (
+                    <div className="space-y-2 mb-4">
+                      <p className="text-sm font-medium">Notes</p>
+                      <p className="text-gray-600">{transfer.notes}</p>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end space-x-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleRejectClick(transfer.id)}
+                      disabled={rejectTransfer.isPending}
+                    >
+                      <X className="mr-1 h-4 w-4" />
+                      Reject
+                    </Button>
+                    <Button 
+                      onClick={() => handleApproveClick(transfer.id)}
+                      disabled={approveTransfer.isPending}
+                    >
+                      <Check className="mr-1 h-4 w-4" />
+                      Approve
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>

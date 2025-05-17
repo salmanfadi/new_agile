@@ -39,12 +39,12 @@ export const useUserStockActivity = (userId: string | undefined, { limit }: { li
         .eq('requested_by', userId)
         .order('created_at', { ascending: false });
         
-      // Transfers - Using the new inventory_transfers table
+      // Transfers - Using the inventory_transfers table
       let transfersQuery = supabase
         .from('inventory_transfers')
         .select(`
           id,
-          product:product_id(name),
+          products:product_id(name),
           quantity,
           status,
           created_at,

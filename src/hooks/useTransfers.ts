@@ -42,12 +42,12 @@ export const useTransfers = () => {
             approved_by,
             created_at,
             updated_at,
-            products:product_id (name, sku),
-            source_warehouse:source_warehouse_id (name, location),
-            source_location:source_location_id (floor, zone),
-            destination_warehouse:destination_warehouse_id (name, location),
-            destination_location:destination_location_id (floor, zone),
-            initiator:initiated_by (name, username)
+            products:product_id(name, sku),
+            source_warehouse:source_warehouse_id(name, location),
+            source_location:source_location_id(floor, zone),
+            destination_warehouse:destination_warehouse_id(name, location),
+            destination_location:destination_location_id(floor, zone),
+            initiator:initiated_by(name, username)
           `)
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
@@ -84,13 +84,13 @@ export const useTransfers = () => {
             approved_by,
             created_at,
             updated_at,
-            products:product_id (name, sku),
-            source_warehouse:source_warehouse_id (name, location),
-            source_location:source_location_id (floor, zone),
-            destination_warehouse:destination_warehouse_id (name, location),
-            destination_location:destination_location_id (floor, zone),
-            initiator:initiated_by (name, username),
-            approver:approved_by (name, username)
+            products:product_id(name, sku),
+            source_warehouse:source_warehouse_id(name, location),
+            source_location:source_location_id(floor, zone),
+            destination_warehouse:destination_warehouse_id(name, location),
+            destination_location:destination_location_id(floor, zone),
+            initiator:initiated_by(name, username),
+            approver:approved_by(name, username)
           `)
           .order('created_at', { ascending: false });
           
@@ -143,6 +143,8 @@ export const useTransfers = () => {
       
       queryClient.invalidateQueries({ queryKey: ['pending-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-history'] });
+      // Also invalidate inventory queries to reflect changes
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
     onError: (error) => {
       console.error('Failed to create transfer:', error);
@@ -182,6 +184,8 @@ export const useTransfers = () => {
       
       queryClient.invalidateQueries({ queryKey: ['pending-transfers'] });
       queryClient.invalidateQueries({ queryKey: ['transfer-history'] });
+      // Also invalidate inventory queries to reflect changes
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
     onError: (error) => {
       console.error('Failed to approve transfer:', error);

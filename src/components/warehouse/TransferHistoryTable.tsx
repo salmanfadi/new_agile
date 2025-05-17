@@ -80,46 +80,38 @@ const TransferHistoryTable: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transfers.map((transfer) => {
-              const product = transfer.products;
-              const sourceWarehouse = transfer.source_warehouse;
-              const sourceLocation = transfer.source_location;
-              const destWarehouse = transfer.destination_warehouse;
-              const destLocation = transfer.destination_location;
-              
-              return (
-                <TableRow key={transfer.id}>
-                  <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    {product?.name} 
-                    {product?.sku && <span className="text-xs text-gray-500 block">{product.sku}</span>}
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{sourceWarehouse?.name || 'Unknown'}</div>
-                    <div className="text-xs text-gray-500">
-                      Floor {sourceLocation?.floor}, Zone {sourceLocation?.zone}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{destWarehouse?.name || 'Unknown'}</div>
-                    <div className="text-xs text-gray-500">
-                      Floor {destLocation?.floor}, Zone {destLocation?.zone}
-                    </div>
-                  </TableCell>
-                  <TableCell>{transfer.quantity}</TableCell>
-                  <TableCell>
-                    <Badge variant={
-                      transfer.status === 'approved' ? 'success' : 
-                      transfer.status === 'rejected' ? 'destructive' : 
-                      transfer.status === 'pending' ? 'outline' : 
-                      'secondary'
-                    }>
-                      {transfer.status?.charAt(0).toUpperCase() + transfer.status?.slice(1) || 'Unknown'}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {transfers.map((transfer) => (
+              <TableRow key={transfer.id}>
+                <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {transfer.products?.name} 
+                  {transfer.products?.sku && <span className="text-xs text-gray-500 block">{transfer.products.sku}</span>}
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{transfer.source_warehouse?.name || 'Unknown'}</div>
+                  <div className="text-xs text-gray-500">
+                    Floor {transfer.source_location?.floor}, Zone {transfer.source_location?.zone}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{transfer.destination_warehouse?.name || 'Unknown'}</div>
+                  <div className="text-xs text-gray-500">
+                    Floor {transfer.destination_location?.floor}, Zone {transfer.destination_location?.zone}
+                  </div>
+                </TableCell>
+                <TableCell>{transfer.quantity}</TableCell>
+                <TableCell>
+                  <Badge variant={
+                    transfer.status === 'approved' ? 'success' : 
+                    transfer.status === 'rejected' ? 'destructive' : 
+                    transfer.status === 'pending' ? 'outline' : 
+                    'secondary'
+                  }>
+                    {transfer.status?.charAt(0).toUpperCase() + transfer.status?.slice(1) || 'Unknown'}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </CardContent>
