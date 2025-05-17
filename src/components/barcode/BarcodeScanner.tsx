@@ -1,252 +1,105 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { ScanResponse } from '@/types/auth';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle,
-  CardDescription,
-  CardFooter
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input'; 
+import React, { useEffect, useRef } from 'react';
+import Quagga from '@ericblade/quagga2';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Barcode, Search, Camera, X } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Barcode, X } from 'lucide-react';
 
-// Import our components and hooks
-import { BarcodeScannerProps } from './types';
-import { useBarcodeProcessor } from './useBarcodeProcessor';
-import { useBarcodeDetection } from './useBarcodeDetection';
-import { useHardwareScanner } from './useHardwareScanner';
-import ScanDataDisplay from './ScanDataDisplay';
-import CameraScanner from './CameraScanner';
+interface BarcodeScannerProps {
+  onDetected: (barcode: string) => void;
+  onClose: () => void;
+}
 
-const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
-  onScanComplete,
-  embedded = false,
-  allowManualEntry = true,
-  allowCameraScanning = true,
-  onBarcodeScanned,
-  inputValue,
-  onInputChange,
-  scanButtonLabel = 'Search',
-}) => {
-  const [barcode, setBarcode] = useState(inputValue || '');
-  const [isScanning, setIsScanning] = useState(true); // Auto start scanning
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  
-  const inputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  const { user } = useAuth();
-  const { toast } = useToast();
+export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) => {
+  const isInitialized = useRef(false);
 
-  // Initialize our custom hooks
-  const {
-    processScan,
-    loading,
-    error,
-    setError,
-    scanData,
-    setScanData
-  } = useBarcodeProcessor({
-    user,
-    toast,
-    onScanComplete,
-    onBarcodeScanned
-  });
-
-  const {
-    initBarcodeDetection,
-    cleanupResources
-  } = useBarcodeDetection({
-    processScan,
-    isCameraActive,
-    videoRef,
-    canvasRef
-  });
-
-  useHardwareScanner({
-    isScanning,
-    processScan,
-    inputRef
-  });
-
-  // Update barcode when inputValue changes (for controlled component)
   useEffect(() => {
-    if (inputValue !== undefined) {
-      setBarcode(inputValue);
-    }
-  }, [inputValue]);
+    if (isInitialized.current) return;
+    isInitialized.current = true;
 
-  // Handle camera activation/deactivation
-  useEffect(() => {
-    if (isCameraActive) {
-      initBarcodeDetection();
-    } else {
-      cleanupResources();
-    }
-    
-    return cleanupResources;
-  }, [isCameraActive, initBarcodeDetection, cleanupResources]);
+    const initializeScanner = async () => {
+      try {
+        await Quagga.init({
+          inputStream: {
+            type: 'LiveStream',
+            constraints: {
+              facingMode: 'environment',
+              width: { min: 450 },
+              height: { min: 300 },
+              aspectRatio: { min: 1, max: 2 }
+            },
+            target: '#scanner-container',
+          },
+          locator: {
+            patchSize: 'medium',
+            halfSample: true
+          },
+          numOfWorkers: navigator.hardwareConcurrency || 2,
+          decoder: {
+            readers: ['code_128_reader', 'ean_reader', 'ean_8_reader', 'code_39_reader', 'code_93_reader']
+          },
+          locate: true
+        });
 
-  // Focus input on mount
-  useEffect(() => {
-    if (isScanning && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isScanning]);
+        Quagga.start();
 
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (barcode) {
-      processScan(barcode);
-      // Only reset barcode if not controlled externally
-      if (inputValue === undefined && !scanData) {
-        setBarcode('');
+        Quagga.onDetected((result) => {
+          if (result && result.codeResult && result.codeResult.code) {
+            const code = result.codeResult.code;
+            console.log('Barcode detected:', code);
+            onDetected(code);
+            Quagga.stop();
+          }
+        });
+      } catch (error) {
+        console.error('Error initializing barcode scanner:', error);
       }
-    } else {
-      setError('Please enter a barcode');
-      toast({
-        variant: 'destructive',
-        title: 'Input Required',
-        description: 'Please enter a barcode to search',
-      });
-    }
-  };
+    };
 
-  const toggleScanner = () => {
-    setIsScanning(!isScanning);
-    if (!isScanning) {
-      // Focus on the input when scanner is activated
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
+    initializeScanner();
+
+    return () => {
+      if (Quagga) {
+        try {
+          Quagga.stop();
+        } catch (e) {
+          console.log('Error stopping Quagga:', e);
         }
-      }, 100);
-    }
-  };
-
-  const toggleCamera = () => {
-    setIsCameraActive(!isCameraActive);
-  };
-
-  const resetScan = () => {
-    setScanData(null);
-    setError(null);
-    setBarcode('');
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
-
-  // Handle input change for controlled or uncontrolled component
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (onInputChange) {
-      // For controlled component
-      onInputChange(e);
-    } else {
-      // For uncontrolled component
-      setBarcode(e.target.value);
-    }
-  };
+      }
+    };
+  }, [onDetected]);
 
   return (
-    <Card className={embedded ? 'border-dashed border-2' : ''}>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Barcode className="mr-2 h-5 w-5" />
-          Barcode Scanner
-        </CardTitle>
-        <CardDescription>
-          {isScanning 
-            ? 'Enter a barcode manually or use a hardware scanner' 
-            : 'Click Start Scanning to begin.'}
-        </CardDescription>
-      </CardHeader>
-      
-      <CardContent>
-        {isScanning && (
-          <form onSubmit={handleManualSubmit} className="space-y-4">
-            <div className="flex space-x-2">
-              <Input
-                ref={inputRef}
-                type="text"
-                value={barcode}
-                onChange={handleInputChange}
-                placeholder="Enter barcode (e.g. ELEC-LAP123-003)"
-                className="flex-1"
-                autoFocus
-                disabled={loading}
-              />
-              
-              {allowManualEntry && (
-                <Button type="submit" disabled={loading}>
-                  <Search className="h-4 w-4 mr-2" />
-                  {loading ? 'Searching...' : scanButtonLabel || 'Search'}
-                </Button>
-              )}
-              
-              {allowCameraScanning && (
-                <Button 
-                  type="button" 
-                  variant={isCameraActive ? "destructive" : "secondary"}
-                  onClick={toggleCamera}
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            
-            {isCameraActive && (
-              <CameraScanner videoRef={videoRef} canvasRef={canvasRef} />
-            )}
-            
-            {error && (
-              <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm">
-                {error}
-              </div>
-            )}
-          </form>
-        )}
+    <Dialog open={true} onOpenChange={() => onClose()}>
+      <DialogContent className="w-full max-w-md p-0">
+        <DialogHeader className="p-4 border-b">
+          <DialogTitle className="flex items-center">
+            <Barcode className="mr-2 h-5 w-5" />
+            Scan Barcode
+          </DialogTitle>
+        </DialogHeader>
         
-        {scanData && !onBarcodeScanned && (
-          <ScanDataDisplay scanData={scanData} />
-        )}
-        
-        {loading && (
-          <div className="space-y-3 mt-4">
-            <Skeleton className="h-[28px] w-full" />
-            <Skeleton className="h-[20px] w-3/4" />
-            <div className="grid grid-cols-2 gap-4">
-              <Skeleton className="h-[40px]" />
-              <Skeleton className="h-[40px]" /> 
-            </div>
+        <div className="p-4">
+          <div id="scanner-container" className="relative overflow-hidden bg-black rounded-md aspect-video">
+            <div className="absolute inset-0 border-2 border-dashed border-primary opacity-70 pointer-events-none"></div>
           </div>
-        )}
-      </CardContent>
-      
-      <CardFooter className="flex justify-between">
-        <Button 
-          variant={isScanning ? "outline" : "default"}
-          onClick={toggleScanner}
-        >
-          {isScanning ? 'Stop Scanning' : 'Start Scanning'}
-        </Button>
-        
-        {scanData && !onBarcodeScanned && (
-          <Button variant="secondary" onClick={resetScan}>
-            <X className="h-4 w-4 mr-2" />
-            Clear
-          </Button>
-        )}
-      </CardFooter>
-    </Card>
+          
+          <p className="text-center text-sm text-muted-foreground mt-4">
+            Point your camera at a barcode to scan
+          </p>
+          
+          <div className="mt-4 flex justify-center">
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              className="flex items-center"
+            >
+              <X className="mr-2 h-4 w-4" />
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
-
-export default BarcodeScanner;

@@ -30,7 +30,7 @@ export const useTransfers = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch transfer history
+  // Fetch transfer history with proper relationship aliases
   const getTransferHistory = (filters?: Record<string, any>) => {
     return useQuery({
       queryKey: ['transfers-history', filters],
@@ -102,7 +102,7 @@ export const useTransfers = () => {
     });
   };
 
-  // Get pending transfers for approval
+  // Get pending transfers for approval with proper relationship aliases
   const getPendingTransfers = () => {
     return useQuery({
       queryKey: ['transfers-pending'],

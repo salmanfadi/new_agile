@@ -10,7 +10,7 @@ export const InventoryStatus = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Use the same shared hook for consistent data
-  const { inventoryItems, isLoading, error } = useInventoryData('', '', searchTerm);
+  const { inventoryItems, isLoading, error } = useInventoryData('', '', '', searchTerm);
   
   return (
     <Card className="w-full">

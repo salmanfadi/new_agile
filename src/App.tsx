@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   createBrowserRouter,
@@ -43,6 +44,7 @@ import AdminInventoryTransfers from './pages/admin/InventoryTransfers';
 import FieldOperatorTransfers from './pages/fieldOperator/Transfers';
 import FieldOperatorSubmissions from './pages/fieldOperator/Submissions';
 import FieldOperatorSettings from './pages/fieldOperator/Settings';
+import SalesOperatorInventoryView from './pages/salesOperator/InventoryView';
 
 // Define routes
 const router = createBrowserRouter([
@@ -115,6 +117,10 @@ const router = createBrowserRouter([
       {
         path: "sales",
         element: <RequireAuth allowedRoles={['sales_operator']}><SalesOperatorDashboard /></RequireAuth>,
+      },
+      {
+        path: "sales/inventory",
+        element: <RequireAuth allowedRoles={['sales_operator']}><SalesOperatorInventoryView /></RequireAuth>,
       },
       {
         path: "customer/portal",

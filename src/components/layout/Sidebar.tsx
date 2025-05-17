@@ -1,7 +1,23 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { AlignLeft, ArrowLeftRight, BarChart, Settings, Home, KanbanSquare, LayoutDashboard, ListChecks, LogOut, LucideIcon, Package2, ShoppingCart, User2, Users, Warehouse } from 'lucide-react';
+import { 
+  AlignLeft, 
+  ArrowLeftRight, 
+  BarChart, 
+  Settings, 
+  Home, 
+  KanbanSquare, 
+  LayoutDashboard, 
+  ListChecks, 
+  LogOut, 
+  LucideIcon, 
+  Package2, 
+  ShoppingCart, 
+  User2, 
+  Users, 
+  Warehouse 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -169,6 +185,11 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
           href: "/sales/inquiries",
           label: "Inquiries",
           icon: ListChecks,
+        },
+        {
+          href: "/sales/inventory",
+          label: "Inventory",
+          icon: KanbanSquare,
         },
         {
           href: "/sales/settings",

@@ -1,168 +1,101 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+
+interface Filters {
+  searchTerm: string;
+  warehouseFilter: string;
+  batchFilter: string;
+  statusFilter: string;
+}
 
 export const useInventoryFilters = () => {
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [warehouseFilter, setWarehouseFilter] = useState<string>('');
-  const [batchFilter, setBatchFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-
-  // Reset filters if URL changes
-  useEffect(() => {
-    console.log('Initializing inventory filters');
-    
-    // Listen for route changes, then clear filters when on a new page
-    return () => {
-      // No cleanup needed in this case
-    };
-  }, []);
-
-  // Fetch batch IDs for filter with more details
-  const batchIdsQuery = useQuery({
-    queryKey: ['batch-ids'],
-    queryFn: async () => {
-      console.log('Fetching batch IDs for filter');
-      try {
-        const { data, error } = await supabase
-          .from('stock_in')
-          .select('id, created_at, source, status, product_id')
-          .order('created_at', { ascending: false });
-          
-        if (error) {
-          console.error('Error fetching batch IDs:', error);
-          throw error;
-        }
-        
-        console.log(`Found ${data?.length || 0} batch IDs`);
-        
-        if (!data || data.length === 0) {
-          return [];
-        }
-        
-        // Get product names for the batches
-        const productIds = [...new Set(data.map(batch => batch.product_id))];
-        const { data: productsData, error: productsError } = await supabase
-          .from('products')
-          .select('id, name')
-          .in('id', productIds);
-          
-        if (productsError) {
-          console.error('Error fetching products for batches:', productsError);
-        }
-        
-        // Create a map of product ids to names
-        const productMap: Record<string, string> = {};
-        if (productsData) {
-          productsData.forEach(product => {
-            productMap[product.id] = product.name;
-          });
-        }
-        
-        // Map the data to include formatted dates and product names for better readability
-        const formattedData = data.map(batch => {
-          const createdDate = new Date(batch.created_at);
-          const productName = batch.product_id && productMap[batch.product_id] 
-            ? productMap[batch.product_id] 
-            : 'Unknown Product';
-            
-          return {
-            id: batch.id,
-            formattedDate: createdDate.toLocaleDateString(),
-            displayDate: createdDate.toLocaleDateString('en-US', { 
-              month: '2-digit', 
-              day: '2-digit', 
-              year: 'numeric' 
-            }),
-            source: batch.source || 'Unknown Source',
-            status: batch.status,
-            created_at: batch.created_at,
-            productName
-          };
-        });
-        
-        console.log('Formatted batch data:', formattedData.slice(0, 3)); // Log a sample to debug
-        
-        return formattedData;
-      } catch (error) {
-        console.error('Failed to fetch batch data:', error);
-        toast({
-          title: 'Error',
-          description: 'Could not load batch filter data',
-          variant: 'destructive'
-        });
-        return [];
-      }
-    }
+  const [filters, setFilters] = useState<Filters>({
+    searchTerm: '',
+    warehouseFilter: '',
+    batchFilter: '',
+    statusFilter: '',
   });
 
-  // Fetch warehouses for filter
+  const setSearchTerm = (term: string) => {
+    setFilters(prev => ({ ...prev, searchTerm: term }));
+  };
+
+  const setWarehouseFilter = (warehouseId: string) => {
+    setFilters(prev => ({ ...prev, warehouseFilter: warehouseId }));
+  };
+
+  const setBatchFilter = (batchId: string) => {
+    setFilters(prev => ({ ...prev, batchFilter: batchId }));
+  };
+
+  const setStatusFilter = (status: string) => {
+    setFilters(prev => ({ ...prev, statusFilter: status }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      searchTerm: '',
+      warehouseFilter: '',
+      batchFilter: '',
+      statusFilter: '',
+    });
+  };
+
+  // Fetch warehouses for filtering
   const warehousesQuery = useQuery({
     queryKey: ['warehouses'],
     queryFn: async () => {
-      console.log('Fetching warehouses for filter');
-      try {
-        const { data, error } = await supabase
-          .from('warehouses')
-          .select('*')
-          .order('name', { ascending: true });
-          
-        if (error) {
-          console.error('Error fetching warehouses:', error);
-          throw error;
-        }
-        
-        console.log(`Found ${data?.length || 0} warehouses`);
-        return data || [];
-      } catch (error) {
-        console.error('Failed to fetch warehouse data:', error);
-        toast({
-          title: 'Error',
-          description: 'Could not load warehouse filter data',
-          variant: 'destructive'
-        });
-        return [];
-      }
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('id, name, location')
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
     }
   });
 
-  // Define available statuses for inventory items
+  // Fetch batch IDs for filtering
+  const batchesQuery = useQuery({
+    queryKey: ['batch-ids'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processed_batches')
+        .select('id, product_id, products:product_id(name)')
+        .order('processed_at', { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      
+      return (data || []).map(batch => ({
+        value: batch.id,
+        label: `Batch ${batch.id.substring(0, 8)}... - ${batch.products?.name || 'Unknown'}`
+      }));
+    }
+  });
+
+  // Available status options
   const availableStatuses = [
     { value: '', label: 'All Statuses' },
     { value: 'available', label: 'Available' },
     { value: 'reserved', label: 'Reserved' },
     { value: 'sold', label: 'Sold' },
-    { value: 'damaged', label: 'Damaged' }
+    { value: 'damaged', label: 'Damaged' },
   ];
 
-  // Reset all filters
-  const resetFilters = () => {
-    console.log('Resetting all filters');
-    setSearchTerm('');
-    setWarehouseFilter('');
-    setBatchFilter('');
-    setStatusFilter('');
-  };
-
   return {
-    filters: {
-      searchTerm,
-      warehouseFilter,
-      batchFilter,
-      statusFilter
-    },
+    filters,
     setSearchTerm,
     setWarehouseFilter,
     setBatchFilter,
     setStatusFilter,
     resetFilters,
-    warehouses: warehousesQuery.data || [],
-    batchIds: batchIdsQuery.data || [],
-    isLoadingBatches: batchIdsQuery.isLoading,
-    isLoadingWarehouses: warehousesQuery.isLoading,
+    warehouses: warehousesQuery.data,
+    batchIds: batchesQuery.data,
     availableStatuses,
-    isLoading: warehousesQuery.isLoading || batchIdsQuery.isLoading
+    isLoadingWarehouses: warehousesQuery.isLoading,
+    isLoadingBatches: batchesQuery.isLoading,
   };
 };
