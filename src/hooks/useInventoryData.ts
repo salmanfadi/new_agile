@@ -54,9 +54,9 @@ export const useInventoryData = (
           batch_id,
           created_at,
           updated_at,
-          products:product_id (id, name, sku),
-          warehouses:warehouse_id (id, name),
-          warehouse_locations:location_id (id, floor, zone)
+          products(id, name, sku),
+          warehouses(id, name),
+          warehouse_locations(id, floor, zone)
         `);
       
       // Apply filters
@@ -74,7 +74,7 @@ export const useInventoryData = (
       
       if (searchTerm) {
         // Search in barcode or related product name
-        queryBuilder = queryBuilder.or(`barcode.ilike.%${searchTerm}%,products.name.ilike.%${searchTerm}%`);
+        queryBuilder = queryBuilder.or(`barcode.ilike.%${searchTerm}%`);
       }
       
       const { data, error } = await queryBuilder;
@@ -88,13 +88,13 @@ export const useInventoryData = (
       return (data || []).map(item => ({
         id: item.id,
         productId: item.product_id,
-        productName: item.products?.name || 'Unknown Product',
-        productSku: item.products?.sku || undefined,
+        productName: item.products?.[0]?.name || 'Unknown Product',
+        productSku: item.products?.[0]?.sku || undefined,
         warehouseId: item.warehouse_id,
-        warehouseName: item.warehouses?.name || 'Unknown Warehouse',
+        warehouseName: item.warehouses?.[0]?.name || 'Unknown Warehouse',
         locationId: item.location_id,
-        locationDetails: item.warehouse_locations 
-          ? `Floor ${item.warehouse_locations.floor}, Zone ${item.warehouse_locations.zone}`
+        locationDetails: item.warehouse_locations?.[0] 
+          ? `Floor ${item.warehouse_locations[0].floor}, Zone ${item.warehouse_locations[0].zone}`
           : 'Unknown Location',
         barcode: item.barcode,
         quantity: item.quantity,
@@ -102,7 +102,7 @@ export const useInventoryData = (
         size: item.size || undefined,
         status: item.status,
         batchId: item.batch_id,
-        source: item.source || undefined,
+        source: undefined, // Changed from item.source since it doesn't exist in the schema
         lastUpdated: format(new Date(item.updated_at), 'MMM d, yyyy h:mm a')
       }));
     },

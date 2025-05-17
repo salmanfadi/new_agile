@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import Quagga from '@ericblade/quagga2';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -17,6 +16,7 @@ interface BarcodeScannerProps {
   inputValue?: string;
   onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBarcodeScanned?: (barcode: string) => void;
+  embedded?: boolean;
 }
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ 
@@ -28,7 +28,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   scanButtonLabel = "Scan",
   inputValue,
   onInputChange,
-  onBarcodeScanned
+  onBarcodeScanned,
+  embedded = false
 }) => {
   const isInitialized = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
