@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { 
   LayoutGrid, Boxes, PackageOpen, Package, 
   Users, ShoppingBag, BarChart3, Warehouse, PanelLeft,
-  BarChart, BarChart2, ChartBar
+  BarChart, BarChart2, ChartBar, Archive
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -47,10 +48,19 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                   <Warehouse className="mr-3 h-5 w-5" />
                   <span>Warehouses</span>
                 </NavLink>
-                <NavLink to="/admin/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <PackageOpen className="mr-3 h-5 w-5" />
-                  <span>Stock In</span>
-                </NavLink>
+                
+                {/* Enhanced Stock In Navigation with Submenu */}
+                <div className="space-y-1">
+                  <NavLink to="/admin/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                    <PackageOpen className="mr-3 h-5 w-5" />
+                    <span>Stock In</span>
+                  </NavLink>
+                  <NavLink to="/admin/stock-in/batches" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-10", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                    <Archive className="mr-3 h-4 w-4" />
+                    <span>Processed Batches</span>
+                  </NavLink>
+                </div>
+                
                 <NavLink to="/admin/stock-out" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Package className="mr-3 h-5 w-5" />
                   <span>Stock Out</span>
@@ -108,10 +118,19 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                   <Boxes className="mr-3 h-5 w-5" />
                   <span>Inventory</span>
                 </NavLink>
-                <NavLink to="/manager/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <PackageOpen className="mr-3 h-5 w-5" />
-                  <span>Stock In</span>
-                </NavLink>
+                
+                {/* Enhanced Stock In Navigation with Submenu */}
+                <div className="space-y-1">
+                  <NavLink to="/manager/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                    <PackageOpen className="mr-3 h-5 w-5" />
+                    <span>Stock In</span>
+                  </NavLink>
+                  <NavLink to="/manager/stock-in/batches" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-10", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                    <Archive className="mr-3 h-4 w-4" />
+                    <span>Processed Batches</span>
+                  </NavLink>
+                </div>
+                
                 <NavLink to="/manager/stock-out" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Package className="mr-3 h-5 w-5" />
                   <span>Stock Out</span>

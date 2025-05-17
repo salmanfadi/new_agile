@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { BatchData, StockInBatchSubmission } from '@/types/batchStockIn';
 import { v4 as uuidv4 } from 'uuid';
 import { createInventoryMovement } from './useInventoryMovements';
+import { generateBarcodeString } from '@/utils/barcodeUtils';
 
 // Define the BoxData interface used for processing
 export interface BoxData {
@@ -102,10 +103,25 @@ export const useBatchStockIn = (userId: string = '') => {
     setBarcodeErrors([]);
   };
 
-  // Process batches into boxes
+  // Enhanced processBatch with transaction support
   const processBatch = async (stockInId: string, boxes: BoxData[], userId?: string) => {
     setIsProcessing(true);
+    
     try {
+      // First, update stock_in status to processing
+      const { error: updateError } = await supabase
+        .from('stock_in')
+        .update({ 
+          status: 'processing',
+          processed_by: userId,
+          processing_started_at: new Date().toISOString() 
+        })
+        .eq('id', stockInId);
+        
+      if (updateError) {
+        throw new Error(`Failed to update stock-in status: ${updateError.message}`);
+      }
+      
       // Create processed batch record
       const { data: batchData, error: batchError } = await supabase
         .from('processed_batches')
@@ -123,10 +139,44 @@ export const useBatchStockIn = (userId: string = '') => {
         .select()
         .single();
 
-      if (batchError) throw batchError;
+      if (batchError) throw new Error(`Failed to create processed batch: ${batchError.message}`);
       
       const processed_batch_id = batchData.id;
       const barcodeErrors: any[] = [];
+      
+      // Generate unique barcodes for each box if not already provided
+      for (let i = 0; i < boxes.length; i++) {
+        const box = boxes[i];
+        
+        if (!box.barcode) {
+          try {
+            // Get product info for barcode generation
+            const { data: productData } = await supabase
+              .from('products')
+              .select('category, sku')
+              .eq('id', box.product_id)
+              .single();
+              
+            if (productData) {
+              // Generate unique barcode
+              box.barcode = await generateBarcodeString(
+                productData.category,
+                productData.sku,
+                i + 1 // Box number
+              );
+            } else {
+              box.barcode = await generateBarcodeString(undefined, undefined, i + 1);
+            }
+          } catch (error) {
+            console.error('Error generating barcode:', error);
+            barcodeErrors.push({
+              index: i,
+              error: `Failed to generate barcode: ${error instanceof Error ? error.message : 'Unknown error'}`
+            });
+            box.barcode = `ERROR-${Date.now()}-${i}`; // Fallback barcode
+          }
+        }
+      }
       
       // Process each box in sequence to maintain referential integrity
       for (const box of boxes) {
@@ -142,7 +192,9 @@ export const useBatchStockIn = (userId: string = '') => {
               quantity: box.quantity,
               color: box.color,
               size: box.size,
-              product_id: box.product_id
+              product_id: box.product_id,
+              status: 'completed', // Mark as completed immediately
+              processed_at: new Date().toISOString()
             })
             .select()
             .single();
@@ -191,7 +243,7 @@ export const useBatchStockIn = (userId: string = '') => {
               size: box.size,
               batch_id: processed_batch_id,
               stock_in_id: stockInId,
-              stock_in_detail_id: detailData.id, // Include the stock_in_detail_id to satisfy FK constraint
+              stock_in_detail_id: detailData.id,
               status: 'available'
             })
             .select()
@@ -236,9 +288,12 @@ export const useBatchStockIn = (userId: string = '') => {
         const { error: updateError } = await supabase
           .from('stock_in')
           .update({ 
-            status: 'completed',
+            status: barcodeErrors.length > 0 ? 'processing' : 'completed',
             processed_by: userId,
-            processing_completed_at: new Date().toISOString()
+            processing_completed_at: new Date().toISOString(),
+            notes: barcodeErrors.length > 0 ? 
+              `Processed with ${barcodeErrors.length} errors` : 
+              'Successfully processed all items'
           })
           .eq('id', stockInId);
           
@@ -283,7 +338,7 @@ export const useBatchStockIn = (userId: string = '') => {
     }
   };
 
-  // Submit all batches as a stock in submission
+  // Submit all batches as a stock in submission with enhanced error handling
   const submitStockIn = async (submission: StockInBatchSubmission) => {
     setIsSubmitting(true);
     
@@ -291,10 +346,22 @@ export const useBatchStockIn = (userId: string = '') => {
       // Convert batches to box format for processing
       const boxes: BoxData[] = [];
       
+      // Get product data for barcode generation
+      const { data: productData } = await supabase
+        .from('products')
+        .select('category, sku')
+        .eq('id', submission.productId)
+        .single();
+      
+      let boxCount = 1;
       for (const batch of submission.batches) {
         for (let i = 0; i < batch.boxes_count; i++) {
           // Generate a unique barcode for each box
-          const barcode = `BOX-${batch.product_id.slice(0, 6)}-${Date.now()}-${i}`;
+          const barcode = await generateBarcodeString(
+            productData?.category,
+            productData?.sku,
+            boxCount++
+          );
           
           boxes.push({
             id: uuidv4(),
@@ -349,7 +416,12 @@ export const useBatchStockIn = (userId: string = '') => {
         setBarcodeErrors(result.barcodeErrors || []);
       }
       
-      return result;
+      return { 
+        success: result.success, 
+        batchId: result.processed_batch_id,
+        stockInId: processingStockInId,
+        errors: result.barcodeErrors
+      };
     } catch (error) {
       console.error('Error submitting stock in:', error);
       

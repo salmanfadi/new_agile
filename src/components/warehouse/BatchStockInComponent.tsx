@@ -14,8 +14,9 @@ import { BatchStockInLoading } from '@/components/warehouse/BatchStockInLoading'
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { ProcessedBatch } from '@/types/batchStockIn';
+import { Loader2 } from 'lucide-react';
 
 interface BatchStockInComponentProps {
   adminMode?: boolean;
@@ -40,6 +41,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   const [formSubmitted, setFormSubmitted] = useState<boolean>(false);
   const [processedBatchId, setProcessedBatchId] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
+  const [progressMessage, setProgressMessage] = useState<string>('Preparing batches...');
   
   // Log stockInData to debug
   useEffect(() => {
@@ -95,6 +97,28 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       };
     }
   }, [isSubmitting, isProcessing, stockInId]);
+
+  // Update progress messages during submission
+  useEffect(() => {
+    if (isSubmitting) {
+      setProgressMessage('Preparing batches...');
+      
+      const messages = [
+        'Generating unique barcodes...',
+        'Creating batch records...',
+        'Adding items to inventory...',
+        'Finalizing stock-in process...'
+      ];
+      
+      let index = 0;
+      const interval = setInterval(() => {
+        setProgressMessage(messages[index]);
+        index = (index + 1) % messages.length;
+      }, 2500);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isSubmitting]);
 
   // Navigate to batches overview page after successful submission
   useEffect(() => {
@@ -176,7 +200,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     addBatch(formData);
   };
 
-  const handleBatchSubmission = (e: React.FormEvent) => {
+  const handleBatchSubmission = async (e: React.FormEvent) => {
     e.preventDefault(); // Prevent form submission
     e.stopPropagation(); // Stop event propagation
     
@@ -221,7 +245,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       created_by: user.id // Ensure created_by is set
     }));
     
-    submitStockIn({
+    const result = await submitStockIn({
       stockInId: stockInId,
       productId,
       source,
@@ -229,6 +253,10 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       submittedBy: user.id,
       batches: processedBatches
     });
+    
+    if (!result.success) {
+      setFormSubmitted(false);
+    }
   };
 
   return (
@@ -271,11 +299,11 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
           {(isSubmitting || isProcessing) && (
             <Alert className="bg-blue-50 border-blue-200">
               <AlertTitle className="flex items-center gap-2">
-                <span className="inline-block h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Processing batches...
               </AlertTitle>
               <AlertDescription>
-                Please wait while we process your batches. This may take a moment.
+                {progressMessage}
               </AlertDescription>
             </Alert>
           )}
