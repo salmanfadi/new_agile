@@ -1,293 +1,216 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { 
-  AlignLeft, 
-  ArrowLeftRight, 
-  BarChart, 
-  Settings, 
-  Home, 
-  KanbanSquare, 
-  LayoutDashboard, 
-  ListChecks, 
-  LogOut, 
-  LucideIcon, 
-  Package2, 
-  ShoppingCart, 
-  User2, 
-  Users, 
-  Warehouse 
+  LayoutGrid, Boxes, PackageOpen, Package, 
+  Users, ShoppingBag, BarChart3, Warehouse, PanelLeft,
+  ChartBarBig, ChartBarColumnBig, ChartColumnStacked
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Separator } from '@/components/ui/separator';
-import { useIsMobile } from '@/hooks/use-mobile';
 
-interface NavLink {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-}
-
-interface SidebarProps {
-  className?: string;
-}
-
-const Sidebar: React.FC<SidebarProps> = ({ className }) => {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isMobile = useIsMobile();
-
-  const sidebarItems = [
-    {
-      role: "admin",
-      links: [
-        {
-          href: "/admin",
-          label: "Dashboard",
-          icon: LayoutDashboard,
-        },
-        {
-          href: "/admin/users",
-          label: "Users",
-          icon: Users,
-        },
-        {
-          href: "/admin/products",
-          label: "Products",
-          icon: Package2,
-        },
-        {
-          href: "/admin/warehouses",
-          label: "Warehouses",
-          icon: Warehouse,
-        },
-        {
-          href: "/admin/stock-in",
-          label: "Stock In",
-          icon: ListChecks,
-        },
-        {
-          href: "/admin/stock-out",
-          label: "Stock Out",
-          icon: ShoppingCart,
-        },
-        {
-          href: "/admin/inventory",
-          label: "Inventory",
-          icon: KanbanSquare,
-        },
-        {
-          href: "/admin/sales-inquiries",
-          label: "Sales Inquiries",
-          icon: BarChart,
-        },
-        {
-          href: "/admin/transfers",
-          label: "Transfers",
-          icon: ArrowLeftRight,
-        },
-        {
-          href: "/admin/settings",
-          label: "Settings",
-          icon: Settings,
-        },
-      ],
-    },
-    {
-      role: "warehouse_manager",
-      links: [
-        {
-          href: "/manager",
-          label: "Dashboard",
-          icon: LayoutDashboard,
-        },
-        {
-          href: "/manager/stock-in",
-          label: "Stock In",
-          icon: ListChecks,
-        },
-        {
-          href: "/manager/stock-out",
-          label: "Stock Out",
-          icon: ShoppingCart,
-        },
-        {
-          href: "/manager/inventory",
-          label: "Inventory",
-          icon: KanbanSquare,
-        },
-        {
-          href: "/manager/transfers",
-          label: "Transfers",
-          icon: ArrowLeftRight,
-        },
-        {
-          href: "/manager/settings",
-          label: "Settings",
-          icon: Settings,
-        },
-      ],
-    },
-    {
-      role: "field_operator",
-      links: [
-        {
-          href: "/field",
-          label: "Dashboard",
-          icon: LayoutDashboard,
-        },
-        {
-          href: "/field/stock-in",
-          label: "Stock In",
-          icon: ListChecks,
-        },
-        {
-          href: "/field/stock-out",
-          label: "Stock Out",
-          icon: ShoppingCart,
-        },
-        {
-          href: "/field/transfers",
-          label: "Transfers",
-          icon: ArrowLeftRight,
-        },
-        {
-          href: "/field/submissions",
-          label: "My Submissions",
-          icon: ListChecks,
-        },
-        {
-          href: "/field/settings",
-          label: "Settings",
-          icon: Settings,
-        },
-      ],
-    },
-    {
-      role: "sales_operator",
-      links: [
-        {
-          href: "/sales",
-          label: "Dashboard",
-          icon: LayoutDashboard,
-        },
-        {
-          href: "/sales/inquiries",
-          label: "Inquiries",
-          icon: ListChecks,
-        },
-        {
-          href: "/sales/inventory",
-          label: "Inventory",
-          icon: KanbanSquare,
-        },
-        {
-          href: "/sales/settings",
-          label: "Settings",
-          icon: Settings,
-        },
-      ],
-    },
-  ];
-
-  const relevantLinks = sidebarItems.find((item) => item.role === user?.role)?.links || [];
-
-  const handleLogout = () => {
-    signOut();
-    navigate('/login');
+export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (open: boolean) => void }) => {
+  const { user } = useAuth();
+  
+  const handleToggleSidebar = () => {
+    setIsOpen(!isOpen);
   };
-
-  // Display sidebar as a vertical navigation menu, whether for mobile or desktop
+  
   return (
-    <div className={cn("h-full flex flex-col", className)}>
-      <div className="p-4 flex items-center gap-2">
-        <Warehouse className="h-6 w-6 text-primary" />
-        <span className="text-lg font-semibold">Agile WMS</span>
-      </div>
-      
-      <Separator className="mb-4" />
-      
-      <div className="flex-1 overflow-auto">
-        <nav className="space-y-1 px-2">
-          {relevantLinks.map((link, index) => {
-            const Icon = link.icon;
-            const isActive = location.pathname === link.href;
+    <>
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out bg-slate-50 dark:bg-slate-900 border-r",
+        isOpen ? "translate-x-0" : "-translate-x-full")}>
+        <div className="flex flex-col h-full">
+          <div className="h-16 flex items-center border-b px-4">
+            <h2 className="text-lg font-semibold">
+              Agile Warehouse
+            </h2>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto py-2">
+            {/* Admin Navigation */}
+            {user?.role === 'admin' && (
+              <nav className="px-2 space-y-1">
+                <NavLink to="/admin" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <LayoutGrid className="mr-3 h-5 w-5" />
+                  <span>Dashboard</span>
+                </NavLink>
+                <NavLink to="/admin/inventory" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Boxes className="mr-3 h-5 w-5" />
+                  <span>Inventory</span>
+                </NavLink>
+                <NavLink to="/admin/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <PackageOpen className="mr-3 h-5 w-5" />
+                  <span>Stock In</span>
+                </NavLink>
+                <NavLink to="/admin/stock-out" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Package className="mr-3 h-5 w-5" />
+                  <span>Stock Out</span>
+                </NavLink>
+                <NavLink to="/admin/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Warehouse className="mr-3 h-5 w-5" />
+                  <span>Transfers</span>
+                </NavLink>
+                <NavLink to="/admin/users" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Users className="mr-3 h-5 w-5" />
+                  <span>Users</span>
+                </NavLink>
+                <NavLink to="/admin/sales-inquiries" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ShoppingBag className="mr-3 h-5 w-5" />
+                  <span>Sales Inquiries</span>
+                </NavLink>
+                
+                {/* Reports Section */}
+                <div className="pt-4 pb-1">
+                  <div className="px-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    REPORTS
+                  </div>
+                </div>
+                
+                <NavLink to="/reports" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <BarChart3 className="mr-3 h-5 w-5" />
+                  <span>Reports Dashboard</span>
+                </NavLink>
+                
+                <NavLink to="/reports/inventory/status" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ChartBarColumnBig className="mr-3 h-5 w-5" />
+                  <span>Inventory Status</span>
+                </NavLink>
+                
+                <NavLink to="/reports/inventory/movement" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ChartColumnStacked className="mr-3 h-5 w-5" />
+                  <span>Movement Analysis</span>
+                </NavLink>
+                
+                <NavLink to="/reports/management/executive" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ChartBarBig className="mr-3 h-5 w-5" />
+                  <span>Executive Dashboard</span>
+                </NavLink>
+              </nav>
+            )}
             
-            return (
-              <Link
-                key={index}
-                to={link.href}
-                className={cn(
-                  "flex items-center space-x-3 rounded-md px-3 py-2 text-sm transition-colors",
-                  isActive 
-                    ? "bg-accent text-accent-foreground font-medium" 
-                    : "hover:bg-accent/80 hover:text-accent-foreground text-muted-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{link.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-      
-      <Separator className="mt-4" />
-      
-      <div className="p-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center space-x-3 w-full rounded-md py-2 px-3 text-sm hover:bg-accent hover:text-accent-foreground text-left">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback>{user?.name?.charAt(0) || user?.username?.charAt(0) || "U"}</AvatarFallback>
-                <AvatarImage src={user?.avatar_url} alt={user?.name || "User"} />
-              </Avatar>
-              <div className="flex-1 flex-col">
-                <p className="font-medium truncate">{user?.name || user?.username || "User"}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.role && formatRole(user.role)}</p>
-              </div>
+            {/* Warehouse Manager Navigation */}
+            {user?.role === 'warehouse_manager' && (
+              <nav className="px-2 space-y-1">
+                <NavLink to="/manager" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <LayoutGrid className="mr-3 h-5 w-5" />
+                  <span>Dashboard</span>
+                </NavLink>
+                <NavLink to="/manager/inventory" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Boxes className="mr-3 h-5 w-5" />
+                  <span>Inventory</span>
+                </NavLink>
+                <NavLink to="/manager/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <PackageOpen className="mr-3 h-5 w-5" />
+                  <span>Stock In</span>
+                </NavLink>
+                <NavLink to="/manager/stock-out" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Package className="mr-3 h-5 w-5" />
+                  <span>Stock Out</span>
+                </NavLink>
+                <NavLink to="/manager/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Warehouse className="mr-3 h-5 w-5" />
+                  <span>Transfers</span>
+                </NavLink>
+                
+                {/* Reports Section */}
+                <div className="pt-4 pb-1">
+                  <div className="px-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    REPORTS
+                  </div>
+                </div>
+                
+                <NavLink to="/reports" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <BarChart3 className="mr-3 h-5 w-5" />
+                  <span>Reports Dashboard</span>
+                </NavLink>
+                
+                <NavLink to="/reports/inventory/status" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ChartBarColumnBig className="mr-3 h-5 w-5" />
+                  <span>Inventory Status</span>
+                </NavLink>
+                
+                <NavLink to="/reports/inventory/movement" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ChartColumnStacked className="mr-3 h-5 w-5" />
+                  <span>Movement Analysis</span>
+                </NavLink>
+              </nav>
+            )}
+            
+            {/* Field Operator Navigation */}
+            {user?.role === 'field_operator' && (
+              <nav className="px-2 space-y-1">
+                <NavLink to="/field" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <LayoutGrid className="mr-3 h-5 w-5" />
+                  <span>Dashboard</span>
+                </NavLink>
+                <NavLink to="/field/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <PackageOpen className="mr-3 h-5 w-5" />
+                  <span>Stock In</span>
+                </NavLink>
+                <NavLink to="/field/stock-out" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Package className="mr-3 h-5 w-5" />
+                  <span>Stock Out</span>
+                </NavLink>
+                 <NavLink to="/field/submissions" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Boxes className="mr-3 h-5 w-5" />
+                  <span>Submissions</span>
+                </NavLink>
+                <NavLink to="/field/barcode-lookup" className={({ isActive }) =>
+                    cn("flex items-center px-2 py-2 rounded-md",
+                        isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ShoppingBag className="mr-3 h-5 w-5"/>
+                  <span>Barcode Lookup</span>
+                </NavLink>
+                <NavLink to="/field/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Warehouse className="mr-3 h-5 w-5" />
+                  <span>Transfers</span>
+                </NavLink>
+              </nav>
+            )}
+            
+            {/* Sales Operator Navigation */}
+            {user?.role === 'sales_operator' && (
+              <nav className="px-2 space-y-1">
+                <NavLink to="/sales" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <LayoutGrid className="mr-3 h-5 w-5" />
+                  <span>Dashboard</span>
+                </NavLink>
+                <NavLink to="/sales/inventory" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Boxes className="mr-3 h-5 w-5" />
+                  <span>Inventory</span>
+                </NavLink>
+              </nav>
+            )}
+            
+            {/* Customer Navigation */}
+            {user?.role === 'customer' && (
+              <nav className="px-2 space-y-1">
+                <NavLink to="/customer/portal" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <LayoutGrid className="mr-3 h-5 w-5" />
+                  <span>Portal</span>
+                </NavLink>
+              </nav>
+            )}
+          </div>
+          
+          <div className="h-16 flex items-center border-t px-4 justify-between">
+            <button
+              onClick={handleToggleSidebar}
+              className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-200"
+            >
+              <PanelLeft className="h-5 w-5" />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/profile')}>
-              <User2 className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/settings')}>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </div>
+        </div>
       </div>
-    </div>
+      
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </>
   );
 };
-
-function formatRole(role?: string): string {
-  if (!role) return 'User';
-  
-  return role
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-export default Sidebar;

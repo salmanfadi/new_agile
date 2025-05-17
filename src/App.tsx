@@ -45,6 +45,16 @@ import FieldOperatorTransfers from './pages/fieldOperator/Transfers';
 import FieldOperatorSubmissions from './pages/fieldOperator/Submissions';
 import FieldOperatorSettings from './pages/fieldOperator/Settings';
 import SalesOperatorInventoryView from './pages/salesOperator/InventoryView';
+// Reports pages imports
+import ReportsDashboard from './pages/reports/ReportsDashboard';
+import InventoryStatusReport from './pages/reports/inventory/InventoryStatusReport';
+import InventoryMovementReport from './pages/reports/inventory/InventoryMovementReport';
+import BatchTrackingReport from './pages/reports/inventory/BatchTrackingReport';
+import WarehouseUtilizationReport from './pages/reports/operational/WarehouseUtilizationReport';
+import StockProcessingReport from './pages/reports/operational/StockProcessingReport';
+import TransferMovementReport from './pages/reports/operational/TransferMovementReport';
+import ExecutiveDashboard from './pages/reports/management/ExecutiveDashboard';
+import AuditComplianceReport from './pages/reports/management/AuditComplianceReport';
 
 // Define routes
 const router = createBrowserRouter([
@@ -213,6 +223,47 @@ const router = createBrowserRouter([
       {
         path: "admin/transfers",
         element: <RequireAuth allowedRoles={['admin']}><AdminInventoryTransfers /></RequireAuth>,
+      },
+      
+      // Reports Routes
+      {
+        path: "reports",
+        element: <RequireAuth allowedRoles={['admin', 'warehouse_manager']}><ReportsDashboard /></RequireAuth>,
+      },
+      // Inventory Reports
+      {
+        path: "reports/inventory/status",
+        element: <RequireAuth allowedRoles={['admin', 'warehouse_manager']}><InventoryStatusReport /></RequireAuth>,
+      },
+      {
+        path: "reports/inventory/movement",
+        element: <RequireAuth allowedRoles={['admin', 'warehouse_manager']}><InventoryMovementReport /></RequireAuth>,
+      },
+      {
+        path: "reports/inventory/batch-tracking",
+        element: <RequireAuth allowedRoles={['admin', 'warehouse_manager']}><BatchTrackingReport /></RequireAuth>,
+      },
+      // Operational Reports
+      {
+        path: "reports/operational/warehouse-utilization",
+        element: <RequireAuth allowedRoles={['admin', 'warehouse_manager']}><WarehouseUtilizationReport /></RequireAuth>,
+      },
+      {
+        path: "reports/operational/stock-processing",
+        element: <RequireAuth allowedRoles={['admin', 'warehouse_manager']}><StockProcessingReport /></RequireAuth>,
+      },
+      {
+        path: "reports/operational/transfers",
+        element: <RequireAuth allowedRoles={['admin', 'warehouse_manager']}><TransferMovementReport /></RequireAuth>,
+      },
+      // Management Reports
+      {
+        path: "reports/management/executive",
+        element: <RequireAuth allowedRoles={['admin']}><ExecutiveDashboard /></RequireAuth>,
+      },
+      {
+        path: "reports/management/audit",
+        element: <RequireAuth allowedRoles={['admin']}><AuditComplianceReport /></RequireAuth>,
       },
     ]
   },
