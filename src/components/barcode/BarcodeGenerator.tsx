@@ -7,7 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Tag } from 'lucide-react';
 import { generateBarcodeString } from '@/utils/barcodeUtils';
 import BarcodePreview from './BarcodePreview';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface BarcodeGeneratorProps {
@@ -67,18 +67,22 @@ const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!selectedProduct) return;
     
     const formattedSku = selectedProduct.sku || selectedProduct.name.substring(0, 6).toUpperCase().replace(/\s+/g, '');
     const category = selectedProduct.category || 'MISC';
     
-    // Fix: Using the function with the correct number of arguments
-    const newBarcode = generateBarcodeString(category, formattedSku, boxNumber);
-    
-    setBarcode(newBarcode);
-    if (onGenerateBarcode) {
-      onGenerateBarcode(newBarcode);
+    try {
+      // Await the promise returned by generateBarcodeString
+      const newBarcode = await generateBarcodeString(category, formattedSku, boxNumber);
+      
+      setBarcode(newBarcode);
+      if (onGenerateBarcode) {
+        onGenerateBarcode(newBarcode);
+      }
+    } catch (error) {
+      console.error('Error generating barcode:', error);
     }
   };
   

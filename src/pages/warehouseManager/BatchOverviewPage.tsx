@@ -90,6 +90,7 @@ const BatchOverviewPage: React.FC = () => {
         <ErrorState 
           message={`Error loading batch data`}
           details={error?.message || stockInError?.message || "Unknown error"} 
+          onNavigateBack={() => navigate('/manager/stock-in')}
         />
       ) : (
         <div className="space-y-6">
