@@ -13,7 +13,7 @@ import { StockMovementAudit } from '@/types/database';
 const FieldOperatorSubmissions: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { stockActivities, isLoading } = useUserStockActivity(user?.id);
+  const { data: stockActivities, isLoading } = useUserStockActivity(user?.id);
   
   return (
     <div className="space-y-6">

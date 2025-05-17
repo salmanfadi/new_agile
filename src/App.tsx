@@ -103,11 +103,19 @@ const router = createBrowserRouter([
       },
       {
         path: "field/submissions",
-        element: <RequireAuth allowedRoles={['field_operator']}><MySubmissions /></RequireAuth>,
+        element: <RequireAuth allowedRoles={['field_operator']}><FieldOperatorSubmissions /></RequireAuth>,
       },
       {
         path: "field/barcode-lookup",
         element: <RequireAuth allowedRoles={['field_operator']}><BarcodeLookup /></RequireAuth>,
+      },
+      {
+        path: "field/transfers",
+        element: <RequireAuth allowedRoles={['field_operator']}><FieldOperatorTransfers /></RequireAuth>,
+      },
+      {
+        path: "field/settings",
+        element: <RequireAuth allowedRoles={['field_operator']}><FieldOperatorSettings /></RequireAuth>,
       },
       {
         path: "sales",

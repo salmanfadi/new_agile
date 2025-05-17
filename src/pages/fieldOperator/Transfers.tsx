@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,16 +22,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 interface InventoryItem {
   inventory_id: string;
+  product_id: string; // Added missing property
   product_name: string;
   product_sku: string;
   warehouse_name: string;
   warehouse_location: string;
-  warehouse_id: string;
-  location_id: string;
+  warehouse_id: string; // Added missing property
+  location_id: string;  // Added missing property
   floor: number;
   zone: string;
   quantity: number;
@@ -159,12 +161,13 @@ const FieldOperatorTransfers: React.FC = () => {
         const item = data[0];
         setSourceItem({
           inventory_id: item.inventory_id,
+          product_id: item.product_id || '', // Using empty string as fallback
           product_name: item.product_name,
           product_sku: item.product_sku,
           warehouse_name: item.warehouse_name,
           warehouse_location: item.warehouse_location,
-          warehouse_id: item.warehouse_id || '', // Add this property 
-          location_id: item.location_id || '',  // Add this property
+          warehouse_id: item.warehouse_id || '', // Using empty string as fallback
+          location_id: item.location_id || '',  // Using empty string as fallback
           floor: item.floor,
           zone: item.zone,
           quantity: item.quantity,
