@@ -4,7 +4,12 @@ import { ReportLayout } from '@/components/reports/ReportLayout';
 import { BarChart } from '@/components/reports/charts/BarChart';
 import { LineChart } from '@/components/reports/charts/LineChart';
 import { PieChart } from '@/components/reports/charts/PieChart';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  AppleCard, 
+  AppleCardContent, 
+  AppleCardHeader, 
+  AppleCardTitle 
+} from '@/components/ui/apple-card';
 
 // Mock data - in production this would come from a hook like useWarehouseUtilizationReport
 const mockUtilizationTrendData = [
@@ -45,35 +50,35 @@ const WarehouseUtilizationReport: React.FC = () => {
       onExportPdf={handleExportPdf}
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Total Locations</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <AppleCard>
+          <AppleCardHeader className="pb-2">
+            <AppleCardTitle className="text-lg font-medium">Total Locations</AppleCardTitle>
+          </AppleCardHeader>
+          <AppleCardContent>
             <div className="text-3xl font-bold">5,100</div>
             <p className="text-sm text-muted-foreground mt-1">Across all warehouses</p>
-          </CardContent>
-        </Card>
+          </AppleCardContent>
+        </AppleCard>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Used Locations</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <AppleCard>
+          <AppleCardHeader className="pb-2">
+            <AppleCardTitle className="text-lg font-medium">Used Locations</AppleCardTitle>
+          </AppleCardHeader>
+          <AppleCardContent>
             <div className="text-3xl font-bold">4,189</div>
             <p className="text-sm text-muted-foreground mt-1">82.1% of total capacity</p>
-          </CardContent>
-        </Card>
+          </AppleCardContent>
+        </AppleCard>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Avg. Utilization</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <AppleCard>
+          <AppleCardHeader className="pb-2">
+            <AppleCardTitle className="text-lg font-medium">Avg. Utilization</AppleCardTitle>
+          </AppleCardHeader>
+          <AppleCardContent>
             <div className="text-3xl font-bold">82.1%</div>
             <p className="text-sm text-muted-foreground mt-1">Across all warehouses</p>
-          </CardContent>
-        </Card>
+          </AppleCardContent>
+        </AppleCard>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

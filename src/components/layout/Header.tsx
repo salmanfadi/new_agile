@@ -3,7 +3,7 @@ import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Warehouse, LogOut, User } from 'lucide-react';
+import { Warehouse, LogOut, User, Settings } from 'lucide-react';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -53,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ isCollapsed = false, className, toggleS
   
   return (
     <div className={cn(
-      'flex h-16 items-center justify-between border-b px-4 bg-background shadow-apple-sm', 
+      'flex h-16 items-center justify-between border-b px-4 bg-white dark:bg-slate-900 shadow-sm backdrop-blur-sm bg-opacity-80 dark:bg-opacity-80', 
       className
     )}>
       <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ isCollapsed = false, className, toggleS
             variant="ghost" 
             size="icon" 
             onClick={toggleSidebar}
-            className="mr-2"
+            className="mr-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <Warehouse className="h-5 w-5 text-primary" />
           </Button>
@@ -81,14 +81,14 @@ const Header: React.FC<HeaderProps> = ({ isCollapsed = false, className, toggleS
         ) : (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="rounded-full p-0 h-9 w-9">
+              <Button variant="ghost" className="rounded-full p-0 h-9 w-9 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <Avatar className="h-9 w-9 border">
                   <AvatarImage src={user.avatar_url} alt={user.name || user.email} />
                   <AvatarFallback>{getUserInitials()}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-56 rounded-lg border-slate-200 shadow-md">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{user.name || 'User'}</p>
@@ -96,7 +96,16 @@ const Header: React.FC<HeaderProps> = ({ isCollapsed = false, className, toggleS
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

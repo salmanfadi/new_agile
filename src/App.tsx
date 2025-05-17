@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   createBrowserRouter,
@@ -45,6 +44,7 @@ import FieldOperatorTransfers from './pages/fieldOperator/Transfers';
 import FieldOperatorSubmissions from './pages/fieldOperator/Submissions';
 import FieldOperatorSettings from './pages/fieldOperator/Settings';
 import SalesOperatorInventoryView from './pages/salesOperator/InventoryView';
+import ProductManagement from './pages/admin/ProductManagement';
 // Reports pages imports
 import ReportsDashboard from './pages/reports/ReportsDashboard';
 import InventoryStatusReport from './pages/reports/inventory/InventoryStatusReport';
@@ -182,7 +182,7 @@ const router = createBrowserRouter([
       },
       {
         path: "admin/products",
-        element: <RequireAuth allowedRoles={['admin']}><AdminDashboard /></RequireAuth>, // Placeholder for product management
+        element: <RequireAuth allowedRoles={['admin']}><ProductManagement /></RequireAuth>,
       },
       {
         path: "admin/warehouses",

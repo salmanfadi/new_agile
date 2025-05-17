@@ -19,7 +19,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
   return (
     <>
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out bg-slate-50 dark:bg-slate-900 border-r",
+        "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out bg-slate-50 dark:bg-slate-900 border-r shadow-sm",
         isOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="flex flex-col h-full">
           <div className="h-16 flex items-center border-b px-4">
@@ -39,6 +39,10 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 <NavLink to="/admin/inventory" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Boxes className="mr-3 h-5 w-5" />
                   <span>Inventory</span>
+                </NavLink>
+                <NavLink to="/admin/products" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Package className="mr-3 h-5 w-5" />
+                  <span>Products</span>
                 </NavLink>
                 <NavLink to="/admin/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <PackageOpen className="mr-3 h-5 w-5" />
