@@ -1,29 +1,28 @@
 
-import React, { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { ReactNode } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { UserRole } from "@/types/auth";
 
 interface RequireAuthProps {
   children: ReactNode;
-  allowedRoles: string[];
+  allowedRoles?: UserRole[];
 }
 
-export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => {
-  const { user, isLoading } = useAuth();
+export const RequireAuth = ({ children, allowedRoles }: RequireAuthProps) => {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">
-      <div className="h-12 w-12 border-4 border-t-transparent border-primary rounded-full animate-spin"></div>
-    </div>;
+    return <div>Loading...</div>;
   }
 
-  if (!user) {
-    // Redirect to login if not authenticated
-    return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    // Redirect to unauthorized page
+  // If roles are specified, check if user has one of them
+  if (allowedRoles && user && !allowedRoles.includes(user.role as UserRole)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

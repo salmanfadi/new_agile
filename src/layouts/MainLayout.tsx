@@ -1,14 +1,10 @@
 
-import React, { useState, ReactNode } from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 
-interface MainLayoutProps {
-  children?: ReactNode;
-}
-
-const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+export const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
   return (
@@ -21,7 +17,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
         <main className={`flex-1 p-6 transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : ''}`}>
           <div className="max-w-7xl mx-auto">
-            {children || <Outlet />}
+            <Outlet />
           </div>
         </main>
       </div>
