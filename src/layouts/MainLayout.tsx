@@ -3,8 +3,6 @@ import React, { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import Sidebar from '@/components/layout/Sidebar';
-import { Navbar } from '@/components/layout/Navbar';
-import { Button } from '@/components/ui/button';
 import { Bell, ChevronRight, LogOut, Menu, User } from 'lucide-react';
 import {
   DropdownMenu,
@@ -18,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Button } from '@/components/ui/button';
 
 export const MainLayout = () => {
   const { user, signOut } = useAuth();

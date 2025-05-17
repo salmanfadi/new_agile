@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   createBrowserRouter,
@@ -24,7 +23,7 @@ import AdminInventoryView from '@/pages/admin/InventoryView';
 import InventoryView from '@/pages/warehouseManager/InventoryView';
 import AdminStockOutManagement from '@/pages/admin/StockOutManagement';
 import StockOutRequests from './pages/warehouseManager/StockOutApproval';
-import ProfilesManagement from './pages/admin/UsersManagement';
+import UsersManagement from './pages/admin/UsersManagement';
 import SalesInquiriesManagement from './pages/admin/SalesInquiries';
 import BatchStockInPage from '@/pages/warehouseManager/BatchStockInPage';
 import BatchInventoryPage from '@/pages/warehouse/BatchInventoryPage';
@@ -163,7 +162,7 @@ const router = createBrowserRouter([
       },
       {
         path: "admin/profiles",
-        element: <RequireAuth allowedRoles={['admin']}><ProfilesManagement /></RequireAuth>,
+        element: <RequireAuth allowedRoles={['admin']}><UsersManagement /></RequireAuth>,
       },
       {
         path: "admin/sales-inquiries",
