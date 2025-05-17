@@ -5,6 +5,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Product } from '@/types/database';
 
+// Define a type for the minimum required fields when creating a product
+interface CreateProductData {
+  name: string; // Name is required by the database schema
+  description?: string | null;
+  specifications?: string | null;
+  sku?: string | null;
+  category?: string | null;
+  image_url?: string | null;
+  is_active?: boolean;
+}
+
 export function useProducts() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,10 +55,10 @@ export function useProducts() {
 
   // Create product
   const createProduct = useMutation({
-    mutationFn: async (productData: Partial<Product>) => {
+    mutationFn: async (productData: CreateProductData) => {
       const { data, error } = await supabase
         .from('products')
-        .insert([productData])
+        .insert(productData)
         .select();
 
       if (error) throw error;
