@@ -18,7 +18,7 @@ interface ReportLayoutProps {
   children: React.ReactNode;
   onExportCsv?: () => void;
   onExportPdf?: () => void;
-  loading?: boolean;
+  loading?: boolean;  // Keep as loading, not isLoading
   error?: any;
   backLink?: string;
 }

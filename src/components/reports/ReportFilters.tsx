@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { ReportFilters as ReportFiltersType } from '@/types/reports';
@@ -57,10 +57,12 @@ export const ReportFilters = ({
         {showDateRange && (
           <div className="space-y-2">
             <Label>Date Range</Label>
-            <DateRangePicker 
-              initialDateFrom={filters?.dateRange?.from} 
-              initialDateTo={filters?.dateRange?.to} 
-              onUpdate={handleDateRangeChange}
+            <DatePickerWithRange 
+              date={filters?.dateRange ? {
+                from: filters.dateRange.from,
+                to: filters.dateRange.to
+              } : undefined} 
+              onDateChange={handleDateRangeChange}
             />
           </div>
         )}

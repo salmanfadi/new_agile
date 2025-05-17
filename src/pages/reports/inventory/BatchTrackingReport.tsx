@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ReportLayout } from '@/components/reports/ReportLayout';
 import { ReportFilters } from '@/components/reports/ReportFilters';
 import { format } from 'date-fns';
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useBatchTrackingReport } from '@/hooks/reports/useBatchTrackingReport';
-import { ReportFilters as ReportFiltersType } from '@/types/reports';
+import { ReportFilters as ReportFiltersType, DataItem } from '@/types/reports';
 
 // Mock data for charts
 const mockProductDistribution = [
@@ -54,37 +54,38 @@ const mockTimeData = [
   },
 ];
 
-const mockTrendData = [
+// Convert to use 'name' property for DataItem compatibility
+const mockTrendData: DataItem[] = [
   { 
-    date: '2025-01', 
+    name: '2025-01', 
     completed: 42,
     processing: 5,
     pending: 8,
     rejected: 3
   },
   { 
-    date: '2025-02', 
+    name: '2025-02', 
     completed: 38,
     processing: 7,
     pending: 5,
     rejected: 2
   },
   { 
-    date: '2025-03', 
+    name: '2025-03', 
     completed: 45,
     processing: 6,
     pending: 9,
     rejected: 4
   },
   { 
-    date: '2025-04', 
+    name: '2025-04', 
     completed: 50,
     processing: 8,
     pending: 7,
     rejected: 1
   },
   { 
-    date: '2025-05', 
+    name: '2025-05', 
     completed: 48,
     processing: 9,
     pending: 8,
@@ -114,7 +115,7 @@ const BatchTrackingReport: React.FC = () => {
       description="Detailed tracking and analysis of batch processing"
       onExportCsv={handleExportCsv}
       onExportPdf={handleExportPdf}
-      isLoading={loading}
+      loading={loading} // Changed from isLoading to loading
     >
       <div className="mb-6">
         <ReportFilters
@@ -190,7 +191,6 @@ const BatchTrackingReport: React.FC = () => {
           title="Batch Processing Trends"
           xAxisLabel="Month"
           yAxisLabel="Batches"
-          stacked
         />
       </div>
       

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ReportLayout } from '@/components/reports/ReportLayout';
 import { ReportFilters } from '@/components/reports/ReportFilters';
 import { format } from 'date-fns';
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useInventoryMovementReport } from '@/hooks/reports/useInventoryMovementReport';
-import { ReportFilters as ReportFiltersType } from '@/types/reports';
+import { ReportFilters as ReportFiltersType, DataItem } from '@/types/reports';
 
 // Mock chart data
 const mockMovementTrendData = [
@@ -73,7 +73,8 @@ const mockProductMovements = [
   }
 ];
 
-const mockWarehouseMovements = [
+// Convert to use 'name' property
+const mockWarehouseMovements: DataItem[] = [
   {
     name: 'Warehouse A',
     'Stock In': 180,
@@ -113,7 +114,7 @@ const InventoryMovementReport: React.FC = () => {
       description="Analysis of inventory movements, transfers and adjustments"
       onExportCsv={handleExportCsv}
       onExportPdf={handleExportPdf}
-      isLoading={loading}
+      loading={loading} // Changed from isLoading to loading
     >
       <div className="mb-6">
         <ReportFilters

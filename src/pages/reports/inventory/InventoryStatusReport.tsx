@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { BarChart } from '@/components/reports/charts/BarChart';
 import { PieChart } from '@/components/reports/charts/PieChart';
 import { useInventoryStatusReport } from '@/hooks/reports/useInventoryStatusReport';
+import { DataItem } from '@/types/reports';
 
-// Mock data for warehouses chart
-const mockWarehouseData = [
+// Mock data for warehouses chart - fix to use name property
+const mockWarehouseData: DataItem[] = [
   { name: 'Warehouse A', active: 2500, reserved: 350, damaged: 150 },
   { name: 'Warehouse B', active: 1800, reserved: 250, damaged: 100 },
   { name: 'Warehouse C', active: 900, reserved: 150, damaged: 50 },
@@ -41,10 +42,11 @@ const InventoryStatusReport: React.FC = () => {
       description="Current inventory levels and status across warehouses"
       onExportCsv={handleExportCsv}
       onExportPdf={handleExportPdf}
-      isLoading={loading}
+      loading={loading} // Changed from isLoading to loading
     >
       <div className="mb-6">
         <ReportFilters
+          filters={filters}
           onFiltersChange={updateFilters}
           showWarehouse
           showProduct
@@ -93,7 +95,7 @@ const InventoryStatusReport: React.FC = () => {
           title="Inventory by Warehouse"
           xAxisLabel="Warehouse"
           yAxisLabel="Quantity"
-          stacked
+          // Remove stacked prop if it doesn't exist in BarChartProps
         />
         
         <PieChart 

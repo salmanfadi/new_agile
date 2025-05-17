@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { ReportFilters as ReportFiltersType } from '@/types/reports';
+import { ReportFilters as ReportFiltersType, DataItem } from '@/types/reports';
 
 // Mock data
 const mockProcessingTimeData = [
@@ -20,12 +20,13 @@ const mockProcessingTimeData = [
   { month: 'May', stockIn: 2.2, stockOut: 1.6 },
 ];
 
-const mockProcessingVolumeData = [
-  { month: 'Jan', completed: 183, pending: 12, rejected: 5 },
-  { month: 'Feb', completed: 165, pending: 8, rejected: 3 },
-  { month: 'Mar', completed: 192, pending: 15, rejected: 7 },
-  { month: 'Apr', completed: 178, pending: 10, rejected: 4 },
-  { month: 'May', completed: 201, pending: 9, rejected: 2 },
+// Convert to use 'name' property
+const mockProcessingVolumeData: DataItem[] = [
+  { name: 'Jan', completed: 183, pending: 12, rejected: 5 },
+  { name: 'Feb', completed: 165, pending: 8, rejected: 3 },
+  { name: 'Mar', completed: 192, pending: 15, rejected: 7 },
+  { name: 'Apr', completed: 178, pending: 10, rejected: 4 },
+  { name: 'May', completed: 201, pending: 9, rejected: 2 },
 ];
 
 const mockRecentProcessingData = [
@@ -70,6 +71,8 @@ const StockProcessingReport: React.FC = () => {
     >
       <div className="mb-6">
         <ReportFilters 
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
           showDateRange 
           showWarehouse 
           showUser 
@@ -125,7 +128,6 @@ const StockProcessingReport: React.FC = () => {
           title="Processing Volume by Status"
           xAxisLabel="Month"
           yAxisLabel="Requests"
-          stacked
         />
       </div>
       

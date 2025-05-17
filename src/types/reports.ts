@@ -78,3 +78,36 @@ export type AuditRecord = {
   ip_address?: string;
   severity: 'info' | 'warning' | 'critical';
 };
+
+// Add missing types needed by the components
+export type ReportCard = {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+  icon: string;
+  access: string[];
+  category: string;
+};
+
+export type ExecutiveSummaryData = {
+  inventoryValue: number;
+  turnoverRate: number;
+  stockMovements: {
+    in: number;
+    out: number;
+    net: number;
+  };
+  topProducts: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+  }>;
+  warehouseUtilization: Record<string, number>;
+};
+
+// Data item format for charts requiring 'name' property
+export type DataItem = {
+  name: string;
+  [key: string]: string | number;
+};

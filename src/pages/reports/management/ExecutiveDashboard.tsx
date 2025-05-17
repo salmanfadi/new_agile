@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ReportLayout } from '@/components/reports/ReportLayout';
 import { ReportFilters } from '@/components/reports/ReportFilters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { BarChart } from '@/components/reports/charts/BarChart';
 import { LineChart } from '@/components/reports/charts/LineChart';
 import { PieChart } from '@/components/reports/charts/PieChart';
 import { useExecutiveDashboard } from '@/hooks/reports/useExecutiveDashboard';
-import { ReportFilters as ReportFiltersType } from '@/types/reports';
+import { ReportFilters as ReportFiltersType, DataItem } from '@/types/reports';
 
 // Mock chart data
 const mockInventoryValueData = [
@@ -26,11 +26,12 @@ const mockInventoryTurnoverData = [
   { month: 'May', turnover: 3.8 },
 ];
 
-const mockOperationalMetricsData = [
-  { metric: 'Processing Time', current: 1.8, target: 1.5, previous: 2.2 },
-  { metric: 'Inventory Accuracy', current: 98, target: 99, previous: 97 },
-  { metric: 'Order Fulfillment', current: 94, target: 98, previous: 92 },
-  { metric: 'Storage Utilization', current: 82, target: 85, previous: 78 },
+// Convert to use 'name' property
+const mockOperationalMetricsData: DataItem[] = [
+  { name: 'Processing Time', current: 1.8, target: 1.5, previous: 2.2 },
+  { name: 'Inventory Accuracy', current: 98, target: 99, previous: 97 },
+  { name: 'Order Fulfillment', current: 94, target: 98, previous: 92 },
+  { name: 'Storage Utilization', current: 82, target: 85, previous: 78 },
 ];
 
 const mockWarehouseDistribution = [
@@ -40,11 +41,18 @@ const mockWarehouseDistribution = [
   { name: 'Warehouse D', value: 15 },
 ];
 
+const initialReportFilters: ReportFiltersType = {
+  dateRange: {
+    from: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
+    to: new Date()
+  }
+};
+
 const ExecutiveDashboard: React.FC = () => {
-  const { data, loading, error, filters, updateFilters } = useExecutiveDashboard();
+  const { data, isLoading, error, filters, setFilters } = useExecutiveDashboard(initialReportFilters);
 
   const handleFiltersChange = (newFilters: Partial<ReportFiltersType>) => {
-    updateFilters(newFilters);
+    setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
   // Export functions
@@ -62,7 +70,7 @@ const ExecutiveDashboard: React.FC = () => {
       description="High-level overview of warehouse operations and key performance indicators"
       onExportCsv={handleExportCsv}
       onExportPdf={handleExportPdf}
-      isLoading={loading}
+      loading={isLoading} // Use isLoading here
     >
       <div className="mb-6">
         <ReportFilters 
