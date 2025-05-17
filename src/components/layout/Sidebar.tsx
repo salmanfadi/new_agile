@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { 
   LayoutGrid, Boxes, PackageOpen, Package, 
   Users, ShoppingBag, BarChart3, Warehouse, PanelLeft,
-  ChartBarBig, ChartBarColumnBig, ChartColumnStacked
+  BarChart, BarChart2, ChartBar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -73,17 +74,17 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 </NavLink>
                 
                 <NavLink to="/reports/inventory/status" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <ChartBarColumnBig className="mr-3 h-5 w-5" />
+                  <BarChart className="mr-3 h-5 w-5" />
                   <span>Inventory Status</span>
                 </NavLink>
                 
                 <NavLink to="/reports/inventory/movement" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <ChartColumnStacked className="mr-3 h-5 w-5" />
+                  <ChartBar className="mr-3 h-5 w-5" />
                   <span>Movement Analysis</span>
                 </NavLink>
                 
                 <NavLink to="/reports/management/executive" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <ChartBarBig className="mr-3 h-5 w-5" />
+                  <BarChart2 className="mr-3 h-5 w-5" />
                   <span>Executive Dashboard</span>
                 </NavLink>
               </nav>
@@ -126,12 +127,12 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 </NavLink>
                 
                 <NavLink to="/reports/inventory/status" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <ChartBarColumnBig className="mr-3 h-5 w-5" />
+                  <BarChart className="mr-3 h-5 w-5" />
                   <span>Inventory Status</span>
                 </NavLink>
                 
                 <NavLink to="/reports/inventory/movement" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <ChartColumnStacked className="mr-3 h-5 w-5" />
+                  <ChartBar className="mr-3 h-5 w-5" />
                   <span>Movement Analysis</span>
                 </NavLink>
               </nav>

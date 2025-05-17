@@ -1,148 +1,107 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ReportLayout } from '@/components/reports/ReportLayout';
 import { BarChart } from '@/components/reports/charts/BarChart';
+import { LineChart } from '@/components/reports/charts/LineChart';
 import { PieChart } from '@/components/reports/charts/PieChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Mock data - in production this would come from a hook like useWarehouseUtilizationReport
-const mockWarehouseData = [
-  { name: 'Warehouse A', total: 500, used: 350, available: 150 },
-  { name: 'Warehouse B', total: 800, used: 620, available: 180 },
-  { name: 'Warehouse C', total: 300, used: 270, available: 30 },
-  { name: 'Warehouse D', total: 650, used: 400, available: 250 },
+const mockUtilizationTrendData = [
+  { date: '2025-01', warehouseA: 62, warehouseB: 75, warehouseC: 88 },
+  { date: '2025-02', warehouseA: 67, warehouseB: 78, warehouseC: 90 },
+  { date: '2025-03', warehouseA: 72, warehouseB: 80, warehouseC: 85 },
+  { date: '2025-04', warehouseA: 75, warehouseB: 82, warehouseC: 87 },
+  { date: '2025-05', warehouseA: 79, warehouseB: 85, warehouseC: 89 },
 ];
 
-const mockUtilizationByZone = [
-  { name: 'Zone A', used: 85, available: 15 },
-  { name: 'Zone B', used: 70, available: 30 },
-  { name: 'Zone C', used: 90, available: 10 },
-  { name: 'Zone D', used: 60, available: 40 },
+const mockWarehouseUtilizationData = [
+  { name: 'Warehouse A', total: 1250, used: 975, rate: 78 },
+  { name: 'Warehouse B', total: 1800, used: 1512, rate: 84 },
+  { name: 'Warehouse C', total: 950, used: 855, rate: 90 },
+  { name: 'Warehouse D', total: 1100, used: 847, rate: 77 },
 ];
 
-const mockUtilizationByFloor = [
-  { name: 'Floor 1', used: 75, available: 25 },
-  { name: 'Floor 2', used: 80, available: 20 },
-  { name: 'Floor 3', used: 65, available: 35 },
-];
-
-const mockPieData = [
-  { name: 'Used Space', value: 1640 },
-  { name: 'Available Space', value: 610 }
+const mockZoneUtilizationData = [
+  { name: 'Available Space', value: 1916 },
+  { name: 'Used Space', value: 4189 },
 ];
 
 const WarehouseUtilizationReport: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('warehouses');
-  
-  // Mock function for export (would be implemented with actual data in production)
+  // Mock functions for export (would be implemented with actual data in production)
   const handleExportCsv = () => {
     console.log('Export to CSV');
-    // Implementation would generate and download CSV file
   };
   
-  // Mock function for export (would be implemented with actual data in production)
   const handleExportPdf = () => {
     console.log('Export to PDF');
-    // Implementation would generate and download PDF file
   };
 
   return (
     <ReportLayout
       title="Warehouse Utilization Report"
-      description="Analyze space utilization across warehouses, zones, and floors"
+      description="Analysis of warehouse space usage and efficiency metrics"
       onExportCsv={handleExportCsv}
       onExportPdf={handleExportPdf}
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Total Space</CardTitle>
+            <CardTitle className="text-lg font-medium">Total Locations</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">2,250 units</div>
+            <div className="text-3xl font-bold">5,100</div>
             <p className="text-sm text-muted-foreground mt-1">Across all warehouses</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Used Space</CardTitle>
+            <CardTitle className="text-lg font-medium">Used Locations</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">1,640 units</div>
-            <p className="text-sm text-muted-foreground mt-1">72.9% of total capacity</p>
+            <div className="text-3xl font-bold">4,189</div>
+            <p className="text-sm text-muted-foreground mt-1">82.1% of total capacity</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Available Space</CardTitle>
+            <CardTitle className="text-lg font-medium">Avg. Utilization</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">610 units</div>
-            <p className="text-sm text-muted-foreground mt-1">27.1% of total capacity</p>
+            <div className="text-3xl font-bold">82.1%</div>
+            <p className="text-sm text-muted-foreground mt-1">Across all warehouses</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <PieChart 
-          data={mockPieData}
-          title="Overall Space Utilization"
-          colors={['#3b82f6', '#93c5fd']}
+        <LineChart
+          data={mockUtilizationTrendData}
+          keys={['warehouseA', 'warehouseB', 'warehouseC']}
+          title="Utilization Rate Trend"
+          xAxisKey="date"
+          xAxisLabel="Month"
+          yAxisLabel="Utilization %"
         />
 
-        <BarChart
-          data={mockWarehouseData}
-          keys={['used', 'available']}
-          title="Utilization by Warehouse"
-          xAxisLabel="Warehouse"
-          yAxisLabel="Space Units"
-          colors={['#3b82f6', '#93c5fd']}
+        <PieChart 
+          data={mockZoneUtilizationData}
+          title="Overall Space Utilization"
         />
       </div>
 
-      <Tabs defaultValue="warehouses" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="warehouses">By Warehouse</TabsTrigger>
-          <TabsTrigger value="zones">By Zone</TabsTrigger>
-          <TabsTrigger value="floors">By Floor</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="warehouses" className="mt-0">
-          <BarChart
-            data={mockWarehouseData}
-            keys={['used', 'available']}
-            title="Detailed Warehouse Utilization"
-            xAxisLabel="Warehouse"
-            yAxisLabel="Space Units"
-            colors={['#3b82f6', '#93c5fd']}
-          />
-        </TabsContent>
-        
-        <TabsContent value="zones" className="mt-0">
-          <BarChart
-            data={mockUtilizationByZone}
-            keys={['used', 'available']}
-            title="Zone Space Utilization"
-            xAxisLabel="Zone"
-            yAxisLabel="Space Units (%)"
-            colors={['#3b82f6', '#93c5fd']}
-          />
-        </TabsContent>
-        
-        <TabsContent value="floors" className="mt-0">
-          <BarChart
-            data={mockUtilizationByFloor}
-            keys={['used', 'available']}
-            title="Floor Space Utilization"
-            xAxisLabel="Floor"
-            yAxisLabel="Space Units (%)"
-            colors={['#3b82f6', '#93c5fd']}
-          />
-        </TabsContent>
-      </Tabs>
+      <div className="mb-6">
+        <BarChart
+          data={mockWarehouseUtilizationData}
+          keys={['used', 'total']}
+          title="Warehouse Capacity Usage"
+          xAxisLabel="Warehouse"
+          yAxisLabel="Locations"
+          height={400}
+        />
+      </div>
     </ReportLayout>
   );
 };

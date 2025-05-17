@@ -1,211 +1,164 @@
 
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect } from 'react';
 import { ReportFilters, InventoryMovementData } from '@/types/reports';
-import { format, parseISO, subDays } from 'date-fns';
+import { supabase } from '@/lib/supabase';
+import { InventoryMovement } from '@/types/inventory';
 
-export const useInventoryMovementReport = (initialFilters: ReportFilters) => {
-  const [filters, setFilters] = useState<ReportFilters>(initialFilters);
+// Default filters for inventory movement report
+const defaultFilters: ReportFilters = {
+  dateRange: {
+    from: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+    to: new Date()
+  },
+  warehouseId: undefined,
+  productId: undefined,
+  movementType: undefined
+};
 
-  const queryResult = useQuery({
-    queryKey: ['inventory-movement-report', filters],
-    queryFn: async () => {
-      try {
-        // Build query for inventory movements
-        let queryBuilder = supabase
-          .from('inventory_movements')
-          .select(`
-            id,
-            product_id,
-            warehouse_id,
-            location_id,
-            movement_type,
-            quantity,
-            status,
-            reference_table,
-            reference_id,
-            performed_by,
-            created_at,
-            details,
-            products:product_id (name, sku),
-            warehouse:warehouse_id (name),
-            location:location_id (floor, zone),
-            performer:performed_by (name, username)
-          `);
-        
-        // Apply filters
-        if (filters.warehouseId) {
-          queryBuilder = queryBuilder.eq('warehouse_id', filters.warehouseId);
-        }
-        
-        if (filters.productId) {
-          queryBuilder = queryBuilder.eq('product_id', filters.productId);
-        }
-        
-        if (filters.dateRange.from) {
-          queryBuilder = queryBuilder.gte('created_at', filters.dateRange.from.toISOString());
-        }
-        
-        if (filters.dateRange.to) {
-          queryBuilder = queryBuilder.lte('created_at', filters.dateRange.to.toISOString());
-        }
-        
-        if (filters.status) {
-          queryBuilder = queryBuilder.eq('status', filters.status);
-        }
-        
-        // Only get approved movements for meaningful analysis
-        if (!filters.status) {
-          queryBuilder = queryBuilder.eq('status', 'approved');
-        }
-        
-        queryBuilder = queryBuilder.order('created_at', { ascending: false });
-        
-        const { data, error } = await queryBuilder;
-        
-        if (error) {
-          throw new Error(`Failed to fetch inventory movements: ${error.message}`);
-        }
-        
-        return data || [];
-      } catch (err) {
-        console.error('Error fetching inventory movement report:', err);
-        throw err;
-      }
-    }
+/**
+ * Hook for fetching inventory movement report data
+ */
+export const useInventoryMovementReport = (initialFilters: Partial<ReportFilters> = {}) => {
+  const [filters, setFilters] = useState<ReportFilters>({
+    ...defaultFilters,
+    ...initialFilters
   });
-
-  // Memoize and transform the data for the report
-  const reportData: InventoryMovementData = useMemo(() => {
-    const movements = queryResult.data || [];
-    
-    // Calculate totals
-    const totalIn = movements.reduce((sum, item) => {
-      if (['in', 'release'].includes(item.movement_type)) {
-        return sum + (item.quantity || 0);
-      }
-      return sum;
-    }, 0);
-    
-    const totalOut = movements.reduce((sum, item) => {
-      if (['out', 'reserve'].includes(item.movement_type)) {
-        return sum + (item.quantity || 0);
-      }
-      return sum;
-    }, 0);
-    
-    const netChange = totalIn - totalOut;
-    
-    // Group by product
-    const byProduct = movements.reduce((acc: Record<string, number>, item) => {
-      const productName = item.products?.name || 'Unknown Product';
-      const quantity = item.quantity || 0;
-      const value = ['in', 'release'].includes(item.movement_type) ? quantity : -quantity;
+  
+  const [reportData, setReportData] = useState<InventoryMovementData>({
+    movements: [],
+    totalIn: 0,
+    totalOut: 0,
+    netChange: 0,
+    byProduct: {},
+    byWarehouse: {}
+  });
+  
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
+  
+  // Function to fetch data based on current filters
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
       
-      acc[productName] = (acc[productName] || 0) + value;
-      return acc;
-    }, {});
-    
-    // Group by warehouse
-    const byWarehouse = movements.reduce((acc: Record<string, number>, item) => {
-      const warehouseName = item.warehouse?.name || 'Unknown Warehouse';
-      const quantity = item.quantity || 0;
-      const value = ['in', 'release'].includes(item.movement_type) ? quantity : -quantity;
+      // Build query with filters
+      let query = supabase
+        .from('inventory_movements')
+        .select(`
+          *,
+          products:product_id(*),
+          warehouses:warehouse_id(*),
+          locations:location_id(*)
+        `);
       
-      acc[warehouseName] = (acc[warehouseName] || 0) + value;
-      return acc;
-    }, {});
-    
-    // Transform movements for display
-    const transformedMovements = movements.map(item => ({
-      id: item.id,
-      productId: item.product_id,
-      productName: item.products?.name || 'Unknown Product',
-      productSku: item.products?.sku,
-      warehouseId: item.warehouse_id,
-      warehouseName: item.warehouse?.name || 'Unknown Warehouse',
-      locationId: item.location_id,
-      locationDetails: `Floor ${item.location?.floor || '?'}, Zone ${item.location?.zone || '?'}`,
-      movementType: item.movement_type,
-      direction: ['in', 'release'].includes(item.movement_type) ? 'in' : 'out',
-      quantity: item.quantity || 0,
-      status: item.status,
-      performedBy: item.performer?.name || 'Unknown',
-      date: format(parseISO(item.created_at), 'yyyy-MM-dd'),
-      time: format(parseISO(item.created_at), 'HH:mm:ss'),
-      reference: item.reference_table ? `${item.reference_table}: ${item.reference_id}` : 'N/A',
-      source: item.details?.source || 'N/A',
-      notes: item.details?.notes || '',
-    }));
-    
-    return {
-      movements: transformedMovements,
-      totalIn,
-      totalOut,
-      netChange,
-      byProduct,
-      byWarehouse,
-    };
-  }, [queryResult.data]);
-
-  // Generate daily movement data for charts
-  const dailyMovementData = useMemo(() => {
-    const movements = queryResult.data || [];
-    const dateMap: Record<string, { in: number; out: number }> = {};
-    
-    // Create a map of dates with default values
-    if (filters.dateRange.from && filters.dateRange.to) {
-      let currentDate = subDays(filters.dateRange.to, 30); // Default to 30 days if date range is bigger
-      if (filters.dateRange.from > currentDate) {
-        currentDate = filters.dateRange.from;
+      // Apply date range filter if provided
+      if (filters.dateRange.from) {
+        query = query.gte('timestamp', filters.dateRange.from.toISOString());
       }
       
-      while (currentDate <= filters.dateRange.to) {
-        const dateKey = format(currentDate, 'yyyy-MM-dd');
-        dateMap[dateKey] = { in: 0, out: 0 };
-        currentDate = new Date(currentDate.setDate(currentDate.getDate() + 1));
+      if (filters.dateRange.to) {
+        query = query.lte('timestamp', filters.dateRange.to.toISOString());
       }
-    } else {
-      // If no date range specified, use the last 30 days
-      const now = new Date();
-      for (let i = 30; i >= 0; i--) {
-        const date = subDays(now, i);
-        const dateKey = format(date, 'yyyy-MM-dd');
-        dateMap[dateKey] = { in: 0, out: 0 };
+      
+      // Apply warehouse filter if provided
+      if (filters.warehouseId) {
+        query = query.eq('warehouse_id', filters.warehouseId);
       }
+      
+      // Apply product filter if provided
+      if (filters.productId) {
+        query = query.eq('product_id', filters.productId);
+      }
+      
+      // Apply movement type filter if provided
+      if (filters.movementType) {
+        query = query.eq('movement_type', filters.movementType as string);
+      }
+      
+      const { data, error: fetchError } = await query;
+      
+      if (fetchError) {
+        throw new Error(`Error fetching inventory movement data: ${fetchError.message}`);
+      }
+      
+      // Process data for the report
+      if (data) {
+        // Cast data to the correct type 
+        const movementsData = data as unknown as InventoryMovement[];
+        
+        // Calculate summary statistics
+        const inMovements = movementsData.filter(m => ['in', 'transfer_in', 'adjustment_in'].includes(m.movement_type));
+        const outMovements = movementsData.filter(m => ['out', 'transfer_out', 'adjustment_out'].includes(m.movement_type));
+        
+        const totalIn = inMovements.reduce((sum, m) => sum + m.quantity, 0);
+        const totalOut = outMovements.reduce((sum, m) => sum + m.quantity, 0);
+        const netChange = totalIn - totalOut;
+        
+        // Group by product
+        const byProduct: Record<string, number> = {};
+        movementsData.forEach(m => {
+          const productKey = m.product_id || 'unknown';
+          const direction = ['in', 'transfer_in', 'adjustment_in'].includes(m.movement_type) ? 1 : -1;
+          byProduct[productKey] = (byProduct[productKey] || 0) + (m.quantity * direction);
+        });
+        
+        // Group by warehouse
+        const byWarehouse: Record<string, number> = {};
+        movementsData.forEach(m => {
+          const warehouseKey = m.warehouse_id || 'unknown';
+          const direction = ['in', 'transfer_in', 'adjustment_in'].includes(m.movement_type) ? 1 : -1;
+          byWarehouse[warehouseKey] = (byWarehouse[warehouseKey] || 0) + (m.quantity * direction);
+        });
+        
+        setReportData({
+          movements: movementsData,
+          totalIn,
+          totalOut,
+          netChange,
+          byProduct,
+          byWarehouse
+        });
+      }
+      
+    } catch (err: any) {
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setLoading(false);
     }
-    
-    // Aggregate movement data by date
-    movements.forEach(movement => {
-      const date = format(parseISO(movement.created_at), 'yyyy-MM-dd');
-      if (!dateMap[date]) {
-        dateMap[date] = { in: 0, out: 0 };
-      }
-      
-      if (['in', 'release'].includes(movement.movement_type)) {
-        dateMap[date].in += movement.quantity || 0;
-      } else if (['out', 'reserve'].includes(movement.movement_type)) {
-        dateMap[date].out += movement.quantity || 0;
-      }
-    });
-    
-    // Convert to array format for charts
-    return Object.entries(dateMap).map(([date, values]) => ({
-      date,
-      in: values.in,
-      out: values.out,
-      net: values.in - values.out
+  };
+  
+  // Update filters
+  const updateFilters = (newFilters: Partial<ReportFilters>) => {
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters
     }));
-  }, [queryResult.data, filters.dateRange]);
-
+  };
+  
+  // Reset filters to default
+  const resetFilters = () => {
+    setFilters(defaultFilters);
+  };
+  
+  // Fetch data when filters change
+  useEffect(() => {
+    fetchData();
+  }, [
+    filters.dateRange.from?.toISOString(),
+    filters.dateRange.to?.toISOString(),
+    filters.warehouseId,
+    filters.productId,
+    filters.movementType
+  ]);
+  
   return {
     data: reportData,
-    dailyMovementData,
-    isLoading: queryResult.isLoading,
-    error: queryResult.error,
+    loading,
+    error,
     filters,
-    setFilters,
-    refetch: queryResult.refetch
+    updateFilters,
+    resetFilters,
+    refresh: fetchData
   };
 };
