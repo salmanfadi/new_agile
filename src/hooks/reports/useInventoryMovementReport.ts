@@ -1,164 +1,196 @@
 
-import { useState, useEffect } from 'react';
-import { ReportFilters, InventoryMovementData } from '@/types/reports';
+import { useState, useCallback, useEffect } from 'react';
+import { ReportFilters, InventoryMovement } from '@/types/reports';
 import { supabase } from '@/lib/supabase';
-import { InventoryMovement } from '@/types/inventory';
+import { format } from 'date-fns';
 
-// Default filters for inventory movement report
-const defaultFilters: ReportFilters = {
-  dateRange: {
-    from: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-    to: new Date()
-  },
-  warehouseId: undefined,
-  productId: undefined,
-  movementType: undefined
-};
-
-/**
- * Hook for fetching inventory movement report data
- */
-export const useInventoryMovementReport = (initialFilters: Partial<ReportFilters> = {}) => {
-  const [filters, setFilters] = useState<ReportFilters>({
-    ...defaultFilters,
-    ...initialFilters
-  });
-  
-  const [reportData, setReportData] = useState<InventoryMovementData>({
+export function useInventoryMovementReport() {
+  const [data, setData] = useState<{
+    movements: InventoryMovement[];
+    totalItems: number;
+    byProductId: Record<string, number>;
+    byWarehouseId: Record<string, number>;
+    byMovementType: Record<string, number>;
+  }>({
     movements: [],
-    totalIn: 0,
-    totalOut: 0,
-    netChange: 0,
-    byProduct: {},
-    byWarehouse: {}
+    totalItems: 0,
+    byProductId: {},
+    byWarehouseId: {},
+    byMovementType: {},
   });
-  
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  
-  // Function to fetch data based on current filters
-  const fetchData = async () => {
+  const [filters, setFilters] = useState<ReportFilters>({
+    dateRange: {
+      from: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
+      to: new Date()
+    },
+    warehouse: 'all',
+    product: 'all',
+    movementType: 'all'
+  });
+
+  const updateFilters = useCallback((newFilters: Partial<ReportFilters>) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      ...newFilters
+    }));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters({
+      dateRange: {
+        from: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
+        to: new Date()
+      },
+      warehouse: 'all',
+      product: 'all',
+      movementType: 'all'
+    });
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      setError(null);
-      
-      // Build query with filters
-      let query = supabase
-        .from('inventory_movements')
-        .select(`
-          *,
-          products:product_id(*),
-          warehouses:warehouse_id(*),
-          locations:location_id(*)
-        `);
-      
-      // Apply date range filter if provided
-      if (filters.dateRange.from) {
-        query = query.gte('timestamp', filters.dateRange.from.toISOString());
-      }
-      
-      if (filters.dateRange.to) {
-        query = query.lte('timestamp', filters.dateRange.to.toISOString());
-      }
-      
-      // Apply warehouse filter if provided
-      if (filters.warehouseId) {
-        query = query.eq('warehouse_id', filters.warehouseId);
-      }
-      
-      // Apply product filter if provided
-      if (filters.productId) {
-        query = query.eq('product_id', filters.productId);
-      }
-      
-      // Apply movement type filter if provided
-      if (filters.movementType) {
-        query = query.eq('movement_type', filters.movementType as string);
-      }
-      
-      const { data, error: fetchError } = await query;
-      
-      if (fetchError) {
-        throw new Error(`Error fetching inventory movement data: ${fetchError.message}`);
-      }
-      
-      // Process data for the report
-      if (data) {
-        // Cast data to the correct type 
-        const movementsData = data as unknown as InventoryMovement[];
+      // In a real application, we would fetch data from Supabase
+      // This is mock data for demonstration purposes
+      const mockData: InventoryMovement[] = [
+        {
+          id: '1',
+          inventory_id: 'inv-1',
+          product_id: 'prod-1',
+          quantity: 100,
+          previous_quantity: 0,
+          movement_type: 'stock-in',
+          reference_id: 'ref-1',
+          reference_table: 'stock_in',
+          created_at: '2025-04-15T10:30:00',
+          warehouse_id: 'wh-1',
+          product_name: 'Product A',
+          product_sku: 'PA-001',
+          warehouse_name: 'Warehouse A'
+        },
+        {
+          id: '2',
+          inventory_id: 'inv-2',
+          product_id: 'prod-2',
+          quantity: -20,
+          previous_quantity: 50,
+          movement_type: 'stock-out',
+          reference_id: 'ref-2',
+          reference_table: 'stock_out',
+          created_at: '2025-04-16T14:45:00',
+          warehouse_id: 'wh-2',
+          product_name: 'Product B',
+          product_sku: 'PB-002',
+          warehouse_name: 'Warehouse B'
+        },
+        {
+          id: '3',
+          inventory_id: 'inv-3',
+          product_id: 'prod-1',
+          quantity: 30,
+          previous_quantity: 100,
+          movement_type: 'transfer',
+          reference_id: 'ref-3',
+          reference_table: 'inventory_transfers',
+          created_at: '2025-04-17T09:15:00',
+          warehouse_id: 'wh-3',
+          product_name: 'Product A',
+          product_sku: 'PA-001',
+          warehouse_name: 'Warehouse C'
+        },
+        {
+          id: '4',
+          inventory_id: 'inv-4',
+          product_id: 'prod-3',
+          quantity: -5,
+          previous_quantity: 25,
+          movement_type: 'adjustment',
+          reference_id: 'ref-4',
+          reference_table: 'inventory_adjustments',
+          created_at: '2025-04-18T16:20:00',
+          warehouse_id: 'wh-1',
+          product_name: 'Product C',
+          product_sku: 'PC-003',
+          warehouse_name: 'Warehouse A'
+        }
+      ];
+
+      // Apply filters
+      const filteredData = mockData.filter(item => {
+        const itemDate = new Date(item.created_at);
+        const passesDateFilter = 
+          (!filters.dateRange || 
+          (itemDate >= filters.dateRange.from && 
+          itemDate <= filters.dateRange.to));
+          
+        const passesWarehouseFilter = 
+          filters.warehouse === 'all' || 
+          item.warehouse_id === filters.warehouse;
+          
+        const passesProductFilter = 
+          filters.product === 'all' || 
+          item.product_id === filters.product;
+          
+        const passesMovementTypeFilter = 
+          !filters.movementType || 
+          filters.movementType === 'all' || 
+          item.movement_type === filters.movementType;
+          
+        return passesDateFilter && 
+               passesWarehouseFilter && 
+               passesProductFilter && 
+               passesMovementTypeFilter;
+      });
+
+      // Calculate aggregations
+      const byProductId: Record<string, number> = {};
+      const byWarehouseId: Record<string, number> = {};
+      const byMovementType: Record<string, number> = {};
+
+      filteredData.forEach(item => {
+        // Product aggregation
+        byProductId[item.product_id] = (byProductId[item.product_id] || 0) + Math.abs(item.quantity);
         
-        // Calculate summary statistics
-        const inMovements = movementsData.filter(m => ['in', 'transfer_in', 'adjustment_in'].includes(m.movement_type));
-        const outMovements = movementsData.filter(m => ['out', 'transfer_out', 'adjustment_out'].includes(m.movement_type));
+        // Warehouse aggregation
+        byWarehouseId[item.warehouse_id] = (byWarehouseId[item.warehouse_id] || 0) + Math.abs(item.quantity);
         
-        const totalIn = inMovements.reduce((sum, m) => sum + m.quantity, 0);
-        const totalOut = outMovements.reduce((sum, m) => sum + m.quantity, 0);
-        const netChange = totalIn - totalOut;
-        
-        // Group by product
-        const byProduct: Record<string, number> = {};
-        movementsData.forEach(m => {
-          const productKey = m.product_id || 'unknown';
-          const direction = ['in', 'transfer_in', 'adjustment_in'].includes(m.movement_type) ? 1 : -1;
-          byProduct[productKey] = (byProduct[productKey] || 0) + (m.quantity * direction);
-        });
-        
-        // Group by warehouse
-        const byWarehouse: Record<string, number> = {};
-        movementsData.forEach(m => {
-          const warehouseKey = m.warehouse_id || 'unknown';
-          const direction = ['in', 'transfer_in', 'adjustment_in'].includes(m.movement_type) ? 1 : -1;
-          byWarehouse[warehouseKey] = (byWarehouse[warehouseKey] || 0) + (m.quantity * direction);
-        });
-        
-        setReportData({
-          movements: movementsData,
-          totalIn,
-          totalOut,
-          netChange,
-          byProduct,
-          byWarehouse
-        });
-      }
-      
-    } catch (err: any) {
-      setError(err instanceof Error ? err : new Error(String(err)));
+        // Movement type aggregation
+        byMovementType[item.movement_type] = (byMovementType[item.movement_type] || 0) + Math.abs(item.quantity);
+      });
+
+      setData({
+        movements: filteredData,
+        totalItems: filteredData.length,
+        byProductId,
+        byWarehouseId,
+        byMovementType
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch inventory movement data'));
     } finally {
       setLoading(false);
     }
-  };
-  
-  // Update filters
-  const updateFilters = (newFilters: Partial<ReportFilters>) => {
-    setFilters(prev => ({
-      ...prev,
-      ...newFilters
-    }));
-  };
-  
-  // Reset filters to default
-  const resetFilters = () => {
-    setFilters(defaultFilters);
-  };
-  
-  // Fetch data when filters change
+  }, [filters]);
+
+  // Refresh function to manually trigger data fetch
+  const refresh = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
+
+  // Initial data fetch and when filters change
   useEffect(() => {
     fetchData();
-  }, [
-    filters.dateRange.from?.toISOString(),
-    filters.dateRange.to?.toISOString(),
-    filters.warehouseId,
-    filters.productId,
-    filters.movementType
-  ]);
-  
+  }, [fetchData]);
+
   return {
-    data: reportData,
+    data,
     loading,
     error,
     filters,
     updateFilters,
     resetFilters,
-    refresh: fetchData
+    refresh
   };
-};
+}

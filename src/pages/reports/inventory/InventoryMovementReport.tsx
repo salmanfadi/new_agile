@@ -1,277 +1,232 @@
 
 import React, { useState } from 'react';
 import { ReportLayout } from '@/components/reports/ReportLayout';
+import { ReportFilters } from '@/components/reports/ReportFilters';
+import { format } from 'date-fns';
 import { BarChart } from '@/components/reports/charts/BarChart';
 import { LineChart } from '@/components/reports/charts/LineChart';
-import { ReportFilters } from '@/components/reports/ReportFilters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { useInventoryMovementReport } from '@/hooks/reports/useInventoryMovementReport';
 import { ReportFilters as ReportFiltersType } from '@/types/reports';
-import { InventoryMovement } from '@/types/inventory';
-import { format } from 'date-fns';
 
-// Mock data - in production this would come from useInventoryMovementReport hook
-const mockTrendData = [
-  { date: '2025-01', inQuantity: 4500, outQuantity: 3800, netChange: 700 },
-  { date: '2025-02', inQuantity: 5200, outQuantity: 4200, netChange: 1000 },
-  { date: '2025-03', inQuantity: 4800, outQuantity: 5100, netChange: -300 },
-  { date: '2025-04', inQuantity: 6100, outQuantity: 4900, netChange: 1200 },
-  { date: '2025-05', inQuantity: 5800, outQuantity: 5200, netChange: 600 },
-];
-
-const mockMovementsByProductData = [
-  { name: 'Premium Widgets', inQuantity: 1200, outQuantity: 980 },
-  { name: 'Standard Gadgets', inQuantity: 950, outQuantity: 850 },
-  { name: 'Luxury Items', inQuantity: 600, outQuantity: 450 },
-  { name: 'Basic Components', inQuantity: 1800, outQuantity: 1600 },
-  { name: 'Custom Solutions', inQuantity: 450, outQuantity: 320 },
-];
-
-const mockMovementsByWarehouseData = [
-  { name: 'Main Warehouse', inQuantity: 2800, outQuantity: 2400 },
-  { name: 'Secondary Warehouse', inQuantity: 1650, outQuantity: 1200 },
-  { name: 'Distribution Center', inQuantity: 550, outQuantity: 600 },
-];
-
-// Mock inventory movements data
-const mockMovements: InventoryMovement[] = [
+// Mock chart data
+const mockMovementTrendData = [
   {
-    id: '1',
-    product_id: 'prod-001',
-    warehouse_id: 'wh-001',
-    location_id: 'loc-001',
-    movement_type: 'in',
-    quantity: 250,
-    reference_id: 'si-001',
-    reference_type: 'stock_in',
-    timestamp: '2025-05-01T10:30:00Z',
-    user_id: 'user-001',
-    details: { source: 'Supplier A', notes: 'Regular delivery' },
-    products: { name: 'Premium Widgets', sku: 'PW-001' },
-    warehouses: { name: 'Main Warehouse' },
-    locations: { floor: 1, zone: 'A' },
-    reference_document: { id: 'si-001', type: 'stock_in' }
+    date: 'Jan',
+    'Stock In': 320,
+    'Stock Out': 240,
+    'Transfer': 180,
+    'Adjustment': 40
   },
   {
-    id: '2',
-    product_id: 'prod-002',
-    warehouse_id: 'wh-001',
-    location_id: 'loc-002',
-    movement_type: 'in',
-    quantity: 180,
-    reference_id: 'si-002',
-    reference_type: 'stock_in',
-    timestamp: '2025-05-02T14:15:00Z',
-    user_id: 'user-002',
-    details: { source: 'Supplier B', notes: 'Special order' },
-    products: { name: 'Standard Gadgets', sku: 'SG-001' },
-    warehouses: { name: 'Main Warehouse' },
-    locations: { floor: 1, zone: 'B' },
-    reference_document: { id: 'si-002', type: 'stock_in' }
+    date: 'Feb',
+    'Stock In': 350,
+    'Stock Out': 290,
+    'Transfer': 210,
+    'Adjustment': 30
   },
   {
-    id: '3',
-    product_id: 'prod-001',
-    warehouse_id: 'wh-001',
-    location_id: 'loc-001',
-    movement_type: 'out',
-    quantity: 120,
-    reference_id: 'so-001',
-    reference_type: 'stock_out',
-    timestamp: '2025-05-03T09:45:00Z',
-    user_id: 'user-001',
-    details: { destination: 'Customer XYZ', notes: 'Urgent order' },
-    products: { name: 'Premium Widgets', sku: 'PW-001' },
-    warehouses: { name: 'Main Warehouse' },
-    locations: { floor: 1, zone: 'A' },
-    reference_document: { id: 'so-001', type: 'stock_out' }
+    date: 'Mar',
+    'Stock In': 380,
+    'Stock Out': 310,
+    'Transfer': 200,
+    'Adjustment': 25
   },
   {
-    id: '4',
-    product_id: 'prod-003',
-    warehouse_id: 'wh-002',
-    location_id: 'loc-003',
-    movement_type: 'transfer_in',
-    quantity: 75,
-    reference_id: 'tr-001',
-    reference_type: 'transfer',
-    timestamp: '2025-05-04T11:20:00Z',
-    user_id: 'user-003',
-    details: { source: 'Main Warehouse', notes: 'Stock balancing' },
-    products: { name: 'Luxury Items', sku: 'LI-001' },
-    warehouses: { name: 'Secondary Warehouse' },
-    locations: { floor: 2, zone: 'C' },
-    reference_document: { id: 'tr-001', type: 'transfer' }
+    date: 'Apr',
+    'Stock In': 420,
+    'Stock Out': 345,
+    'Transfer': 230,
+    'Adjustment': 35
+  },
+  {
+    date: 'May',
+    'Stock In': 450,
+    'Stock Out': 370,
+    'Transfer': 250,
+    'Adjustment': 40
+  }
+];
+
+const mockProductMovements = [
+  {
+    name: 'Product A',
+    value: 35
+  },
+  {
+    name: 'Product B',
+    value: 25
+  },
+  {
+    name: 'Product C',
+    value: 20
+  },
+  {
+    name: 'Product D',
+    value: 10
+  },
+  {
+    name: 'Product E',
+    value: 10
+  }
+];
+
+const mockWarehouseMovements = [
+  {
+    name: 'Warehouse A',
+    'Stock In': 180,
+    'Stock Out': 120
+  },
+  {
+    name: 'Warehouse B',
+    'Stock In': 150,
+    'Stock Out': 130
+  },
+  {
+    name: 'Warehouse C',
+    'Stock In': 120,
+    'Stock Out': 95
   }
 ];
 
 const InventoryMovementReport: React.FC = () => {
-  // In a real implementation, these states and data would come from the useInventoryMovementReport hook
-  const [filters, setFilters] = useState<ReportFiltersType>({
-    dateRange: {
-      from: new Date('2025-05-01'),
-      to: new Date('2025-05-31')
-    }
-  });
+  const { data, loading, error, filters, updateFilters, resetFilters } = useInventoryMovementReport();
   
+  const handleFiltersChange = (newFilters: Partial<ReportFiltersType>) => {
+    updateFilters(newFilters);
+  };
+  
+  // Export functions
   const handleExportCsv = () => {
-    console.log('Export to CSV');
-    // In production, this would use a utility function to export the data
+    console.log('Exporting inventory movement data to CSV');
   };
   
   const handleExportPdf = () => {
-    console.log('Export to PDF');
-    // In production, this would use a utility function to export the data
-  };
-
-  const handleFiltersChange = (newFilters: Partial<ReportFiltersType>) => {
-    setFilters(prev => ({
-      ...prev,
-      ...newFilters
-    }));
-    // In production, this would trigger a data refresh
-  };
-
-  const getMovementTypeLabel = (type: string) => {
-    const types: Record<string, string> = {
-      'in': 'Stock In',
-      'out': 'Stock Out',
-      'transfer_in': 'Transfer In',
-      'transfer_out': 'Transfer Out',
-      'adjustment_in': 'Adjustment (+)',
-      'adjustment_out': 'Adjustment (-)',
-    };
-    return types[type] || type;
-  };
-
-  const getMovementTypeVariant = (type: string): "default" | "outline" | "secondary" | "destructive" | "success" => {
-    if (type === 'in' || type === 'transfer_in' || type === 'adjustment_in') return 'success';
-    if (type === 'out' || type === 'transfer_out' || type === 'adjustment_out') return 'destructive';
-    return 'default';
+    console.log('Exporting inventory movement data to PDF');
   };
 
   return (
-    <ReportLayout
-      title="Inventory Movement Report"
-      description="Track and analyze inventory movements over time"
+    <ReportLayout 
+      title="Inventory Movement Report" 
+      description="Analysis of inventory movements, transfers and adjustments"
       onExportCsv={handleExportCsv}
       onExportPdf={handleExportPdf}
+      isLoading={loading}
     >
-      <ReportFilters
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        showDateRange
-        showWarehouse
-        showProduct
-      />
+      <div className="mb-6">
+        <ReportFilters
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          showDateRange
+          showWarehouse
+          showProduct
+          showMovementType
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Total In</CardTitle>
+            <CardTitle className="text-lg font-medium">Total Movements</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">5,000</div>
-            <p className="text-sm text-muted-foreground mt-1">Units received</p>
+            <div className="text-3xl font-bold">{data.totalItems}</div>
+            <p className="text-sm text-muted-foreground mt-1">In selected period</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Total Out</CardTitle>
+            <CardTitle className="text-lg font-medium">Stock In Volume</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">4,200</div>
-            <p className="text-sm text-muted-foreground mt-1">Units shipped/consumed</p>
+            <div className="text-3xl font-bold">
+              {(data.byMovementType?.['stock-in'] || 0).toLocaleString()}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">Items received</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Net Change</CardTitle>
+            <CardTitle className="text-lg font-medium">Stock Out Volume</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-emerald-600">+800</div>
-            <p className="text-sm text-muted-foreground mt-1">Net inventory change</p>
+            <div className="text-3xl font-bold">
+              {(data.byMovementType?.['stock-out'] || 0).toLocaleString()}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">Items dispatched</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <LineChart
-          data={mockTrendData}
-          keys={['inQuantity', 'outQuantity', 'netChange']}
-          title="Inventory Movement Trend"
+          data={mockMovementTrendData}
+          keys={['Stock In', 'Stock Out', 'Transfer', 'Adjustment']}
+          title="Movement Trend"
           xAxisKey="date"
           xAxisLabel="Month"
           yAxisLabel="Quantity"
         />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <BarChart
-          data={mockMovementsByProductData}
-          keys={['inQuantity', 'outQuantity']}
-          title="Movements by Product"
-          xAxisLabel="Product"
-          yAxisLabel="Quantity"
-        />
         
         <BarChart
-          data={mockMovementsByWarehouseData}
-          keys={['inQuantity', 'outQuantity']}
+          data={mockWarehouseMovements}
+          keys={['Stock In', 'Stock Out']}
           title="Movements by Warehouse"
           xAxisLabel="Warehouse"
           yAxisLabel="Quantity"
         />
       </div>
-
+      
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-lg">Recent Movement Transactions</CardTitle>
+          <CardTitle>Recent Movement Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="border rounded-md overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead>Reference</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Warehouse</TableHead>
+                <TableHead>Reference</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.movements.slice(0, 10).map((movement) => (
+                <TableRow key={movement.id}>
+                  <TableCell>{format(new Date(movement.created_at), 'MMM dd, yyyy')}</TableCell>
+                  <TableCell>{movement.product_name}</TableCell>
+                  <TableCell>
+                    <Badge variant={
+                      movement.movement_type === 'stock-in' ? 'success' : 
+                      movement.movement_type === 'stock-out' ? 'destructive' : 
+                      'outline'
+                    }>
+                      {movement.movement_type === 'stock-in' ? 'Stock In' : 
+                       movement.movement_type === 'stock-out' ? 'Stock Out' : 
+                       movement.movement_type === 'transfer' ? 'Transfer' : 
+                       'Adjustment'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{Math.abs(movement.quantity)}</TableCell>
+                  <TableCell>{movement.warehouse_name}</TableCell>
+                  <TableCell>
+                    {movement.reference_table === 'stock_in' ? 'Stock In #' : 
+                     movement.reference_table === 'stock_out' ? 'Stock Out #' : 
+                     movement.reference_table === 'inventory_transfers' ? 'Transfer #' : 
+                     'Adjustment #'}
+                    {movement.reference_id.split('-').pop()}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockMovements.map((movement) => (
-                  <TableRow key={movement.id}>
-                    <TableCell>
-                      {format(new Date(movement.timestamp), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>{movement.products?.name}</TableCell>
-                    <TableCell>
-                      <Badge variant={getMovementTypeVariant(movement.movement_type)}>
-                        {getMovementTypeLabel(movement.movement_type)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{movement.warehouses?.name}</TableCell>
-                    <TableCell className="text-right">
-                      {movement.quantity}
-                    </TableCell>
-                    <TableCell>
-                      {movement.reference_type === 'stock_in' ? 'Stock In' :
-                       movement.reference_type === 'stock_out' ? 'Stock Out' :
-                       movement.reference_type === 'transfer' ? 'Transfer' : 
-                       movement.reference_type}
-                      #{movement.reference_id.split('-').pop()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </ReportLayout>

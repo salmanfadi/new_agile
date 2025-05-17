@@ -1,296 +1,157 @@
 
 import React from 'react';
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { format } from 'date-fns';
-import { Calendar as CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-} from "@/components/ui/form";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ReportFilters as ReportFiltersType } from '@/types/reports';
-import { useWarehouses } from '@/hooks/useWarehouses';
-import { useLocations } from '@/hooks/useLocations';
 import { Card, CardContent } from '@/components/ui/card';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { ReportFilters as ReportFiltersType } from '@/types/reports';
 
-const formSchema = z.object({
-  dateFrom: z.date().optional(),
-  dateTo: z.date().optional(),
-  warehouseId: z.string().optional(),
-  locationId: z.string().optional(),
-  productId: z.string().optional(),
-  status: z.string().optional(),
-  batchId: z.string().optional(),
-  userId: z.string().optional(),
-});
-
-interface ReportFiltersProps {
-  onFilterChange: (filters: ReportFiltersType) => void;
+export interface ReportFiltersProps {
+  filters?: ReportFiltersType;
+  onFiltersChange?: (newFilters: Partial<ReportFiltersType>) => void;
+  showDateRange?: boolean;
   showWarehouse?: boolean;
-  showLocation?: boolean;
   showProduct?: boolean;
   showStatus?: boolean;
-  showBatch?: boolean;
   showUser?: boolean;
-  statusOptions?: { label: string, value: string }[];
-  defaultFilters?: Partial<ReportFiltersType>;
+  showMovementType?: boolean;
 }
 
-export function ReportFilters({
-  onFilterChange,
-  showWarehouse = true,
-  showLocation = false,
+export const ReportFilters = ({
+  filters,
+  onFiltersChange,
+  showDateRange = false,
+  showWarehouse = false,
   showProduct = false,
   showStatus = false,
-  showBatch = false,
   showUser = false,
-  statusOptions = [],
-  defaultFilters = {},
-}: ReportFiltersProps) {
-  const { warehouses } = useWarehouses();
-  const { locations, isLoading: locationsLoading } = useLocations(
-    showLocation ? defaultFilters?.warehouseId || '' : ''
-  );
+  showMovementType = false,
+}: ReportFiltersProps) => {
+  const handleDateRangeChange = (range: { from: Date; to: Date }) => {
+    onFiltersChange?.({ dateRange: range });
+  };
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      dateFrom: defaultFilters?.dateRange?.from || undefined,
-      dateTo: defaultFilters?.dateRange?.to || undefined,
-      warehouseId: defaultFilters?.warehouseId || '',
-      locationId: defaultFilters?.locationId || '',
-      productId: defaultFilters?.productId || '',
-      status: defaultFilters?.status || '',
-      batchId: defaultFilters?.batchId || '',
-      userId: defaultFilters?.userId || '',
-    },
-  });
+  const handleWarehouseChange = (value: string) => {
+    onFiltersChange?.({ warehouse: value });
+  };
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    onFilterChange({
-      dateRange: {
-        from: values.dateFrom || null,
-        to: values.dateTo || null,
-      },
-      warehouseId: values.warehouseId,
-      locationId: values.locationId,
-      productId: values.productId,
-      status: values.status,
-      batchId: values.batchId,
-      userId: values.userId,
-    });
+  const handleProductChange = (value: string) => {
+    onFiltersChange?.({ product: value });
+  };
+
+  const handleStatusChange = (value: string) => {
+    onFiltersChange?.({ status: value });
+  };
+  
+  const handleUserChange = (value: string) => {
+    onFiltersChange?.({ user: value });
+  };
+  
+  const handleMovementTypeChange = (value: string) => {
+    onFiltersChange?.({ movementType: value });
   };
 
   return (
     <Card className="mb-6">
-      <CardContent className="pt-6">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {/* Date From Field */}
-              <FormField
-                control={form.control}
-                name="dateFrom"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date From</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Select date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                )}
-              />
-
-              {/* Date To Field */}
-              <FormField
-                control={form.control}
-                name="dateTo"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date To</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Select date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                )}
-              />
-
-              {/* Warehouse Field */}
-              {showWarehouse && (
-                <FormField
-                  control={form.control}
-                  name="warehouseId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Warehouse</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select warehouse" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">All Warehouses</SelectItem>
-                          {warehouses.map((warehouse) => (
-                            <SelectItem key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {/* Location Field */}
-              {showLocation && (
-                <FormField
-                  control={form.control}
-                  name="locationId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        disabled={locationsLoading || locations.length === 0}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select location" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">All Locations</SelectItem>
-                          {locations.map((location) => (
-                            <SelectItem key={location.id} value={location.id}>
-                              Floor {location.floor}, Zone {location.zone}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {/* Status Field */}
-              {showStatus && statusOptions.length > 0 && (
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">All Statuses</SelectItem>
-                          {statusOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-              )}
-            </div>
-
-            <div className="flex justify-end">
-              <Button 
-                type="submit" 
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Apply Filters
-              </Button>
-            </div>
-          </form>
-        </Form>
+      <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {showDateRange && (
+          <div className="space-y-2">
+            <Label>Date Range</Label>
+            <DateRangePicker 
+              initialDateFrom={filters?.dateRange?.from} 
+              initialDateTo={filters?.dateRange?.to} 
+              onUpdate={handleDateRangeChange}
+            />
+          </div>
+        )}
+        
+        {showWarehouse && (
+          <div className="space-y-2">
+            <Label>Warehouse</Label>
+            <Select value={filters?.warehouse} onValueChange={handleWarehouseChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select warehouse" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Warehouses</SelectItem>
+                <SelectItem value="warehouse-a">Warehouse A</SelectItem>
+                <SelectItem value="warehouse-b">Warehouse B</SelectItem>
+                <SelectItem value="warehouse-c">Warehouse C</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {showProduct && (
+          <div className="space-y-2">
+            <Label>Product</Label>
+            <Select value={filters?.product} onValueChange={handleProductChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select product" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Products</SelectItem>
+                <SelectItem value="product-1">Product 1</SelectItem>
+                <SelectItem value="product-2">Product 2</SelectItem>
+                <SelectItem value="product-3">Product 3</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {showStatus && (
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={filters?.status} onValueChange={handleStatusChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {showUser && (
+          <div className="space-y-2">
+            <Label>User</Label>
+            <Select value={filters?.user} onValueChange={handleUserChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select user" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Users</SelectItem>
+                <SelectItem value="user-1">John Smith</SelectItem>
+                <SelectItem value="user-2">Maria Garcia</SelectItem>
+                <SelectItem value="user-3">David Lee</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {showMovementType && (
+          <div className="space-y-2">
+            <Label>Movement Type</Label>
+            <Select value={filters?.movementType} onValueChange={handleMovementTypeChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="stock-in">Stock In</SelectItem>
+                <SelectItem value="stock-out">Stock Out</SelectItem>
+                <SelectItem value="transfer">Transfer</SelectItem>
+                <SelectItem value="adjustment">Adjustment</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
-}
+};

@@ -1,170 +1,131 @@
 
 import React, { useState } from 'react';
 import { ReportLayout } from '@/components/reports/ReportLayout';
+import { ReportFilters } from '@/components/reports/ReportFilters';
+import { format } from 'date-fns';
 import { BarChart } from '@/components/reports/charts/BarChart';
 import { PieChart } from '@/components/reports/charts/PieChart';
-import { LineChart } from '@/components/reports/charts/LineChart';
-import { ReportFilters } from '@/components/reports/ReportFilters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ProcessedBatch } from '@/types/database';
+import { Badge } from '@/components/ui/badge';
+import { useBatchTrackingReport } from '@/hooks/reports/useBatchTrackingReport';
 import { ReportFilters as ReportFiltersType } from '@/types/reports';
-import { format } from 'date-fns';
 
-// Mock data - in production this would come from useBatchTrackingReport hook
-const mockBatchesByStatusData = [
-  { name: 'Completed', value: 56 },
-  { name: 'Processing', value: 24 },
-  { name: 'Pending', value: 18 },
-  { name: 'Rejected', value: 8 }
+// Mock data for charts
+const mockProductDistribution = [
+  { name: 'Product A', value: 35 },
+  { name: 'Product B', value: 25 },
+  { name: 'Product C', value: 20 },
+  { name: 'Product D', value: 15 },
+  { name: 'Product E', value: 5 }
 ];
 
-const mockBatchesBySourceData = [
-  { name: 'Supplier A', value: 28 },
-  { name: 'Supplier B', value: 22 },
-  { name: 'Returns', value: 14 },
-  { name: 'Internal', value: 12 },
-  { name: 'Other', value: 10 }
+const mockStatusDistribution = [
+  { name: 'Completed', value: 65 },
+  { name: 'Processing', value: 20 },
+  { name: 'Pending', value: 10 },
+  { name: 'Rejected', value: 5 }
 ];
 
-const mockQuantityTrendData = [
-  { date: '2025-01-01', quantity: 2450 },
-  { date: '2025-02-01', quantity: 3200 },
-  { date: '2025-03-01', quantity: 2800 },
-  { date: '2025-04-01', quantity: 3600 },
-  { date: '2025-05-01', quantity: 4200 }
+const mockTimeData = [
+  { 
+    name: 'Week 1', 
+    min: 1.2,
+    avg: 2.5,
+    max: 4.3
+  },
+  { 
+    name: 'Week 2', 
+    min: 1.0,
+    avg: 2.2,
+    max: 3.8
+  },
+  { 
+    name: 'Week 3', 
+    min: 1.5,
+    avg: 2.8,
+    max: 4.5
+  },
+  { 
+    name: 'Week 4', 
+    min: 0.8,
+    avg: 2.0,
+    max: 3.5
+  },
 ];
 
-const mockProcessedBatches: ProcessedBatch[] = [
-  {
-    id: '1',
-    stock_in_id: 'si-001',
-    processed_by: 'user-001',
-    processed_at: '2025-05-01T10:30:00Z',
-    product_id: 'prod-001',
-    total_quantity: 500,
-    total_boxes: 20,
-    warehouse_id: 'wh-001',
-    status: 'completed',
-    notes: 'Processed on time',
-    source: 'Supplier A',
-    created_at: '2025-05-01T09:00:00Z',
-    products: { name: 'Premium Widgets', sku: 'PW-001' },
-    warehouses: { name: 'Main Warehouse' },
-    profiles: { name: 'John Doe' },
-    processed_by_name: 'John Doe',
-    processed_at_formatted: '5/1/2025',
-    created_at_formatted: '5/1/2025',
-    product_name: 'Premium Widgets'
+const mockTrendData = [
+  { 
+    date: '2025-01', 
+    completed: 42,
+    processing: 5,
+    pending: 8,
+    rejected: 3
   },
-  {
-    id: '2',
-    stock_in_id: 'si-002',
-    processed_by: 'user-002',
-    processed_at: '2025-05-02T14:15:00Z',
-    product_id: 'prod-002',
-    total_quantity: 350,
-    total_boxes: 14,
-    warehouse_id: 'wh-001',
-    status: 'completed',
-    notes: 'Quality check done',
-    source: 'Supplier B',
-    created_at: '2025-05-02T13:00:00Z',
-    products: { name: 'Standard Gadgets', sku: 'SG-001' },
-    warehouses: { name: 'Main Warehouse' },
-    profiles: { name: 'Jane Smith' },
-    processed_by_name: 'Jane Smith',
-    processed_at_formatted: '5/2/2025',
-    created_at_formatted: '5/2/2025',
-    product_name: 'Standard Gadgets'
+  { 
+    date: '2025-02', 
+    completed: 38,
+    processing: 7,
+    pending: 5,
+    rejected: 2
   },
-  {
-    id: '3',
-    stock_in_id: 'si-003',
-    processed_by: 'user-001',
-    processed_at: '2025-05-03T09:45:00Z',
-    product_id: 'prod-003',
-    total_quantity: 600,
-    total_boxes: 24,
-    warehouse_id: 'wh-002',
-    status: 'completed',
-    notes: 'Express processing',
-    source: 'Internal',
-    created_at: '2025-05-03T08:30:00Z',
-    products: { name: 'Luxury Items', sku: 'LI-001' },
-    warehouses: { name: 'Secondary Warehouse' },
-    profiles: { name: 'John Doe' },
-    processed_by_name: 'John Doe',
-    processed_at_formatted: '5/3/2025',
-    created_at_formatted: '5/3/2025',
-    product_name: 'Luxury Items'
+  { 
+    date: '2025-03', 
+    completed: 45,
+    processing: 6,
+    pending: 9,
+    rejected: 4
   },
-  {
-    id: '4',
-    stock_in_id: 'si-004',
-    processed_by: 'user-003',
-    processed_at: '2025-05-04T11:20:00Z',
-    product_id: 'prod-001',
-    total_quantity: 450,
-    total_boxes: 18,
-    warehouse_id: 'wh-001',
-    status: 'completed',
-    notes: 'Batch verified',
-    source: 'Supplier A',
-    created_at: '2025-05-04T10:00:00Z',
-    products: { name: 'Premium Widgets', sku: 'PW-001' },
-    warehouses: { name: 'Main Warehouse' },
-    profiles: { name: 'Robert Johnson' },
-    processed_by_name: 'Robert Johnson',
-    processed_at_formatted: '5/4/2025',
-    created_at_formatted: '5/4/2025',
-    product_name: 'Premium Widgets'
+  { 
+    date: '2025-04', 
+    completed: 50,
+    processing: 8,
+    pending: 7,
+    rejected: 1
+  },
+  { 
+    date: '2025-05', 
+    completed: 48,
+    processing: 9,
+    pending: 8,
+    rejected: 2
   }
 ];
 
 const BatchTrackingReport: React.FC = () => {
-  // In a real implementation, these states and data would come from the useBatchTrackingReport hook
-  const [filters, setFilters] = useState<ReportFiltersType>({
-    dateRange: {
-      from: new Date('2025-05-01'),
-      to: new Date('2025-05-31')
-    }
-  });
+  const { data, loading, error, filters, updateFilters, resetFilters } = useBatchTrackingReport();
   
+  const handleFiltersChange = (newFilters: Partial<ReportFiltersType>) => {
+    updateFilters(newFilters);
+  };
+  
+  // Export functions
   const handleExportCsv = () => {
-    console.log('Export to CSV');
-    // In production, this would use a utility function to export the data
+    console.log('Exporting batch tracking data to CSV');
   };
   
   const handleExportPdf = () => {
-    console.log('Export to PDF');
-    // In production, this would use a utility function to export the data
-  };
-
-  const handleFiltersChange = (newFilters: Partial<ReportFiltersType>) => {
-    setFilters(prev => ({
-      ...prev,
-      ...newFilters
-    }));
-    // In production, this would trigger a data refresh
+    console.log('Exporting batch tracking data to PDF');
   };
 
   return (
-    <ReportLayout
-      title="Batch Tracking Report"
-      description="Track and analyze batches processed over time"
+    <ReportLayout 
+      title="Batch Tracking Report" 
+      description="Detailed tracking and analysis of batch processing"
       onExportCsv={handleExportCsv}
       onExportPdf={handleExportPdf}
+      isLoading={loading}
     >
-      <ReportFilters
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        showDateRange
-        showWarehouse
-        showProduct
-        showStatus
-      />
+      <div className="mb-6">
+        <ReportFilters
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          showDateRange
+          showWarehouse
+          showProduct
+          showStatus
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
@@ -172,8 +133,8 @@ const BatchTrackingReport: React.FC = () => {
             <CardTitle className="text-lg font-medium">Total Batches</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">106</div>
-            <p className="text-sm text-muted-foreground mt-1">Processed in date range</p>
+            <div className="text-3xl font-bold">{data.totalBatches}</div>
+            <p className="text-sm text-muted-foreground mt-1">Processed in selected period</p>
           </CardContent>
         </Card>
         
@@ -182,90 +143,99 @@ const BatchTrackingReport: React.FC = () => {
             <CardTitle className="text-lg font-medium">Total Quantity</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">16,250</div>
-            <p className="text-sm text-muted-foreground mt-1">Units processed</p>
+            <div className="text-3xl font-bold">{data.totalQuantity.toLocaleString()}</div>
+            <p className="text-sm text-muted-foreground mt-1">Items across all batches</p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Daily Average</CardTitle>
+            <CardTitle className="text-lg font-medium">Completion Rate</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">3.4</div>
-            <p className="text-sm text-muted-foreground mt-1">Batches per day</p>
+            <div className="text-3xl font-bold">
+              {data.totalBatches ? 
+                `${Math.round((data.byStatus?.completed || 0) / data.totalBatches * 100)}%` : 
+                '0%'}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">Batches successfully completed</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <PieChart 
-          data={mockBatchesByStatusData}
-          title="Batches by Status"
+        <PieChart
+          data={mockProductDistribution}
+          title="Batch Distribution by Product"
         />
         
         <PieChart 
-          data={mockBatchesBySourceData}
-          title="Batches by Source"
+          data={mockStatusDistribution}
+          title="Batch Distribution by Status"
         />
       </div>
 
-      <div className="mb-6">
-        <LineChart
-          data={mockQuantityTrendData}
-          keys={['quantity']}
-          title="Processed Quantity Trend"
-          xAxisKey="date"
-          xAxisLabel="Date"
-          yAxisLabel="Quantity"
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <BarChart
+          data={mockTimeData}
+          keys={['min', 'avg', 'max']}
+          title="Processing Time (Days)"
+          xAxisLabel="Period"
+          yAxisLabel="Days"
+        />
+        
+        <BarChart
+          data={mockTrendData}
+          keys={['completed', 'processing', 'pending', 'rejected']}
+          title="Batch Processing Trends"
+          xAxisLabel="Month"
+          yAxisLabel="Batches"
+          stacked
         />
       </div>
-
+      
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-lg">Recent Processed Batches</CardTitle>
+          <CardTitle>Recent Batch Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="border rounded-md overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Boxes</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Processed By</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Batch ID</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead>Warehouse</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Submitted Date</TableHead>
+                <TableHead>Processed By</TableHead>
+                <TableHead>Processing Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.batches.slice(0, 10).map((batch) => (
+                <TableRow key={batch.id}>
+                  <TableCell className="font-medium">{batch.id}</TableCell>
+                  <TableCell>{batch.productName}</TableCell>
+                  <TableCell>{batch.warehouseName}</TableCell>
+                  <TableCell>{batch.quantity}</TableCell>
+                  <TableCell>
+                    <Badge variant={
+                      batch.status === 'completed' ? 'success' : 
+                      batch.status === 'processing' ? 'outline' :
+                      batch.status === 'pending' ? 'outline' :
+                      'destructive'
+                    }>
+                      {batch.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{format(new Date(batch.created_at), 'MMM dd, yyyy')}</TableCell>
+                  <TableCell>{batch.processedByName || 'Pending'}</TableCell>
+                  <TableCell>{batch.processing_time || 'N/A'}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockProcessedBatches.map((batch) => (
-                  <TableRow key={batch.id}>
-                    <TableCell>
-                      {batch.processed_at ? format(new Date(batch.processed_at), 'MMM d, yyyy') : 'N/A'}
-                    </TableCell>
-                    <TableCell>{batch.product_name}</TableCell>
-                    <TableCell>{batch.source}</TableCell>
-                    <TableCell>{batch.warehouses?.name}</TableCell>
-                    <TableCell className="text-right">{batch.total_quantity}</TableCell>
-                    <TableCell className="text-right">{batch.total_boxes}</TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        batch.status === 'completed' ? 'success' :
-                        batch.status === 'processing' ? 'warning' :
-                        batch.status === 'rejected' ? 'destructive' : 'outline'
-                      }>
-                        {batch.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{batch.processed_by_name}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </ReportLayout>
