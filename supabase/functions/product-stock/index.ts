@@ -2,7 +2,18 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+// Define CORS headers for browser access
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   // Create a Supabase client with the auth header of the logged in user
   const supabaseClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -11,7 +22,7 @@ serve(async (req) => {
   )
 
   try {
-    // Get products that are active and have inventory
+    // Get products from the customer_visible_products view
     const { data: products, error } = await supabaseClient
       .from('customer_visible_products')
       .select('*')
@@ -22,15 +33,16 @@ serve(async (req) => {
     return new Response(
       JSON.stringify(products),
       { 
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
       },
     )
   } catch (error) {
+    console.error('Error fetching products:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400 
       },
     )

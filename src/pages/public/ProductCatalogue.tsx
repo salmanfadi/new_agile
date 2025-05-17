@@ -39,6 +39,7 @@ const ProductCatalogue: React.FC = () => {
         const { data, error } = await supabase.functions.invoke('product-stock');
         
         if (error) {
+          console.error('Error invoking product-stock function:', error);
           toast({
             title: "Error",
             description: "Failed to load products. Please try again.",
@@ -74,7 +75,8 @@ const ProductCatalogue: React.FC = () => {
     const lowerCaseSearch = searchTerm.toLowerCase();
     const filtered = products.filter(product => 
       product.name.toLowerCase().includes(lowerCaseSearch) || 
-      (product.description && product.description.toLowerCase().includes(lowerCaseSearch))
+      (product.description && product.description.toLowerCase().includes(lowerCaseSearch)) ||
+      (product.sku && product.sku.toLowerCase().includes(lowerCaseSearch))
     );
     
     setFilteredProducts(filtered);

@@ -55,7 +55,7 @@ export function useProducts() {
     },
   });
 
-  // Upload image to Supabase storage
+  // Upload image to Supabase storage using the product-images bucket
   const uploadProductImage = async (file: File, productId: string): Promise<string | null> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${productId}.${fileExt}`;

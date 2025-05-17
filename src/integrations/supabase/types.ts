@@ -125,6 +125,13 @@ export type Database = {
             foreignKeyName: "fk_inventory_product"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "customer_visible_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventory_product"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -147,6 +154,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "warehouse_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_visible_products"
             referencedColumns: ["id"]
           },
           {
@@ -224,6 +238,13 @@ export type Database = {
             columns: ["performed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_visible_products"
             referencedColumns: ["id"]
           },
           {
@@ -318,6 +339,13 @@ export type Database = {
             columns: ["initiated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_transfers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_visible_products"
             referencedColumns: ["id"]
           },
           {
@@ -426,6 +454,13 @@ export type Database = {
             foreignKeyName: "processed_batches_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "customer_visible_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processed_batches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -455,9 +490,10 @@ export type Database = {
           image_url: string | null
           is_active: boolean
           name: string
-          sku: string | null
+          sku: string
           specifications: string | null
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           category?: string | null
@@ -468,9 +504,10 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           name: string
-          sku?: string | null
+          sku: string
           specifications?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           category?: string | null
@@ -481,14 +518,22 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           name?: string
-          sku?: string | null
+          sku?: string
           specifications?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "products_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -607,6 +652,13 @@ export type Database = {
             foreignKeyName: "sales_inquiry_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "customer_visible_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_inquiry_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -658,6 +710,13 @@ export type Database = {
             columns: ["processed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_in_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_visible_products"
             referencedColumns: ["id"]
           },
           {
@@ -811,6 +870,13 @@ export type Database = {
             foreignKeyName: "stock_out_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "customer_visible_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_out_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -926,7 +992,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      customer_visible_products: {
+        Row: {
+          category: string | null
+          description: string | null
+          id: string | null
+          image_url: string | null
+          in_stock_quantity: number | null
+          is_out_of_stock: boolean | null
+          name: string | null
+          sku: string | null
+          specifications: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       find_inventory_by_barcode: {

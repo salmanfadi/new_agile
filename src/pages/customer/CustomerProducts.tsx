@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { CustomerLayout } from '@/components/layout/CustomerLayout';
@@ -11,84 +10,30 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Search, Tag, Package } from 'lucide-react';
 
-interface ProductWithStock extends Product {
-  stock_status: 'In Stock' | 'Low Stock' | 'Out of Stock';
-}
-
 const CustomerProducts: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   
+  // Use the customer_visible_products view that includes stock information
   const { data: products, isLoading } = useQuery({
-    queryKey: ['public-products'],
+    queryKey: ['customer-products'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          id,
-          name,
-          description,
-          sku,
-          category,
-          image_url,
-          is_active,
-          created_at,
-          updated_at
-        `)
-        .eq('is_active', true)
-        .order('name');
-      
+      const { data, error } = await supabase.functions.invoke('product-stock');
+
       if (error) {
         throw new Error(`Error fetching products: ${error.message}`);
       }
 
-      // For each product, determine stock status (without showing actual quantities)
-      const productsWithStock = await Promise.all(
-        data.map(async (product) => {
-          const { data: inventoryData, error: inventoryError } = await supabase
-            .from('inventory')
-            .select('quantity')
-            .eq('product_id', product.id);
-
-          if (inventoryError) {
-            console.error(`Error fetching inventory for ${product.name}:`, inventoryError);
-            return {
-              ...product,
-              stock_status: 'Out of Stock'
-            };
-          }
-
-          const totalQuantity = inventoryData.reduce(
-            (sum, item) => sum + (item.quantity || 0), 
-            0
-          );
-
-          let stockStatus: 'In Stock' | 'Low Stock' | 'Out of Stock';
-          if (totalQuantity <= 0) {
-            stockStatus = 'Out of Stock';
-          } else if (totalQuantity <= 5) {
-            stockStatus = 'Low Stock';
-          } else {
-            stockStatus = 'In Stock';
-          }
-
-          return {
-            ...product,
-            stock_status: stockStatus
-          };
-        })
-      );
-
-      return productsWithStock;
+      return data || [];
     }
   });
 
   // Extract all unique categories
   const categories = products 
-    ? [...new Set(products.map(p => p.category).filter(Boolean))]
+    ? [...new Set(products.map((p: any) => p.category).filter(Boolean))]
     : [];
 
-  const filteredProducts = products?.filter(product => 
+  const filteredProducts = products?.filter((product: any) => 
     (searchTerm === '' || 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -97,15 +42,13 @@ const CustomerProducts: React.FC = () => {
     (categoryFilter === null || product.category === categoryFilter)
   );
 
-  const getStockStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Out of Stock':
-        return <Badge variant="destructive">Out of Stock</Badge>;
-      case 'Low Stock':
-        return <Badge variant="default" className="bg-amber-500">Low Stock</Badge>;
-      case 'In Stock':
-      default:
-        return <Badge variant="default" className="bg-green-500">In Stock</Badge>;
+  const getStockStatusBadge = (product: any) => {
+    if (product.is_out_of_stock) {
+      return <Badge variant="destructive">Out of Stock</Badge>;
+    } else if (product.in_stock_quantity <= 5) {
+      return <Badge variant="default" className="bg-amber-500">Low Stock</Badge>;
+    } else {
+      return <Badge variant="default" className="bg-green-500">In Stock</Badge>;
     }
   };
 
@@ -183,7 +126,7 @@ const CustomerProducts: React.FC = () => {
                   </CardHeader>
                   <CardContent className="flex-grow">
                     <div className="flex items-center gap-2 mb-2">
-                      {getStockStatusBadge(product.stock_status)}
+                      {getStockStatusBadge(product)}
                       {product.sku && <span className="text-xs text-slate-500">SKU: {product.sku}</span>}
                     </div>
                     <p className="text-sm text-slate-600 line-clamp-3">

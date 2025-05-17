@@ -38,9 +38,10 @@ const ProductDetail: React.FC = () => {
       
       try {
         setLoading(true);
-        const { data: productStock, error: stockError } = await supabase.functions.invoke('product-stock');
+        const { data: productStock, error } = await supabase.functions.invoke('product-stock');
         
-        if (stockError) {
+        if (error) {
+          console.error('Error invoking product-stock function:', error);
           toast({
             title: 'Error',
             description: 'Failed to load product information',
