@@ -35,7 +35,7 @@ export interface InventoryItem {
   status: string;
   batchId?: string | null;
   lastUpdated: string;
-  source?: string | null;  // Add source property
+  source?: string | null;
 }
 
 // Interface for raw inventory data from Supabase
@@ -103,9 +103,10 @@ export const useInventoryData = (
             warehouse_locations:location_id (
               floor,
               zone
-            ),
-            details
+            )
           `);
+        
+        // Note: We removed 'details' from the select query as it doesn't exist in the inventory table
         
         // Apply filters
         if (warehouseFilter) {
@@ -134,8 +135,11 @@ export const useInventoryData = (
 
         console.log('Raw inventory data:', data);
         
+        // Use type assertion with safeguards
+        if (!data) return [];
+        
         // Transform the data with proper type handling
-        return (data as RawInventoryItem[] || []).map((item: RawInventoryItem) => {
+        return (data as unknown as RawInventoryItem[]).map((item) => {
           // Extract product info with safe type handling
           const productData = item.products || {};
           const productName = productData?.name || 'Unknown Product';
@@ -157,9 +161,10 @@ export const useInventoryData = (
             locationDetails = `Floor ${floor}, Zone ${zone}`;
           }
 
-          // Extract source from details if available
-          const details = item.details || {};
-          const source = details.source || null;
+          // Instead of accessing details, we'll check if we have batch information
+          // to potentially get source info from a separate query in the future
+          // For now, we'll set source to null
+          const source = null; // We've removed the details field that doesn't exist
           
           return {
             id: item.id,

@@ -31,7 +31,7 @@ interface InventoryTableProps {
   isLoading: boolean;
   error: Error | null;
   highlightedBarcode: string | null;
-  onSort?: (field: keyof InventoryItem) => void; // Make onSort optional
+  onSort?: (field: keyof InventoryItem) => void;
   sortField?: keyof InventoryItem;
   sortDirection?: 'asc' | 'desc';
 }
@@ -286,6 +286,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
               <TableCell>{item.color || '-'}</TableCell>
               <TableCell>{item.size || '-'}</TableCell>
               <TableCell>
+                {/* Modified to handle potentially missing source property */}
                 {item.source ? (
                   <Badge variant="outline" className="text-xs">
                     <Truck className="h-3 w-3 mr-1" />
