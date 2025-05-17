@@ -1,10 +1,20 @@
+
 import React, { useEffect, useRef, useState } from 'react';
-import Quagga from '@ericblade/quagga2';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Barcode, Camera, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import CameraScanner from './CameraScanner';
+
+// Import Quagga dynamically to avoid SSR issues
+let Quagga: any = null;
+if (typeof window !== 'undefined') {
+  import('@ericblade/quagga2').then(module => {
+    Quagga = module.default;
+  }).catch(err => {
+    console.error('Error loading Quagga2:', err);
+  });
+}
 
 interface BarcodeScannerProps {
   onDetected?: (barcode: string) => void;
@@ -98,7 +108,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   };
 
   useEffect(() => {
-    if (!isOpen || !isCameraActive || !allowCameraScanning) return;
+    if (!isOpen || !isCameraActive || !allowCameraScanning || !Quagga) return;
     
     const initializeScanner = async () => {
       try {
@@ -131,7 +141,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
         isInitialized.current = true;
         Quagga.start();
 
-        Quagga.onDetected((result) => {
+        Quagga.onDetected((result: any) => {
           if (result && result.codeResult && result.codeResult.code) {
             const code = result.codeResult.code;
             console.log('Barcode detected:', code);
