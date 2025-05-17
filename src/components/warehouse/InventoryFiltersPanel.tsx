@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarcodeScanner } from '@/components/barcode/BarcodeScanner';
-import { Search, RotateCw, Filter, Barcode } from 'lucide-react';
+import { Search, RotateCw, Filter } from 'lucide-react';
+import { InventoryBarcodeScanner } from '@/components/inventory/InventoryBarcodeScanner';
 
 interface InventoryFiltersPanelProps {
   onBarcodeScanned: (barcode: string) => void;
@@ -44,13 +44,6 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
   isLoadingWarehouses = false,
   isLoadingBatches = false,
 }) => {
-  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
-  
-  const handleBarcodeScanned = (barcode: string) => {
-    setShowBarcodeScanner(false);
-    onBarcodeScanned(barcode);
-  };
-  
   return (
     <Card>
       <CardContent className="pt-6">
@@ -66,14 +59,7 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
               />
             </div>
             
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={() => setShowBarcodeScanner(true)}
-              title="Scan Barcode"
-            >
-              <Barcode className="h-4 w-4" />
-            </Button>
+            <InventoryBarcodeScanner onBarcodeScanned={onBarcodeScanned} />
             
             <Button 
               variant="outline" 
@@ -159,13 +145,6 @@ export const InventoryFiltersPanel: React.FC<InventoryFiltersPanelProps> = ({
           )}
         </div>
       </CardContent>
-      
-      {showBarcodeScanner && (
-        <BarcodeScanner 
-          onDetected={handleBarcodeScanned}
-          onClose={() => setShowBarcodeScanner(false)}
-        />
-      )}
     </Card>
   );
 };

@@ -4,19 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
-import { ArrowLeft, Package, BoxesIcon } from 'lucide-react';
+import { ArrowLeft, BoxesIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useInventoryData } from '@/hooks/useInventoryData';
-import { InventoryTable } from '@/components/warehouse/InventoryTable';
 import { useInventoryFilters } from '@/hooks/useInventoryFilters';
 import { InventoryFiltersPanel } from '@/components/warehouse/InventoryFiltersPanel';
+import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
 
 const AdminInventoryView = () => {
   const navigate = useNavigate();
@@ -131,14 +124,6 @@ const AdminInventoryView = () => {
             <BoxesIcon className="h-4 w-4" />
             View Batch Inventory
           </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-          >
-            Refresh All Data
-          </Button>
         </div>
       </div>
       
@@ -161,29 +146,13 @@ const AdminInventoryView = () => {
         isLoadingWarehouses={isLoadingWarehouses}
       />
       
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Package className="mr-2 h-5 w-5" />
-            Current Inventory
-          </CardTitle>
-          <CardDescription>
-            {isLoading 
-              ? "Loading inventory items..." 
-              : `Total items: ${inventoryItems.length}`
-            }
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <InventoryTable 
-            inventoryItems={inventoryItems} 
-            isLoading={isLoading} 
-            error={error as Error | null}
-            highlightedBarcode={highlightedBarcode}
-          />
-        </CardContent>
-      </Card>
+      <InventoryTableContainer 
+        inventoryItems={inventoryItems}
+        isLoading={isLoading}
+        error={error as Error | null}
+        highlightedBarcode={highlightedBarcode}
+        title="Current Inventory"
+      />
     </div>
   );
 };
