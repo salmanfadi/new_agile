@@ -88,7 +88,7 @@ const BatchOverviewPage: React.FC = () => {
         <LoadingState message="Loading batch data..." />
       ) : isError || stockInError ? (
         <ErrorState 
-          message={`Error loading batch data`}
+          message="Error loading batch data"
           details={error?.message || stockInError?.message || "Unknown error"} 
           onNavigateBack={() => navigate('/manager/stock-in')}
         />

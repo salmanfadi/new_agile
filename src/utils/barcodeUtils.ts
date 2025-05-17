@@ -14,27 +14,82 @@ export const generateBarcodeString = async (
   sku?: string,
   boxNumber?: number
 ): Promise<string> => {
-  const uuid = uuidv4().substring(0, 8);
-  const parts = [];
-  
-  if (category) parts.push(category.toUpperCase());
-  if (sku) parts.push(sku.toUpperCase());
-  if (boxNumber) parts.push(boxNumber.toString().padStart(3, '0'));
-  
-  parts.push(uuid);
-  
-  const barcode = parts.join('-');
-  
-  // Check if the barcode already exists in the inventory
-  const { data } = await supabase
-    .from('inventory')
-    .select('barcode')
-    .eq('barcode', barcode)
-    .limit(1);
+  // Format and validate inputs
+  const formattedCategory = category 
+    ? category.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 3) 
+    : 'GEN';
     
-  // If the barcode already exists, generate a new one recursively
-  if (data && data.length > 0) {
-    return generateBarcodeString(category, sku, boxNumber);
+  const formattedSku = sku 
+    ? sku.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 6) 
+    : '';
+    
+  // Generate a batch identifier (using part of a UUID)
+  const batchId = uuidv4().substring(0, 8);
+  
+  // Format box number with leading zeros (001, 002, etc)
+  const formattedBoxNumber = boxNumber 
+    ? boxNumber.toString().padStart(3, '0') 
+    : '001';
+  
+  // Combine parts to create the barcode
+  // Format: CAT-SKU-BATCH-BOX
+  const parts = [
+    formattedCategory,
+    formattedSku,
+    batchId,
+    formattedBoxNumber
+  ].filter(Boolean); // Remove empty parts
+  
+  let barcode = parts.join('-');
+  
+  // Calculate and append check digit
+  const checkDigit = calculateCheckDigit(barcode.replace(/-/g, ''));
+  barcode = `${barcode}-${checkDigit}`;
+  
+  // Check if the barcode already exists in the inventory or batch_items
+  let exists = true;
+  let attempts = 0;
+  const maxAttempts = 5;
+  
+  while (exists && attempts < maxAttempts) {
+    attempts++;
+    
+    // Check inventory table
+    const { data: inventoryData } = await supabase
+      .from('inventory')
+      .select('barcode')
+      .eq('barcode', barcode)
+      .limit(1);
+      
+    // Check batch_items table
+    const { data: batchItemsData } = await supabase
+      .from('batch_items')
+      .select('barcode')
+      .eq('barcode', barcode)
+      .limit(1);
+    
+    // If barcode exists in either table, generate a new one
+    if ((inventoryData && inventoryData.length > 0) || 
+        (batchItemsData && batchItemsData.length > 0)) {
+      // Generate new batch ID for uniqueness
+      const newBatchId = uuidv4().substring(0, 8);
+      const newParts = [
+        formattedCategory,
+        formattedSku,
+        newBatchId,
+        formattedBoxNumber
+      ].filter(Boolean);
+      
+      barcode = newParts.join('-');
+      const newCheckDigit = calculateCheckDigit(barcode.replace(/-/g, ''));
+      barcode = `${barcode}-${newCheckDigit}`;
+    } else {
+      exists = false;
+    }
+  }
+  
+  if (attempts >= maxAttempts) {
+    throw new Error('Unable to generate a unique barcode after multiple attempts');
   }
   
   return barcode;
@@ -122,9 +177,17 @@ export const createBarcodeImageUrl = (barcode: string, format: string = 'code128
 export const calculateCheckDigit = (data: string): number => {
   let sum = 0;
   
+  // Weighted sum calculation
   for (let i = 0; i < data.length; i++) {
-    sum += (data.charCodeAt(i) - 32) * (i + 1);
+    // Use position-based weighting (1-based index)
+    const weight = i + 1;
+    // Convert character to ASCII code and subtract 32 (start of printable ASCII)
+    const charValue = data.charCodeAt(i) - 32;
+    sum += charValue * weight;
   }
   
-  return (sum % 103) + 32;
+  // Calculate modulo 103 and add 32 to get back into printable ASCII range
+  const checkDigit = (sum % 103) + 32;
+  
+  return checkDigit;
 };
