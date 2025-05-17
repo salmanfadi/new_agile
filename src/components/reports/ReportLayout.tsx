@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChartLineUp, FileDown } from 'lucide-react';
+import { FileDown, BarChart2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,7 +64,7 @@ export function ReportLayout({
           
           <Button variant="outline" asChild>
             <Link to={backLink}>
-              <ChartLineUp className="mr-2 h-4 w-4" />
+              <BarChart2 className="mr-2 h-4 w-4" />
               Back to Reports
             </Link>
           </Button>

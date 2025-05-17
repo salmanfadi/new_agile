@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ChartBarColumnBig, ChartColumnStacked, ChartBarBig } from 'lucide-react';
+import { BarChart2, BarChart, PieChart } from 'lucide-react';
 import { ReportCard } from '@/types/reports';
 
 const REPORT_CARDS: ReportCard[] = [
@@ -16,7 +16,7 @@ const REPORT_CARDS: ReportCard[] = [
     title: 'Inventory Status Report',
     description: 'Current inventory levels and stock status across warehouses',
     path: '/reports/inventory/status',
-    icon: 'ChartBarColumnBig',
+    icon: 'BarChart2',
     access: ['admin', 'warehouse_manager'],
     category: 'inventory'
   },
@@ -25,7 +25,7 @@ const REPORT_CARDS: ReportCard[] = [
     title: 'Inventory Movement Analysis',
     description: 'Track inbound and outbound stock movements over time',
     path: '/reports/inventory/movement',
-    icon: 'ChartColumnStacked',
+    icon: 'BarChart',
     access: ['admin', 'warehouse_manager'],
     category: 'inventory'
   },
@@ -34,7 +34,7 @@ const REPORT_CARDS: ReportCard[] = [
     title: 'Batch Tracking Report',
     description: 'Trace batch histories and processing status',
     path: '/reports/inventory/batch-tracking',
-    icon: 'ChartBarBig',
+    icon: 'PieChart',
     access: ['admin', 'warehouse_manager'],
     category: 'inventory'
   },
@@ -45,7 +45,7 @@ const REPORT_CARDS: ReportCard[] = [
     title: 'Warehouse Utilization',
     description: 'Space utilization metrics across warehouses',
     path: '/reports/operational/warehouse-utilization',
-    icon: 'ChartColumnStacked',
+    icon: 'BarChart',
     access: ['admin', 'warehouse_manager'],
     category: 'operational'
   },
@@ -54,7 +54,7 @@ const REPORT_CARDS: ReportCard[] = [
     title: 'Stock Processing Performance',
     description: 'Analysis of stock request processing and approval metrics',
     path: '/reports/operational/stock-processing',
-    icon: 'ChartBarBig',
+    icon: 'PieChart',
     access: ['admin', 'warehouse_manager'],
     category: 'operational'
   },
@@ -63,7 +63,7 @@ const REPORT_CARDS: ReportCard[] = [
     title: 'Transfer & Movement Report',
     description: 'Inventory transfer patterns and completion rates',
     path: '/reports/operational/transfers',
-    icon: 'ChartBarColumnBig',
+    icon: 'BarChart2',
     access: ['admin', 'warehouse_manager'],
     category: 'operational'
   },
@@ -74,7 +74,7 @@ const REPORT_CARDS: ReportCard[] = [
     title: 'Executive Dashboard',
     description: 'Key performance indicators and business metrics',
     path: '/reports/management/executive',
-    icon: 'ChartColumnStacked',
+    icon: 'BarChart',
     access: ['admin'],
     category: 'management'
   },
@@ -83,7 +83,7 @@ const REPORT_CARDS: ReportCard[] = [
     title: 'Audit & Compliance',
     description: 'User activity logs and compliance metrics',
     path: '/reports/management/audit',
-    icon: 'ChartBarBig',
+    icon: 'PieChart',
     access: ['admin'],
     category: 'management'
   },
@@ -101,14 +101,14 @@ const ReportsDashboard = () => {
   // Get appropriate icon component
   const getIcon = (iconName: string) => {
     switch(iconName) {
-      case 'ChartBarColumnBig':
-        return <ChartBarColumnBig className="h-10 w-10 text-blue-600" />;
-      case 'ChartColumnStacked':
-        return <ChartColumnStacked className="h-10 w-10 text-blue-600" />;
-      case 'ChartBarBig':
-        return <ChartBarBig className="h-10 w-10 text-blue-600" />;
+      case 'BarChart2':
+        return <BarChart2 className="h-10 w-10 text-blue-600" />;
+      case 'BarChart':
+        return <BarChart className="h-10 w-10 text-blue-600" />;
+      case 'PieChart':
+        return <PieChart className="h-10 w-10 text-blue-600" />;
       default:
-        return <ChartBarColumnBig className="h-10 w-10 text-blue-600" />;
+        return <BarChart2 className="h-10 w-10 text-blue-600" />;
     }
   };
 

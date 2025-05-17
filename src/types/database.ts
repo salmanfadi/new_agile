@@ -106,19 +106,18 @@ export interface ProcessedBatch {
   product_id: string;
   total_quantity: number;
   total_boxes: number;
-  warehouse_id: string | null;
-  source: string | null;
-  notes: string | null;
-  status: BatchStatus;
-  created_at?: string;
-  updated_at?: string;
-  created_by?: string | null;
-  updated_by?: string | null;
-  // Join fields
-  product?: Product;
-  stock_in?: StockInRequest;
-  processor?: Profile;
-  items?: BatchItem[];
+  warehouse_id: string;
+  status: string;
+  notes?: string;
+  source?: string;
+  created_at: string;
+  // Additional properties for UI display
+  productName?: string;
+  productSku?: string;
+  warehouseName?: string;
+  processorName?: string;
+  formattedProcessedAt?: string;
+  formattedCreatedAt?: string;
 }
 
 // Interface for batch items

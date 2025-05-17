@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ReportFilters, BatchTrackingData } from '@/types/reports';
+import { ProcessedBatch } from '@/types/database';
 import { format, parseISO } from 'date-fns';
 
 export const useBatchTrackingReport = (initialFilters: ReportFilters) => {
@@ -28,14 +29,14 @@ export const useBatchTrackingReport = (initialFilters: ReportFilters) => {
             notes,
             status,
             created_at,
-            product:product_id (
+            products:product_id (
               name,
               sku
             ),
-            warehouse:warehouse_id (
+            warehouses:warehouse_id (
               name
             ),
-            processor:processed_by (
+            profiles:processed_by (
               name,
               username
             )
@@ -101,22 +102,26 @@ export const useBatchTrackingReport = (initialFilters: ReportFilters) => {
     }, {});
     
     // Transform batches for display
-    const transformedBatches = batches.map(batch => ({
+    const transformedBatches: ProcessedBatch[] = batches.map(batch => ({
       id: batch.id,
-      stockInId: batch.stock_in_id,
-      productId: batch.product_id,
-      productName: batch.product?.name || 'Unknown Product',
-      productSku: batch.product?.sku,
-      warehouseId: batch.warehouse_id,
-      warehouseName: batch.warehouse?.name || 'Unknown Warehouse',
-      processedBy: batch.processor?.name || batch.processor?.username || 'Unknown',
-      processedAt: format(parseISO(batch.processed_at), 'yyyy-MM-dd HH:mm:ss'),
-      totalQuantity: batch.total_quantity || 0,
-      totalBoxes: batch.total_boxes || 0,
-      source: batch.source || 'Unknown',
+      stock_in_id: batch.stock_in_id,
+      processed_by: batch.processed_by,
+      processed_at: batch.processed_at,
+      product_id: batch.product_id,
+      total_quantity: batch.total_quantity || 0,
+      total_boxes: batch.total_boxes || 0,
+      warehouse_id: batch.warehouse_id,
       status: batch.status,
       notes: batch.notes,
-      createdAt: format(parseISO(batch.created_at), 'yyyy-MM-dd HH:mm:ss')
+      source: batch.source,
+      created_at: batch.created_at,
+      // Additional computed properties for UI display
+      productName: batch.products?.name || 'Unknown Product',
+      productSku: batch.products?.sku,
+      warehouseName: batch.warehouses?.name || 'Unknown Warehouse',
+      processorName: batch.profiles?.name || batch.profiles?.username || 'Unknown',
+      formattedProcessedAt: format(parseISO(batch.processed_at), 'yyyy-MM-dd HH:mm:ss'),
+      formattedCreatedAt: format(parseISO(batch.created_at), 'yyyy-MM-dd HH:mm:ss')
     }));
     
     return {

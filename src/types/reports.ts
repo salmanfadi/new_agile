@@ -117,7 +117,7 @@ export type ReportCard = {
   title: string;
   description: string;
   path: string;
-  icon: string;
+  icon: 'BarChart' | 'BarChart2' | 'PieChart';
   access: ('admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator')[];
   category: 'inventory' | 'operational' | 'management';
 };
