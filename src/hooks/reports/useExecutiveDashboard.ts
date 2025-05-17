@@ -1,212 +1,199 @@
 
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ReportFilters, ExecutiveSummaryData } from '@/types/reports';
+import { ReportFilters } from '@/types/reports';
 import { format, parseISO, subDays } from 'date-fns';
+
+// Add the missing type
+export interface ExecutiveSummaryData {
+  inventoryValue: number;
+  turnoverRate: number;
+  stockMovements: {
+    in: number;
+    out: number;
+    net: number;
+  };
+  topProducts: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+  }>;
+  warehouseUtilization: Record<string, number>;
+}
 
 export const useExecutiveDashboard = (initialFilters: ReportFilters) => {
   const [filters, setFilters] = useState<ReportFilters>(initialFilters);
-  
-  // Fetch inventory movements
-  const movementsQuery = useQuery({
-    queryKey: ['executive-movements', filters],
-    queryFn: async () => {
-      try {
-        let queryBuilder = supabase
-          .from('inventory_movements')
-          .select(`
-            id,
-            product_id,
-            movement_type,
-            quantity,
-            status,
-            created_at,
-            products:product_id (name, sku)
-          `)
-          .eq('status', 'approved');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [data, setData] = useState<ExecutiveSummaryData>({
+    inventoryValue: 0,
+    turnoverRate: 0,
+    stockMovements: { in: 0, out: 0, net: 0 },
+    topProducts: [],
+    warehouseUtilization: {},
+  });
+  const [timeSeriesData, setTimeSeriesData] = useState<Array<{ date: string; in: number; out: number; net: number }>>([]);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Date range for filtering
+      const fromDate = filters.dateRange?.from || subDays(new Date(), 30);
+      const toDate = filters.dateRange?.to || new Date();
+
+      // Format dates for Supabase query
+      const fromDateString = format(fromDate, 'yyyy-MM-dd');
+      const toDateString = format(toDate, 'yyyy-MM-dd');
+
+      // 1. Get inventory value and count
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('quantity, product_id, products:product_id(name, sku)')
+        .gt('quantity', 0);
+
+      if (inventoryError) throw inventoryError;
+
+      // Calculate inventory value (using a dummy average value per item for simplicity)
+      // In a real implementation, you would join with a price table or use product prices
+      const averageItemValue = 100; // $100 per item
+      const totalInventoryValue = inventoryData.reduce((sum, item) => sum + (item.quantity * averageItemValue), 0);
+      
+      // 2. Get stock movements for turnover calculation
+      const { data: movementsData, error: movementsError } = await supabase
+        .from('inventory_movements')
+        .select('movement_type, quantity, created_at')
+        .gte('created_at', fromDateString)
+        .lte('created_at', toDateString)
+        .order('created_at');
+
+      if (movementsError) throw movementsError;
+
+      // Calculate stock in/out
+      const stockIn = movementsData
+        .filter(m => m.movement_type === 'in')
+        .reduce((sum, m) => sum + m.quantity, 0);
         
-        if (filters.dateRange.from) {
-          queryBuilder = queryBuilder.gte('created_at', filters.dateRange.from.toISOString());
+      const stockOut = movementsData
+        .filter(m => m.movement_type === 'out')
+        .reduce((sum, m) => sum + m.quantity, 0);
+
+      // Simple turnover calculation
+      const totalInventoryItems = inventoryData.reduce((sum, item) => sum + item.quantity, 0);
+      const turnoverRate = totalInventoryItems > 0 ? stockOut / totalInventoryItems * (365 / 30) : 0;
+
+      // 3. Get top products by quantity
+      const productSummary = inventoryData.reduce((acc, item) => {
+        const productId = item.product_id;
+        const productName = item.products?.name || 'Unknown Product';
+        
+        if (!acc[productId]) {
+          acc[productId] = {
+            id: productId,
+            name: productName,
+            quantity: 0
+          };
         }
         
-        if (filters.dateRange.to) {
-          queryBuilder = queryBuilder.lte('created_at', filters.dateRange.to.toISOString());
+        acc[productId].quantity += item.quantity;
+        return acc;
+      }, {} as Record<string, { id: string; name: string; quantity: number }>);
+
+      const topProducts = Object.values(productSummary)
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5);
+
+      // 4. Get warehouse utilization
+      const { data: warehouseData, error: warehouseError } = await supabase
+        .from('warehouses')
+        .select('id, name');
+
+      if (warehouseError) throw warehouseError;
+
+      // Calculate items per warehouse
+      const warehouseUtilization: Record<string, number> = {};
+      
+      for (const warehouse of warehouseData) {
+        const { data: warehouseItems, error: warehouseItemsError } = await supabase
+          .from('inventory')
+          .select('quantity')
+          .eq('warehouse_id', warehouse.id);
+          
+        if (warehouseItemsError) throw warehouseItemsError;
+        
+        const warehouseTotal = warehouseItems.reduce((sum, item) => sum + item.quantity, 0);
+        warehouseUtilization[warehouse.name] = warehouseTotal;
+      }
+
+      // 5. Generate time series data
+      const timeSeriesMap = new Map<string, { in: number, out: number, net: number }>();
+      
+      // Initialize with dates in range
+      const days = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 3600 * 24));
+      for (let i = 0; i <= days; i++) {
+        const date = format(subDays(toDate, days - i), 'yyyy-MM-dd');
+        timeSeriesMap.set(date, { in: 0, out: 0, net: 0 });
+      }
+      
+      // Fill with actual data
+      movementsData.forEach(movement => {
+        const date = format(parseISO(movement.created_at), 'yyyy-MM-dd');
+        const existing = timeSeriesMap.get(date) || { in: 0, out: 0, net: 0 };
+        
+        if (movement.movement_type === 'in') {
+          existing.in += movement.quantity;
+          existing.net += movement.quantity;
+        } else if (movement.movement_type === 'out') {
+          existing.out += movement.quantity;
+          existing.net -= movement.quantity;
         }
         
-        const { data, error } = await queryBuilder;
-        
-        if (error) throw error;
-        return data || [];
-      } catch (err) {
-        console.error('Error fetching movements for executive dashboard:', err);
-        throw err;
-      }
-    }
-  });
-  
-  // Fetch inventory levels
-  const inventoryQuery = useQuery({
-    queryKey: ['executive-inventory', filters],
-    queryFn: async () => {
-      try {
-        // Using the get_inventory_levels function
-        const { data, error } = await supabase.rpc('get_inventory_levels');
-        
-        if (error) throw error;
-        return data || [];
-      } catch (err) {
-        console.error('Error fetching inventory levels for executive dashboard:', err);
-        throw err;
-      }
-    }
-  });
+        timeSeriesMap.set(date, existing);
+      });
+      
+      // Convert Map to array for rendering
+      const timeSeriesResult = Array.from(timeSeriesMap.entries())
+        .map(([date, values]) => ({
+          date,
+          ...values
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
 
-  // Process and memoize the data
-  const executiveSummary: ExecutiveSummaryData = useMemo(() => {
-    const movements = movementsQuery.data || [];
-    const inventory = inventoryQuery.data || [];
-    
-    // Calculate total inventory value (assuming average item value of $10 for demo)
-    const avgItemValue = 10; // In a real scenario, this would come from product pricing data
-    const inventoryValue = inventory.reduce(
-      (total, item) => total + (item.stock_level * avgItemValue), 
-      0
-    );
-    
-    // Calculate movement totals
-    const inMovements = movements.filter(m => 
-      ['in', 'release'].includes(m.movement_type)
-    ).reduce((sum, m) => sum + (m.quantity || 0), 0);
-    
-    const outMovements = movements.filter(m => 
-      ['out', 'reserve'].includes(m.movement_type)
-    ).reduce((sum, m) => sum + (m.quantity || 0), 0);
-    
-    // Calculate inventory turnover rate (simplified)
-    // In a real scenario: Cost of Goods Sold / Average Inventory Value
-    const totalStock = inventory.reduce((sum, item) => sum + item.stock_level, 0);
-    const turnoverRate = totalStock > 0 ? outMovements / totalStock : 0;
-    
-    // Find top products by quantity
-    const productQuantities: Record<string, { id: string, name: string, quantity: number }> = {};
-    
-    inventory.forEach(item => {
-      const productId = item.product_id;
-      const productName = item.product_name;
+      setData({
+        inventoryValue: totalInventoryValue,
+        turnoverRate: parseFloat(turnoverRate.toFixed(1)),
+        stockMovements: {
+          in: stockIn,
+          out: stockOut,
+          net: stockIn - stockOut
+        },
+        topProducts,
+        warehouseUtilization
+      });
       
-      if (!productQuantities[productId]) {
-        productQuantities[productId] = {
-          id: productId,
-          name: productName,
-          quantity: 0
-        };
-      }
-      
-      productQuantities[productId].quantity += item.stock_level;
-    });
-    
-    const topProducts = Object.values(productQuantities)
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5);
-    
-    // Calculate warehouse utilization
-    const warehouseUtilization: Record<string, number> = {};
-    const warehouseTotals: Record<string, number> = {};
-    
-    inventory.forEach(item => {
-      const warehouseName = item.warehouse_name;
-      
-      if (!warehouseUtilization[warehouseName]) {
-        warehouseUtilization[warehouseName] = 0;
-      }
-      
-      warehouseUtilization[warehouseName] += item.stock_level;
-      warehouseTotals[warehouseName] = (warehouseTotals[warehouseName] || 0) + 1;
-    });
-    
-    // Convert to utilization percentages (simplified for demo)
-    Object.keys(warehouseUtilization).forEach(warehouse => {
-      const total = warehouseTotals[warehouse];
-      // Assuming each location has capacity of 100 units for demo purposes
-      warehouseUtilization[warehouse] = warehouseUtilization[warehouse] / (total * 100);
-    });
-    
-    return {
-      inventoryValue,
-      turnoverRate,
-      stockMovements: {
-        in: inMovements,
-        out: outMovements,
-        net: inMovements - outMovements
-      },
-      topProducts,
-      warehouseUtilization
-    };
-  }, [movementsQuery.data, inventoryQuery.data]);
+      setTimeSeriesData(timeSeriesResult);
 
-  // Generate daily movement data for time series charts
-  const timeSeriesData = useMemo(() => {
-    const movements = movementsQuery.data || [];
-    const dateMap: Record<string, { in: number; out: number; net: number }> = {};
-    
-    // Create a map of dates with default values
-    if (filters.dateRange.from && filters.dateRange.to) {
-      let currentDate = subDays(filters.dateRange.to, 30); // Default to 30 days if date range is bigger
-      if (filters.dateRange.from > currentDate) {
-        currentDate = filters.dateRange.from;
-      }
-      
-      while (currentDate <= filters.dateRange.to) {
-        const dateKey = format(currentDate, 'yyyy-MM-dd');
-        dateMap[dateKey] = { in: 0, out: 0, net: 0 };
-        currentDate = new Date(currentDate.setDate(currentDate.getDate() + 1));
-      }
-    } else {
-      // If no date range specified, use the last 30 days
-      const now = new Date();
-      for (let i = 30; i >= 0; i--) {
-        const date = subDays(now, i);
-        const dateKey = format(date, 'yyyy-MM-dd');
-        dateMap[dateKey] = { in: 0, out: 0, net: 0 };
-      }
+    } catch (err) {
+      console.error('Error fetching executive dashboard data:', err);
+      setError(err instanceof Error ? err : new Error('Failed to load dashboard data'));
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Aggregate movement data by date
-    movements.forEach(movement => {
-      const date = format(parseISO(movement.created_at), 'yyyy-MM-dd');
-      if (!dateMap[date]) {
-        dateMap[date] = { in: 0, out: 0, net: 0 };
-      }
-      
-      if (['in', 'release'].includes(movement.movement_type)) {
-        dateMap[date].in += movement.quantity || 0;
-        dateMap[date].net += movement.quantity || 0;
-      } else if (['out', 'reserve'].includes(movement.movement_type)) {
-        dateMap[date].out += movement.quantity || 0;
-        dateMap[date].net -= movement.quantity || 0;
-      }
-    });
-    
-    // Convert to array format for charts
-    return Object.entries(dateMap).map(([date, values]) => ({
-      date,
-      in: values.in,
-      out: values.out,
-      net: values.net
-    }));
-  }, [movementsQuery.data, filters.dateRange]);
+  };
+
+  // Fetch data on mount and when filters change
+  React.useEffect(() => {
+    fetchDashboardData();
+  }, [filters]);
 
   return {
-    data: executiveSummary,
+    data,
     timeSeriesData,
-    isLoading: movementsQuery.isLoading || inventoryQuery.isLoading,
-    error: movementsQuery.error || inventoryQuery.error,
+    isLoading,
+    error,
     filters,
     setFilters,
-    refetch: () => {
-      movementsQuery.refetch();
-      inventoryQuery.refetch();
-    }
+    refetch: fetchDashboardData
   };
 };

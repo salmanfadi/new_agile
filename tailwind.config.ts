@@ -71,18 +71,21 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Custom colors for warehouse UI
-				"warehouse-blue": "#2563eb",
-				"warehouse-blue-light": "#3b82f6",
-				"warehouse-blue-dark": "#1d4ed8",
-				"warehouse-green": "#10b981",
-				"warehouse-red": "#ef4444",
-				"warehouse-yellow": "#f59e0b",
-				"warehouse-gray": "#6b7280",
-				success: "#22c55e",
-				warning: "#f59e0b",
-				error: "#ef4444",
-				info: "#3b82f6",
+				// Apple-inspired colors
+				"apple-blue": "#007AFF",
+				"apple-indigo": "#5E5CE6",
+				"apple-purple": "#BF5AF2",
+				"apple-pink": "#FF2D55",
+				"apple-red": "#FF3B30",
+				"apple-orange": "#FF9500",
+				"apple-yellow": "#FFCC00",
+				"apple-green": "#34C759",
+				"apple-teal": "#5AC8FA",
+				"apple-gray": "#8E8E93",
+				success: "#34C759",
+				warning: "#FF9500",
+				error: "#FF3B30",
+				info: "#007AFF",
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -92,10 +95,12 @@ export default {
 				'3xl': '2rem',
 			},
 			boxShadow: {
-				'apple-sm': '0 2px 6px rgba(0,0,0,0.05)',
-				'apple': '0 4px 10px rgba(0,0,0,0.06)',
-				'apple-md': '0 8px 20px rgba(0,0,0,0.07)',
-				'apple-lg': '0 12px 30px rgba(0,0,0,0.08)',
+				// Apple-inspired shadows
+				'apple-sm': '0 2px 6px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.04)',
+				'apple': '0 4px 10px rgba(0,0,0,0.05), 0 2px 3px rgba(0,0,0,0.06)',
+				'apple-md': '0 8px 20px rgba(0,0,0,0.06), 0 3px 6px rgba(0,0,0,0.08)',
+				'apple-lg': '0 12px 30px rgba(0,0,0,0.08), 0 5px 10px rgba(0,0,0,0.10)',
+				'apple-card': '0 4px 24px rgba(0,0,0,0.05), 0 1px 6px rgba(0,0,0,0.03)',
 			},
 			keyframes: {
 				'accordion-down': {

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileDown, BarChart2 } from 'lucide-react';
+import { FileDown, BarChart2, RefreshCcw, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,9 +18,10 @@ interface ReportLayoutProps {
   children: React.ReactNode;
   onExportCsv?: () => void;
   onExportPdf?: () => void;
-  loading?: boolean;  // Keep as loading, not isLoading
+  loading?: boolean;
   error?: any;
   backLink?: string;
+  onRefresh?: () => void;
 }
 
 export function ReportLayout({
@@ -32,6 +33,7 @@ export function ReportLayout({
   loading = false,
   error = null,
   backLink = '/reports',
+  onRefresh,
 }: ReportLayoutProps) {
   return (
     <div className="space-y-6">
@@ -39,10 +41,21 @@ export function ReportLayout({
         <PageHeader title={title} description={description} />
 
         <div className="flex items-center gap-2">
+          {onRefresh && (
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={onRefresh}
+              disabled={loading}
+            >
+              <RefreshCcw className="h-4 w-4" />
+            </Button>
+          )}
+          
           {(onExportCsv || onExportPdf) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="whitespace-nowrap">
+                <Button variant="outline" className="whitespace-nowrap" disabled={loading || !!error}>
                   <FileDown className="mr-2 h-4 w-4" />
                   Export
                 </Button>
@@ -72,16 +85,28 @@ export function ReportLayout({
       </div>
 
       {loading ? (
-        <Card>
+        <Card className="shadow-apple-sm">
           <CardContent className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+              <p className="text-sm text-muted-foreground mt-4">Loading report data...</p>
+            </div>
           </CardContent>
         </Card>
       ) : error ? (
-        <Card className="bg-red-50 border-red-200">
+        <Card className="border-destructive bg-destructive/5 shadow-apple-sm">
           <CardContent className="py-6">
-            <div className="text-red-500 font-medium">Error loading report data:</div>
-            <div className="text-sm mt-1">{error.message || "An unknown error occurred"}</div>
+            <div className="flex flex-col items-center text-center">
+              <AlertTriangle className="h-12 w-12 text-destructive mb-3" />
+              <div className="text-destructive font-medium">Error loading report data</div>
+              <div className="text-sm mt-2 max-w-md mx-auto">{error.message || "An unknown error occurred while loading the report data. Please try again later."}</div>
+              {onRefresh && (
+                <Button onClick={onRefresh} variant="outline" className="mt-4">
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Try Again
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : children}
