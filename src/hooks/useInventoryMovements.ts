@@ -1,135 +1,10 @@
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { InventoryMovement, MovementType, MovementStatus, InventoryMovementFilters } from '@/types/inventory';
+import { InventoryMovement, MovementStatus, MovementType } from '@/types/inventory';
 
-export const useInventoryMovements = (filters: InventoryMovementFilters = {}) => {
-  const fetchInventoryMovements = async () => {
-    try {
-      // Use the new inventory_movements table with related data
-      let query = supabase
-        .from('inventory_movements')
-        .select(`
-          id,
-          product_id,
-          warehouse_id,
-          location_id,
-          movement_type,
-          quantity,
-          status,
-          reference_table,
-          reference_id,
-          performed_by,
-          created_at,
-          transfer_reference_id,
-          details,
-          products:product_id (name, sku),
-          warehouses:warehouse_id (name, location),
-          warehouse_locations:location_id (floor, zone),
-          profiles:performed_by (name, username)
-        `)
-        .order('created_at', { ascending: false });
-      
-      // Apply filters if provided
-      if (filters.productId) {
-        query = query.eq('product_id', filters.productId);
-      }
-      
-      if (filters.warehouseId) {
-        query = query.eq('warehouse_id', filters.warehouseId);
-      }
-      
-      if (filters.locationId) {
-        query = query.eq('location_id', filters.locationId);
-      }
-      
-      if (filters.movementType) {
-        query = query.eq('movement_type', filters.movementType);
-      }
-      
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-      }
-      
-      if (filters.referenceId) {
-        query = query.eq('reference_id', filters.referenceId);
-      }
-      
-      if (filters.performedBy) {
-        query = query.eq('performed_by', filters.performedBy);
-      }
-      
-      if (filters.dateFrom) {
-        query = query.gte('created_at', filters.dateFrom);
-      }
-      
-      if (filters.dateTo) {
-        query = query.lte('created_at', filters.dateTo);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('Error fetching inventory movements:', error);
-        throw error;
-      }
-      
-      // Map the data to our InventoryMovement interface
-      const movements: InventoryMovement[] = data?.map(item => {
-        // Parse the details if it's a string and use supplied details or empty object as fallback
-        let parsedDetails;
-        if (typeof item.details === 'string') {
-          try {
-            parsedDetails = JSON.parse(item.details);
-          } catch (err) {
-            parsedDetails = {};
-            console.error('Error parsing details JSON:', err);
-          }
-        } else {
-          parsedDetails = item.details || {};
-        }
-
-        return {
-          id: item.id,
-          product_id: item.product_id,
-          warehouse_id: item.warehouse_id,
-          location_id: item.location_id,
-          movement_type: item.movement_type as MovementType,
-          quantity: item.quantity,
-          status: item.status as MovementStatus,
-          reference_table: item.reference_table,
-          reference_id: item.reference_id,
-          performed_by: item.performed_by,
-          created_at: item.created_at,
-          transfer_reference_id: item.transfer_reference_id,
-          details: parsedDetails,
-          products: item.products,
-          warehouses: item.warehouses,
-          warehouse_locations: item.warehouse_locations,
-          profiles: item.profiles
-        };
-      }) || [];
-      
-      return movements;
-    } catch (error) {
-      console.error('Failed to fetch inventory movements:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to fetch inventory movement data.',
-      });
-      throw error;
-    }
-  };
-  
-  return useQuery({
-    queryKey: ['inventory-movements', filters],
-    queryFn: fetchInventoryMovements,
-  });
-};
-
-// Helper function to create a new inventory movement
+// Helper function to create inventory movements
 export const createInventoryMovement = async (
   productId: string,
   warehouseId: string,
@@ -137,16 +12,133 @@ export const createInventoryMovement = async (
   quantity: number,
   movementType: MovementType,
   status: MovementStatus,
-  referenceTable: string,
-  referenceId: string,
-  userId: string,
-  details?: any,
-  transferReferenceId?: string
+  referenceTable?: string,
+  referenceId?: string,
+  performedBy?: string,
+  details?: Record<string, any>
 ) => {
   try {
-    const { data, error } = await supabase
-      .from('inventory_movements')
-      .insert({
+    const { data, error } = await supabase.from('inventory_movements').insert({
+      product_id: productId,
+      warehouse_id: warehouseId,
+      location_id: locationId,
+      movement_type: movementType,
+      quantity: quantity,
+      status: status,
+      reference_table: referenceTable,
+      reference_id: referenceId,
+      performed_by: performedBy || '',
+      details: details || {}
+    }).select();
+
+    if (error) {
+      console.error('Error creating inventory movement:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Failed to create inventory movement:', error);
+    throw error;
+  }
+};
+
+// Hook to fetch inventory movements with filters
+export const useInventoryMovements = (filters?: Record<string, any>) => {
+  const query = useQuery({
+    queryKey: ['inventory-movements', filters],
+    queryFn: async () => {
+      let query = supabase
+        .from('inventory_movements')
+        .select(`
+          *,
+          products:product_id (name, sku),
+          warehouse:warehouse_id (name, location),
+          location:location_id (floor, zone),
+          performer:performed_by (name, username)
+        `);
+
+      // Apply filters if provided
+      if (filters) {
+        if (filters.productId) {
+          query = query.eq('product_id', filters.productId);
+        }
+        if (filters.warehouseId) {
+          query = query.eq('warehouse_id', filters.warehouseId);
+        }
+        if (filters.locationId) {
+          query = query.eq('location_id', filters.locationId);
+        }
+        if (filters.movementType) {
+          query = query.eq('movement_type', filters.movementType);
+        }
+        if (filters.status) {
+          // Using type assertion to ensure this is one of the valid statuses
+          query = query.eq('status', filters.status as MovementStatus);
+        }
+        if (filters.dateFrom) {
+          query = query.gte('created_at', filters.dateFrom);
+        }
+        if (filters.dateTo) {
+          query = query.lte('created_at', filters.dateTo);
+        }
+        if (filters.referenceId) {
+          query = query.eq('reference_id', filters.referenceId);
+        }
+        if (filters.performedBy) {
+          query = query.eq('performed_by', filters.performedBy);
+        }
+      }
+
+      query = query.order('created_at', { ascending: false });
+
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error fetching inventory movements:', error);
+        throw error;
+      }
+
+      return data as InventoryMovement[];
+    }
+  });
+
+  return {
+    movements: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+  };
+};
+
+// Hook to create movement mutations
+export const useCreateInventoryMovement = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({
+      productId,
+      warehouseId,
+      locationId,
+      quantity,
+      movementType,
+      status,
+      referenceTable,
+      referenceId,
+      performedBy,
+      details
+    }: {
+      productId: string;
+      warehouseId: string;
+      locationId: string;
+      quantity: number;
+      movementType: MovementType;
+      status: MovementStatus;
+      referenceTable?: string;
+      referenceId?: string;
+      performedBy: string;
+      details?: Record<string, any>;
+    }) => {
+      const { data, error } = await supabase.from('inventory_movements').insert({
         product_id: productId,
         warehouse_id: warehouseId,
         location_id: locationId,
@@ -155,21 +147,70 @@ export const createInventoryMovement = async (
         status: status,
         reference_table: referenceTable,
         reference_id: referenceId,
-        performed_by: userId,
-        details: details || {},
-        transfer_reference_id: transferReferenceId
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating inventory movement:', error);
-      throw error;
+        performed_by: performedBy,
+        details: details || {}
+      }).select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      
+      toast({
+        title: 'Movement Created',
+        description: 'Inventory movement has been recorded.',
+      });
+    },
+    onError: (error: any) => {
+      console.error('Failed to create inventory movement:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to create inventory movement',
+      });
     }
+  });
+};
 
-    return data as InventoryMovement;
-  } catch (error) {
-    console.error('Error in createInventoryMovement:', error);
-    throw error;
-  }
+// Hook to update movement status
+export const useUpdateMovementStatus = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      movementId, 
+      status 
+    }: { 
+      movementId: string; 
+      status: MovementStatus;
+    }) => {
+      const { data, error } = await supabase
+        .from('inventory_movements')
+        .update({ status })
+        .eq('id', movementId)
+        .select();
+        
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+      toast({
+        title: 'Status Updated',
+        description: 'Movement status has been updated.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: error.message || 'Could not update movement status',
+      });
+    }
+  });
 };

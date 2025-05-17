@@ -104,25 +104,25 @@ const TransferHistoryTable: React.FC = () => {
               <TableRow key={transfer.id}>
                 <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>
-                  {transfer.products?.name} 
+                  {transfer.products?.name || 'Unknown Product'} 
                   {transfer.products?.sku && <span className="text-xs text-gray-500 block">{transfer.products.sku}</span>}
                 </TableCell>
                 <TableCell>
                   <div className="font-medium">{transfer.source_warehouse?.name || 'Unknown'}</div>
                   <div className="text-xs text-gray-500">
-                    Floor {transfer.source_location?.floor}, Zone {transfer.source_location?.zone}
+                    Floor {transfer.source_location?.floor || '?'}, Zone {transfer.source_location?.zone || '?'}
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="font-medium">{transfer.destination_warehouse?.name || 'Unknown'}</div>
                   <div className="text-xs text-gray-500">
-                    Floor {transfer.destination_location?.floor}, Zone {transfer.destination_location?.zone}
+                    Floor {transfer.destination_location?.floor || '?'}, Zone {transfer.destination_location?.zone || '?'}
                   </div>
                 </TableCell>
                 <TableCell>{transfer.quantity}</TableCell>
                 <TableCell>
                   <Badge variant={getStatusVariant(transfer.status as TransferStatus)}>
-                    {transfer.status?.charAt(0).toUpperCase() + transfer.status?.slice(1) || 'Unknown'}
+                    {transfer.status ? (transfer.status.charAt(0).toUpperCase() + transfer.status.slice(1)) : 'Unknown'}
                   </Badge>
                 </TableCell>
               </TableRow>
