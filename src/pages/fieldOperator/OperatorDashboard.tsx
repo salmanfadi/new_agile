@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { LogIn, LogOut, Clock } from 'lucide-react';
+import { LogIn, LogOut, Clock, ArrowRight, BarcodeIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Link } from "react-router-dom";
-import { ArrowRight, Boxes, ClipboardList, Send, ArrowLeftRight, BarcodeScan, Settings } from "lucide-react";
+import { ArrowLeftRight, Boxes, ClipboardList, Send, Settings } from "lucide-react";
 import { useUserStockActivity } from "@/hooks/useUserStockActivity";
 
 const OperatorDashboard = () => {
@@ -108,7 +108,8 @@ const OperatorDashboard = () => {
     initialData: []
   });
 
-  const { isActivityLoading, stockInActivity, stockOutActivity } = useUserStockActivity(user?.id);
+  // Use the updated hook with the correct property names
+  const { isActivityLoading, stockInActivity, stockOutActivity } = useUserStockActivity(user?.id, { limit: 5 });
 
   const statsCards = [
     { 

@@ -35,7 +35,6 @@ import UnauthorizedPage from '@/pages/Unauthorized';
 import { UserRole } from '@/types/auth';
 import StockInForm from '@/pages/fieldOperator/StockInForm';
 import StockOutForm from '@/pages/fieldOperator/StockOutForm';
-import MySubmissions from '@/pages/fieldOperator/MySubmissions';
 import BarcodeLookup from '@/pages/fieldOperator/BarcodeLookup';
 import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
 import CustomerLogin from './pages/customer/CustomerLogin';
@@ -103,7 +102,7 @@ const router = createBrowserRouter([
       },
       {
         path: "field/submissions",
-        element: <RequireAuth allowedRoles={['field_operator']}><MySubmissions /></RequireAuth>,
+        element: <RequireAuth allowedRoles={['field_operator']}><FieldOperatorSubmissions /></RequireAuth>,
       },
       {
         path: "field/barcode-lookup",

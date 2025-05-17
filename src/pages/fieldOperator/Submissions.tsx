@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -217,23 +216,19 @@ const Submissions: React.FC = () => {
                       </TableRow>
                     ) : (
                       transferSubmissions.map((item: any) => {
-                        // Parse details to get direction information
-                        let details = {};
-                        let direction = '';
+                        // Parse details to get direction information safely
+                        let direction = 'In';
                         
                         if (item.details) {
-                          if (typeof item.details === 'string') {
-                            try {
-                              details = JSON.parse(item.details);
-                            } catch (err) {
-                              console.error('Error parsing details JSON:', err);
-                            }
-                          } else {
-                            details = item.details;
-                          }
+                          // Handle string or object format of details
+                          const detailsObj = typeof item.details === 'string' 
+                            ? JSON.parse(item.details) 
+                            : item.details;
                           
-                          direction = details?.direction || 
-                            (item.quantity > 0 ? 'In' : 'Out');
+                          // Get direction from details if available, otherwise infer from quantity
+                          direction = detailsObj && typeof detailsObj === 'object' && detailsObj.direction 
+                            ? detailsObj.direction 
+                            : (item.quantity > 0 ? 'In' : 'Out');
                         }
                         
                         return (
@@ -242,8 +237,8 @@ const Submissions: React.FC = () => {
                             <TableCell>{Math.abs(item.quantity || 0)}</TableCell>
                             <TableCell>{item.warehouse?.name || 'Unknown Warehouse'}</TableCell>
                             <TableCell>
-                              <span className={`font-medium ${direction === 'in' ? 'text-green-600' : 'text-amber-600'}`}>
-                                {direction === 'in' ? 'Receiving' : 'Sending'}
+                              <span className={`font-medium ${direction.toLowerCase() === 'in' ? 'text-green-600' : 'text-amber-600'}`}>
+                                {direction.toLowerCase() === 'in' ? 'Receiving' : 'Sending'}
                               </span>
                             </TableCell>
                             <TableCell>

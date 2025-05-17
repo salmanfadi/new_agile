@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useUserStockActivity = (userId: string | undefined, { limit }: { limit?: number } = {}) => {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['user-stock-activity', userId, limit],
     queryFn: async () => {
       if (!userId) return { stockIn: [], stockOut: [], transfers: [] };
@@ -80,4 +80,14 @@ export const useUserStockActivity = (userId: string | undefined, { limit }: { li
     initialData: { stockIn: [], stockOut: [], transfers: [] },
     refetchInterval: 5000,
   });
+
+  // Restructure the return value to include isLoading and data properties
+  return {
+    isActivityLoading: query.isLoading,
+    stockInActivity: query.data.stockIn,
+    stockOutActivity: query.data.stockOut,
+    transferActivity: query.data.transfers,
+    data: query.data,
+    isLoading: query.isLoading,
+  };
 }; 
