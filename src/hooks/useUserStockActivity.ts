@@ -8,9 +8,9 @@ export const useUserStockActivity = (userId: string | undefined, { limit }: { li
     queryFn: async () => {
       if (!userId) return { stockIn: [], stockOut: [], transfers: [] };
 
-      // Stock In
+      // Stock In - Use renamed table stock_in_requests
       let stockInQuery = supabase
-        .from('stock_in')
+        .from('stock_in_requests')
         .select(`
           id,
           product:product_id(name),
@@ -23,9 +23,9 @@ export const useUserStockActivity = (userId: string | undefined, { limit }: { li
         .eq('submitted_by', userId)
         .order('created_at', { ascending: false });
 
-      // Stock Out
+      // Stock Out - Use renamed table stock_out_requests
       let stockOutQuery = supabase
-        .from('stock_out')
+        .from('stock_out_requests')
         .select(`
           id,
           product:product_id(name),

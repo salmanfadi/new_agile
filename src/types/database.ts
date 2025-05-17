@@ -1,3 +1,4 @@
+
 export interface Warehouse {
   id: string;
   name: string;
@@ -27,8 +28,15 @@ export interface Product {
   is_active?: boolean;
   in_stock_quantity?: number;
   is_out_of_stock?: boolean;
-  category?: string | null; // Added category field
+  category?: string | null;
 }
+
+export type InventoryStatus = 'available' | 'reserved' | 'sold' | 'damaged';
+export type BatchStatus = 'completed' | 'processing' | 'failed' | 'cancelled';
+export type StockStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing' | 'failed';
+export type TransferStatus = 'pending' | 'approved' | 'rejected' | 'in_transit' | 'completed' | 'cancelled';
+export type MovementType = 'in' | 'out' | 'transfer' | 'adjustment' | 'reserve' | 'release';
+export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'failed';
 
 export interface Inventory {
   id: string;
@@ -41,33 +49,38 @@ export interface Inventory {
   size: string | null;
   created_at: string;
   updated_at: string;
-  status: string;
+  status: InventoryStatus;
   batch_id: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
   // Join fields
   product?: Product;
   warehouse?: Warehouse;
   warehouse_location?: WarehouseLocation;
 }
 
-export interface StockIn {
+export interface StockInRequest {
   id: string;
   product_id: string;
   submitted_by: string;
   processed_by: string | null;
   boxes: number;
-  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'processing';
+  status: StockStatus;
   created_at: string;
   updated_at: string;
   source: string;
   notes: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
+  rejection_reason?: string | null;
   // Join fields
   product?: Product;
   submitter?: Profile;
   processor?: Profile;
-  details?: StockInDetail[];
+  details?: StockInItem[];
 }
 
-export interface StockInDetail {
+export interface StockInItem {
   id: string;
   stock_in_id: string;
   inventory_id: string | null;
@@ -79,9 +92,12 @@ export interface StockInDetail {
   location_id: string;
   created_at: string;
   updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
+  product_id?: string;
 }
 
-// New interface for processed batches
+// Interface for processed batches
 export interface ProcessedBatch {
   id: string;
   stock_in_id: string;
@@ -93,15 +109,19 @@ export interface ProcessedBatch {
   warehouse_id: string | null;
   source: string | null;
   notes: string | null;
-  status: string;
+  status: BatchStatus;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
+  updated_by?: string | null;
   // Join fields
   product?: Product;
-  stock_in?: StockIn;
+  stock_in?: StockInRequest;
   processor?: Profile;
   items?: BatchItem[];
 }
 
-// New interface for batch items
+// Interface for batch items
 export interface BatchItem {
   id: string;
   batch_id: string;
@@ -111,14 +131,17 @@ export interface BatchItem {
   size: string | null;
   warehouse_id: string;
   location_id: string;
-  status: string;
+  status: InventoryStatus;
   created_at: string;
+  updated_at?: string;
+  created_by?: string | null;
+  updated_by?: string | null;
   // Join fields
   warehouse?: Warehouse;
   location?: WarehouseLocation;
 }
 
-export interface StockOut {
+export interface StockOutRequest {
   id: string;
   product_id: string;
   requested_by: string;
@@ -127,26 +150,30 @@ export interface StockOut {
   approved_quantity: number | null;
   destination: string;
   reason: string | null;
-  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'processing';
+  status: StockStatus;
   invoice_number: string | null;
   packing_slip_number: string | null;
   verified_by: string | null;
   created_at: string;
   updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
   // Join fields
   product?: Product;
   requester?: Profile;
   approver?: Profile;
-  details?: StockOutDetail[];
+  details?: StockOutItem[];
 }
 
-export interface StockOutDetail {
+export interface StockOutItem {
   id: string;
   stock_out_id: string;
   inventory_id: string;
   quantity: number;
   created_at: string;
   updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
 }
 
 export interface Profile {
@@ -165,7 +192,6 @@ export interface Profile {
   business_reg_number?: string | null;
 }
 
-// Adding the new InventoryTransfer interface
 export interface InventoryTransfer {
   id: string;
   source_warehouse_id: string;
@@ -174,13 +200,15 @@ export interface InventoryTransfer {
   destination_location_id: string;
   product_id: string;
   quantity: number;
-  status: 'pending' | 'approved' | 'rejected' | 'in_transit' | 'completed' | 'cancelled';
+  status: TransferStatus;
   transfer_reason?: string | null;
   notes?: string | null;
   initiated_by: string;
   approved_by?: string | null;
   created_at: string;
   updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
   // Join fields
   products?: Product;
   source_warehouse?: Warehouse;
@@ -222,19 +250,48 @@ export interface CartItem {
   requirements?: string;
 }
 
-export interface StockMovementAudit {
+export interface InventoryMovement {
   id: string;
-  inventory_id: string;
-  movement_type: 'stock_in' | 'stock_out' | 'batch';
+  product_id: string;
+  warehouse_id: string;
+  location_id: string;
+  movement_type: MovementType;
   quantity: number;
-  previous_quantity: number;
-  new_quantity: number;
-  performed_by: string;
-  performed_at: string;
-  notes?: string;
+  status: MovementStatus;
+  reference_table?: string;
   reference_id?: string;
-  reference_type?: 'stock_in' | 'stock_out' | 'batch';
+  performed_by: string;
+  created_at: string;
+  transfer_reference_id?: string;
+  details?: {
+    [key: string]: any;
+    barcode?: string;
+    color?: string;
+    size?: string;
+    source?: string;
+    notes?: string;
+    direction?: 'in' | 'out';
+    from_warehouse_id?: string;
+    from_location_id?: string;
+    to_warehouse_id?: string;
+    to_location_id?: string;
+  };
+  
   // Join fields
-  inventory?: Inventory;
-  performer?: Profile;
+  products?: {
+    name: string;
+    sku?: string;
+  };
+  warehouse?: {
+    name: string;
+    location?: string;
+  };
+  location?: {
+    floor: number;
+    zone: string;
+  };
+  performer?: {
+    name: string;
+    username: string;
+  };
 }

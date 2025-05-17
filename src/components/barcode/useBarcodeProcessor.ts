@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ScanResponse } from '@/types/auth';
 import { BarcodeProcessorOptions } from './types';
-import { BarcodeLog } from '@/types/inventory';
+import { MovementType, MovementStatus } from '@/types/database';
 
 export function useBarcodeProcessor({
   user,
@@ -64,9 +64,9 @@ export function useBarcodeProcessor({
             product_id: item.inventory_id,
             warehouse_id: warehouseId,
             location_id: locationId,
-            movement_type: 'adjustment', // Using adjustment for scanning/lookup operations
+            movement_type: 'adjustment' as MovementType, // Using adjustment for scanning/lookup operations
             quantity: 0, // Zero quantity as this is just a scan, not actual movement
-            status: 'approved',
+            status: 'approved' as MovementStatus,
             performed_by: user?.id || 'anonymous',
             details: logDetails
           });
@@ -90,7 +90,7 @@ export function useBarcodeProcessor({
               zone: item.zone,
               position: `Floor ${item.floor}`
             },
-            status: (item.status as any) || 'available',
+            status: item.status || 'available',
             attributes: {
               color: item.color,
               size: item.size,

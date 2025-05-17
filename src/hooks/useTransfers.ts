@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { InventoryTransfer } from '@/types/database';
+import { InventoryTransfer, TransferStatus } from '@/types/database';
 import { useAuth } from '@/context/AuthContext';
 import { useInventoryTransferMovements } from './useInventoryTransferMovements';
 
@@ -44,6 +44,8 @@ export const useTransfers = () => {
             approved_by,
             created_at,
             updated_at,
+            created_by,
+            updated_by,
             products(name, sku),
             initiator:profiles!initiated_by(name, username),
             source_warehouse:warehouses!source_warehouse_id(name, location),
@@ -86,6 +88,8 @@ export const useTransfers = () => {
             approved_by,
             created_at,
             updated_at,
+            created_by,
+            updated_by,
             products(name, sku),
             initiator:profiles!initiated_by(name, username),
             approver:profiles!approved_by(name, username),
@@ -123,10 +127,11 @@ export const useTransfers = () => {
             destination_warehouse_id: formData.toWarehouseId,
             destination_location_id: formData.toLocationId,
             quantity: formData.quantity,
-            status: 'pending',
+            status: 'pending' as TransferStatus,
             transfer_reason: formData.transferReason || null,
             notes: formData.notes || null,
-            initiated_by: user.id
+            initiated_by: user.id,
+            created_by: user.id
           })
           .select('id')
           .single();
@@ -182,8 +187,9 @@ export const useTransfers = () => {
       const { error: updateError } = await supabase
         .from('inventory_transfers')
         .update({ 
-          status: 'approved',
-          approved_by: user.id
+          status: 'approved' as TransferStatus,
+          approved_by: user.id,
+          updated_by: user.id
         })
         .eq('id', transferId)
         .eq('status', 'pending');
@@ -247,9 +253,10 @@ export const useTransfers = () => {
       const { error } = await supabase
         .from('inventory_transfers')
         .update({ 
-          status: 'rejected',
+          status: 'rejected' as TransferStatus,
           notes: reason,
-          approved_by: user.id
+          approved_by: user.id,
+          updated_by: user.id
         })
         .eq('id', transferId)
         .eq('status', 'pending');

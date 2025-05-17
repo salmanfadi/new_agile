@@ -2,7 +2,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { InventoryMovement, InventoryMovementFilters, MovementType, MovementStatus } from '@/types/inventory';
+import { InventoryMovement, MovementType, MovementStatus } from '@/types/database';
+
+export interface InventoryMovementFilters {
+  productId?: string;
+  warehouseId?: string;
+  locationId?: string;
+  movementType?: MovementType;
+  status?: MovementStatus;
+  dateFrom?: string;
+  dateTo?: string;
+  referenceId?: string;
+  performedBy?: string;
+}
 
 export const useInventoryMovements = (filters: InventoryMovementFilters = {}) => {
   const fetchInventoryMovements = async () => {
@@ -104,22 +116,10 @@ export const useInventoryMovements = (filters: InventoryMovementFilters = {}) =>
           created_at: item.created_at,
           transfer_reference_id: item.transfer_reference_id,
           details: parsedDetails,
-          product: item.products ? {
-            name: item.products.name,
-            sku: item.products.sku
-          } : undefined,
-          warehouse: item.warehouses ? {
-            name: item.warehouses.name,
-            location: item.warehouses.location
-          } : undefined,
-          location: item.warehouse_locations ? {
-            floor: item.warehouse_locations.floor,
-            zone: item.warehouse_locations.zone
-          } : undefined,
-          performer: item.profiles ? {
-            name: item.profiles.name,
-            username: item.profiles.username
-          } : undefined
+          products: item.products,
+          warehouse: item.warehouses,
+          location: item.warehouse_locations,
+          performer: item.profiles
         };
       }) || [];
       

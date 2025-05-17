@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { TransferStatus } from '@/types/database';
 
 const TransferHistoryTable: React.FC = () => {
   const { getTransferHistory } = useTransfers();
@@ -56,6 +57,25 @@ const TransferHistoryTable: React.FC = () => {
       </Card>
     );
   }
+  
+  const getStatusVariant = (status: TransferStatus) => {
+    switch (status) {
+      case 'approved':
+        return 'success';
+      case 'rejected':
+        return 'destructive';
+      case 'pending':
+        return 'outline';
+      case 'completed':
+        return 'success';
+      case 'in_transit':
+        return 'warning';
+      case 'cancelled':
+        return 'secondary';
+      default:
+        return 'secondary';
+    }
+  };
   
   return (
     <Card>
@@ -101,12 +121,7 @@ const TransferHistoryTable: React.FC = () => {
                 </TableCell>
                 <TableCell>{transfer.quantity}</TableCell>
                 <TableCell>
-                  <Badge variant={
-                    transfer.status === 'approved' ? 'success' : 
-                    transfer.status === 'rejected' ? 'destructive' : 
-                    transfer.status === 'pending' ? 'outline' : 
-                    'secondary'
-                  }>
+                  <Badge variant={getStatusVariant(transfer.status as TransferStatus)}>
                     {transfer.status?.charAt(0).toUpperCase() + transfer.status?.slice(1) || 'Unknown'}
                   </Badge>
                 </TableCell>
