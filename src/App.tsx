@@ -19,6 +19,9 @@ import BatchStockInPage from './pages/admin/BatchStockInPage';
 import StockInDetailsPage from './pages/warehouseManager/StockInDetailsPage';
 import ReportsDashboard from './pages/reports/ReportsDashboard';
 import Index from './pages/Index';
+import Unauthorized from './pages/Unauthorized';
+import { PublicLayout } from './layouts/PublicLayout';
+import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,160 +60,131 @@ function App() {
             </div>
           )}
           <Routes>
-            {/* Default Route */}
+            {/* Public Routes */}
             <Route path="/" element={<Index />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/login" element={<PublicLayout><LoginPage /></PublicLayout>} />
+            <Route path="/signup" element={<PublicLayout><SignupPage /></PublicLayout>} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
             
             {/* Admin Routes */}
-            <Route 
-              path="/admin" 
-              element={
-                <RequireAuth allowedRoles={['admin']}>
-                  <MainLayout>
-                    <AdminDashboard />
-                  </MainLayout>
-                </RequireAuth>
-              } 
-            />
-            <Route
-              path="/admin/stock-in" 
-              element={
-                <RequireAuth allowedRoles={['admin']}>
-                  <MainLayout>
-                    <StockInManagement />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/admin/stock-in/batch/:stockInId" 
-              element={
-                <RequireAuth allowedRoles={['admin']}>
-                  <MainLayout>
-                    <BatchStockInPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/admin/stock-out" 
-              element={
-                <RequireAuth allowedRoles={['admin']}>
-                  <MainLayout>
-                    <StockOutManagement />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/admin/stock-in/batches/:stockInId" 
-              element={
-                <RequireAuth allowedRoles={['admin']}>
-                  <MainLayout>
-                    <BatchOverviewPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/admin/stock-in/batches" 
-              element={
-                <RequireAuth allowedRoles={['admin']}>
-                  <MainLayout>
-                    <AllBatchesPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
+            <Route path="/admin" element={
+              <RequireAuth allowedRoles={['admin']}>
+                <MainLayout>
+                  <AdminDashboard />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            <Route path="/admin/stock-in" element={
+              <RequireAuth allowedRoles={['admin']}>
+                <MainLayout>
+                  <StockInManagement />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            <Route path="/admin/stock-in/batch/:stockInId" element={
+              <RequireAuth allowedRoles={['admin']}>
+                <MainLayout>
+                  <BatchStockInPage />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            <Route path="/admin/stock-out" element={
+              <RequireAuth allowedRoles={['admin']}>
+                <MainLayout>
+                  <StockOutManagement />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            <Route path="/admin/stock-in/batches/:stockInId" element={
+              <RequireAuth allowedRoles={['admin']}>
+                <MainLayout>
+                  <BatchOverviewPage />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            <Route path="/admin/stock-in/batches" element={
+              <RequireAuth allowedRoles={['admin']}>
+                <MainLayout>
+                  <AllBatchesPage />
+                </MainLayout>
+              </RequireAuth>
+            } />
 
             {/* Manager Routes */}
-            <Route
-              path="/manager" 
-              element={
-                <RequireAuth allowedRoles={['warehouse_manager']}>
-                  <MainLayout>
-                    <ManagerDashboard />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/manager/stock-in/details/:stockInId" 
-              element={
-                <RequireAuth allowedRoles={['warehouse_manager']}>
-                  <MainLayout>
-                    <StockInDetailsPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/manager/stock-in/batches/:stockInId" 
-              element={
-                <RequireAuth allowedRoles={['warehouse_manager']}>
-                  <MainLayout>
-                    <BatchOverviewPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/manager/stock-in/batches" 
-              element={
-                <RequireAuth allowedRoles={['warehouse_manager']}>
-                  <MainLayout>
-                    <AllBatchesPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/manager/stock-in/batch/:stockInId" 
-              element={
-                <RequireAuth allowedRoles={['warehouse_manager']}>
-                  <MainLayout>
-                    <BatchStockInPage />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
+            <Route path="/manager" element={
+              <RequireAuth allowedRoles={['warehouse_manager']}>
+                <MainLayout>
+                  <ManagerDashboard />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            <Route path="/manager/stock-in/details/:stockInId" element={
+              <RequireAuth allowedRoles={['warehouse_manager']}>
+                <MainLayout>
+                  <StockInDetailsPage />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            <Route path="/manager/stock-in/batches/:stockInId" element={
+              <RequireAuth allowedRoles={['warehouse_manager']}>
+                <MainLayout>
+                  <BatchOverviewPage />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            <Route path="/manager/stock-in/batches" element={
+              <RequireAuth allowedRoles={['warehouse_manager']}>
+                <MainLayout>
+                  <AllBatchesPage />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            <Route path="/manager/stock-in/batch/:stockInId" element={
+              <RequireAuth allowedRoles={['warehouse_manager']}>
+                <MainLayout>
+                  <BatchStockInPage />
+                </MainLayout>
+              </RequireAuth>
+            } />
 
             {/* Sales Operator Routes */}
-            <Route
-              path="/sales" 
-              element={
-                <RequireAuth allowedRoles={['sales_operator']}>
-                  <MainLayout>
-                    <SalesOperatorDashboard />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
+            <Route path="/sales" element={
+              <RequireAuth allowedRoles={['sales_operator']}>
+                <MainLayout>
+                  <SalesOperatorDashboard />
+                </MainLayout>
+              </RequireAuth>
+            } />
 
             {/* Customer Routes */}
-            <Route
-              path="/customer/portal" 
-              element={
-                <RequireAuth allowedRoles={['customer']}>
-                  <MainLayout>
-                    <CustomerPortal />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
+            <Route path="/customer/portal" element={
+              <RequireAuth allowedRoles={['customer']}>
+                <MainLayout>
+                  <CustomerPortal />
+                </MainLayout>
+              </RequireAuth>
+            } />
             
             {/* Reports Routes */}
-            <Route
-              path="/reports" 
-              element={
-                <RequireAuth allowedRoles={['admin', 'warehouse_manager']}>
-                  <MainLayout>
-                    <ReportsDashboard />
-                  </MainLayout>
-                </RequireAuth>
-              }
-            />
+            <Route path="/reports" element={
+              <RequireAuth allowedRoles={['admin', 'warehouse_manager']}>
+                <MainLayout>
+                  <ReportsDashboard />
+                </MainLayout>
+              </RequireAuth>
+            } />
+            
+            {/* 404 Not Found */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
       </Router>

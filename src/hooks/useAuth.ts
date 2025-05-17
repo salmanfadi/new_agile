@@ -6,22 +6,29 @@ import { AuthSession, User } from '@supabase/supabase-js';
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     // Get initial session
     const getSession = async () => {
-      setLoading(true);
+      setIsLoading(true);
       
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Error getting session:', error);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+        }
+        
+        setSession(session);
+        setUser(session?.user || null);
+        setIsAuthenticated(!!session);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error in getSession:', err);
+        setIsLoading(false);
       }
-      
-      setSession(session);
-      setUser(session?.user || null);
-      setLoading(false);
     };
 
     getSession();
@@ -31,7 +38,8 @@ export function useAuth() {
       (event, session) => {
         setSession(session);
         setUser(session?.user || null);
-        setLoading(false);
+        setIsAuthenticated(!!session);
+        setIsLoading(false);
       }
     );
 
@@ -43,6 +51,7 @@ export function useAuth() {
   return {
     user,
     session,
-    loading
+    isLoading,
+    isAuthenticated
   };
 }
