@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { TransferStatus } from '@/types/database';
 
-// Add this interface for TransferForm.tsx
+// Define interface for TransferForm.tsx
 export interface TransferFormData {
   product_id: string;
   source_warehouse_id: string;
@@ -15,6 +15,14 @@ export interface TransferFormData {
   quantity: number;
   transfer_reason?: string;
   notes?: string;
+  
+  // Add form field names that match what's used in TransferForm.tsx
+  productId?: string;
+  fromWarehouseId?: string;
+  fromLocationId?: string;
+  toWarehouseId?: string;
+  toLocationId?: string;
+  transferReason?: string;
 }
 
 export const useTransfers = () => {
@@ -138,13 +146,23 @@ export const useTransfers = () => {
     mutationFn: async (transferData: TransferFormData) => {
       if (!user?.id) throw new Error('User not authenticated');
       
+      // Map the form field names to the database column names
+      const transferPayload = {
+        product_id: transferData.product_id || transferData.productId,
+        source_warehouse_id: transferData.source_warehouse_id || transferData.fromWarehouseId,
+        source_location_id: transferData.source_location_id || transferData.fromLocationId,
+        destination_warehouse_id: transferData.destination_warehouse_id || transferData.toWarehouseId,
+        destination_location_id: transferData.destination_location_id || transferData.toLocationId,
+        quantity: transferData.quantity,
+        transfer_reason: transferData.transfer_reason || transferData.transferReason,
+        notes: transferData.notes,
+        initiated_by: user.id,
+        status: 'pending' as TransferStatus
+      };
+      
       const { data, error } = await supabase
         .from('inventory_transfers')
-        .insert({
-          ...transferData,
-          initiated_by: user.id,
-          status: 'pending'
-        })
+        .insert(transferPayload)
         .select();
       
       if (error) throw error;

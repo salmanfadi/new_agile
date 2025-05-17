@@ -112,7 +112,7 @@ const TransferApprovalList: React.FC = () => {
                       <p className="text-sm font-medium">From</p>
                       <p className="font-medium">{transfer.source_warehouse?.name || 'Unknown Warehouse'}</p>
                       <p className="text-sm text-gray-500">
-                        Floor {transfer.source_location?.floor}, Zone {transfer.source_location?.zone}
+                        Floor {transfer.source_location?.floor || '?'}, Zone {transfer.source_location?.zone || '?'}
                       </p>
                     </div>
                     
@@ -128,7 +128,7 @@ const TransferApprovalList: React.FC = () => {
                       <p className="text-sm font-medium">To</p>
                       <p className="font-medium">{transfer.destination_warehouse?.name || 'Unknown Warehouse'}</p>
                       <p className="text-sm text-gray-500">
-                        Floor {transfer.destination_location?.floor}, Zone {transfer.destination_location?.zone}
+                        Floor {transfer.destination_location?.floor || '?'}, Zone {transfer.destination_location?.zone || '?'}
                       </p>
                     </div>
                   </div>

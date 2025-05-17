@@ -52,11 +52,11 @@ const TransferForm: React.FC = () => {
   
   // Update the form when warehouse selections change
   useEffect(() => {
-    register('fromWarehouseId', { required: 'Source warehouse is required' });
-    register('toWarehouseId', { required: 'Destination warehouse is required' });
-    register('fromLocationId', { required: 'Source location is required' });
-    register('toLocationId', { required: 'Destination location is required' });
-    register('productId', { required: 'Product is required' });
+    register('source_warehouse_id', { required: 'Source warehouse is required' });
+    register('destination_warehouse_id', { required: 'Destination warehouse is required' });
+    register('source_location_id', { required: 'Source location is required' });
+    register('destination_location_id', { required: 'Destination location is required' });
+    register('product_id', { required: 'Product is required' });
     register('quantity', { 
       required: 'Quantity is required',
       min: { value: 1, message: 'Quantity must be at least 1' }
@@ -65,14 +65,14 @@ const TransferForm: React.FC = () => {
   
   const handleFromWarehouseChange = (value: string) => {
     setFromWarehouseId(value);
-    setValue('fromWarehouseId', value);
-    setValue('fromLocationId', ''); // Reset location when warehouse changes
+    setValue('source_warehouse_id', value);
+    setValue('source_location_id', ''); // Reset location when warehouse changes
   };
   
   const handleToWarehouseChange = (value: string) => {
     setToWarehouseId(value);
-    setValue('toWarehouseId', value);
-    setValue('toLocationId', ''); // Reset location when warehouse changes
+    setValue('destination_warehouse_id', value);
+    setValue('destination_location_id', ''); // Reset location when warehouse changes
   };
   
   const onSubmit = (data: TransferFormData) => {
@@ -94,9 +94,9 @@ const TransferForm: React.FC = () => {
         <CardContent className="space-y-4">
           {/* Product Selection */}
           <div className="space-y-2">
-            <Label htmlFor="productId">Product</Label>
-            <Select onValueChange={(value) => setValue('productId', value)}>
-              <SelectTrigger id="productId">
+            <Label htmlFor="product_id">Product</Label>
+            <Select onValueChange={(value) => setValue('product_id', value)}>
+              <SelectTrigger id="product_id">
                 <SelectValue placeholder="Select a product" />
               </SelectTrigger>
               <SelectContent>
@@ -113,17 +113,17 @@ const TransferForm: React.FC = () => {
                 )}
               </SelectContent>
             </Select>
-            {errors.productId && (
-              <p className="text-sm text-red-500">{errors.productId.message}</p>
+            {errors.product_id && (
+              <p className="text-sm text-red-500">{errors.product_id.message}</p>
             )}
           </div>
           
           {/* Source Warehouse and Location */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fromWarehouseId">From Warehouse</Label>
+              <Label htmlFor="source_warehouse_id">From Warehouse</Label>
               <Select onValueChange={handleFromWarehouseChange}>
-                <SelectTrigger id="fromWarehouseId">
+                <SelectTrigger id="source_warehouse_id">
                   <SelectValue placeholder="Select source warehouse" />
                 </SelectTrigger>
                 <SelectContent>
@@ -140,18 +140,18 @@ const TransferForm: React.FC = () => {
                   )}
                 </SelectContent>
               </Select>
-              {errors.fromWarehouseId && (
-                <p className="text-sm text-red-500">{errors.fromWarehouseId.message}</p>
+              {errors.source_warehouse_id && (
+                <p className="text-sm text-red-500">{errors.source_warehouse_id.message}</p>
               )}
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="fromLocationId">From Location</Label>
+              <Label htmlFor="source_location_id">From Location</Label>
               <Select 
                 disabled={!fromWarehouseId} 
-                onValueChange={(value) => setValue('fromLocationId', value)}
+                onValueChange={(value) => setValue('source_location_id', value)}
               >
-                <SelectTrigger id="fromLocationId">
+                <SelectTrigger id="source_location_id">
                   <SelectValue placeholder="Select source location" />
                 </SelectTrigger>
                 <SelectContent>
@@ -170,8 +170,8 @@ const TransferForm: React.FC = () => {
                   )}
                 </SelectContent>
               </Select>
-              {errors.fromLocationId && (
-                <p className="text-sm text-red-500">{errors.fromLocationId.message}</p>
+              {errors.source_location_id && (
+                <p className="text-sm text-red-500">{errors.source_location_id.message}</p>
               )}
             </div>
           </div>
@@ -179,9 +179,9 @@ const TransferForm: React.FC = () => {
           {/* Destination Warehouse and Location */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="toWarehouseId">To Warehouse</Label>
+              <Label htmlFor="destination_warehouse_id">To Warehouse</Label>
               <Select onValueChange={handleToWarehouseChange}>
-                <SelectTrigger id="toWarehouseId">
+                <SelectTrigger id="destination_warehouse_id">
                   <SelectValue placeholder="Select destination warehouse" />
                 </SelectTrigger>
                 <SelectContent>
@@ -198,18 +198,18 @@ const TransferForm: React.FC = () => {
                   )}
                 </SelectContent>
               </Select>
-              {errors.toWarehouseId && (
-                <p className="text-sm text-red-500">{errors.toWarehouseId.message}</p>
+              {errors.destination_warehouse_id && (
+                <p className="text-sm text-red-500">{errors.destination_warehouse_id.message}</p>
               )}
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="toLocationId">To Location</Label>
+              <Label htmlFor="destination_location_id">To Location</Label>
               <Select 
                 disabled={!toWarehouseId} 
-                onValueChange={(value) => setValue('toLocationId', value)}
+                onValueChange={(value) => setValue('destination_location_id', value)}
               >
-                <SelectTrigger id="toLocationId">
+                <SelectTrigger id="destination_location_id">
                   <SelectValue placeholder="Select destination location" />
                 </SelectTrigger>
                 <SelectContent>
@@ -228,8 +228,8 @@ const TransferForm: React.FC = () => {
                   )}
                 </SelectContent>
               </Select>
-              {errors.toLocationId && (
-                <p className="text-sm text-red-500">{errors.toLocationId.message}</p>
+              {errors.destination_location_id && (
+                <p className="text-sm text-red-500">{errors.destination_location_id.message}</p>
               )}
             </div>
           </div>
@@ -255,11 +255,11 @@ const TransferForm: React.FC = () => {
           
           {/* Transfer Reason */}
           <div className="space-y-2">
-            <Label htmlFor="transferReason">Transfer Reason (Optional)</Label>
+            <Label htmlFor="transfer_reason">Transfer Reason (Optional)</Label>
             <Input
-              id="transferReason" 
+              id="transfer_reason" 
               placeholder="Reason for transfer"
-              {...register('transferReason')}
+              {...register('transfer_reason')}
             />
           </div>
           
