@@ -135,9 +135,9 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       setSource(stockInData.source || '');
       setNotes(stockInData.notes || '');
       
-      // Initialize remaining boxes from stock in data
+      // Initialize remaining boxes from stock in data with safety check
       const totalBoxes = stockInData.boxes || 0;
-      const batchBoxesCount = batches.reduce((sum, batch) => sum + batch.boxes_count, 0);
+      const batchBoxesCount = batches.reduce((sum, batch) => sum + (batch?.boxes_count || 0), 0);
       setRemainingBoxes(totalBoxes - batchBoxesCount);
     }
   }, [stockInData, batches]);

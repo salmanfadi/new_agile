@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { BarcodePreview } from './BarcodePreview';
 
 // Update the BatchCard component to show validation errors:
 export const BatchCard: React.FC<{
@@ -149,11 +149,14 @@ export const BatchCard: React.FC<{
                     <div className="space-y-2">
                       {visibleBarcodes.map((barcode, i) => (
                         <div key={i} className="flex flex-col items-center">
-                          {/* This would render a real barcode using a library like bwip-js */}
                           <div className="bg-white p-1 rounded border mb-1 w-full text-center">
                             <div className="h-12 flex items-center justify-center border-b pb-1">
-                              {/* Barcode placeholder - in production would be replaced with actual barcode */}
-                              <div className="w-full h-8 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMzAiPjxwYXRoIGQ9Ik0wIDBoMnYzMEgwem0zIDBoMXYzMEgzem00IDBoM3YzMEg3em01IDBoMXYzMGgtMXptMyAwaDJ2MzBoLTJ6bTQgMGgxdjMwaC0xem0yIDBoM3YzMGgtM3ptNSAwaDJ2MzBoLTJ6bTMgMGgzdjMwaC0zem01IDBoMnYzMGgtMnptMyAwaDR2MzBoLTR6bTYgMGgydjMwaC0yem0zIDBoMXYzMGgtMXptMyAwaDJ2MzBoLTJ6bTQgMGgxdjMwaC0xem0zIDBoM3YzMGgtM3ptNSAwaDJ2MzBoLTJ6bTMgMGg1djMwaC01em03IDBoMnYzMGgtMnptNCAwaDJ2MzBoLTJ6bTQgMGgxdjMwaC0xem0yIDBoNHYzMGgtNHptNiAwaDJ2MzBoLTJ6bTMgMGgxdjMwaC0xem0yIDBoMnYzMGgtMnoiLz48L3N2Zz4=')] bg-no-repeat bg-center"></div>
+                              <BarcodePreview 
+                                value={barcode} 
+                                height={40} 
+                                width={1} 
+                                displayValue={false}
+                              />
                             </div>
                             <div className="text-xs font-mono pt-1 select-all">{barcode}</div>
                           </div>

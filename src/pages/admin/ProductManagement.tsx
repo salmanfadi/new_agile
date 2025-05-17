@@ -231,9 +231,6 @@ const ProductManagement: React.FC = () => {
     setSkuError(null);
   };
 
-  // Import toast directly where it's used
-  const { toast } = require('@/hooks/use-toast');
-  
   return (
     <div className="space-y-6">
       <PageHeader 

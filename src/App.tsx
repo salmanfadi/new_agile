@@ -45,6 +45,7 @@ import FieldOperatorSubmissions from './pages/fieldOperator/Submissions';
 import FieldOperatorSettings from './pages/fieldOperator/Settings';
 import SalesOperatorInventoryView from './pages/salesOperator/InventoryView';
 import ProductManagement from './pages/admin/ProductManagement';
+import WarehouseManagement from './pages/admin/WarehouseManagement';
 // Reports pages imports
 import ReportsDashboard from './pages/reports/ReportsDashboard';
 import InventoryStatusReport from './pages/reports/inventory/InventoryStatusReport';
@@ -186,7 +187,7 @@ const router = createBrowserRouter([
       },
       {
         path: "admin/warehouses",
-        element: <RequireAuth allowedRoles={['admin']}><AdminDashboard /></RequireAuth>, // Placeholder for warehouse management
+        element: <RequireAuth allowedRoles={['admin']}><WarehouseManagement /></RequireAuth>,
       },
       {
         path: "admin/profiles",

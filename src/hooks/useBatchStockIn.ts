@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -74,8 +73,22 @@ export const useBatchStockIn = (userId: string = '') => {
 
   // Delete a batch
   const deleteBatch = (index: number) => {
-    const updatedBatches = batches.filter((_, i) => i !== index);
-    setBatches(updatedBatches);
+    if (index < 0 || index >= batches.length) {
+      console.error('Invalid batch index for deletion:', index);
+      return;
+    }
+    
+    try {
+      const updatedBatches = batches.filter((_, i) => i !== index);
+      setBatches(updatedBatches);
+    } catch (error) {
+      console.error('Error deleting batch:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete batch. Please try again.',
+        variant: 'destructive'
+      });
+    }
   };
 
   // Reset batches state
