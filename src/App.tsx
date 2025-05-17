@@ -45,7 +45,6 @@ import FieldOperatorTransfers from './pages/fieldOperator/Transfers';
 import FieldOperatorSubmissions from './pages/fieldOperator/Submissions';
 import FieldOperatorSettings from './pages/fieldOperator/Settings';
 import SalesOperatorInventoryView from './pages/salesOperator/InventoryView';
-import TestDataPage from '@/pages/admin/TestDataPage';
 
 // Define routes
 const router = createBrowserRouter([
@@ -214,10 +213,6 @@ const router = createBrowserRouter([
       {
         path: "admin/transfers",
         element: <RequireAuth allowedRoles={['admin']}><AdminInventoryTransfers /></RequireAuth>,
-      },
-      {
-        path: "admin/test-data",
-        element: <RequireAuth allowedRoles={['admin']}><TestDataPage /></RequireAuth>,
       },
     ]
   },
