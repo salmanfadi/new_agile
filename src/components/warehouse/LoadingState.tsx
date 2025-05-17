@@ -1,15 +1,16 @@
 
 import React from 'react';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { Loader2 } from 'lucide-react';
 
-export const LoadingState: React.FC = () => {
+export interface LoadingStateProps {
+  message?: string;
+}
+
+export const LoadingState: React.FC<LoadingStateProps> = ({ message = "Loading..." }) => {
   return (
-    <div className="p-6">
-      <PageHeader 
-        title="Processing Stock In" 
-        description="Loading stock in details..." 
-      />
-      <div className="mt-8 text-center">Loading...</div>
+    <div className="flex flex-col items-center justify-center p-12">
+      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+      <p className="text-lg font-medium text-muted-foreground">{message}</p>
     </div>
   );
 };
