@@ -53,11 +53,11 @@ export const useTransfers = () => {
             created_at,
             updated_at,
             products(id, name, sku),
-            source_warehouse:source_warehouse_id(id, name, location),
-            source_location:source_location_id(id, floor, zone),
-            destination_warehouse:destination_warehouse_id(id, name, location),
-            destination_location:destination_location_id(id, floor, zone),
-            initiator:initiated_by(id, name, username)
+            source_warehouse:warehouses!source_warehouse_id(id, name, location),
+            source_location:warehouse_locations!source_location_id(id, floor, zone),
+            destination_warehouse:warehouses!destination_warehouse_id(id, name, location),
+            destination_location:warehouse_locations!destination_location_id(id, floor, zone),
+            initiator:profiles!initiated_by(id, name, username)
           `)
           .order('created_at', { ascending: false });
         
@@ -123,11 +123,11 @@ export const useTransfers = () => {
             initiated_by,
             created_at,
             products(id, name, sku),
-            source_warehouse:source_warehouse_id(id, name, location),
-            source_location:source_location_id(id, floor, zone),
-            destination_warehouse:destination_warehouse_id(id, name, location),
-            destination_location:destination_location_id(id, floor, zone),
-            initiator:initiated_by(id, name, username)
+            source_warehouse:warehouses!source_warehouse_id(id, name, location),
+            source_location:warehouse_locations!source_location_id(id, floor, zone),
+            destination_warehouse:warehouses!destination_warehouse_id(id, name, location),
+            destination_location:warehouse_locations!destination_location_id(id, floor, zone),
+            initiator:profiles!initiated_by(id, name, username)
           `)
           .eq('status', 'pending')
           .order('created_at', { ascending: true });
