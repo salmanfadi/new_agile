@@ -1,46 +1,45 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { InventoryMovement, MovementType } from '@/types/inventory';
+import { MovementType, MovementStatus } from '@/types/inventory';
 
-// Helper function to create inventory movements
+// Function to create a single inventory movement
 export const createInventoryMovement = async (
-  productId: string,
-  warehouseId: string,
-  locationId: string,
+  product_id: string,
+  warehouse_id: string,
+  location_id: string,
   quantity: number,
-  movementType: MovementType,
-  status: 'pending' | 'approved' | 'rejected' | 'in_transit', // Use literal types matching DB enum
-  referenceTable?: string,
-  referenceId?: string,
-  performedBy?: string,
-  details?: Record<string, any>
+  movement_type: MovementType,
+  status: MovementStatus,
+  reference_table?: string,
+  reference_id?: string,
+  performed_by?: string,
+  details?: Record<string, any>,
+  transfer_reference_id?: string
 ) => {
-  try {
-    const { data, error } = await supabase.from('inventory_movements').insert({
-      product_id: productId,
-      warehouse_id: warehouseId,
-      location_id: locationId,
-      movement_type: movementType,
-      quantity: quantity,
-      status: status,
-      reference_table: referenceTable,
-      reference_id: referenceId,
-      performed_by: performedBy || '',
-      details: details || {}
-    }).select();
-
-    if (error) {
-      console.error('Error creating inventory movement:', error);
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Failed to create inventory movement:', error);
+  const { data, error } = await supabase
+    .from('inventory_movements')
+    .insert({
+      product_id,
+      warehouse_id,
+      location_id,
+      quantity,
+      movement_type,
+      status,
+      reference_table,
+      reference_id,
+      performed_by,
+      details,
+      transfer_reference_id
+    })
+    .select();
+    
+  if (error) {
+    console.error('Error creating inventory movement:', error);
     throw error;
   }
+  
+  return data?.[0];
 };
 
 // Hook to fetch inventory movements with filters
@@ -134,7 +133,7 @@ export const useCreateInventoryMovement = () => {
       locationId: string;
       quantity: number;
       movementType: MovementType;
-      status: 'pending' | 'approved' | 'rejected' | 'in_transit'; // Match DB enum exactly
+      status: MovementStatus; // Match DB enum exactly
       referenceTable?: string;
       referenceId?: string;
       performedBy: string;
@@ -189,7 +188,7 @@ export const useUpdateMovementStatus = () => {
       status 
     }: { 
       movementId: string; 
-      status: 'pending' | 'approved' | 'rejected' | 'in_transit'; // Match DB enum exactly
+      status: MovementStatus; // Match DB enum exactly
     }) => {
       const { data, error } = await supabase
         .from('inventory_movements')

@@ -1,4 +1,3 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -7,6 +6,7 @@ import { TransferStatus } from '@/types/database';
 
 // Define interface for TransferForm.tsx
 export interface TransferFormData {
+  // Database column names
   product_id: string;
   source_warehouse_id: string;
   source_location_id: string;
@@ -16,7 +16,7 @@ export interface TransferFormData {
   transfer_reason?: string;
   notes?: string;
   
-  // Add form field names that match what's used in TransferForm.tsx
+  // Form field names that match what's used in TransferForm.tsx
   productId?: string;
   fromWarehouseId?: string;
   fromLocationId?: string;

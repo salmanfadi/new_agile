@@ -52,11 +52,11 @@ const TransferForm: React.FC = () => {
   
   // Update the form when warehouse selections change
   useEffect(() => {
+    register('product_id', { required: 'Product is required' });
     register('source_warehouse_id', { required: 'Source warehouse is required' });
     register('destination_warehouse_id', { required: 'Destination warehouse is required' });
     register('source_location_id', { required: 'Source location is required' });
     register('destination_location_id', { required: 'Destination location is required' });
-    register('product_id', { required: 'Product is required' });
     register('quantity', { 
       required: 'Quantity is required',
       min: { value: 1, message: 'Quantity must be at least 1' }

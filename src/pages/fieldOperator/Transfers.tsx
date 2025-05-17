@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -198,7 +197,7 @@ const FieldOperatorTransfers: React.FC = () => {
             to_warehouse_id: targetWarehouseId,
             to_location_id: targetLocationId,
             barcode: item.barcode,
-            notes: reason || 'Field transfer',
+            notes: reason || 'Field transfer'
           },
           transferReferenceId
         );
@@ -221,7 +220,7 @@ const FieldOperatorTransfers: React.FC = () => {
             to_warehouse_id: targetWarehouseId,
             to_location_id: targetLocationId,
             barcode: item.barcode,
-            notes: reason || 'Field transfer',
+            notes: reason || 'Field transfer'
           },
           transferReferenceId
         );
