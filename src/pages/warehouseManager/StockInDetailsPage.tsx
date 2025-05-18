@@ -38,7 +38,7 @@ interface StockInData {
   error: string | null;
 }
 
-// Updated interface to better match what Supabase returns
+// Updated interface to better match what Supabase returns and handle null/undefined better
 interface StockInWithExtras {
   boxes: number;
   created_at: string;
@@ -189,6 +189,7 @@ const StockInDetailsPage: React.FC = () => {
       }
 
       try {
+        // Update the query to use explicit column hints for joins to avoid ambiguity
         const { data, error } = await supabase
           .from('stock_in')
           .select(`
@@ -229,9 +230,9 @@ const StockInDetailsPage: React.FC = () => {
             processing_started_at: data.processing_started_at,
             processing_completed_at: data.processing_completed_at,
             // Handle the nested objects with safe defaults
-            product: data.product || { id: '', name: 'Unknown Product' },
-            submitter: data.submitter || { id: '', name: 'Unknown User' },
-            processor: data.processed_by ? (data.processor || { id: '', name: 'Unknown User' }) : undefined
+            product: data.product || null,
+            submitter: data.submitter || null,
+            processor: data.processed_by ? (data.processor || null) : null
           };
           
           setStockIn(safeStockIn);
@@ -289,27 +290,39 @@ const StockInDetailsPage: React.FC = () => {
 
         if (data) {
           // Process the data to ensure it matches our StockInDetail interface
-          const safeDetails: StockInDetail[] = data.map(item => ({
-            id: item.id,
-            stock_in_id: item.stock_in_id,
-            product_id: item.product_id,
-            quantity: item.quantity,
-            created_at: item.created_at,
-            barcode: item.barcode,
-            color: item.color,
-            size: item.size,
-            batch_number: item.batch_number,
-            processing_order: item.processing_order,
-            processed_at: item.processed_at,
-            error_message: item.error_message,
-            status: item.status,
-            inventory_id: item.inventory_id,
-            warehouse_id: item.warehouse_id,
-            location_id: item.location_id,
-            // Safely handle product data which might be null
-            product: item.product && typeof item.product === 'object' ? 
-              { id: item.product.id, name: item.product.name } : null
-          }));
+          const safeDetails: StockInDetail[] = data.map(item => {
+            // First create a base object with required properties
+            const detailObj: StockInDetail = {
+              id: item.id,
+              stock_in_id: item.stock_in_id,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              created_at: item.created_at,
+              barcode: item.barcode,
+              color: item.color,
+              size: item.size,
+              batch_number: item.batch_number,
+              processing_order: item.processing_order,
+              processed_at: item.processed_at,
+              error_message: item.error_message,
+              status: item.status,
+              inventory_id: item.inventory_id,
+              warehouse_id: item.warehouse_id,
+              location_id: item.location_id
+            };
+            
+            // Then conditionally add the product if it exists and is valid
+            if (item.product && typeof item.product === 'object' && 'id' in item.product && 'name' in item.product) {
+              detailObj.product = {
+                id: item.product.id,
+                name: item.product.name
+              };
+            } else {
+              detailObj.product = null;
+            }
+            
+            return detailObj;
+          });
           
           setDetails(safeDetails);
           toast({
