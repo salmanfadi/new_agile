@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Box, AlertTriangle } from 'lucide-react';
 import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
-import { StatusBadge } from '@/components/ui/status-badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import ProcessStockInForm from './ProcessStockInForm';
 import { useToast } from '@/hooks/use-toast';
 
