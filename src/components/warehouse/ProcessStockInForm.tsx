@@ -1,8 +1,7 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
-import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -42,7 +41,7 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   if (stockIn && userId) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1200px] max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Box className="h-5 w-5" />

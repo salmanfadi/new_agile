@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
@@ -12,8 +12,9 @@ import { BoxData } from '@/hooks/useStockInBoxes';
 import { generateBarcodeString } from '@/utils/barcodeUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
-interface StockInWizardProps {
+interface StockInWizard2Props {
   stockIn: StockInRequestData;
   userId: string;
   onComplete?: (batchId: string) => void;
@@ -22,7 +23,7 @@ interface StockInWizardProps {
 
 type StepType = 'details' | 'boxes' | 'preview';
 
-const StockInWizard: React.FC<StockInWizardProps> = ({
+const StockInWizard: React.FC<StockInWizard2Props> = ({
   stockIn,
   userId,
   onComplete,
@@ -30,6 +31,7 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
 }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeStep, setActiveStep] = useState<StepType>('details');
   const [boxesData, setBoxesData] = useState<BoxData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,12 +44,29 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
     color: '',
     size: '',
   });
+  const [processingStatus, setProcessingStatus] = useState<{
+    inProgress: boolean;
+    currentBatch: number;
+    totalBatches: number;
+    message: string;
+  }>({
+    inProgress: false,
+    currentBatch: 0,
+    totalBatches: 0,
+    message: '',
+  });
 
   useEffect(() => {
     // Log the current state to help with debugging
     console.log("Current step:", activeStep);
     console.log("Boxes data:", boxesData);
   }, [activeStep, boxesData]);
+
+  // Memoize the navigation function to prevent unnecessary rerenders
+  const navigateToStep = useCallback((step: StepType) => {
+    console.log(`Navigating to step: ${step}`);
+    setActiveStep(step);
+  }, []);
 
   // Initialize box data when warehouse and location are selected
   const initializeBoxes = async () => {
@@ -88,7 +107,7 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
       }
       
       setBoxesData(newBoxes);
-      setActiveStep('boxes');
+      navigateToStep('boxes');
       console.log("Boxes initialized, moving to boxes step");
     } catch (error) {
       console.error("Error initializing boxes:", error);
@@ -114,6 +133,7 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
 
   // Update box location (warehouse and location)
   const updateBoxLocation = (index: number, warehouseId: string, locationId: string) => {
+    console.log(`Updating box ${index} location to warehouse: ${warehouseId}, location: ${locationId}`);
     const updatedBoxes = [...boxesData];
     updatedBoxes[index] = {
       ...updatedBoxes[index],
@@ -139,6 +159,23 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
       title: "Applied to All",
       description: "Default values have been applied to all boxes",
     });
+  };
+
+  // Group boxes by warehouse/location to create batches
+  const getBoxesByLocation = () => {
+    const boxesByLocation: Record<string, BoxData[]> = {};
+    
+    boxesData.forEach(box => {
+      if (box.warehouse_id && box.location_id) {
+        const key = `${box.warehouse_id}-${box.location_id}`;
+        if (!boxesByLocation[key]) {
+          boxesByLocation[key] = [];
+        }
+        boxesByLocation[key].push(box);
+      }
+    });
+    
+    return boxesByLocation;
   };
 
   // Submit the processed stock in
@@ -180,13 +217,25 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
     try {
       console.log("Starting stock in processing...");
       
+      // Group boxes by warehouse/location to create batches
+      const boxesByLocation = getBoxesByLocation();
+      const locationKeys = Object.keys(boxesByLocation);
+      
+      console.log(`Processing ${locationKeys.length} batches`);
+      setProcessingStatus({
+        inProgress: true,
+        currentBatch: 0,
+        totalBatches: locationKeys.length,
+        message: 'Initializing processing...'
+      });
+      
       // 1. Update stock_in to processing status
       const { error: updateError } = await supabase
         .from('stock_in')
-        .update({
+        .update({ 
           status: 'processing',
           processed_by: userId,
-          processing_started_at: new Date().toISOString(),
+          processing_started_at: new Date().toISOString()
         })
         .eq('id', stockIn.id);
       
@@ -197,26 +246,23 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
       
       console.log("Stock-in status updated to processing");
       
-      // Group boxes by warehouse/location to create batches
-      const boxesByLocation: Record<string, BoxData[]> = {};
-      
-      boxesData.forEach(box => {
-        const key = `${box.warehouse_id}-${box.location_id}`;
-        if (!boxesByLocation[key]) {
-          boxesByLocation[key] = [];
-        }
-        boxesByLocation[key].push(box);
-      });
-      
-      console.log("Boxes grouped by location:", boxesByLocation);
-      
       let lastBatchId = '';
+      let totalProcessedBoxes = 0;
       
-      // Create a batch for each warehouse/location group
-      for (const [locationKey, boxes] of Object.entries(boxesByLocation)) {
+      // Process each batch sequentially
+      for (let batchIndex = 0; batchIndex < locationKeys.length; batchIndex++) {
+        const locationKey = locationKeys[batchIndex];
         const [warehouseId, locationId] = locationKey.split('-');
+        const boxes = boxesByLocation[locationKey];
         
-        // 2. Create processed batch for this location
+        setProcessingStatus({
+          inProgress: true,
+          currentBatch: batchIndex + 1,
+          totalBatches: locationKeys.length,
+          message: `Processing batch ${batchIndex + 1}/${locationKeys.length} (${boxes.length} boxes)`
+        });
+        
+        // Create processed batch for this location
         const { data: batchData, error: batchError } = await supabase
           .from('processed_batches')
           .insert({
@@ -240,12 +286,21 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
         }
         
         console.log(`Created batch for ${locationKey}:`, batchData);
-        
         const batchId = batchData.id;
         lastBatchId = batchId;
         
-        // 3. Process each box in this batch
-        for (const box of boxes) {
+        // Process each box in this batch
+        for (let boxIndex = 0; boxIndex < boxes.length; boxIndex++) {
+          const box = boxes[boxIndex];
+          totalProcessedBoxes++;
+          
+          setProcessingStatus({
+            inProgress: true,
+            currentBatch: batchIndex + 1,
+            totalBatches: locationKeys.length,
+            message: `Batch ${batchIndex + 1}/${locationKeys.length}: Processing box ${boxIndex + 1}/${boxes.length}`
+          });
+          
           console.log(`Processing box with barcode ${box.barcode}`);
           
           // Create stock_in_detail record
@@ -270,8 +325,6 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
             throw detailError;
           }
           
-          console.log("Created stock_in_detail:", detailData);
-          
           // Create batch_item record
           const { data: batchItemData, error: batchItemError } = await supabase
             .from('batch_items')
@@ -291,8 +344,6 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
             console.error("Error creating batch_item:", batchItemError);
             throw batchItemError;
           }
-          
-          console.log("Created batch_item:", batchItemData);
           
           // Create inventory entry
           const { data: inventoryData, error: inventoryError } = await supabase
@@ -316,8 +367,6 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
             console.error("Error creating inventory entry:", inventoryError);
             throw inventoryError;
           }
-          
-          console.log("Created inventory entry:", inventoryData);
         }
       }
       
@@ -335,18 +384,28 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
         throw finalUpdateError;
       }
       
+      setProcessingStatus({
+        inProgress: true,
+        currentBatch: locationKeys.length,
+        totalBatches: locationKeys.length,
+        message: 'Finalizing...'
+      });
+      
+      // Invalidate all relevant queries to update the UI
+      queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
+      
       console.log("Stock-in processing completed successfully");
       
       toast({
         title: "Success",
-        description: `Successfully processed ${boxesData.length} boxes across ${Object.keys(boxesByLocation).length} locations`,
+        description: `Successfully processed ${totalProcessedBoxes} boxes across ${locationKeys.length} locations`,
       });
       
       // Notify the parent component about completion
       if (onComplete && lastBatchId) {
         onComplete(lastBatchId);
-      } else {
-        navigate('/manager/inventory');
       }
       
     } catch (error) {
@@ -356,8 +415,28 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
         description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
       });
+      
+      // Try to update stock_in to rejected status
+      try {
+        await supabase
+          .from('stock_in')
+          .update({ 
+            status: 'rejected',
+            rejection_reason: error instanceof Error ? error.message : "Processing failed"
+          })
+          .eq('id', stockIn.id);
+      } catch (updateError) {
+        console.error("Failed to update status after error:", updateError);
+      }
+      
     } finally {
       setIsSubmitting(false);
+      setProcessingStatus({
+        inProgress: false,
+        currentBatch: 0,
+        totalBatches: 0,
+        message: ''
+      });
     }
   };
 
@@ -369,56 +448,83 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
     }
   };
 
-  return (
-    <Card className="w-full max-w-5xl mx-auto">
-      <Tabs 
-        value={activeStep} 
-        onValueChange={(value) => setActiveStep(value as StepType)}
-        className="w-full"
-      >
-        <div className="px-6 pt-6">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
-            <TabsTrigger 
-              value="details" 
-              className="py-3 data-[state=active]:text-primary data-[state=active]:font-medium"
-              disabled={activeStep !== 'details' && boxesData.length === 0}
-            >
-              <div className="flex flex-col items-center gap-1">
-                <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">
-                  1
-                </span>
-                <span>Verify Details</span>
-              </div>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="boxes" 
-              className="py-3"
-              disabled={activeStep === 'details' || boxesData.length === 0}
-            >
-              <div className="flex flex-col items-center gap-1">
-                <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">
-                  2
-                </span>
-                <span>Box Details</span>
-              </div>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="preview" 
-              className="py-3"
-              disabled={activeStep === 'details' || boxesData.length === 0}
-            >
-              <div className="flex flex-col items-center gap-1">
-                <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">
-                  3
-                </span>
-                <span>Preview & Submit</span>
-              </div>
-            </TabsTrigger>
-          </TabsList>
+  const renderProcessingStatus = () => {
+    if (!processingStatus.inProgress) return null;
+    
+    const progress = Math.round((processingStatus.currentBatch / processingStatus.totalBatches) * 100);
+    
+    return (
+      <div className="py-4 px-6 bg-blue-50 rounded-lg border border-blue-100 mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+          <h3 className="font-medium text-blue-900">
+            Processing {processingStatus.currentBatch} of {processingStatus.totalBatches} batches
+          </h3>
         </div>
         
-        <TabsContent value="details" className="p-6">
-          {isLoading ? (
+        <div className="w-full bg-blue-200 rounded-full h-2.5">
+          <div 
+            className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
+            style={{width: `${progress}%`}}
+          ></div>
+        </div>
+        
+        <p className="mt-2 text-sm text-blue-700">{processingStatus.message}</p>
+      </div>
+    );
+  };
+
+  return (
+    <Card className="w-full max-w-5xl mx-auto">
+      <div className="px-6 pt-6">
+        <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsTrigger 
+            value="details" 
+            className="py-3 data-[state=active]:text-primary data-[state=active]:font-medium"
+            disabled={activeStep !== 'details' && boxesData.length === 0}
+            onClick={() => navigateToStep('details')}
+          >
+            <div className="flex flex-col items-center gap-1">
+              <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">
+                1
+              </span>
+              <span>Verify Details</span>
+            </div>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="boxes" 
+            className="py-3"
+            disabled={activeStep === 'details' || boxesData.length === 0}
+            onClick={() => navigateToStep('boxes')}
+          >
+            <div className="flex flex-col items-center gap-1">
+              <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">
+                2
+              </span>
+              <span>Box Details</span>
+            </div>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="preview" 
+            className="py-3"
+            disabled={activeStep === 'details' || boxesData.length === 0}
+            onClick={() => navigateToStep('preview')}
+          >
+            <div className="flex flex-col items-center gap-1">
+              <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">
+                3
+              </span>
+              <span>Preview & Submit</span>
+            </div>
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      
+      <div className="p-6">
+        {renderProcessingStatus()}
+        
+        {activeStep === 'details' && (
+          isLoading ? (
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin mr-2" />
               <p>Initializing boxes...</p>
@@ -435,10 +541,10 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
               onContinue={initializeBoxes}
               onCancel={handleCancel}
             />
-          )}
-        </TabsContent>
+          )
+        )}
         
-        <TabsContent value="boxes" className="p-6">
+        {activeStep === 'boxes' && (
           <StockInStepBoxes
             boxesData={boxesData}
             updateBox={updateBox}
@@ -446,21 +552,21 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
             defaultValues={defaultValues}
             setDefaultValues={setDefaultValues}
             applyToAllBoxes={applyToAllBoxes}
-            onBack={() => setActiveStep('details')}
-            onContinue={() => setActiveStep('preview')}
+            onBack={() => navigateToStep('details')}
+            onContinue={() => navigateToStep('preview')}
           />
-        </TabsContent>
+        )}
         
-        <TabsContent value="preview" className="p-6">
+        {activeStep === 'preview' && (
           <StockInStepPreview
             stockIn={stockIn}
             boxesData={boxesData}
             isSubmitting={isSubmitting}
             onSubmit={handleSubmit}
-            onBack={() => setActiveStep('boxes')}
+            onBack={() => navigateToStep('boxes')}
           />
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </Card>
   );
 };
