@@ -312,14 +312,17 @@ const StockInDetailsPage: React.FC = () => {
             };
             
             // Then conditionally add the product if it exists and is valid
-            // First check if product exists, then check if it's an error object
             if (item.product && typeof item.product === 'object' && !('error' in item.product)) {
               // Now we know it's a valid product object with id and name properties
               // Additional null check to satisfy TypeScript
               if (item.product !== null) {
+                // Safely access properties with null/undefined checks and defaults
+                const productId = item.product?.id || '';
+                const productName = item.product?.name || 'Unknown Product';
+                
                 detailObj.product = {
-                  id: item.product.id || '',
-                  name: item.product.name || 'Unknown Product'
+                  id: productId,
+                  name: productName
                 };
               } else {
                 detailObj.product = null;
@@ -414,3 +417,4 @@ const StockInDetailsPage: React.FC = () => {
 };
 
 export default StockInDetailsPage;
+
