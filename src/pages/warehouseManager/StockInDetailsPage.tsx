@@ -19,7 +19,7 @@ interface StockInDetail {
   product?: {
     id: string;
     name: string;
-  };
+  } | null;
   barcode: string;
   color?: string;
   size?: string;
@@ -306,8 +306,9 @@ const StockInDetailsPage: React.FC = () => {
             inventory_id: item.inventory_id,
             warehouse_id: item.warehouse_id,
             location_id: item.location_id,
+            // Safely handle product data which might be null
             product: item.product && typeof item.product === 'object' ? 
-              { id: item.product.id, name: item.product.name } : undefined
+              { id: item.product.id, name: item.product.name } : null
           }));
           
           setDetails(safeDetails);
