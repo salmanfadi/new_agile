@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
+import ProcessStockInForm from '@/components/warehouse/ProcessStockInForm';
 
 const AdminStockInManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -24,12 +25,19 @@ const AdminStockInManagement: React.FC = () => {
   
   const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [isProcessFormOpen, setIsProcessFormOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const handleReject = (stockIn: StockInRequestData) => {
     console.log("Rejecting stock in with ID:", stockIn.id);
     setSelectedStockIn(stockIn);
     setIsRejectDialogOpen(true);
+  };
+
+  const handleProcess = (stockIn: StockInRequestData) => {
+    console.log("Processing stock in with ID:", stockIn.id);
+    setSelectedStockIn(stockIn);
+    setIsProcessFormOpen(true);
   };
 
   return (
@@ -96,6 +104,15 @@ const AdminStockInManagement: React.FC = () => {
         onOpenChange={setIsRejectDialogOpen}
         selectedStockIn={selectedStockIn}
         userId={user?.id}
+      />
+      
+      {/* Process Stock In Form */}
+      <ProcessStockInForm
+        open={isProcessFormOpen}
+        onOpenChange={setIsProcessFormOpen}
+        stockIn={selectedStockIn}
+        userId={user?.id}
+        adminMode={true}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -66,114 +67,7 @@ export interface UnifiedStockInWithDetails {
 export const useUnifiedStockIn = (stockInId?: string) => {
   const queryClient = useQueryClient();
   
-  const query = useQuery({
-    queryKey: ['unified-stock-in', stockInId],
-    queryFn: async (): Promise<UnifiedStockInWithDetails | null> => {
-      if (!stockInId) return null;
-      
-      try {
-        // First get the main stock in entry - with explicit column names for relationships
-        const { data: mainEntry, error: mainError } = await supabase
-          .from('unified_stock_in')
-          .select(`
-            *,
-            products (
-              id,
-              name,
-              sku,
-              category
-            ),
-            submitter:submitted_by (
-              id,
-              name,
-              username
-            ),
-            processor:processed_by (
-              id,
-              name,
-              username
-            )
-          `)
-          .eq('id', stockInId)
-          .eq('is_box_entry', false)
-          .single();
-          
-        if (mainError) {
-          console.error('Error fetching stock in:', mainError);
-          throw mainError;
-        }
-        
-        if (!mainEntry) {
-          return null;
-        }
-        
-        // Get all box entries for this stock in
-        const { data: boxEntries, error: boxError } = await supabase
-          .from('unified_stock_in')
-          .select('*')
-          .eq('parent_stock_in_id', stockInId)
-          .eq('is_box_entry', true);
-          
-        if (boxError) {
-          console.error('Error fetching box entries:', boxError);
-          throw boxError;
-        }
-
-        // Safely handle submitter data
-        const submitter: ProfileInfo | undefined = mainEntry.submitter ? {
-          id: mainEntry.submitter.id,
-          name: mainEntry.submitter.name,
-          username: mainEntry.submitter.username
-        } : undefined;
-
-        // Safely handle processor data
-        const processor: ProfileInfo | undefined = mainEntry.processor ? {
-          id: mainEntry.processor.id,
-          name: mainEntry.processor.name,
-          username: mainEntry.processor.username
-        } : undefined;
-        
-        // Map the data to our interface with proper type casting
-        const result: UnifiedStockInWithDetails = {
-          id: mainEntry.id,
-          product_id: mainEntry.product_id,
-          product: mainEntry.products ? {
-            name: mainEntry.products.name,
-            sku: mainEntry.products.sku,
-            category: mainEntry.products.category,
-          } : undefined,
-          source: mainEntry.source,
-          notes: mainEntry.notes,
-          submitter,
-          processor,
-          status: mainEntry.status as StockInStatus,
-          processing_step: mainEntry.processing_step as ProcessingStep,
-          created_at: mainEntry.created_at,
-          updated_at: mainEntry.updated_at,
-          total_boxes: mainEntry.total_boxes,
-          boxes: (boxEntries || []).map(box => ({
-            ...box,
-            status: box.status as StockInStatus,
-            processing_step: box.processing_step as ProcessingStep,
-          })) as UnifiedStockIn[],
-          is_box_entry: false,
-        };
-        
-        return result;
-      } catch (error) {
-        console.error('Failed to fetch stock in data:', error);
-        toast({
-          title: 'Error fetching stock in data',
-          description: error instanceof Error ? error.message : 'Unknown error',
-          variant: 'destructive',
-        });
-        return null;
-      }
-    },
-    enabled: !!stockInId,
-  });
-  
-  // Update the main stock in entry's processing step
+  // Use mutation to update processing step
   const updateProcessingStep = useMutation({
     mutationFn: async ({ id, processingStep }: { id: string; processingStep: ProcessingStep }) => {
       const { error } = await supabase
@@ -198,12 +92,14 @@ export const useUnifiedStockIn = (stockInId?: string) => {
         throw new Error('Parent ID and boxes are required');
       }
       
+      const stockInQuery = queryClient.getQueryData<UnifiedStockInWithDetails>(['unified-stock-in', parentId]);
+      
       // Map the BoxData to UnifiedStockIn entries
       const boxEntries = boxes.map((box, index) => ({
-        product_id: query.data?.product_id || '',
-        source: query.data?.source || '',
-        notes: query.data?.notes,
-        submitted_by: query.data?.submitter?.id || '',
+        product_id: stockInQuery?.product_id || '',
+        source: stockInQuery?.source || '',
+        notes: stockInQuery?.notes,
+        submitted_by: stockInQuery?.submitter?.id || '',
         barcode: box.barcode,
         quantity: box.quantity,
         color: box.color,
@@ -213,7 +109,7 @@ export const useUnifiedStockIn = (stockInId?: string) => {
         box_number: index + 1,
         parent_stock_in_id: parentId,
         is_box_entry: true,
-        status: query.data?.status || 'processing',
+        status: stockInQuery?.status || 'processing',
       }));
       
       // First, delete any existing box entries
@@ -313,13 +209,134 @@ export const useUnifiedStockIn = (stockInId?: string) => {
     },
   });
 
+  const query = useQuery({
+    queryKey: ['unified-stock-in', stockInId],
+    queryFn: async (): Promise<UnifiedStockInWithDetails | null> => {
+      if (!stockInId) return null;
+      
+      try {
+        // First get the main stock in entry - with explicit column names for relationships
+        const { data: mainEntry, error: mainError } = await supabase
+          .from('unified_stock_in')
+          .select(`
+            id,
+            product_id,
+            source,
+            notes,
+            submitted_by,
+            processed_by,
+            status,
+            processing_step,
+            processing_started_at,
+            processing_completed_at,
+            rejection_reason,
+            created_at,
+            updated_at,
+            total_boxes,
+            is_box_entry,
+            products (
+              id,
+              name,
+              sku,
+              category
+            ),
+            submitted_by_profile:profiles!submitted_by (
+              id,
+              name,
+              username
+            ),
+            processed_by_profile:profiles!processed_by (
+              id,
+              name,
+              username
+            )
+          `)
+          .eq('id', stockInId)
+          .eq('is_box_entry', false)
+          .single();
+          
+        if (mainError) {
+          console.error('Error fetching stock in:', mainError);
+          throw mainError;
+        }
+        
+        if (!mainEntry) {
+          return null;
+        }
+        
+        // Get all box entries for this stock in
+        const { data: boxEntries, error: boxError } = await supabase
+          .from('unified_stock_in')
+          .select('*')
+          .eq('parent_stock_in_id', stockInId)
+          .eq('is_box_entry', true);
+          
+        if (boxError) {
+          console.error('Error fetching box entries:', boxError);
+          throw boxError;
+        }
+
+        // Safely handle submitter data
+        const submitter: ProfileInfo | undefined = mainEntry.submitted_by_profile ? {
+          id: mainEntry.submitted_by_profile.id,
+          name: mainEntry.submitted_by_profile.name,
+          username: mainEntry.submitted_by_profile.username
+        } : undefined;
+
+        // Safely handle processor data
+        const processor: ProfileInfo | undefined = mainEntry.processed_by_profile ? {
+          id: mainEntry.processed_by_profile.id,
+          name: mainEntry.processed_by_profile.name,
+          username: mainEntry.processed_by_profile.username
+        } : undefined;
+        
+        // Map the data to our interface with proper type casting
+        const result: UnifiedStockInWithDetails = {
+          id: mainEntry.id,
+          product_id: mainEntry.product_id,
+          product: mainEntry.products ? {
+            name: mainEntry.products.name,
+            sku: mainEntry.products.sku,
+            category: mainEntry.products.category,
+          } : undefined,
+          source: mainEntry.source,
+          notes: mainEntry.notes,
+          submitter,
+          processor,
+          status: mainEntry.status as StockInStatus,
+          processing_step: mainEntry.processing_step as ProcessingStep,
+          created_at: mainEntry.created_at,
+          updated_at: mainEntry.updated_at,
+          total_boxes: mainEntry.total_boxes,
+          boxes: (boxEntries || []).map(box => ({
+            ...box,
+            status: box.status as StockInStatus,
+            processing_step: box.processing_step as ProcessingStep,
+          })) as UnifiedStockIn[],
+          is_box_entry: false,
+        };
+        
+        return result;
+      } catch (error) {
+        console.error('Failed to fetch stock in data:', error);
+        toast({
+          title: 'Error fetching stock in data',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+        return null;
+      }
+    },
+    enabled: !!stockInId,
+  });
+  
   return {
     stockIn: query.data,
     isLoading: query.isLoading,
     isError: query.isError,
-    updateProcessingStep: query.updateProcessingStep,
-    upsertBoxes: query.upsertBoxes,
-    completeStockIn: query.completeStockIn,
+    updateProcessingStep,
+    upsertBoxes,
+    completeStockIn,
   };
 };
 
@@ -343,7 +360,7 @@ export const useUnifiedStockInList = (
               name,
               sku
             ),
-            submitter:submitted_by (
+            submitted_by_profile:profiles!submitted_by (
               id,
               name,
               username

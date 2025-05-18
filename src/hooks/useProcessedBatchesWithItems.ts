@@ -140,17 +140,17 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
         }
 
         // Type guard to safely work with the data
-        const typedData = data as unknown as RawBatchData[];
-
+        const typedData = data as RawBatchData[];
+        
         // Check if we're returning data for EnhancedInventoryView
         if (limit) {
           // Format for EnhancedInventoryView
           const batchesData = typedData.map((batch) => {
             return {
               id: batch.id,
-              product_name: batch.products?.name || 'Unknown Product',
+              product_name: batch.products ? batch.products.name : 'Unknown Product',
               product_sku: batch.products?.sku,
-              warehouse_name: batch.warehouses?.name || 'Unknown Warehouse',
+              warehouse_name: batch.warehouses ? batch.warehouses.name : 'Unknown Warehouse',
               total_quantity: batch.total_quantity,
               total_boxes: batch.total_boxes,
               processor_name: batch.profiles?.name || undefined,
@@ -168,9 +168,9 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
 
         // Map the data to include additional properties for UI display
         const batchesWithDetails = typedData.map((batch) => {
-          const productName = batch.products?.name || 'Unknown Product';
+          const productName = batch.products ? batch.products.name : 'Unknown Product';
           const productSku = batch.products?.sku || 'N/A';
-          const warehouseName = batch.warehouses?.name || 'Unknown Warehouse';
+          const warehouseName = batch.warehouses ? batch.warehouses.name : 'Unknown Warehouse';
           const processorName = batch.profiles?.name;
           const formattedProcessedAt = batch.processed_at 
             ? new Date(batch.processed_at).toLocaleDateString() 
@@ -180,7 +180,7 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
             : '';
 
           // Explicitly create ProcessedBatch object
-          return {
+          const processedBatch: ProcessedBatch = {
             ...batch,
             productName,
             productSku,
@@ -190,7 +190,9 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
             formattedCreatedAt,
             // Ensure created_at is present
             created_at: batch.created_at || new Date().toISOString()
-          } as ProcessedBatch;
+          };
+          
+          return processedBatch;
         });
 
         return {
