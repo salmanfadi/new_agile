@@ -149,7 +149,7 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           throw error;
         }
 
-        // Handle the data based on the requested format
+        // Cast data to RawBatchData[] to avoid excessive type instantiation
         const typedData = data as RawBatchData[];
         
         // Format for EnhancedInventoryView if limit is provided
@@ -165,6 +165,7 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
             processed_at: batch.processed_at || new Date().toISOString()
           }));
 
+          // Create the result object explicitly typed
           const result: BatchesQueryResult = {
             batches: batchesData,
             count: count || 0,
@@ -175,15 +176,25 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           return result;
         }
 
-        // Format for default view
+        // Format for default view - map each batch to ProcessedBatch type with explicit properties
         const batchesWithDetails = typedData.map((batch) => {
-          // Map to ProcessedBatch type with proper defaults
+          // Create a new ProcessedBatch object with explicit properties to avoid type inference issues
           const processedBatch: ProcessedBatch = {
-            ...batch,
+            id: batch.id,
+            product_id: batch.product_id,
+            stock_in_id: batch.stock_in_id,
+            processed_by: batch.processed_by,
+            processed_at: batch.processed_at || null,
+            source: batch.source,
+            notes: batch.notes || null,
+            status: batch.status,
+            total_quantity: batch.total_quantity,
+            total_boxes: batch.total_boxes,
+            warehouse_id: batch.warehouse_id,
             productName: batch.products?.name || 'Unknown Product',
             productSku: batch.products?.sku || 'N/A',
             warehouseName: batch.warehouses?.name || 'Unknown Warehouse',
-            processorName: batch.profiles?.name,
+            processorName: batch.profiles?.name || undefined,
             formattedProcessedAt: batch.processed_at 
               ? new Date(batch.processed_at).toLocaleDateString() 
               : '',
@@ -196,6 +207,7 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           return processedBatch;
         });
 
+        // Create the result object explicitly typed
         const result: ProcessedBatchesResult = {
           data: batchesWithDetails,
           total: count || 0,
