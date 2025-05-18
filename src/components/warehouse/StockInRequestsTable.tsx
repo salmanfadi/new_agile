@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -128,7 +129,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {stockInRequests.map((item) => (
+            {stockInRequests?.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
                   <StatusBadge status={item.status} />

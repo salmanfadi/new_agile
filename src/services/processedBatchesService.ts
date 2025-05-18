@@ -80,23 +80,12 @@ export async function fetchProcessedBatchesData(options: ProcessedBatchesOptions
   // Execute the query
   const { data, error, count } = await query;
 
-  // Define the return type to avoid deep type instantiation
-  interface QueryResult {
-    data: RawBatchData[];
-    error: any;
-    count: number | null;
-    page: number;
-    actualLimit: number;
-  }
-
-  // Return the result with explicit type to prevent excessive type instantiation
-  const result: QueryResult = {
+  // Define a simple return type without complex type instantiation
+  return {
     data: data as RawBatchData[],
     error,
     count,
     page,
     actualLimit
   };
-
-  return result;
 }
