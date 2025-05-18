@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/card';
@@ -165,5 +164,7 @@ const InventoryView: React.FC = () => {
     </div>
   );
 };
+
+export { InventoryView };
 
 export default InventoryView;

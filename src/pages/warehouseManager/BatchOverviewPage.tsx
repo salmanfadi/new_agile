@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -11,7 +10,7 @@ import { useStockInData } from '@/hooks/useStockInData';
 import { LoadingState } from '@/components/warehouse/LoadingState';
 import { ErrorState } from '@/components/warehouse/ErrorState';
 import { Badge } from '@/components/ui/badge';
-import BarcodePreview from '@/components/warehouse/BarcodePreview';
+import { BarcodePreview } from '@/components/warehouse/BarcodePreview';
 
 const BatchOverviewPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId: string }>();

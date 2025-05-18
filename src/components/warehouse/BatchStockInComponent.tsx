@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -21,17 +20,23 @@ interface BatchStockInComponentProps {
   adminMode?: boolean;
   sheetMode?: boolean;
   onClose?: () => void;
+  stockInId?: string;
+  onComplete?: (id: string) => void;
 }
 
 const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({ 
   adminMode = false, 
   sheetMode = false,
-  onClose
+  onClose,
+  stockInId: propStockInId,
+  onComplete
 }) => {
-  const { stockInId } = useParams<{ stockInId?: string }>();
+  const { stockInId: paramStockInId } = useParams<{ stockInId?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { stockInData, isLoadingStockIn } = useStockInData(stockInId);
+  // Use the prop stockInId if provided, otherwise use the one from URL params
+  const finalStockInId = propStockInId || paramStockInId;
+  const { stockInData, isLoadingStockIn } = useStockInData(finalStockInId);
   const queryClient = useQueryClient();
 
   const [source, setSource] = useState<string>('');
@@ -82,7 +87,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
           { event: 'INSERT', schema: 'public', table: 'processed_batches' },
           (payload) => {
             console.log('New processed batch created:', payload);
-            if (payload.new && payload.new.stock_in_id === stockInId) {
+            if (payload.new && payload.new.stock_in_id === finalStockInId) {
               setProcessedBatchId(payload.new.id);
               console.log(`Setting processed batch ID: ${payload.new.id}`);
             }
@@ -94,7 +99,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
         supabase.removeChannel(channel);
       };
     }
-  }, [isSubmitting, isProcessing, stockInId]);
+  }, [isSubmitting, isProcessing, finalStockInId]);
 
   // Navigate to batches overview page after successful submission
   useEffect(() => {
@@ -103,7 +108,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
       queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
-      queryClient.invalidateQueries({ queryKey: ['stock-in-batches', stockInId] });
+      queryClient.invalidateQueries({ queryKey: ['stock-in-batches', finalStockInId] });
       
       // Show success message
       toast({
@@ -117,13 +122,18 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
         // Reset batches before navigating
         resetBatches();
         
+        if (onComplete && processedBatchId) {
+          onComplete(processedBatchId);
+          return;
+        }
+        
         if (onClose && sheetMode) {
           onClose();
           return;
         }
         
         // Navigate to batch overview page
-        const path = `${adminMode ? '/admin' : '/manager'}/stock-in/batches/${stockInId}`;
+        const path = `${adminMode ? '/admin' : '/manager'}/stock-in/batches/${finalStockInId}`;
         console.log(`Navigating to: ${path}`);
         navigate(path, { 
           state: { 
@@ -133,7 +143,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
         });
       }, 500);
     }
-  }, [isSuccess, isProcessing, isSubmitting, queryClient, navigate, adminMode, stockInId, processedBatchId, onClose, sheetMode, resetBatches, isNavigating]);
+  }, [isSuccess, isProcessing, isSubmitting, queryClient, navigate, adminMode, finalStockInId, processedBatchId, onClose, sheetMode, resetBatches, isNavigating, onComplete]);
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
   useEffect(() => {
@@ -222,7 +232,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     }));
     
     submitStockIn({
-      stockInId: stockInId,
+      stockInId: finalStockInId,
       productId,
       source,
       notes,

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import TransferForm from '@/components/warehouse/TransferForm';
@@ -49,4 +48,8 @@ const InventoryTransfers: React.FC = () => {
   );
 };
 
+// Add explicit named export
+export { InventoryTransfers };
+
+// Keep the default export
 export default InventoryTransfers;

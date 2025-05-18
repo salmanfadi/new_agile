@@ -3,14 +3,14 @@ import React, { useState, ReactNode, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { useMobileDetector } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface MainLayoutProps {
   children?: ReactNode;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const isMobile = useMobileDetector();
+  const isMobile = useIsMobile();
   const location = useLocation();
   
   // On mobile, sidebar should be closed by default

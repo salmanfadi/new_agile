@@ -11,7 +11,7 @@ import { useStockInData } from '@/hooks/useStockInData';
 import { BoxMetadata, ProcessedBatch } from '@/types/batchStockIn';
 import { generateBarcodeString } from '@/utils/barcodeUtils';
 import { supabase } from '@/integrations/supabase/client';
-import BarcodePreview from '@/components/warehouse/BarcodePreview';
+import { BarcodePreview } from '@/components/warehouse/BarcodePreview';
 import { BoxDetailsSection } from '@/components/warehouse/BoxDetailsSection';
 import { LoadingState } from '@/components/warehouse/LoadingState';
 import { ErrorState } from '@/components/warehouse/ErrorState';

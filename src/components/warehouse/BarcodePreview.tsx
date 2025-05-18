@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Barcode from 'react-barcode';
 
@@ -35,3 +36,6 @@ export const BarcodePreview: React.FC<BarcodePreviewProps> = ({
     </div>
   );
 }; 
+
+// Add default export to maintain backward compatibility
+export default BarcodePreview;
