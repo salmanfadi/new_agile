@@ -1,31 +1,31 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import BarcodePreview from '@/components/warehouse/BarcodePreview';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useWarehouses } from '@/hooks/useWarehouses';
 import { useLocations } from '@/hooks/useLocations';
-import { Plus, Trash, Edit, Check, Loader2, Move } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { Warehouse } from '@/types/database';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-
-interface BatchGroup {
-  warehouseId: string;
-  locationId: string;
-  boxes: BoxData[];
-}
+import { toast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface StockInStepBoxesProps {
   boxesData: BoxData[];
   updateBox: (index: number, field: keyof BoxData, value: string | number) => void;
+  updateBoxLocation: (index: number, warehouseId: string, locationId: string) => void;
   defaultValues: {
+    warehouse: string;
+    location: string;
     quantity: number;
     color: string;
     size: string;
@@ -34,204 +34,117 @@ interface StockInStepBoxesProps {
   applyToAllBoxes: () => void;
   onBack: () => void;
   onContinue: () => void;
-  updateBoxLocation: (index: number, warehouseId: string, locationId: string) => void;
 }
 
 const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
   boxesData,
   updateBox,
+  updateBoxLocation,
   defaultValues,
   setDefaultValues,
   applyToAllBoxes,
   onBack,
-  onContinue,
-  updateBoxLocation,
+  onContinue
 }) => {
-  const [activeBoxIndex, setActiveBoxIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<'boxes' | 'batches'>('boxes');
-  const [isApplyingChanges, setIsApplyingChanges] = useState(false);
-  const [massUpdateWarehouse, setMassUpdateWarehouse] = useState<string>("");
-  const [massUpdateLocation, setMassUpdateLocation] = useState<string>("");
-  const [boxSelection, setBoxSelection] = useState<number[]>([]);
+  const { warehouses } = useWarehouses();
+  const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [hasIncompleteBoxes, setHasIncompleteBoxes] = useState(false);
   
-  const { warehouses, isLoading: isLoadingWarehouses } = useWarehouses();
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
-  const { locations, isLoading: isLoadingLocations } = useLocations(selectedWarehouse);
-
-  // Function to handle defaultValues change
-  const handleDefaultChange = (field: keyof typeof defaultValues, value: number | string) => {
+  // Get locations for the selected warehouse in default values
+  const { locations } = useLocations(defaultValues.warehouse);
+  
+  // Check for incomplete boxes
+  useEffect(() => {
+    const incomplete = boxesData.some(box => 
+      !box.warehouse_id || 
+      !box.location_id || 
+      !box.quantity || 
+      box.quantity <= 0
+    );
+    setHasIncompleteBoxes(incomplete);
+  }, [boxesData]);
+  
+  // Select the current warehouse object based on default values
+  useEffect(() => {
+    if (warehouses && defaultValues.warehouse) {
+      const warehouse = warehouses.find(w => w.id === defaultValues.warehouse);
+      if (warehouse) {
+        setSelectedWarehouse(warehouse);
+      }
+    }
+  }, [warehouses, defaultValues.warehouse]);
+  
+  // Handle warehouse change
+  const handleWarehouseChange = (warehouseId: string) => {
+    const newDefaultValues = {
+      ...defaultValues,
+      warehouse: warehouseId,
+      location: '' // Reset location when warehouse changes
+    };
+    setDefaultValues(newDefaultValues);
+    setHasChanges(true);
+  };
+  
+  // Update default values
+  const handleDefaultValueChange = (field: string, value: string | number) => {
     setDefaultValues({
       ...defaultValues,
-      [field]: value,
+      [field]: value
     });
-  };
-
-  // Group boxes by warehouse and location for batch display
-  const groupBoxesByLocation = (): BatchGroup[] => {
-    const groups: Record<string, BatchGroup> = {};
-    
-    boxesData.forEach(box => {
-      if (box.warehouse_id && box.location_id) {
-        const key = `${box.warehouse_id}-${box.location_id}`;
-        if (!groups[key]) {
-          groups[key] = {
-            warehouseId: box.warehouse_id,
-            locationId: box.location_id,
-            boxes: []
-          };
-        }
-        groups[key].boxes.push(box);
-      }
-    });
-    
-    return Object.values(groups);
+    setHasChanges(true);
   };
   
-  const batchGroups = groupBoxesByLocation();
-
-  // Update warehouse and location for current box
-  const updateCurrentBoxLocation = (warehouseId: string, locationId: string) => {
-    if (!warehouseId || !locationId) {
+  // Apply defaults to all boxes
+  const handleApplyToAll = () => {
+    if (!defaultValues.warehouse || !defaultValues.location) {
       toast({
-        title: "Missing Information",
-        description: "Please select both warehouse and location",
+        title: "Missing Location",
+        description: "Please select both warehouse and location before applying to all boxes.",
         variant: "destructive",
       });
       return;
     }
     
-    updateBoxLocation(activeBoxIndex, warehouseId, locationId);
-    
-    // Update selected warehouse for location dropdown
-    setSelectedWarehouse(warehouseId);
+    applyToAllBoxes();
+    setHasChanges(false);
     
     toast({
-      title: "Box Location Updated",
-      description: "Box has been assigned to new location",
+      title: "Applied to All",
+      description: "Default values have been applied to all boxes",
     });
   };
-
-  // Get warehouse name by ID
-  const getWarehouseName = (id: string) => {
-    const warehouse = warehouses?.find(w => w.id === id);
-    return warehouse?.name || 'Unknown Warehouse';
-  };
   
-  // Get location name by ID
-  const getLocationName = (warehouseId: string, locationId: string) => {
-    const location = locations?.find(l => l.id === locationId);
-    return location ? `Floor ${location.floor}, Zone ${location.zone}` : 'Unknown Location';
-  };
-
-  // Apply warehouse and location to selected boxes
-  const applyLocationToSelected = () => {
-    if (!massUpdateWarehouse || !massUpdateLocation || boxSelection.length === 0) {
+  const handleContinue = () => {
+    if (hasIncompleteBoxes) {
       toast({
-        title: "Missing Information",
-        description: "Please select warehouse, location and at least one box",
+        title: "Incomplete Boxes",
+        description: "Please ensure all boxes have warehouse, location and quantity filled in.",
         variant: "destructive",
       });
       return;
     }
-
-    setIsApplyingChanges(true);
     
-    // Apply to selected boxes
-    boxSelection.forEach(boxIndex => {
-      updateBoxLocation(boxIndex, massUpdateWarehouse, massUpdateLocation);
-    });
-    
-    toast({
-      title: "Location Updated",
-      description: `Updated location for ${boxSelection.length} boxes`,
-    });
-    
-    // Reset selection
-    setBoxSelection([]);
-    setIsApplyingChanges(false);
-  };
-
-  // Toggle box selection for batch assignment
-  const toggleBoxSelection = (index: number) => {
-    setBoxSelection(prev => {
-      if (prev.includes(index)) {
-        return prev.filter(i => i !== index);
-      } else {
-        return [...prev, index];
-      }
-    });
+    onContinue();
   };
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'boxes' | 'batches')} className="w-full">
-        <TabsList className="grid grid-cols-2 mb-4">
-          <TabsTrigger value="boxes">Box Details</TabsTrigger>
-          <TabsTrigger value="batches">Batches ({batchGroups.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="boxes" className="space-y-6">
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Default values and Apply to All */}
-            <Card className="w-full lg:w-1/3">
-              <CardHeader>
-                <CardTitle>Default Values</CardTitle>
-                <CardDescription>Set default values to apply to boxes</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card className="overflow-hidden">
+          <CardHeader className="bg-muted/50 py-3">
+            <CardTitle className="text-lg">Default Values</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="default-quantity">Quantity per Box</Label>
-                  <Input
-                    id="default-quantity"
-                    type="number"
-                    value={defaultValues.quantity}
-                    onChange={(e) => handleDefaultChange('quantity', parseInt(e.target.value) || 0)}
-                    min={1}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="default-color">Color</Label>
-                  <Input
-                    id="default-color"
-                    type="text"
-                    placeholder="Optional"
-                    value={defaultValues.color}
-                    onChange={(e) => handleDefaultChange('color', e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="default-size">Size</Label>
-                  <Input
-                    id="default-size"
-                    type="text"
-                    placeholder="Optional"
-                    value={defaultValues.size}
-                    onChange={(e) => handleDefaultChange('size', e.target.value)}
-                  />
-                </div>
-                
-                <Button 
-                  onClick={applyToAllBoxes} 
-                  className="w-full mt-4"
-                >
-                  Apply to All Boxes
-                </Button>
-              </CardContent>
-
-              <CardHeader className="pt-2">
-                <CardTitle>Batch Assignment</CardTitle>
-                <CardDescription>Assign multiple boxes to a location</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Warehouse</Label>
-                  <Select
-                    value={massUpdateWarehouse}
-                    onValueChange={setMassUpdateWarehouse}
+                  <Label htmlFor="defaultWarehouse">Warehouse</Label>
+                  <Select 
+                    value={defaultValues.warehouse} 
+                    onValueChange={handleWarehouseChange}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="defaultWarehouse">
                       <SelectValue placeholder="Select warehouse" />
                     </SelectTrigger>
                     <SelectContent>
@@ -243,15 +156,16 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
+                
                 <div className="space-y-2">
-                  <Label>Location</Label>
-                  <Select
-                    value={massUpdateLocation}
-                    onValueChange={setMassUpdateLocation}
-                    disabled={!massUpdateWarehouse}
+                  <Label htmlFor="defaultLocation">Location</Label>
+                  <Select 
+                    value={defaultValues.location} 
+                    onValueChange={(value) => handleDefaultValueChange('location', value)}
+                    disabled={!defaultValues.warehouse || !locations?.length}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder={massUpdateWarehouse ? "Select location" : "Select warehouse first"} />
+                    <SelectTrigger id="defaultLocation">
+                      <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
                       {locations?.map((location) => (
@@ -262,275 +176,193 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="pt-2">
-                  <Badge variant="outline" className="mb-2">
-                    {boxSelection.length} boxes selected
-                  </Badge>
-                  <Button
-                    onClick={applyLocationToSelected}
-                    className="w-full"
-                    disabled={!massUpdateWarehouse || !massUpdateLocation || boxSelection.length === 0 || isApplyingChanges}
-                  >
-                    {isApplyingChanges ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Applying...
-                      </>
-                    ) : (
-                      <>
-                        <Move className="mr-2 h-4 w-4" />
-                        Apply to Selected Boxes
-                      </>
-                    )}
-                  </Button>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="defaultQuantity">Quantity</Label>
+                  <Input
+                    id="defaultQuantity"
+                    type="number"
+                    min="1"
+                    value={defaultValues.quantity}
+                    onChange={(e) => handleDefaultValueChange('quantity', parseInt(e.target.value) || 0)}
+                  />
                 </div>
-              </CardContent>
-            </Card>
-            
-            {/* Box specific details */}
-            <div className="w-full lg:w-2/3">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Box Details</h3>
-                <Badge variant="outline">{boxesData.length} Boxes</Badge>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="defaultColor">Color</Label>
+                  <Input
+                    id="defaultColor"
+                    type="text"
+                    value={defaultValues.color}
+                    onChange={(e) => handleDefaultValueChange('color', e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="defaultSize">Size</Label>
+                  <Input
+                    id="defaultSize"
+                    type="text"
+                    value={defaultValues.size}
+                    onChange={(e) => handleDefaultValueChange('size', e.target.value)}
+                  />
+                </div>
               </div>
               
-              <div className="grid grid-cols-8 gap-2 mb-4">
-                {boxesData.map((_, index) => (
-                  <Card 
-                    key={index} 
-                    className={`cursor-pointer transition-all ${
-                      activeBoxIndex === index ? 'ring-2 ring-primary' : ''
-                    } ${boxSelection.includes(index) ? 'bg-primary/10' : ''}`}
-                    onClick={() => setActiveBoxIndex(index)}
-                  >
-                    <CardContent className="p-2 text-center">
-                      <div 
-                        className="flex justify-between items-center"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleBoxSelection(index);
-                        }}
-                      >
-                        <span>{index + 1}</span>
-                        <Check 
-                          className={`h-4 w-4 ${boxSelection.includes(index) ? 'opacity-100 text-primary' : 'opacity-0'}`} 
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Box {activeBoxIndex + 1} Details</CardTitle>
-                  <CardDescription>
-                    {boxesData[activeBoxIndex]?.warehouse_id && boxesData[activeBoxIndex]?.location_id ? (
-                      <span className="text-xs text-muted-foreground">
-                        Location: {getWarehouseName(boxesData[activeBoxIndex]?.warehouse_id)} - 
-                        {getLocationName(boxesData[activeBoxIndex]?.warehouse_id, boxesData[activeBoxIndex]?.location_id)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-yellow-600">No location assigned</span>
-                    )}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Location assignment */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor={`box-${activeBoxIndex}-warehouse`}>Warehouse</Label>
-                      <Select
-                        value={boxesData[activeBoxIndex]?.warehouse_id || ""}
-                        onValueChange={(value) => {
-                          setSelectedWarehouse(value);
-                        }}
-                      >
-                        <SelectTrigger id={`box-${activeBoxIndex}-warehouse`}>
-                          <SelectValue placeholder="Select warehouse" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {warehouses?.map((warehouse) => (
-                            <SelectItem key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor={`box-${activeBoxIndex}-location`}>Location</Label>
-                      <Select
-                        value={boxesData[activeBoxIndex]?.location_id || ""}
-                        onValueChange={(value) => {
-                          updateCurrentBoxLocation(selectedWarehouse || boxesData[activeBoxIndex]?.warehouse_id, value);
-                        }}
-                        disabled={!selectedWarehouse && !boxesData[activeBoxIndex]?.warehouse_id}
-                      >
-                        <SelectTrigger id={`box-${activeBoxIndex}-location`}>
-                          <SelectValue placeholder={selectedWarehouse || boxesData[activeBoxIndex]?.warehouse_id ? "Select location" : "Select warehouse first"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {locations?.map((location) => (
-                            <SelectItem key={location.id} value={location.id}>
-                              Floor {location.floor}, Zone {location.zone}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor={`box-${activeBoxIndex}-barcode`}>Barcode</Label>
-                    <Input
-                      id={`box-${activeBoxIndex}-barcode`}
-                      value={boxesData[activeBoxIndex]?.barcode}
-                      onChange={(e) => updateBox(activeBoxIndex, 'barcode', e.target.value)}
-                      readOnly
-                      disabled
-                    />
-                  </div>
-                  
-                  <div className="pt-2">
-                    <BarcodePreview 
-                      value={boxesData[activeBoxIndex]?.barcode} 
-                      height={60} 
-                      width={1}
-                      displayValue={true}
-                      className="max-w-full overflow-x-auto"
-                    />
-                  </div>
-                  
-                  <Separator className="my-2" />
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor={`box-${activeBoxIndex}-quantity`}>Quantity</Label>
-                    <Input
-                      id={`box-${activeBoxIndex}-quantity`}
-                      type="number"
-                      value={boxesData[activeBoxIndex]?.quantity}
-                      onChange={(e) => updateBox(activeBoxIndex, 'quantity', parseInt(e.target.value) || 0)}
-                      min={1}
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor={`box-${activeBoxIndex}-color`}>Color</Label>
-                      <Input
-                        id={`box-${activeBoxIndex}-color`}
-                        value={boxesData[activeBoxIndex]?.color || ''}
-                        onChange={(e) => updateBox(activeBoxIndex, 'color', e.target.value)}
-                        placeholder="Optional"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor={`box-${activeBoxIndex}-size`}>Size</Label>
-                      <Input
-                        id={`box-${activeBoxIndex}-size`}
-                        value={boxesData[activeBoxIndex]?.size || ''}
-                        onChange={(e) => updateBox(activeBoxIndex, 'size', e.target.value)}
-                        placeholder="Optional"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="justify-between">
-                  <Button 
-                    variant="outline"
-                    onClick={() => setActiveBoxIndex(Math.max(0, activeBoxIndex - 1))}
-                    disabled={activeBoxIndex === 0}
-                  >
-                    Previous
-                  </Button>
-                  
-                  <Button 
-                    onClick={() => setActiveBoxIndex(Math.min(boxesData.length - 1, activeBoxIndex + 1))}
-                    disabled={activeBoxIndex === boxesData.length - 1}
-                    variant="outline"
-                  >
-                    Next
-                  </Button>
-                </CardFooter>
-              </Card>
+              <Button 
+                onClick={handleApplyToAll} 
+                className="w-full"
+                disabled={!defaultValues.warehouse || !defaultValues.location || !hasChanges}
+              >
+                Apply to All Boxes
+              </Button>
             </div>
-          </div>
-        </TabsContent>
+          </CardContent>
+        </Card>
         
-        <TabsContent value="batches">
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium">Batches by Location ({batchGroups.length})</h3>
-              <Badge variant="outline">{boxesData.length} Total Boxes</Badge>
-            </div>
-            
-            {batchGroups.length > 0 ? (
-              <div className="space-y-4">
-                {batchGroups.map((group, groupIndex) => (
-                  <Card key={groupIndex}>
-                    <CardHeader className="bg-muted py-3 px-4">
-                      <CardTitle className="text-base">
-                        {getWarehouseName(group.warehouseId)} - {group.locationId ? 
-                          getLocationName(group.warehouseId, group.locationId) : 'Unknown Location'}
-                      </CardTitle>
-                      <CardDescription>
-                        {group.boxes.length} {group.boxes.length === 1 ? 'box' : 'boxes'} | 
-                        Total Quantity: {group.boxes.reduce((sum, box) => sum + box.quantity, 0)}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-4">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left py-2">Box #</th>
-                              <th className="text-left py-2">Barcode</th>
-                              <th className="text-left py-2">Quantity</th>
-                              <th className="text-left py-2">Color</th>
-                              <th className="text-left py-2">Size</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {group.boxes.map((box, boxIndex) => (
-                              <tr key={boxIndex} className="border-b">
-                                <td className="py-2">{boxesData.indexOf(box) + 1}</td>
-                                <td className="py-2 font-mono text-xs">{box.barcode}</td>
-                                <td className="py-2">{box.quantity}</td>
-                                <td className="py-2">{box.color || '-'}</td>
-                                <td className="py-2">{box.size || '-'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Alert variant="warning">
-                <AlertTitle>No batches created yet</AlertTitle>
-                <AlertDescription>
-                  Assign warehouses and locations to your boxes to create batches
+        <Card>
+          <CardHeader className="bg-muted/50 py-3">
+            <CardTitle className="text-lg">Process Overview</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="space-y-4">
+              <Alert className="bg-amber-50 border-amber-200">
+                <AlertTitle className="text-amber-800">Fill in Box Details</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                  Please provide warehouse, location, and quantity information for each box. 
+                  You can use the default values to quickly update all boxes at once.
                 </AlertDescription>
               </Alert>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+              
+              {hasIncompleteBoxes && (
+                <Alert variant="destructive">
+                  <AlertTitle>Incomplete Boxes</AlertTitle>
+                  <AlertDescription>
+                    Some boxes are missing required information. Please ensure all boxes have warehouse, location and quantity.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="border rounded p-3 bg-muted/30">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">Total Boxes</span>
+                  <span className="font-semibold">{boxesData.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Boxes Ready</span>
+                  <span className="font-semibold">{boxesData.filter(box => box.warehouse_id && box.location_id && box.quantity > 0).length}</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Card>
+        <CardHeader className="bg-muted/50 py-3">
+          <CardTitle className="text-lg">Box Details</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ScrollArea className="h-[400px]">
+            <div className="p-4">
+              <table className="w-full border-collapse">
+                <thead className="text-left text-sm font-medium text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="pb-2 pr-4">Box #</th>
+                    <th className="pb-2 px-4">Barcode</th>
+                    <th className="pb-2 px-4">Warehouse</th>
+                    <th className="pb-2 px-4">Location</th>
+                    <th className="pb-2 px-4">Qty</th>
+                    <th className="pb-2 px-4">Color</th>
+                    <th className="pb-2 px-4">Size</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {boxesData.map((box, index) => {
+                    // Find the related locations for this specific box's warehouse
+                    const boxLocations = useLocations(box.warehouse_id || '').locations;
+                    
+                    return (
+                      <tr key={index} className="border-b hover:bg-muted/50">
+                        <td className="py-3 pr-4">{index + 1}</td>
+                        <td className="py-3 px-4 font-mono text-xs">{box.barcode}</td>
+                        <td className="py-3 px-4 min-w-[150px]">
+                          <Select 
+                            value={box.warehouse_id || ''}
+                            onValueChange={(value) => updateBoxLocation(index, value, '')}
+                          >
+                            <SelectTrigger className="h-8 w-full min-w-[150px]">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {warehouses?.map((warehouse) => (
+                                <SelectItem key={warehouse.id} value={warehouse.id}>
+                                  {warehouse.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="py-3 px-4 min-w-[150px]">
+                          <Select 
+                            value={box.location_id || ''} 
+                            onValueChange={(value) => updateBoxLocation(index, box.warehouse_id || '', value)}
+                            disabled={!box.warehouse_id}
+                          >
+                            <SelectTrigger className="h-8 w-full">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {boxLocations?.map((location) => (
+                                <SelectItem key={location.id} value={location.id}>
+                                  Floor {location.floor}, Zone {location.zone}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="py-3 px-4 min-w-[80px]">
+                          <Input
+                            type="number"
+                            min="1"
+                            className="h-8"
+                            value={box.quantity || ''}
+                            onChange={(e) => updateBox(index, 'quantity', parseInt(e.target.value) || 0)}
+                          />
+                        </td>
+                        <td className="py-3 px-4">
+                          <Input
+                            type="text"
+                            className="h-8"
+                            value={box.color || ''}
+                            onChange={(e) => updateBox(index, 'color', e.target.value)}
+                          />
+                        </td>
+                        <td className="py-3 px-4">
+                          <Input
+                            type="text"
+                            className="h-8"
+                            value={box.size || ''}
+                            onChange={(e) => updateBox(index, 'size', e.target.value)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
       
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button 
-          onClick={onContinue} 
-          className="min-w-[140px]"
-          disabled={batchGroups.length === 0}
-        >
+        <Button onClick={handleContinue} disabled={hasIncompleteBoxes}>
           Continue to Preview
         </Button>
       </div>

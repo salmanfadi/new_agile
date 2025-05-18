@@ -106,8 +106,8 @@ export const useProcessedBatchesWithItems = ({
           }
           
           // Handle profiles data with proper null safety using optional chaining
-          if (batch.profiles && typeof batch.profiles === 'object') {
-            processorName = batch.profiles?.name || 'Unknown User';
+          if (batch.profiles && typeof batch.profiles === 'object' && batch.profiles !== null) {
+            processorName = batch.profiles.name || 'Unknown User';
           }
           
           // Handle warehouses data
