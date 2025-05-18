@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ArrowLeft, Layers, List, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { StockInData } from '@/hooks/useStockInRequests';
 
 interface StockInRequestDetails {
   id: string;
@@ -23,14 +24,18 @@ interface StockInRequestDetails {
   notes?: string;
   submitted_by: string;
   submitter?: {
-    name?: string;
+    name: string; // Make this non-optional to match StockInData interface requirements
     username?: string;
   };
-  product?: {
-    id?: string;
-    name?: string;
+  product: {
+    id: string;
+    name: string; // Make this non-optional to match StockInData interface requirements
     sku?: string;
   };
+  processed_by?: string;
+  processing_started_at?: string;
+  processing_completed_at?: string;
+  rejection_reason?: string;
 }
 
 interface StockInDetailItem {
@@ -77,6 +82,7 @@ const StockInDetailsPage: React.FC = () => {
       setError(null);
       
       try {
+        // Fix: Use specific column names to avoid ambiguity with profiles table
         const { data, error } = await supabase
           .from('stock_in')
           .select(`
@@ -86,7 +92,7 @@ const StockInDetailsPage: React.FC = () => {
               name,
               sku
             ),
-            profiles:submitted_by (
+            submitter:profiles!stock_in_submitted_by_fkey (
               id,
               name,
               username
@@ -103,6 +109,10 @@ const StockInDetailsPage: React.FC = () => {
           throw new Error('Stock in request not found');
         }
         
+        // Format the data with proper null checks
+        const submitterData = data.submitter && typeof data.submitter === 'object' ? data.submitter : null;
+        const productsData = data.products && typeof data.products === 'object' ? data.products : null;
+        
         // Format the data
         const formattedData: StockInRequestDetails = {
           id: data.id,
@@ -113,15 +123,19 @@ const StockInDetailsPage: React.FC = () => {
           source: data.source || '',
           notes: data.notes,
           submitted_by: data.submitted_by,
-          submitter: data.profiles ? {
-            name: data.profiles.name || 'Unknown',
-            username: data.profiles.username
-          } : undefined,
-          product: data.products ? {
-            id: data.products.id,
-            name: data.products.name,
-            sku: data.products.sku
-          } : undefined
+          submitter: {
+            name: submitterData && 'name' in submitterData ? String(submitterData.name) : 'Unknown',
+            username: submitterData && 'username' in submitterData ? String(submitterData.username) : undefined
+          },
+          product: {
+            id: productsData && 'id' in productsData ? String(productsData.id) : '',
+            name: productsData && 'name' in productsData ? String(productsData.name) : 'Unknown Product',
+            sku: productsData && 'sku' in productsData ? String(productsData.sku) : undefined
+          },
+          processed_by: data.processed_by,
+          processing_started_at: data.processing_started_at,
+          processing_completed_at: data.processing_completed_at,
+          rejection_reason: data.rejection_reason
         };
         
         setStockInData(formattedData);
@@ -185,11 +199,14 @@ const StockInDetailsPage: React.FC = () => {
             locationName = `Floor ${item.warehouse_locations.floor}, Zone ${item.warehouse_locations.zone}`;
           }
           
+          const warehouseObject = item.warehouses && typeof item.warehouses === 'object' ? item.warehouses : null;
+          const warehouseName = warehouseObject && 'name' in warehouseObject ? String(warehouseObject.name) : undefined;
+          
           const detailObj: StockInDetailItem = {
             id: item.id,
             stock_in_id: item.stock_in_id,
             warehouse_id: item.warehouse_id,
-            warehouse_name: item.warehouses?.name,
+            warehouse_name: warehouseName,
             location_id: item.location_id,
             location_name: locationName,
             barcode: item.barcode,
@@ -207,11 +224,14 @@ const StockInDetailsPage: React.FC = () => {
               
           if (productObject) {
             detailObj.product = {
-              id: productObject.id ?? '', // Nullish coalescing for null safety
-              name: productObject.name ?? 'Unknown Product' // Nullish coalescing
+              id: productObject.id ? String(productObject.id) : '',
+              name: productObject.name ? String(productObject.name) : 'Unknown Product'
             };
           } else {
-            detailObj.product = null;
+            detailObj.product = {
+              id: '',
+              name: 'Unknown Product'
+            };
           }
           
           return detailObj;

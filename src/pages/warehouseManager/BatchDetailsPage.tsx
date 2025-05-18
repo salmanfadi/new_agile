@@ -74,18 +74,24 @@ const BatchDetailsPage = () => {
       const profiles = data.profiles && typeof data.profiles === 'object' ? data.profiles : null;
       const warehouses = data.warehouses && typeof data.warehouses === 'object' ? data.warehouses : null;
 
+      // Fix: Check if the object has the name property before accessing it
+      const productName = products && 'name' in products ? String(products.name) : 'Unknown Product';
+      const productSku = products && 'sku' in products ? String(products.sku) : undefined;
+      const processorName = profiles && 'name' in profiles ? String(profiles.name) : 'Unknown User';
+      const warehouseName = warehouses && 'name' in warehouses ? String(warehouses.name) : 'Unknown Warehouse';
+
       return {
         id: data.id,
         stock_in_id: data.stock_in_id,
         product_id: data.product_id,
-        productName: products?.name || 'Unknown Product',
-        productSku: products?.sku,
+        productName: productName,
+        productSku: productSku,
         processed_by: data.processed_by,
-        processorName: profiles ? profiles.name ?? 'Unknown User' : 'Unknown User',
+        processorName: processorName,
         total_quantity: data.total_quantity || 0,
         total_boxes: data.total_boxes || 0,
         warehouse_id: data.warehouse_id,
-        warehouseName: warehouses ? warehouses.name ?? 'Unknown Warehouse' : 'Unknown Warehouse',
+        warehouseName: warehouseName,
         status: data.status || 'completed',
         notes: data.notes,
         source: data.source,

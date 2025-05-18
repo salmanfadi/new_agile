@@ -96,19 +96,28 @@ export const useProcessedBatchesWithItems = ({
           const products = batch.products && typeof batch.products === 'object' ? batch.products : null;
           const warehouses = batch.warehouses && typeof batch.warehouses === 'object' ? batch.warehouses : null;
           
-          // Using optional chaining with nullish coalescing for better null safety
+          // Fix: Check products is not null before accessing name property
+          const productName = products && 'name' in products ? products.name as string : 'Unknown Product';
+          const productSku = products && 'sku' in products ? products.sku as string : undefined;
+          
+          // Fix: Check profiles is not null before accessing name property
+          const processorName = profiles && 'name' in profiles ? profiles.name as string : 'Unknown User';
+          
+          // Fix: Check warehouses is not null before accessing name property
+          const warehouseName = warehouses && 'name' in warehouses ? warehouses.name as string : 'Unknown Warehouse';
+          
           return {
             id: batch.id,
             stock_in_id: batch.stock_in_id,
             product_id: batch.product_id,
-            product_name: products?.name || 'Unknown Product',
-            product_sku: products?.sku,
+            product_name: productName,
+            product_sku: productSku,
             processed_by: batch.processed_by,
-            processor_name: profiles ? profiles.name ?? 'Unknown User' : 'Unknown User', 
+            processor_name: processorName, 
             total_quantity: batch.total_quantity || 0,
             total_boxes: batch.total_boxes || 0,
             warehouse_id: batch.warehouse_id,
-            warehouse_name: warehouses ? warehouses.name ?? 'Unknown Warehouse' : 'Unknown Warehouse', 
+            warehouse_name: warehouseName, 
             status: batch.status || 'completed',
             processed_at: batch.processed_at || new Date().toISOString(),
             itemCount: batch.batch_items_count?.length || 0

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
@@ -50,9 +49,9 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   const [confirmedBoxes, setConfirmedBoxes] = useState<number>(0);
   const [processingNotes, setProcessingNotes] = useState<string>('');
   
-  // Fetch warehouses and locations
-  const { data: warehouses, isLoading: isLoadingWarehouses } = useWarehouses();
-  const { data: locations, isLoading: isLoadingLocations } = useLocations(warehouseId);
+  // Fetch warehouses and locations - fix destructuring to match hook return structure
+  const { warehouses, isLoading: isLoadingWarehouses } = useWarehouses();
+  const { locations, isLoading: isLoadingLocations } = useLocations(warehouseId);
   
   // Reset form when the selected stockIn changes
   useEffect(() => {

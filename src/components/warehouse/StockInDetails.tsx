@@ -1,82 +1,115 @@
 
 import React from 'react';
-import { StockIn, StockInDetail } from '@/types/stockIn';
-import { StockInData } from '@/hooks/useStockInBoxes';
-import { StockInDetailItem } from './StockInDetailItem';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { StockInProcessingStatus } from './StockInProcessingStatus';
+import { ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { StockInData } from '@/hooks/useStockInRequests';
+import { Textarea } from '@/components/ui/textarea';
 
-export interface StockInDetailsProps {
+interface StockInDetailsProps {
   stockInData: StockInData;
-  stockIn: StockIn;
-  details: StockInDetail[];
+  approvalNotes: string;
+  setApprovalNotes: (value: string) => void;
+  handleApproval: (isApproved: boolean) => void;
+  isSubmitting: boolean;
 }
 
 export const StockInDetails: React.FC<StockInDetailsProps> = ({
   stockInData,
-  stockIn,
-  details
+  approvalNotes,
+  setApprovalNotes,
+  handleApproval,
+  isSubmitting
 }) => {
+  // Check for valid data
+  if (!stockInData) {
+    return <p>Stock In details not found.</p>;
+  }
+
   return (
     <div className="space-y-6">
-      {/* Stock In Request Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Stock In Request Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium">Product</p>
-              <p>{stockInData.product.name}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Requested Boxes</p>
-              <p>{stockInData.boxes}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Source</p>
-              <p>{stockInData.source}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Status</p>
-              <p>{stockInData.status}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Submitter</p>
-              <p>{stockInData.submitter.name}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Created At</p>
-              <p>{new Date(stockInData.created_at).toLocaleString()}</p>
-            </div>
-            {stockInData.notes && (
-              <div className="col-span-2">
-                <p className="text-sm font-medium">Notes</p>
-                <p>{stockInData.notes}</p>
-              </div>
-            )}
+      {/* Stock In Information */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground">Product</h3>
+          <p className="text-base font-semibold">{stockInData.product?.name || 'Unknown Product'}</p>
+          {stockInData.product?.sku && <p className="text-sm text-gray-500">SKU: {stockInData.product.sku}</p>}
+        </div>
+        
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+          <div><Badge variant="outline" className="capitalize">{stockInData.status}</Badge></div>
+        </div>
+        
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground">Boxes</h3>
+          <p className="text-base">{stockInData.boxes}</p>
+        </div>
+        
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground">Source</h3>
+          <p className="text-base">{stockInData.source}</p>
+        </div>
+        
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground">Submitted By</h3>
+          <p className="text-base">{stockInData.submitter?.name}</p>
+          {stockInData.submitter?.username && <p className="text-sm text-gray-500">{stockInData.submitter.username}</p>}
+        </div>
+        
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground">Created At</h3>
+          <p className="text-base">{new Date(stockInData.created_at).toLocaleDateString()}</p>
+        </div>
+      </div>
+      
+      {/* Notes */}
+      {stockInData.notes && (
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground mb-1">Notes</h3>
+          <div className="p-3 bg-muted/50 rounded-md">
+            <p>{stockInData.notes}</p>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Processing Status */}
-      <StockInProcessingStatus stockIn={stockIn} details={details} />
-
-      {/* Stock In Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Stock In Details</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4">
-            {details.map((detail) => (
-              <StockInDetailItem key={detail.id} detail={detail} />
-            ))}
+        </div>
+      )}
+      
+      {/* Approval Form - Only show for pending requests */}
+      {stockInData.status === 'pending' && (
+        <div className="border-t pt-4 mt-4">
+          <h3 className="font-medium mb-2">Review Decision</h3>
+          <div className="space-y-4">
+            <div>
+              <Textarea
+                placeholder="Enter approval or rejection notes"
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                rows={3}
+                className="w-full"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                onClick={() => handleApproval(false)}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                {isSubmitting ? 'Rejecting...' : 'Reject Request'}
+              </Button>
+              <Button
+                variant="default"
+                onClick={() => handleApproval(true)}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                {isSubmitting ? 'Approving...' : 'Approve Request'}
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
 };
