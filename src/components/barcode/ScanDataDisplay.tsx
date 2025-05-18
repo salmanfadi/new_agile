@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { ScanResponse } from '@/types/auth';
-import { Package, MapPin, CheckCircle, AlertCircle, Box, Tag, Clock, List } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface ScanDataDisplayProps {
   scanData: ScanResponse['data'];
@@ -10,143 +10,83 @@ interface ScanDataDisplayProps {
 
 const ScanDataDisplay: React.FC<ScanDataDisplayProps> = ({ scanData }) => {
   if (!scanData) return null;
-  
-  const getStatusColorClass = (status: string) => {
-    switch (status.toLowerCase()) {
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
       case 'available':
-        return 'text-green-600';
+        return 'bg-green-100 text-green-800 border-green-200';
       case 'reserved':
-        return 'text-amber-600';
-      case 'out_of_stock':
-        return 'text-red-600';
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'in-transit':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       default:
-        return 'text-blue-600';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'available':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'reserved':
-        return <AlertCircle className="h-4 w-4 text-amber-600" />;
-      case 'out_of_stock':
-        return <AlertCircle className="h-4 w-4 text-red-600" />;
-      default:
-        return <CheckCircle className="h-4 w-4 text-blue-600" />;
-    }
-  };
-  
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Package className="h-5 w-5 text-primary" />
-          Product Information
+      <CardHeader className="pb-2">
+        <CardTitle className="flex justify-between items-center">
+          <div>Scan Result</div>
+          <Badge 
+            variant="outline" 
+            className={`${getStatusColor(scanData.status)} font-normal`}
+          >
+            {scanData.status || 'Unknown Status'}
+          </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="bg-primary/10 p-4 rounded-md">
-          <h3 className="font-medium text-lg">
-            {scanData.product.name}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            SKU: {scanData.product.sku || 'N/A'}
-            {scanData.product.description && (
-              <span className="block mt-1">{scanData.product.description}</span>
-            )}
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-start gap-2">
-            <Box className="h-4 w-4 text-blue-500 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium">Box ID</p>
-              <p className="text-sm text-muted-foreground">{scanData.box_id}</p>
+      <CardContent>
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground">Product Information</h3>
+            <div className="mt-1">
+              <p className="font-medium">{scanData.product?.name}</p>
+              {scanData.product?.sku && (
+                <p className="text-sm text-muted-foreground">SKU: {scanData.product.sku}</p>
+              )}
             </div>
           </div>
-          
-          <div className="flex items-start gap-2">
-            <Tag className="h-4 w-4 text-purple-500 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium">Box Quantity</p>
-              <p className="text-sm text-muted-foreground">{scanData.box_quantity} units</p>
+
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground">Box Details</h3>
+            <div className="mt-1 grid grid-cols-2 gap-x-4">
+              <div>
+                <p className="text-sm">Box ID: <span className="font-mono">{scanData.box_id}</span></p>
+                <p className="text-sm">Quantity: {scanData.box_quantity}</p>
+              </div>
+              <div>
+                {scanData.attributes?.color && <p className="text-sm">Color: {scanData.attributes.color}</p>}
+                {scanData.attributes?.size && <p className="text-sm">Size: {scanData.attributes.size}</p>}
+              </div>
             </div>
           </div>
-          
-          {scanData.total_product_quantity !== undefined && (
-            <div className="flex items-start gap-2">
-              <List className="h-4 w-4 text-indigo-500 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Total Product Stock</p>
-                <p className="text-sm text-muted-foreground">{scanData.total_product_quantity} units</p>
-              </div>
-            </div>
-          )}
-          
-          {scanData.location && (
-            <div className="flex items-start gap-2">
-              <MapPin className="h-4 w-4 text-red-500 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Location</p>
-                <p className="text-sm text-muted-foreground">
-                  {scanData.location.warehouse} / {scanData.location.position} / {scanData.location.zone}
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <div className="flex items-start gap-2">
-            {getStatusIcon(scanData.status)}
-            <div>
-              <p className="text-sm font-medium">Status</p>
-              <p className={`text-sm ${getStatusColorClass(scanData.status)}`}>
-                {scanData.status.charAt(0).toUpperCase() + scanData.status.slice(1).replace(/-/g, ' ')}
+
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground">Location</h3>
+            <div className="mt-1">
+              <p className="text-sm">{scanData.location?.warehouse}</p>
+              <p className="text-sm">
+                {scanData.location?.position} - {scanData.location?.zone}
               </p>
             </div>
           </div>
           
-          {scanData.attributes && scanData.attributes.batch_id && (
-            <div className="flex items-start gap-2">
-              <Clock className="h-4 w-4 text-teal-500 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Batch ID</p>
-                <p className="text-sm text-muted-foreground">{scanData.attributes.batch_id}</p>
+          {scanData.history && scanData.history.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Activity</h3>
+              <div className="mt-1">
+                {scanData.history.map((event, index) => (
+                  <div key={index} className="text-xs flex justify-between border-b border-gray-100 py-1">
+                    <span>{event.action}</span>
+                    <span className="text-muted-foreground">{event.timestamp}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </div>
-        
-        {scanData.attributes && Object.entries(scanData.attributes).filter(([k]) => k !== 'batch_id').length > 0 && (
-          <div className="border-t pt-3 mt-3">
-            <p className="text-sm font-medium mb-2">Attributes</p>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(scanData.attributes)
-                .filter(([key]) => key !== 'batch_id')
-                .map(([key, value]) => (
-                  <div key={key} className="text-xs flex items-center gap-1">
-                    <span className="font-medium">{key}: </span>
-                    <span className="text-muted-foreground">{String(value || 'N/A')}</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-        
-        {scanData.history && scanData.history.length > 0 && (
-          <div className="border-t pt-3 mt-3">
-            <p className="text-sm font-medium mb-2">Recent Activity</p>
-            <div className="text-xs space-y-1 max-h-[100px] overflow-y-auto">
-              {scanData.history.map((item, index) => (
-                <div key={index} className="flex justify-between p-1 odd:bg-slate-50 rounded">
-                  <span>{item.action}</span>
-                  <span className="text-muted-foreground">{item.timestamp}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

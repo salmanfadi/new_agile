@@ -61,8 +61,12 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   
   // Handle continue processing for requests that are already in processing status
   const handleContinueProcessing = (stockIn: StockInRequestData) => {
-    // Redirect to the unified batch processing page instead
-    navigate(`/manager/stock-in/unified/${stockIn.id}`);
+    // Redirect to the unified batch processing page with the correct route based on user role
+    const baseUrl = window.location.pathname.includes('/admin') ? 
+      '/admin/stock-in/unified/' : 
+      '/manager/stock-in/unified/';
+    
+    navigate(`${baseUrl}${stockIn.id}`);
   };
 
   const handleReject = (stockIn: StockInRequestData) => {

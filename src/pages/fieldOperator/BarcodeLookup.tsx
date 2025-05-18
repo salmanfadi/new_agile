@@ -8,21 +8,35 @@ import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import ScanDataDisplay from '@/components/barcode/ScanDataDisplay';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { useBarcodeProcessor } from '@/components/barcode/useBarcodeProcessor';
 
 const BarcodeLookup: React.FC = () => {
   const [lastScan, setLastScan] = useState<ScanResponse['data'] | null>(null);
   const navigate = useNavigate();
-
-  const handleScanComplete = (data: ScanResponse['data']) => {
-    setLastScan(data);
-    console.log('Scan completed:', data);
-  };
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  const { processScan, loading, error, scanData } = useBarcodeProcessor({
+    user,
+    toast,
+    onScanComplete: (data) => {
+      setLastScan(data);
+      console.log('Scan completed:', data);
+    }
+  });
 
   // For demonstration, navigate to inventory with the box_id as a search parameter
   const viewInInventory = () => {
     if (lastScan) {
       navigate(`/operator/submissions?search=${lastScan.box_id}`);
     }
+  };
+  
+  const handleBarcodeDetected = (barcode: string) => {
+    console.log('Barcode detected:', barcode);
+    processScan(barcode);
   };
 
   return (
@@ -52,17 +66,29 @@ const BarcodeLookup: React.FC = () => {
         <BarcodeScanner 
           allowManualEntry={true}
           allowCameraScanning={true}
-          onScanComplete={handleScanComplete}
+          onDetected={handleBarcodeDetected}
         />
         
-        {lastScan && (
+        {(lastScan || scanData) && (
           <div className="mt-6">
-            <ScanDataDisplay scanData={lastScan} />
+            <ScanDataDisplay scanData={lastScan || scanData} />
             <div className="flex justify-end mt-4">
               <Button variant="outline" onClick={viewInInventory} className="text-sm">
                 View in Inventory
               </Button>
             </div>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mt-4 p-4 border border-red-200 bg-red-50 rounded-md">
+            <p className="text-red-700 font-medium">Error: {error}</p>
+          </div>
+        )}
+        
+        {loading && (
+          <div className="mt-4 p-4 border border-blue-200 bg-blue-50 rounded-md">
+            <p className="text-blue-700 font-medium">Scanning...</p>
           </div>
         )}
       </div>
