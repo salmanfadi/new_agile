@@ -70,7 +70,8 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
     if (warehouses && defaultValues.warehouse) {
       const warehouse = warehouses.find(w => w.id === defaultValues.warehouse);
       if (warehouse) {
-        setSelectedWarehouse(warehouse);
+        // Use a function to update the state to avoid the TypeScript error
+        setSelectedWarehouse(() => warehouse);
       }
     }
   }, [warehouses, defaultValues.warehouse]);

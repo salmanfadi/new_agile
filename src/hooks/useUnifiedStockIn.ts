@@ -4,6 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { BoxData } from './useStockInBoxes';
 
+// Define specific types for status and processing step to ensure type safety
+export type StockInStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'rejected';
+export type ProcessingStep = 'submitted' | 'details_verified' | 'boxes_defined' | 'preview' | 'completed';
+
 export interface UnifiedStockIn {
   id: string;
   product_id: string;
@@ -13,8 +17,8 @@ export interface UnifiedStockIn {
   processed_by?: string;
   created_at: string;
   updated_at: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'rejected';
-  processing_step?: 'submitted' | 'details_verified' | 'boxes_defined' | 'preview' | 'completed';
+  status: StockInStatus;
+  processing_step?: ProcessingStep;
   processing_started_at?: string;
   processing_completed_at?: string;
   rejection_reason?: string;
@@ -52,8 +56,8 @@ export interface UnifiedStockInWithDetails {
     name?: string;
     username?: string;
   };
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'rejected';
-  processing_step?: 'submitted' | 'details_verified' | 'boxes_defined' | 'preview' | 'completed';
+  status: StockInStatus;
+  processing_step?: ProcessingStep;
   created_at: string;
   updated_at: string;
   total_boxes?: number;
@@ -118,7 +122,7 @@ export const useUnifiedStockIn = (stockInId?: string) => {
           throw boxError;
         }
         
-        // Map the data to our interface
+        // Map the data to our interface with proper type casting
         const result: UnifiedStockInWithDetails = {
           id: mainEntry.id,
           product_id: mainEntry.product_id,
@@ -139,12 +143,16 @@ export const useUnifiedStockIn = (stockInId?: string) => {
             name: mainEntry.processor.name,
             username: mainEntry.processor.username,
           } : undefined,
-          status: mainEntry.status,
-          processing_step: mainEntry.processing_step,
+          status: mainEntry.status as StockInStatus,
+          processing_step: mainEntry.processing_step as ProcessingStep,
           created_at: mainEntry.created_at,
           updated_at: mainEntry.updated_at,
           total_boxes: mainEntry.total_boxes,
-          boxes: boxEntries || [],
+          boxes: (boxEntries || []).map(box => ({
+            ...box,
+            status: box.status as StockInStatus,
+            processing_step: box.processing_step as ProcessingStep,
+          })),
           is_box_entry: false,
         };
         
@@ -164,7 +172,7 @@ export const useUnifiedStockIn = (stockInId?: string) => {
   
   // Update the main stock in entry's processing step
   const updateProcessingStep = useMutation({
-    mutationFn: async ({ id, processingStep }: { id: string; processingStep: string }) => {
+    mutationFn: async ({ id, processingStep }: { id: string; processingStep: ProcessingStep }) => {
       const { error } = await supabase
         .from('unified_stock_in')
         .update({
@@ -263,9 +271,9 @@ export const useUnifiedStockIn = (stockInId?: string) => {
       const { error: updateError } = await supabase
         .from('unified_stock_in')
         .update({
-          status: 'completed',
+          status: 'completed' as StockInStatus,
           processed_by: userId,
-          processing_step: 'completed',
+          processing_step: 'completed' as ProcessingStep,
           processing_completed_at: new Date().toISOString(),
         })
         .eq('id', id);
@@ -276,14 +284,14 @@ export const useUnifiedStockIn = (stockInId?: string) => {
       const { error: boxUpdateError } = await supabase
         .from('unified_stock_in')
         .update({
-          status: 'completed',
+          status: 'completed' as StockInStatus,
           is_processed: true,
         })
         .eq('parent_stock_in_id', id);
         
       if (boxUpdateError) throw boxUpdateError;
       
-      return { id, status: 'completed' };
+      return { id, status: 'completed' as StockInStatus };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['unified-stock-in', stockInId] });
