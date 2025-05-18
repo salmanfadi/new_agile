@@ -112,11 +112,19 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       queryClient.invalidateQueries({ queryKey: ['stock-in-batches', finalStockInId] });
       
       // Show success message
-      toast({
-        title: 'Batch Processed Successfully',
-        description: 'All batches have been processed and added to inventory.',
-        variant: 'default',
-      });
+      if (barcodeErrors && barcodeErrors.length > 0) {
+        toast({
+          title: 'Batch Processed with Warnings',
+          description: 'There were some issues with barcode processing. Please continue to the next step.',
+          variant: 'warning',
+        });
+      } else {
+        toast({
+          title: 'Batch Processed Successfully',
+          description: 'All batches have been processed and ready for barcode assignment.',
+          variant: 'default',
+        });
+      }
       
       // Wait a moment to show the success message before navigating
       setTimeout(() => {
@@ -133,18 +141,22 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
           return;
         }
         
-        // Navigate to batch overview page
-        const path = `${adminMode ? '/admin' : '/manager'}/stock-in/batches/${finalStockInId}`;
+        // Navigate to barcode assignment page instead of batch overview
+        const path = barcodeErrors && barcodeErrors.length > 0
+          ? `${adminMode ? '/admin' : '/manager'}/stock-in/${finalStockInId}/barcode-assignment`
+          : `${adminMode ? '/admin' : '/manager'}/stock-in/batches/${finalStockInId}`;
+        
         console.log(`Navigating to: ${path}`);
         navigate(path, { 
           state: { 
             fromBatchProcessing: true,
-            batchId: processedBatchId 
+            batchId: processedBatchId,
+            hasErrors: barcodeErrors && barcodeErrors.length > 0
           }
         });
       }, 500);
     }
-  }, [isSuccess, isProcessing, isSubmitting, queryClient, navigate, adminMode, finalStockInId, processedBatchId, onClose, sheetMode, resetBatches, isNavigating, onComplete]);
+  }, [isSuccess, isProcessing, isSubmitting, queryClient, navigate, adminMode, finalStockInId, processedBatchId, onClose, sheetMode, resetBatches, isNavigating, onComplete, barcodeErrors]);
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
   useEffect(() => {

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Check, Box, Loader2 } from 'lucide-react';
+import { ArrowLeft, Printer, Check, Box, Loader2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useStockInBatches } from '@/hooks/useStockInBatches';
@@ -15,10 +16,12 @@ import { BoxDetailsSection } from '@/components/warehouse/BoxDetailsSection';
 import { LoadingState } from '@/components/warehouse/LoadingState';
 import { ErrorState } from '@/components/warehouse/ErrorState';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const BarcodeAssignmentPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { data: batches, isLoading: batchesLoading, error: batchesError } = useStockInBatches(stockInId);
   const { stockInData, isLoadingStockIn, error: stockInError } = useStockInData(stockInId);
@@ -28,6 +31,10 @@ const BarcodeAssignmentPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const totalSteps = 3;
+
+  // Get state from the location if passed
+  const fromBatchProcessing = location.state?.fromBatchProcessing || false;
+  const hasErrors = location.state?.hasErrors || false;
 
   useEffect(() => {
     if (batches && batches.length > 0) {
@@ -51,8 +58,17 @@ const BarcodeAssignmentPage: React.FC = () => {
       
       setBoxesWithMetadata(initialBoxMetadata);
       setCurrentStep(2); // Move to step 2 as we now have batches
+      
+      // If coming from batch processing with errors, show a toast notification
+      if (fromBatchProcessing && hasErrors) {
+        toast({
+          title: "Barcode Processing Issues",
+          description: "Some barcodes could not be processed automatically. Please review and fix before proceeding.",
+          variant: "warning",
+        });
+      }
     }
-  }, [batches]);
+  }, [batches, fromBatchProcessing, hasErrors, toast]);
 
   // Count total boxes across all batches
   const totalBoxes = batches?.reduce((acc, batch) => {
@@ -264,6 +280,17 @@ const BarcodeAssignmentPage: React.FC = () => {
         title="Assign Barcodes to Boxes" 
         description="Generate final barcodes and add box details for inventory" 
       />
+
+      {/* Error message when barcode processing had issues */}
+      {fromBatchProcessing && hasErrors && (
+        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Barcode Processing Issues</AlertTitle>
+          <AlertDescription>
+            Some barcodes could not be processed automatically. Please review the barcodes and metadata before proceeding.
+          </AlertDescription>
+        </Alert>
+      )}
       
       {/* Progress indicator */}
       <Card>
