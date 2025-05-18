@@ -105,10 +105,10 @@ export const useProcessedBatchesWithItems = ({
             }
           }
           
-          // Handle profiles data with null safety - additional null check for TS
+          // Handle profiles data with proper null safety
           if (batch.profiles && typeof batch.profiles === 'object' && batch.profiles !== null) {
-            // Safely access the name property now
-            processorName = batch.profiles.name ? batch.profiles.name.toString() : 'Unknown User';
+            // Now TypeScript knows profiles isn't null here
+            processorName = batch.profiles.name || 'Unknown User';
           }
           
           // Handle warehouses data

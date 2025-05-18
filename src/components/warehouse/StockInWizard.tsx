@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
@@ -11,6 +11,7 @@ import StockInStepPreview from './StockInStepPreview';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { generateBarcodeString } from '@/utils/barcodeUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
 
 interface StockInWizardProps {
   stockIn: StockInRequestData;
@@ -32,6 +33,7 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
   const [activeStep, setActiveStep] = useState<StepType>('details');
   const [boxesData, setBoxesData] = useState<BoxData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [warehouseId, setWarehouseId] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
   const [confirmedBoxes, setConfirmedBoxes] = useState<number>(stockIn.boxes || 0);
@@ -40,6 +42,12 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
     color: '',
     size: '',
   });
+
+  useEffect(() => {
+    // Log the current state to help with debugging
+    console.log("Current step:", activeStep);
+    console.log("Boxes data:", boxesData);
+  }, [activeStep, boxesData]);
 
   // Initialize box data when warehouse and location are selected
   const initializeBoxes = async () => {
@@ -53,6 +61,7 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
     }
     
     try {
+      setIsLoading(true);
       console.log("Initializing boxes with warehouse:", warehouseId, "and location:", locationId);
       
       // Generate initial box data with unique barcodes
@@ -88,6 +97,8 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
         description: "Failed to initialize boxes. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -97,6 +108,19 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
     updatedBoxes[index] = {
       ...updatedBoxes[index],
       [field]: value,
+    };
+    setBoxesData(updatedBoxes);
+  };
+
+  // Update box location (warehouse and location)
+  const updateBoxLocation = (index: number, warehouseId: string, locationId: string) => {
+    const updatedBoxes = [...boxesData];
+    updatedBoxes[index] = {
+      ...updatedBoxes[index],
+      warehouse_id: warehouseId,
+      location_id: locationId,
+      warehouse: warehouseId,
+      location: locationId
     };
     setBoxesData(updatedBoxes);
   };
@@ -154,6 +178,8 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
     setIsSubmitting(true);
     
     try {
+      console.log("Starting stock in processing...");
+      
       // 1. Update stock_in to processing status
       const { error: updateError } = await supabase
         .from('stock_in')
@@ -164,85 +190,139 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
         })
         .eq('id', stockIn.id);
       
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Error updating stock_in:", updateError);
+        throw updateError;
+      }
       
-      // 2. Create processed batch
-      const { data: batchData, error: batchError } = await supabase
-        .from('processed_batches')
-        .insert({
-          stock_in_id: stockIn.id,
-          processed_by: userId,
-          status: 'completed',
-          source: stockIn.source,
-          notes: stockIn.notes,
-          total_boxes: boxesData.length,
-          total_quantity: boxesData.reduce((sum, box) => sum + (box.quantity || 0), 0),
-          product_id: stockIn.product?.id,
-          warehouse_id: warehouseId,
-          processed_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
+      console.log("Stock-in status updated to processing");
       
-      if (batchError) throw batchError;
+      // Group boxes by warehouse/location to create batches
+      const boxesByLocation: Record<string, BoxData[]> = {};
       
-      const batchId = batchData.id;
+      boxesData.forEach(box => {
+        const key = `${box.warehouse_id}-${box.location_id}`;
+        if (!boxesByLocation[key]) {
+          boxesByLocation[key] = [];
+        }
+        boxesByLocation[key].push(box);
+      });
       
-      // 3. Process each box
-      for (const box of boxesData) {
-        // Create stock_in_detail record
-        const { data: detailData, error: detailError } = await supabase
-          .from('stock_in_details')
+      console.log("Boxes grouped by location:", boxesByLocation);
+      
+      let lastBatchId = '';
+      
+      // Create a batch for each warehouse/location group
+      for (const [locationKey, boxes] of Object.entries(boxesByLocation)) {
+        const [warehouseId, locationId] = locationKey.split('-');
+        
+        // 2. Create processed batch for this location
+        const { data: batchData, error: batchError } = await supabase
+          .from('processed_batches')
           .insert({
             stock_in_id: stockIn.id,
-            warehouse_id: box.warehouse_id,
-            location_id: box.location_id,
-            barcode: box.barcode,
-            quantity: box.quantity,
-            color: box.color,
-            size: box.size,
-            product_id: stockIn.product?.id,
+            processed_by: userId,
             status: 'completed',
+            source: stockIn.source,
+            notes: stockIn.notes,
+            total_boxes: boxes.length,
+            total_quantity: boxes.reduce((sum, box) => sum + (box.quantity || 0), 0),
+            product_id: stockIn.product?.id,
+            warehouse_id: warehouseId,
+            processed_at: new Date().toISOString(),
           })
           .select()
           .single();
         
-        if (detailError) throw detailError;
+        if (batchError) {
+          console.error("Error creating processed batch:", batchError);
+          throw batchError;
+        }
         
-        // Create batch_item record
-        await supabase
-          .from('batch_items')
-          .insert({
-            batch_id: batchId,
-            barcode: box.barcode,
-            quantity: box.quantity,
-            color: box.color,
-            size: box.size,
-            warehouse_id: box.warehouse_id,
-            location_id: box.location_id,
-            status: 'available'
-          });
+        console.log(`Created batch for ${locationKey}:`, batchData);
         
-        // Create inventory entry
-        await supabase
-          .from('inventory')
-          .insert({
-            product_id: stockIn.product?.id || '',
-            warehouse_id: box.warehouse_id,
-            location_id: box.location_id,
-            quantity: box.quantity,
-            barcode: box.barcode,
-            color: box.color,
-            size: box.size,
-            batch_id: batchId,
-            stock_in_id: stockIn.id,
-            stock_in_detail_id: detailData.id,
-            status: 'available'
-          });
+        const batchId = batchData.id;
+        lastBatchId = batchId;
+        
+        // 3. Process each box in this batch
+        for (const box of boxes) {
+          console.log(`Processing box with barcode ${box.barcode}`);
+          
+          // Create stock_in_detail record
+          const { data: detailData, error: detailError } = await supabase
+            .from('stock_in_details')
+            .insert({
+              stock_in_id: stockIn.id,
+              warehouse_id: box.warehouse_id,
+              location_id: box.location_id,
+              barcode: box.barcode,
+              quantity: box.quantity,
+              color: box.color,
+              size: box.size,
+              product_id: stockIn.product?.id,
+              status: 'completed',
+            })
+            .select()
+            .single();
+          
+          if (detailError) {
+            console.error("Error creating stock_in_detail:", detailError);
+            throw detailError;
+          }
+          
+          console.log("Created stock_in_detail:", detailData);
+          
+          // Create batch_item record
+          const { data: batchItemData, error: batchItemError } = await supabase
+            .from('batch_items')
+            .insert({
+              batch_id: batchId,
+              barcode: box.barcode,
+              quantity: box.quantity,
+              color: box.color,
+              size: box.size,
+              warehouse_id: box.warehouse_id,
+              location_id: box.location_id,
+              status: 'available'
+            })
+            .select();
+          
+          if (batchItemError) {
+            console.error("Error creating batch_item:", batchItemError);
+            throw batchItemError;
+          }
+          
+          console.log("Created batch_item:", batchItemData);
+          
+          // Create inventory entry
+          const { data: inventoryData, error: inventoryError } = await supabase
+            .from('inventory')
+            .insert({
+              product_id: stockIn.product?.id || '',
+              warehouse_id: box.warehouse_id,
+              location_id: box.location_id,
+              quantity: box.quantity,
+              barcode: box.barcode,
+              color: box.color,
+              size: box.size,
+              batch_id: batchId,
+              stock_in_id: stockIn.id,
+              stock_in_detail_id: detailData.id,
+              status: 'available'
+            })
+            .select();
+          
+          if (inventoryError) {
+            console.error("Error creating inventory entry:", inventoryError);
+            throw inventoryError;
+          }
+          
+          console.log("Created inventory entry:", inventoryData);
+        }
       }
       
       // 4. Update stock_in to completed status
-      await supabase
+      const { error: finalUpdateError } = await supabase
         .from('stock_in')
         .update({
           status: 'completed',
@@ -250,14 +330,21 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
         })
         .eq('id', stockIn.id);
       
+      if (finalUpdateError) {
+        console.error("Error finalizing stock_in:", finalUpdateError);
+        throw finalUpdateError;
+      }
+      
+      console.log("Stock-in processing completed successfully");
+      
       toast({
         title: "Success",
-        description: `Successfully processed ${boxesData.length} boxes`,
+        description: `Successfully processed ${boxesData.length} boxes across ${Object.keys(boxesByLocation).length} locations`,
       });
       
       // Notify the parent component about completion
-      if (onComplete) {
-        onComplete(batchId);
+      if (onComplete && lastBatchId) {
+        onComplete(lastBatchId);
       } else {
         navigate('/manager/inventory');
       }
@@ -331,23 +418,31 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
         </div>
         
         <TabsContent value="details" className="p-6">
-          <StockInStepDetails
-            stockIn={stockIn}
-            warehouseId={warehouseId}
-            setWarehouseId={setWarehouseId}
-            locationId={locationId}
-            setLocationId={setLocationId}
-            confirmedBoxes={confirmedBoxes}
-            setConfirmedBoxes={setConfirmedBoxes}
-            onContinue={initializeBoxes}
-            onCancel={handleCancel}
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin mr-2" />
+              <p>Initializing boxes...</p>
+            </div>
+          ) : (
+            <StockInStepDetails
+              stockIn={stockIn}
+              warehouseId={warehouseId}
+              setWarehouseId={setWarehouseId}
+              locationId={locationId}
+              setLocationId={setLocationId}
+              confirmedBoxes={confirmedBoxes}
+              setConfirmedBoxes={setConfirmedBoxes}
+              onContinue={initializeBoxes}
+              onCancel={handleCancel}
+            />
+          )}
         </TabsContent>
         
         <TabsContent value="boxes" className="p-6">
           <StockInStepBoxes
             boxesData={boxesData}
             updateBox={updateBox}
+            updateBoxLocation={updateBoxLocation}
             defaultValues={defaultValues}
             setDefaultValues={setDefaultValues}
             applyToAllBoxes={applyToAllBoxes}

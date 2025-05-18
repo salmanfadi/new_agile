@@ -5,10 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BarcodePreview from '@/components/warehouse/BarcodePreview';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useWarehouses } from '@/hooks/useWarehouses';
+import { useLocations } from '@/hooks/useLocations';
+import { Plus, Trash } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+
+interface BatchGroup {
+  warehouseId: string;
+  locationId: string;
+  boxes: BoxData[];
+}
 
 interface StockInStepBoxesProps {
   boxesData: BoxData[];
@@ -22,6 +33,8 @@ interface StockInStepBoxesProps {
   applyToAllBoxes: () => void;
   onBack: () => void;
   onContinue: () => void;
+  // New props for multiple batches
+  updateBoxLocation: (index: number, warehouseId: string, locationId: string) => void;
 }
 
 const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
@@ -32,8 +45,12 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
   applyToAllBoxes,
   onBack,
   onContinue,
+  updateBoxLocation,
 }) => {
   const [activeBoxIndex, setActiveBoxIndex] = useState(0);
+  const { warehouses, isLoading: isLoadingWarehouses } = useWarehouses();
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
+  const { locations, isLoading: isLoadingLocations } = useLocations(selectedWarehouse);
 
   // Function to handle defaultValues change
   const handleDefaultChange = (field: keyof typeof defaultValues, value: number | string) => {
@@ -41,6 +58,61 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
       ...defaultValues,
       [field]: value,
     });
+  };
+
+  // Group boxes by warehouse and location for batch display
+  const groupBoxesByLocation = (): BatchGroup[] => {
+    const groups: Record<string, BatchGroup> = {};
+    
+    boxesData.forEach(box => {
+      const key = `${box.warehouse_id}-${box.location_id}`;
+      if (!groups[key]) {
+        groups[key] = {
+          warehouseId: box.warehouse_id,
+          locationId: box.location_id,
+          boxes: []
+        };
+      }
+      groups[key].boxes.push(box);
+    });
+    
+    return Object.values(groups);
+  };
+  
+  const batchGroups = groupBoxesByLocation();
+
+  // Update warehouse and location for current box
+  const updateCurrentBoxLocation = (warehouseId: string, locationId: string) => {
+    if (!warehouseId || !locationId) {
+      toast({
+        title: "Missing Information",
+        description: "Please select both warehouse and location",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    updateBoxLocation(activeBoxIndex, warehouseId, locationId);
+    
+    // Update selected warehouse for location dropdown
+    setSelectedWarehouse(warehouseId);
+    
+    toast({
+      title: "Box Location Updated",
+      description: "Box has been assigned to new location",
+    });
+  };
+
+  // Get warehouse name by ID
+  const getWarehouseName = (id: string) => {
+    const warehouse = warehouses?.find(w => w.id === id);
+    return warehouse?.name || 'Unknown Warehouse';
+  };
+  
+  // Get location name by ID
+  const getLocationName = (warehouseId: string, locationId: string) => {
+    const location = locations?.find(l => l.id === locationId);
+    return location ? `Floor ${location.floor}, Zone ${location.zone}` : 'Unknown Location';
   };
 
   return (
@@ -121,8 +193,63 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
             {boxesData.map((box, index) => (
               <TabsContent key={index} value={index.toString()} className="pt-2">
                 <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Box {index + 1} Details</CardTitle>
+                  </CardHeader>
                   <CardContent className="p-4">
                     <div className="space-y-4">
+                      {/* Location assignment */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor={`box-${index}-warehouse`}>Warehouse</Label>
+                          <Select
+                            value={box.warehouse_id || ""}
+                            onValueChange={(value) => {
+                              setSelectedWarehouse(value);
+                            }}
+                          >
+                            <SelectTrigger id={`box-${index}-warehouse`}>
+                              <SelectValue placeholder="Select warehouse" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {warehouses?.map((warehouse) => (
+                                <SelectItem key={warehouse.id} value={warehouse.id}>
+                                  {warehouse.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor={`box-${index}-location`}>Location</Label>
+                          <Select
+                            value={box.location_id || ""}
+                            onValueChange={(value) => {
+                              updateCurrentBoxLocation(selectedWarehouse || box.warehouse_id, value);
+                            }}
+                            disabled={!selectedWarehouse && !box.warehouse_id}
+                          >
+                            <SelectTrigger id={`box-${index}-location`}>
+                              <SelectValue placeholder={selectedWarehouse || box.warehouse_id ? "Select location" : "Select warehouse first"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {locations?.map((location) => (
+                                <SelectItem key={location.id} value={location.id}>
+                                  Floor {location.floor}, Zone {location.zone}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {box.warehouse_id && box.location_id && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Current: {getWarehouseName(box.warehouse_id)} - 
+                              {getLocationName(box.warehouse_id, box.location_id)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
                       <div className="space-y-2">
                         <Label htmlFor={`box-${index}-barcode`}>Barcode</Label>
                         <Input
@@ -202,6 +329,37 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
               </TabsContent>
             ))}
           </Tabs>
+          
+          {/* Show batch groups */}
+          {batchGroups.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-lg font-medium mb-3">Batches ({batchGroups.length})</h3>
+              <div className="space-y-4">
+                {batchGroups.map((group, groupIndex) => (
+                  <Card key={groupIndex} className="overflow-hidden">
+                    <CardHeader className="bg-muted py-3 px-4">
+                      <CardTitle className="text-base">
+                        {getWarehouseName(group.warehouseId)} - {group.locationId ? 
+                          getLocationName(group.warehouseId, group.locationId) : 'Unknown Location'}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {group.boxes.length} {group.boxes.length === 1 ? 'box' : 'boxes'}
+                      </p>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <div className="text-sm">
+                        Boxes: {group.boxes.map((_, i) => (
+                          <Badge key={i} variant="outline" className="mr-1 mb-1">
+                            {boxesData.indexOf(group.boxes[i]) + 1}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
@@ -209,7 +367,7 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
         <Button variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button onClick={onContinue}>
+        <Button onClick={onContinue} className="min-w-[140px]">
           Continue to Preview
         </Button>
       </div>
