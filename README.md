@@ -1,222 +1,124 @@
-# Agile Warehouse Management System
+# Agile Warehouse UI
 
-A modern, real-time warehouse management system built with React, TypeScript, and Supabase.
+A **React + Vite + TypeScript** front-end for Agile Warehouse – an inventory-management platform backed by **Supabase**.  The UI lets Admins, Warehouse Managers and Field Operators manage stock-in, stock-out, transfers and barcode-driven look-ups with real-time updates.
 
-## 🚀 Features
-
-### User Roles & Permissions
-- **Administrator**: Full system access, user management, and audit capabilities
-- **Warehouse Manager**: Inventory management, stock operations, and batch processing
-- **Field Operator**: Stock movement operations and inventory updates
-- **Sales Operator**: Sales inquiry management and customer interactions
-
-### Core Functionality
-- Real-time inventory tracking
-- Stock in/out operations with approval workflow
-- Batch processing for bulk operations
-- Barcode-based inventory management
-- Audit trail for all inventory movements
-- Multi-warehouse support with location tracking
-- Role-based access control (RBAC)
-- **Unified user submissions & activity feed:** Shared logic for fetching stock-in and stock-out submissions and recent activity for each user, ensuring consistency across the dashboard and "My Submissions" page.
-
-## 🏗️ Architecture
-
-### Frontend
-- **Framework**: React with TypeScript
-- **State Management**: React Query for server state
-- **UI Components**: Custom components with responsive design
-- **Real-time Updates**: Supabase real-time subscriptions
-- **Routing**: React Router for navigation
-- **Form Handling**: React Hook Form with validation
-- **Shared User Activity Hook**: `useUserStockActivity` provides a DRY, consistent way to fetch a user's stock-in and stock-out submissions for both the dashboard and "My Submissions" page.
-
-### Backend (Supabase)
-- **Database**: PostgreSQL with Row Level Security
-- **Authentication**: Supabase Auth
-- **Real-time**: Supabase Realtime
-- **Storage**: Supabase Storage for documents
-- **API**: RESTful endpoints with RLS policies
-
-### Database Schema
-```mermaid
-erDiagram
-    profiles ||--o{ inventory : manages
-    profiles ||--o{ stock_in : creates
-    profiles ||--o{ stock_out : creates
-    warehouses ||--o{ warehouse_locations : contains
-    warehouse_locations ||--o{ inventory : stores
-    products ||--o{ inventory : has
-    stock_in ||--o{ stock_in_details : contains
-    stock_out ||--o{ stock_out_details : contains
-    batch_operations ||--o{ batch_inventory_items : processes
-    inventory ||--o{ stock_movement_audit : tracks
+---
+## 📂 Project structure
+```
+├─ src/
+│  ├─ components/            # Re-usable UI & feature components
+│  ├─ hooks/                 # React-Query data hooks
+│  ├─ layouts/               # Route layouts
+│  ├─ pages/                 # Route-level pages
+│  ├─ integrations/supabase/ # Supabase client & generated types
+│  ├─ utils/                 # Helpers (barcodeUtils, formatters…)
+│  └─ ...
+├─ supabase/
+│  └─ functions/             # Edge functions (Deno)
+│     └─ stock_in_process.ts # Atomic stock-in transaction
+├─ migrations/               # SQL migrations
+└─ README.md
 ```
 
-## 🛠️ Setup & Installation
-
-### Prerequisites
-- Node.js (v16 or higher)
-- Docker Desktop
-- Supabase CLI
-- Git
-
-### Local Development Setup
-1. Clone the repository:
+---
+## 🛠️ Setup
+1. **Clone & install**
    ```bash
-   git clone [repository-url]
+   git clone https://github.com/your-org/agile-warehouse-ui
    cd agile-warehouse-ui
+   npm i
    ```
-
-2. Install dependencies:
+2. **Environment variables** – copy & fill `.env.local`:
    ```bash
-   npm install
+   VITE_SUPABASE_URL=https://<project>.supabase.co
+   VITE_SUPABASE_ANON_KEY=<public anon key>
    ```
-
-3. Set up environment variables:
-   Create a `.env` file with:
-   ```
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
-
-4. Start local Supabase:
-   ```bash
-   supabase start
-   ```
-
-5. Apply database migrations:
-   ```bash
-   supabase db reset
-   ```
-
-6. Start the development server:
+3. **Start dev server**
    ```bash
    npm run dev
    ```
+4. **Storybook (optional)**
+   ```bash
+   npm run storybook
+   ```
 
-## 📦 Database Schema Details
+---
+## 🔌 Supabase backend
+Project ref: `kysvcexqmywyrawakwfs`
 
-### Core Tables
-- **profiles**: User profiles and roles
-- **warehouses**: Warehouse information
-- **warehouse_locations**: Storage locations within warehouses
-- **products**: Product catalog
-- **inventory**: Current stock levels
-- **stock_in**: Stock receipt records
-- **stock_in_details**: Stock receipt line items
-- **stock_out**: Stock issue records
-- **stock_out_details**: Stock issue line items
+### Tables (simplified)
+| Table              | Purpose                                   |
+|--------------------|-------------------------------------------|
+| `stock_in`         | Stock-in requests (submitted by mobile)   |
+| `processed_batches`| Header rows per warehouse/location batch  |
+| `batch_items`      | Box-level rows per batch                  |
+| `stock_in_details` | Legacy/parallel box rows                  |
+| `inventory`        | Current inventory (box level)             |
 
-### Audit & Processing
-- **stock_movement_audit**: Tracks all inventory changes
-- **batch_operations**: Manages bulk operations
-- **batch_inventory_items**: Links batch operations to inventory
+### Edge Function
+`supabase/functions/stock_in_process.ts`
+* Accepts JSON payload `{ run_id, stock_in_id, user_id, batches[] }`.
+* Runs **all inserts in a single transaction** – rollback on failure.
+* Idempotent via unique `client_run_id`.
 
-### Security
-- Row Level Security (RLS) policies for all tables
-- Role-based access control
-- Audit trail for all operations
-
-## 🔄 Data Flow
-
-### Stock In Process
-1. Field Operator creates stock in record
-2. Warehouse Manager reviews and approves
-3. Inventory is updated automatically
-4. Audit trail is created
-
-### Stock Out Process
-1. Field Operator creates stock out request
-2. Warehouse Manager approves
-3. Inventory is reduced
-4. Audit record is created
-
-### Batch Operations
-1. Create batch operation
-2. Add items to batch
-3. Process batch
-4. Update inventory automatically
-5. Create audit records
-
-## 🧪 Testing
-
-### Frontend Testing
-- Unit tests for components
-- Integration tests for workflows
-- E2E tests for critical paths
-
-### Backend Testing
-- Database function tests
-- RLS policy tests
-- Trigger tests
-
-## 📚 API Documentation
-
-### Authentication
-- JWT-based authentication
-- Role-based access control
-- Session management
-
-### Real-time Subscriptions
-- Inventory updates
-- Stock movement notifications
-- Batch operation status
-
-## 🔒 Security Features
-
-- Row Level Security (RLS)
-- Role-based access control
-- Audit logging
-- Input validation
-- XSS protection
-- CSRF protection
-
-## 🚀 Deployment
-
-### Frontend Deployment
-- Build process
-- Environment configuration
-- CDN setup
-
-### Backend Deployment
-- Supabase project setup
-- Database migrations
-- Security policies
-
-## 📝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🤝 Support
-
-For support, please open an issue in the repository or contact the development team.
-
-## 🧑‍💻 Developer Notes
-
-### Shared User Stock Activity Hook
-
-A single hook, `useUserStockActivity`, is used to fetch both stock-in and stock-out submissions for the current user. This ensures that the "My Submissions" page and the field operator dashboard's recent activity table always show consistent, up-to-date data.
-
-**Usage Example:**
-```ts
-import { useUserStockActivity } from '@/hooks/useUserStockActivity';
-
-const { data, isLoading } = useUserStockActivity(userId, { limit: 5 });
-// data.stockIn and data.stockOut are arrays of recent submissions
+Helper SQL (added via `migrations/add_tx_helpers.sql`)
+```sql
+create or replace function begin_transaction() returns void …
+create or replace function commit_transaction() returns void …
+create or replace function rollback_transaction() returns void …
 ```
-- Use with or without a `limit` parameter for full history or recent activity.
-- Automatically refetches every 5 seconds for real-time updates.
 
-### Why?
-- **DRY principle:** No duplicate query logic between dashboard and submissions page.
-- **Consistency:** All user-facing tables show the same data for the same user.
-- **Easy maintenance:** Update the hook to change logic everywhere at once.
+---
+## 🖥️ Key Features
+### 1 · Stock-In Wizard
+Multi-step dialog for processing stock-in requests:
+1. **Review** – read-only summary.
+2. **Batches** – assign boxes → batches; generate barcodes.
+3. **Finalize** – preview all barcodes, print & submit.
+
+On submit the UI calls the Edge Function; if the call fails it gracefully falls back to the older client-side loop.
+
+### 2 · Barcode Generator & Scanner
+* **/admin/barcodes** – generate, preview, print CODE-128 barcodes.
+* **Scanner** uses `quaggaJS` for live camera scanning and `useBarcodeProcessor` for look-ups.
+
+### 3 · Inventory Dashboard
+List of boxes with live quantity, warehouse & zone; per-row print icon opens `BarcodePrinter` modal.
+
+---
+## 💻 Scripts
+| command            | description                 |
+|--------------------|-----------------------------|
+| `npm run dev`      | Vite development server     |
+| `npm run build`    | Production build            |
+| `npm run lint`     | ESLint + Prettier           |
+| `npm run storybook`| Component playground        |
+
+---
+## 🧑‍💻 Coding standards
+* **Type safety** – no `any`; generated Supabase types.
+* **React-Query** for data fetching (`src/hooks`).
+* **shadcn/ui** for consistent design tokens.
+* Components ≤ 300 lines; split otherwise.
+* Follow the detailed standards in `.vscode/…` & the custom instructions at the top of this README.
+
+---
+## 🔒 Auth flow
+* Supabase email-link login.
+* `AuthProvider` stores session; `RequireAuth` guards private routes.
+* Edge Functions verify JWT via `Authorization: Bearer <token>` header.
+
+---
+## 🧪 Testing
+* **Vitest** for unit tests (`npm t`).
+* **React Testing Library** for component tests.
+* Critical flows (stock-in, print) covered by Cypress e2e (see `cypress/`).
+
+---
+## 🚀 CI / CD
+* **GitHub Actions** – lint, test, build on pull-request.
+* On `main` push: builds & deploys Vercel preview, triggers Supabase function deploy via `supabase functions deploy`.
+
+---
+## 📜 License
+MIT © Agile Warehouse

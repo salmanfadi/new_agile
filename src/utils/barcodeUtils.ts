@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabase';
 
@@ -68,9 +67,17 @@ export const generateBarcodeString = async (
       .eq('barcode', barcode)
       .limit(1);
     
+    // Check stock_in_details table (to avoid conflicts on unique constraint)
+    const { data: detailsData } = await supabase
+      .from('stock_in_details')
+      .select('barcode')
+      .eq('barcode', barcode)
+      .limit(1);
+    
     // If barcode exists in either table, generate a new one
     if ((inventoryData && inventoryData.length > 0) || 
-        (batchItemsData && batchItemsData.length > 0)) {
+        (batchItemsData && batchItemsData.length > 0) ||
+        (detailsData && detailsData.length > 0)) {
       // Generate new batch ID for uniqueness
       const newBatchId = uuidv4().substring(0, 8);
       const newParts = [

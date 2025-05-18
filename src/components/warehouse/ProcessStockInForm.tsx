@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
@@ -77,7 +76,7 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1200px] max-h-[95vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1200px] h-[90vh] overflow-hidden flex flex-col">
         {stockIn && userId ? (
           <>
             <DialogHeader>
@@ -90,12 +89,14 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
               </DialogDescription>
             </DialogHeader>
             
+            <div className="flex-1 overflow-y-auto py-4">
             <StockInWizard 
               stockIn={stockIn}
               userId={userId}
               onComplete={handleWizardComplete}
               onCancel={() => onOpenChange(false)}
             />
+            </div>
           </>
         ) : (
           <div className="py-8 text-center">
