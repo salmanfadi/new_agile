@@ -105,11 +105,9 @@ export const useProcessedBatchesWithItems = ({
             }
           }
           
-          // Handle profiles data
-          if (batch.profiles && typeof batch.profiles === 'object') {
-            if (batch.profiles !== null) {
-              processorName = typeof batch.profiles.name === 'string' ? batch.profiles.name : 'Unknown User';
-            }
+          // Handle profiles data with null safety
+          if (batch.profiles && typeof batch.profiles === 'object' && batch.profiles !== null) {
+            processorName = typeof batch.profiles.name === 'string' ? batch.profiles.name : 'Unknown User';
           }
           
           // Handle warehouses data
