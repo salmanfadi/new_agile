@@ -24,6 +24,15 @@ export interface BatchFormData {
   size: string;
 }
 
+export interface BoxMetadata {
+  barcode: string;
+  weight?: number;
+  width?: number;
+  height?: number;
+  length?: number;
+  remarks?: string;
+}
+
 export interface ProcessedBatch {
   id?: string;
   product_id: string;
@@ -40,6 +49,7 @@ export interface ProcessedBatch {
   warehouseLocation?: WarehouseLocation;
   submitter?: Profile;
   created_at?: string;
+  boxes?: BoxMetadata[];
 }
 
 export interface StockInBatchSubmission {
@@ -50,3 +60,5 @@ export interface StockInBatchSubmission {
   submittedBy: string;
   batches: BatchData[];
 }
+
+export type StockInProcessingStage = 'batch-creation' | 'barcode-assignment' | 'overview';

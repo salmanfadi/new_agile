@@ -9,6 +9,15 @@ export interface StockInBox {
   size?: string;
   warehouse: string;  // This is the warehouse_id
   location: string;   // This is the location_id
+  metadata?: {
+    weight?: number;
+    dimensions?: {
+      width?: number;
+      height?: number;
+      length?: number;
+    };
+    remarks?: string;
+  };
 }
 
 export const processStockIn = async (stockInId: string, boxes: StockInBox[], userId: string) => {
@@ -56,7 +65,8 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
           quantity: box.quantity, 
           color: box.color,
           size: box.size,
-          product_id: stockInData.product_id
+          product_id: stockInData.product_id,
+          metadata: box.metadata || {}
         })
         .select()
         .single();
@@ -88,25 +98,26 @@ export const processStockIn = async (stockInId: string, boxes: StockInBox[], use
           barcode: box.barcode,
           color: box.color,
           size: box.size,
-          stock_in_detail_id: detail.id
+          stock_in_detail_id: detail.id,
+          metadata: box.metadata
         }
       );
     }
     
-    // Mark the stock_in as completed
-    const { error: completeError } = await supabase
+    // Mark the stock_in as processing but not completed yet
+    // Final completion will happen after barcode assignment
+    const { error: processingError } = await supabase
       .from('stock_in')
       .update({ 
-        status: 'completed',
-        processing_completed_at: new Date().toISOString()
+        status: 'processing'
       })
       .eq('id', stockInId);
       
-    if (completeError) {
-      throw completeError;
+    if (processingError) {
+      throw processingError;
     }
     
-    return { success: true, message: 'Stock in processed successfully' };
+    return { success: true, message: 'Stock in processing started' };
   } catch (error) {
     console.error('Error processing stock in:', error);
     

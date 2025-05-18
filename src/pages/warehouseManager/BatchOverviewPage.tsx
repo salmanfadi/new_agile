@@ -11,6 +11,7 @@ import { useStockInData } from '@/hooks/useStockInData';
 import { LoadingState } from '@/components/warehouse/LoadingState';
 import { ErrorState } from '@/components/warehouse/ErrorState';
 import { Badge } from '@/components/ui/badge';
+import BarcodePreview from '@/components/warehouse/BarcodePreview';
 
 const BatchOverviewPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId: string }>();
@@ -21,6 +22,8 @@ const BatchOverviewPage: React.FC = () => {
   const [focusedBatchId, setFocusedBatchId] = useState<string | null>(
     state?.batchId || null
   );
+  
+  const [showAllBarcodes, setShowAllBarcodes] = useState(false);
   
   const { data: batches, isLoading, error, isError } = useStockInBatches(stockInId);
   const { stockInData, isLoadingStockIn, error: stockInError } = useStockInData(stockInId);
@@ -54,6 +57,23 @@ const BatchOverviewPage: React.FC = () => {
   const handleViewBarcodes = (batchId: string) => {
     navigate(`/manager/inventory/barcodes/${batchId}`);
   };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Count total boxes across all batches
+  const totalBoxes = batches?.reduce((acc, batch) => {
+    return acc + (batch.boxes_count || 0);
+  }, 0) || 0;
+
+  // Get all unique barcodes across all batches
+  const allBarcodes = batches?.reduce((acc, batch) => {
+    if (batch.barcodes) {
+      acc.push(...batch.barcodes);
+    }
+    return acc;
+  }, [] as string[]) || [];
 
   return (
     <div className="space-y-6">
@@ -105,6 +125,10 @@ const BatchOverviewPage: React.FC = () => {
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Product</p>
                     <p>{stockInData.product?.name}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">SKU</p>
+                    <p>{stockInData.product?.sku || 'N/A'}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Total Boxes</p>
@@ -207,6 +231,61 @@ const BatchOverviewPage: React.FC = () => {
               )}
             </CardContent>
           </Card>
+          
+          {/* All Barcodes Section */}
+          {batches && batches.length > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Barcodes</CardTitle>
+                  <CardDescription>
+                    {`${allBarcodes.length} barcodes across all batches`}
+                  </CardDescription>
+                </div>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowAllBarcodes(!showAllBarcodes)}
+                    className="print:hidden"
+                  >
+                    {showAllBarcodes ? "Hide Barcodes" : "Show All Barcodes"}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={handlePrint}
+                    className="print:hidden"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print All
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {showAllBarcodes && allBarcodes.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 print:grid-cols-2">
+                    {allBarcodes.map((barcode, index) => (
+                      <div key={barcode} className="border rounded-lg p-4 print:break-inside-avoid">
+                        <BarcodePreview 
+                          barcode={barcode} 
+                          height={80} 
+                        />
+                        <div className="mt-2 text-center">
+                          <p className="text-xs font-mono mt-1">{barcode}</p>
+                          <p className="text-xs text-muted-foreground">Box {index + 1} of {allBarcodes.length}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {!showAllBarcodes && (
+                  <div className="text-center py-8">
+                    <p>Click "Show All Barcodes" to view and print barcodes for all boxes.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>
