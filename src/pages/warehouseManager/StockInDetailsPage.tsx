@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,12 +24,12 @@ interface StockInRequestDetails {
   notes?: string;
   submitted_by: string;
   submitter?: {
-    name: string; // Make this non-optional to match StockInData interface requirements
+    name: string;
     username?: string;
   };
   product: {
     id: string;
-    name: string; // Make this non-optional to match StockInData interface requirements
+    name: string;
     sku?: string;
   };
   processed_by?: string;
@@ -81,7 +82,7 @@ const StockInDetailsPage: React.FC = () => {
       setError(null);
       
       try {
-        // Fix: Use specific column names to avoid ambiguity with profiles table
+        // Use specific column name aliases to avoid ambiguity
         const { data, error } = await supabase
           .from('stock_in')
           .select(`
@@ -91,7 +92,7 @@ const StockInDetailsPage: React.FC = () => {
               name,
               sku
             ),
-            submitter:profiles!stock_in_submitted_by_fkey (
+            submitter_profile:profiles!stock_in_submitted_by_fkey (
               id,
               name,
               username
@@ -109,8 +110,34 @@ const StockInDetailsPage: React.FC = () => {
         }
         
         // Format the data with proper null checks
-        const submitterData = data.submitter && typeof data.submitter === 'object' ? data.submitter : null;
-        const productsData = data.products && typeof data.products === 'object' ? data.products : null;
+        let submitterObj = { name: 'Unknown', username: undefined };
+        let productsObj = { id: '', name: 'Unknown Product', sku: undefined };
+        
+        // Safe access to submitter data
+        if (data.submitter_profile && typeof data.submitter_profile === 'object') {
+          if ('name' in data.submitter_profile && data.submitter_profile.name) {
+            submitterObj.name = String(data.submitter_profile.name);
+          }
+          
+          if ('username' in data.submitter_profile && data.submitter_profile.username) {
+            submitterObj.username = String(data.submitter_profile.username);
+          }
+        }
+        
+        // Safe access to product data
+        if (data.products && typeof data.products === 'object') {
+          if ('id' in data.products && data.products.id) {
+            productsObj.id = String(data.products.id);
+          }
+          
+          if ('name' in data.products && data.products.name) {
+            productsObj.name = String(data.products.name);
+          }
+          
+          if ('sku' in data.products && data.products.sku) {
+            productsObj.sku = String(data.products.sku);
+          }
+        }
         
         // Format the data
         const formattedData: StockInRequestDetails = {
@@ -122,15 +149,8 @@ const StockInDetailsPage: React.FC = () => {
           source: data.source || '',
           notes: data.notes,
           submitted_by: data.submitted_by,
-          submitter: {
-            name: submitterData && 'name' in submitterData ? String(submitterData.name) : 'Unknown',
-            username: submitterData && 'username' in submitterData ? String(submitterData.username) : undefined
-          },
-          product: {
-            id: productsData && 'id' in productsData ? String(productsData.id) : '',
-            name: productsData && 'name' in productsData ? String(productsData.name) : 'Unknown Product',
-            sku: productsData && 'sku' in productsData ? String(productsData.sku) : undefined
-          },
+          submitter: submitterObj,
+          product: productsObj,
           processed_by: data.processed_by,
           processing_started_at: data.processing_started_at,
           processing_completed_at: data.processing_completed_at,
@@ -190,7 +210,7 @@ const StockInDetailsPage: React.FC = () => {
         // Format the detail items
         const formattedDetails: StockInDetailItem[] = data.map(item => {
           // Create location name from floor and zone if available
-          let locationName;
+          let locationName: string | undefined;
           if (item.warehouse_locations && 
               typeof item.warehouse_locations === 'object' &&
               'floor' in item.warehouse_locations &&
@@ -198,8 +218,10 @@ const StockInDetailsPage: React.FC = () => {
             locationName = `Floor ${item.warehouse_locations.floor}, Zone ${item.warehouse_locations.zone}`;
           }
           
-          const warehouseObject = item.warehouses && typeof item.warehouses === 'object' ? item.warehouses : null;
-          const warehouseName = warehouseObject && 'name' in warehouseObject ? String(warehouseObject.name) : undefined;
+          let warehouseName: string | undefined;
+          if (item.warehouses && typeof item.warehouses === 'object' && 'name' in item.warehouses) {
+            warehouseName = String(item.warehouses.name);
+          }
           
           const detailObj: StockInDetailItem = {
             id: item.id,
@@ -215,22 +237,22 @@ const StockInDetailsPage: React.FC = () => {
             status: item.status,
             created_at: item.created_at,
             inventory_id: item.inventory_id,
-            product_id: item.product_id
+            product_id: item.product_id,
+            product: {
+              id: '',
+              name: 'Unknown Product'
+            }
           };
           
           // Safely extract product information
-          const productObject = item.products && typeof item.products === 'object' ? item.products : null;
-              
-          if (productObject) {
-            detailObj.product = {
-              id: productObject.id ? String(productObject.id) : '',
-              name: productObject.name ? String(productObject.name) : 'Unknown Product'
-            };
-          } else {
-            detailObj.product = {
-              id: '',
-              name: 'Unknown Product'
-            };
+          if (item.products && typeof item.products === 'object') {
+            if ('id' in item.products && item.products.id) {
+              detailObj.product.id = String(item.products.id);
+            }
+            
+            if ('name' in item.products && item.products.name) {
+              detailObj.product.name = String(item.products.name);
+            }
           }
           
           return detailObj;
@@ -392,12 +414,12 @@ const StockInDetailsPage: React.FC = () => {
                 {getStatusIndicator()}
               </CardTitle>
               <CardDescription>
-                Submitted on {stockInData.created_at ? format(new Date(stockInData.created_at), 'MMMM d, yyyy') : 'Unknown date'}
+                Submitted on {stockInData?.created_at ? format(new Date(stockInData.created_at), 'MMMM d, yyyy') : 'Unknown date'}
               </CardDescription>
             </div>
             
             {/* Conditionally render continue button for processing requests */}
-            {stockInData.status === 'processing' && continueProcessingUrl && (
+            {stockInData?.status === 'processing' && continueProcessingUrl && (
               <Button 
                 onClick={handleContinueProcessing}
                 className="w-full md:w-auto"

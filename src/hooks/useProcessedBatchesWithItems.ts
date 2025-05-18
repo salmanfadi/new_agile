@@ -92,29 +92,48 @@ export const useProcessedBatchesWithItems = ({
         
         const batches: ProcessedBatchWithItems[] = (data || []).map(batch => {
           // Handle possible null values with type checks
-          const profiles = batch.profiles && typeof batch.profiles === 'object' ? batch.profiles : null;
           const products = batch.products && typeof batch.products === 'object' ? batch.products : null;
+          const profiles = batch.profiles && typeof batch.profiles === 'object' ? batch.profiles : null;
           const warehouses = batch.warehouses && typeof batch.warehouses === 'object' ? batch.warehouses : null;
           
-          // Fix: Check products is not null before accessing name property
-          // Using type assertion with safeguards to ensure properties exist
-          const productName = products && 'name' in products && products.name !== null 
-            ? String(products.name) 
-            : 'Unknown Product';
+          // Default values for product information
+          let productName = 'Unknown Product';
+          let productSku: string | undefined = undefined;
+          
+          // Check products exists and has the expected structure
+          if (products) {
+            // Type guard for products.name
+            if ('name' in products && products.name !== null && products.name !== undefined) {
+              productName = String(products.name);
+            }
             
-          const productSku = products && 'sku' in products && products.sku !== null
-            ? String(products.sku)
-            : undefined;
+            // Type guard for products.sku
+            if ('sku' in products && products.sku !== null && products.sku !== undefined) {
+              productSku = String(products.sku);
+            }
+          }
           
-          // Fix: Check profiles is not null before accessing name property
-          const processorName = profiles && 'name' in profiles && profiles.name !== null
-            ? String(profiles.name)
-            : 'Unknown User';
+          // Default value for processor name
+          let processorName = 'Unknown User';
           
-          // Fix: Check warehouses is not null before accessing name property
-          const warehouseName = warehouses && 'name' in warehouses && warehouses.name !== null
-            ? String(warehouses.name)
-            : 'Unknown Warehouse';
+          // Check profiles exists and has the expected structure
+          if (profiles) {
+            // Type guard for profiles.name
+            if ('name' in profiles && profiles.name !== null && profiles.name !== undefined) {
+              processorName = String(profiles.name);
+            }
+          }
+          
+          // Default value for warehouse name
+          let warehouseName = 'Unknown Warehouse';
+          
+          // Check warehouses exists and has the expected structure
+          if (warehouses) {
+            // Type guard for warehouses.name
+            if ('name' in warehouses && warehouses.name !== null && warehouses.name !== undefined) {
+              warehouseName = String(warehouses.name);
+            }
+          }
           
           return {
             id: batch.id,

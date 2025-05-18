@@ -69,27 +69,34 @@ const BatchDetailsPage = () => {
 
       if (!data) return null;
 
-      // Handle possible null values with proper type checking
-      const products = data.products && typeof data.products === 'object' ? data.products : null;
-      const profiles = data.profiles && typeof data.profiles === 'object' ? data.profiles : null;
-      const warehouses = data.warehouses && typeof data.warehouses === 'object' ? data.warehouses : null;
+      // Default values
+      let productName = 'Unknown Product';
+      let productSku: string | undefined = undefined;
+      let processorName = 'Unknown User';
+      let warehouseName = 'Unknown Warehouse';
 
-      // Fix: Check if the object has the name property before accessing it
-      const productName = products && 'name' in products && products.name !== null
-        ? String(products.name)
-        : 'Unknown Product';
+      // Handle possible null values with proper type checking
+      if (data.products && typeof data.products === 'object') {
+        if ('name' in data.products && data.products.name !== null && data.products.name !== undefined) {
+          productName = String(data.products.name);
+        }
         
-      const productSku = products && 'sku' in products && products.sku !== null
-        ? String(products.sku)
-        : undefined;
-        
-      const processorName = profiles && 'name' in profiles && profiles.name !== null
-        ? String(profiles.name)
-        : 'Unknown User';
-        
-      const warehouseName = warehouses && 'name' in warehouses && warehouses.name !== null
-        ? String(warehouses.name)
-        : 'Unknown Warehouse';
+        if ('sku' in data.products && data.products.sku !== null && data.products.sku !== undefined) {
+          productSku = String(data.products.sku);
+        }
+      }
+      
+      if (data.profiles && typeof data.profiles === 'object') {
+        if ('name' in data.profiles && data.profiles.name !== null && data.profiles.name !== undefined) {
+          processorName = String(data.profiles.name);
+        }
+      }
+      
+      if (data.warehouses && typeof data.warehouses === 'object') {
+        if ('name' in data.warehouses && data.warehouses.name !== null && data.warehouses.name !== undefined) {
+          warehouseName = String(data.warehouses.name);
+        }
+      }
 
       return {
         id: data.id,
