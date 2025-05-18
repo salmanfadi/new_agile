@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -155,8 +154,8 @@ function App() {
                 <Route path="/admin/products" element={<ProductManagement />} />
                 <Route path="/admin/warehouses" element={<WarehouseManagement />} />
                 <Route path="/admin/users" element={<UsersManagement />} />
-                <Route path="/admin/inventory" element={<InventoryView />} />
-                <Route path="/admin/inventory/batch/:batchId" element={<BatchInventoryPage />} />
+                <Route path="/admin/inventory" element={<AdminEnhancedInventoryView />} />
+                <Route path="/admin/inventory/batch/:batchId" element={<BatchDetailsPage />} />
                 <Route path="/admin/inventory/barcode/:barcodeId" element={<BarcodeInventoryPage />} />
                 <Route path="/admin/barcodes" element={<BarcodeManagement />} />
                 <Route path="/admin/sales-inquiries" element={<SalesInquiries />} />
