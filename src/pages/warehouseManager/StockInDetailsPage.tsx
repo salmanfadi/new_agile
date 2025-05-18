@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -311,18 +310,14 @@ const StockInDetailsPage: React.FC = () => {
               location_id: item.location_id
             };
             
-            // Then conditionally add the product if it exists and is valid
+            // Handle the product object safely
             if (item.product && typeof item.product === 'object' && !('error' in item.product)) {
-              // Now we know it's a valid product object with id and name properties
-              // Additional null check to satisfy TypeScript
-              if (item.product !== null) {
-                // Safely access properties with null/undefined checks and defaults
-                const productId = item.product?.id || '';
-                const productName = item.product?.name || 'Unknown Product';
-                
+              const productObject = item.product as { id?: string; name?: string } | null;
+              
+              if (productObject) {
                 detailObj.product = {
-                  id: productId,
-                  name: productName
+                  id: productObject.id || '',
+                  name: productObject.name || 'Unknown Product'
                 };
               } else {
                 detailObj.product = null;
@@ -417,4 +412,3 @@ const StockInDetailsPage: React.FC = () => {
 };
 
 export default StockInDetailsPage;
-
