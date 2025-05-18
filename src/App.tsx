@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -167,6 +168,7 @@ function App() {
                 <Route path="/admin/stock-in/batch/:stockInId" element={<BatchStockInPage />} />
                 <Route path="/admin/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />
                 <Route path="/admin/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
+                <Route path="/admin/stock-in/:stockInId/unified" element={<AdminUnifiedBatchProcessingPage />} />
                 
                 {/* Report Routes */}
                 <Route path="/admin/reports" element={<ReportsDashboard />} />
@@ -201,13 +203,7 @@ function App() {
                 <Route path="/manager/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
                 
                 {/* Add unified batch processing routes */}
-                <Route path="/manager/stock-in/unified/:stockInId" element={
-                  <RequireAuth allowedRoles={["warehouse_manager"]}>
-                    <MainLayout>
-                      <UnifiedBatchProcessingPage />
-                    </MainLayout>
-                  </RequireAuth>
-                } />
+                <Route path="/manager/stock-in/:stockInId/unified" element={<UnifiedBatchProcessingPage />} />
               </Route>
               
               {/* Field Operator Routes */}

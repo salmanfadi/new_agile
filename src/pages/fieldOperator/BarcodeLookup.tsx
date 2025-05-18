@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScanResponse } from '@/types/auth';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import ScanDataDisplay from '@/components/barcode/ScanDataDisplay';
@@ -27,10 +27,9 @@ const BarcodeLookup: React.FC = () => {
     }
   });
 
-  // For demonstration, navigate to inventory with the box_id as a search parameter
   const viewInInventory = () => {
     if (lastScan) {
-      navigate(`/operator/submissions?search=${lastScan.box_id}`);
+      navigate(`/field/submissions?search=${lastScan.box_id}`);
     }
   };
   
@@ -39,12 +38,27 @@ const BarcodeLookup: React.FC = () => {
     processScan(barcode);
   };
 
+  const goBackToDashboard = () => {
+    navigate('/field');
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title="Barcode Lookup" 
-        description="Scan barcodes to view product information and location details"
-      />
+      <div className="flex items-center">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={goBackToDashboard} 
+          className="mr-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Dashboard
+        </Button>
+        <PageHeader 
+          title="Barcode Lookup" 
+          description="Scan barcodes to view product information and location details"
+        />
+      </div>
       
       <div className="max-w-3xl mx-auto">
         {/* Barcode scanning tips */}

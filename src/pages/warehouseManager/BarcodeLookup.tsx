@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
-import { Printer, AlertCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Printer, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -15,6 +15,7 @@ import ScanDataDisplay from '@/components/barcode/ScanDataDisplay';
 const ManagerBarcodeLookup: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [lastScan, setLastScan] = useState<ScanResponse['data'] | null>(null);
   
   const { processScan, loading, error, scanData } = useBarcodeProcessor({
@@ -31,14 +32,26 @@ const ManagerBarcodeLookup: React.FC = () => {
     processScan(barcode);
   };
 
+  const goBackToDashboard = () => {
+    navigate('/manager');
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title="Warehouse Barcode Lookup" 
-        description="Scan barcodes to view detailed product and inventory information"
-      />
-      
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center justify-between">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={goBackToDashboard}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Dashboard
+        </Button>
+        <PageHeader 
+          title="Warehouse Barcode Lookup" 
+          description="Scan barcodes to view detailed product and inventory information"
+        />
+        
         <Button asChild>
           <Link to="/manager/barcodes">
             <Printer className="mr-2 h-4 w-4" />

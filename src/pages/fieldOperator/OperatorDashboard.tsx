@@ -182,7 +182,7 @@ const OperatorDashboard = () => {
               </Button>
               <Button 
                 variant="outline"
-                onClick={() => navigate('/field/barcode-lookup')}
+                onClick={() => navigate('/field/barcode')}
                 className="w-full flex items-center justify-center gap-2"
               >
                 <BarcodeIcon className="h-4 w-4" />
