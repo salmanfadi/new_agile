@@ -90,22 +90,29 @@ export const useProcessedBatchesWithItems = ({
           .from('processed_batches')
           .select('*', { count: 'exact', head: true });
         
-        const batches: ProcessedBatchWithItems[] = (data || []).map(batch => ({
-          id: batch.id,
-          stock_in_id: batch.stock_in_id,
-          product_id: batch.product_id,
-          product_name: batch.products?.name || 'Unknown Product',
-          product_sku: batch.products?.sku,
-          processed_by: batch.processed_by,
-          processor_name: batch.profiles?.name || 'Unknown User',
-          total_quantity: batch.total_quantity || 0,
-          total_boxes: batch.total_boxes || 0,
-          warehouse_id: batch.warehouse_id,
-          warehouse_name: batch.warehouses?.name || 'Unknown Warehouse',
-          status: batch.status || 'completed',
-          processed_at: batch.processed_at || new Date().toISOString(),
-          itemCount: batch.batch_items_count?.length || 0
-        }));
+        const batches: ProcessedBatchWithItems[] = (data || []).map(batch => {
+          // Handle possible null values with type checks
+          const profiles = batch.profiles && typeof batch.profiles === 'object' ? batch.profiles : null;
+          const products = batch.products && typeof batch.products === 'object' ? batch.products : null;
+          const warehouses = batch.warehouses && typeof batch.warehouses === 'object' ? batch.warehouses : null;
+          
+          return {
+            id: batch.id,
+            stock_in_id: batch.stock_in_id,
+            product_id: batch.product_id,
+            product_name: products?.name || 'Unknown Product',
+            product_sku: products?.sku,
+            processed_by: batch.processed_by,
+            processor_name: profiles?.name || 'Unknown User',
+            total_quantity: batch.total_quantity || 0,
+            total_boxes: batch.total_boxes || 0,
+            warehouse_id: batch.warehouse_id,
+            warehouse_name: warehouses?.name || 'Unknown Warehouse',
+            status: batch.status || 'completed',
+            processed_at: batch.processed_at || new Date().toISOString(),
+            itemCount: batch.batch_items_count?.length || 0
+          };
+        });
         
         return {
           batches,

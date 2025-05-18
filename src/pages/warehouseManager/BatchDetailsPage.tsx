@@ -69,18 +69,23 @@ const BatchDetailsPage = () => {
 
       if (!data) return null;
 
+      // Handle possible null values with proper type checking
+      const products = data.products && typeof data.products === 'object' ? data.products : null;
+      const profiles = data.profiles && typeof data.profiles === 'object' ? data.profiles : null;
+      const warehouses = data.warehouses && typeof data.warehouses === 'object' ? data.warehouses : null;
+
       return {
         id: data.id,
         stock_in_id: data.stock_in_id,
         product_id: data.product_id,
-        productName: data.products?.name || 'Unknown Product',
-        productSku: data.products?.sku,
+        productName: products?.name || 'Unknown Product',
+        productSku: products?.sku,
         processed_by: data.processed_by,
-        processorName: data.profiles?.name || 'Unknown User',
+        processorName: profiles?.name || 'Unknown User',
         total_quantity: data.total_quantity || 0,
         total_boxes: data.total_boxes || 0,
         warehouse_id: data.warehouse_id,
-        warehouseName: data.warehouses?.name || 'Unknown Warehouse',
+        warehouseName: warehouses?.name || 'Unknown Warehouse',
         status: data.status || 'completed',
         notes: data.notes,
         source: data.source,

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -311,7 +310,7 @@ const StockInDetailsPage: React.FC = () => {
               location_id: item.location_id
             };
             
-            // Handle the product object safely
+            // Handle the product object safely with proper type checking
             if (item.product && typeof item.product === 'object' && !('error' in item.product)) {
               const productObject = item.product as { id?: string; name?: string } | null;
               
