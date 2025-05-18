@@ -75,26 +75,25 @@ const BatchDetailsPage = () => {
       let processorName = 'Unknown User';
       let warehouseName = 'Unknown Warehouse';
 
-      // Handle possible null values with proper type checking
+      // Handle products data with proper type checking
       if (data.products && typeof data.products === 'object') {
-        if ('name' in data.products && data.products.name !== null && data.products.name !== undefined) {
-          productName = String(data.products.name);
-        }
-        
-        if ('sku' in data.products && data.products.sku !== null && data.products.sku !== undefined) {
-          productSku = String(data.products.sku);
+        if (data.products !== null) {
+          productName = typeof data.products.name === 'string' ? data.products.name : 'Unknown Product';
+          productSku = typeof data.products.sku === 'string' ? data.products.sku : undefined;
         }
       }
       
+      // Handle profiles data with proper type checking
       if (data.profiles && typeof data.profiles === 'object') {
-        if ('name' in data.profiles && data.profiles.name !== null && data.profiles.name !== undefined) {
-          processorName = String(data.profiles.name);
+        if (data.profiles !== null) {
+          processorName = typeof data.profiles.name === 'string' ? data.profiles.name : 'Unknown User';
         }
       }
       
+      // Handle warehouses data with proper type checking
       if (data.warehouses && typeof data.warehouses === 'object') {
-        if ('name' in data.warehouses && data.warehouses.name !== null && data.warehouses.name !== undefined) {
-          warehouseName = String(data.warehouses.name);
+        if (data.warehouses !== null) {
+          warehouseName = typeof data.warehouses.name === 'string' ? data.warehouses.name : 'Unknown Warehouse';
         }
       }
 
