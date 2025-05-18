@@ -37,6 +37,13 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
     navigate(`${baseRoute}/inventory/batch/${batchId}`);
   };
   
+  // Add console logs to debug the component rendering
+  console.log("ProcessStockInForm rendering with:", {
+    open,
+    stockInData: stockIn,
+    userId
+  });
+  
   // If stockIn and userId exist, show the wizard
   if (stockIn && userId) {
     return (
@@ -62,6 +69,11 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
       </Dialog>
     );
   }
+
+  console.log("ProcessStockInForm not rendering wizard:", {
+    stockInMissing: !stockIn,
+    userIdMissing: !userId
+  });
 
   return null;
 }

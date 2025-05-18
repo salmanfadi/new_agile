@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,8 +14,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Box, AlertTriangle } from 'lucide-react';
 import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import ProcessStockInForm from './ProcessStockInForm';
+import { useToast } from '@/hooks/use-toast';
 
 interface StockInRequestsTableProps {
   status?: string;
@@ -34,6 +35,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
 }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   // State for the process form dialog
   const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
@@ -53,9 +55,29 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   // Handle process button click - Open the form dialog
   const handleProcess = (stockIn: StockInRequestData) => {
     console.log("Opening process form for stock in with ID:", stockIn.id);
+    
+    // Validate that userId is available
+    if (!userId) {
+      console.error("User ID is missing when trying to process stock in");
+      toast({
+        title: "Authentication error",
+        description: "Unable to identify the current user. Please try logging in again.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setSelectedStockIn(stockIn);
     setIsProcessFormOpen(true);
   };
+  
+  // Log when the dialog opens/closes
+  useEffect(() => {
+    console.log("Process dialog state changed:", { 
+      isOpen: isProcessFormOpen, 
+      selectedStockIn: selectedStockIn?.id
+    });
+  }, [isProcessFormOpen, selectedStockIn]);
   
   // Handle continue processing for requests that are already in processing status
   const handleContinueProcessing = (stockIn: StockInRequestData) => {
