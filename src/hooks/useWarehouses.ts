@@ -1,14 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
-interface Warehouse {
-  id: string;
-  name: string;
-  location?: string;
-  created_at: string;
-  updated_at: string;
-}
+import { Warehouse } from '@/types/database';
 
 export const useWarehouses = () => {
   const fetchWarehouses = async (): Promise<Warehouse[]> => {

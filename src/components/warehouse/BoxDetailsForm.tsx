@@ -10,12 +10,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { BoxData } from '@/hooks/useStockInBoxes';
-import { WarehouseLocation } from '@/types/database';
+import { Warehouse, WarehouseLocation } from '@/types/database';
 
 interface BoxDetailsFormProps {
   box: BoxData;
   index: number;
-  warehouses: any[] | undefined;
+  warehouses: Warehouse[] | undefined;
   warehouseLocations: WarehouseLocation[];
   updateBox: (index: number, data: Partial<BoxData>) => void;
 }

@@ -2,12 +2,12 @@
 import React from 'react';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { BoxDetailsForm } from './BoxDetailsForm';
-import { WarehouseLocation } from '@/types/database';
+import { Warehouse, WarehouseLocation } from '@/types/database';
 
 interface BoxesListProps {
   boxes: BoxData[];
   updateBox: (index: number, data: Partial<BoxData>) => void;
-  warehouses: any[] | undefined;
+  warehouses: Warehouse[] | undefined;
   warehouseLocations: WarehouseLocation[];
 }
 

@@ -1,15 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
-export interface WarehouseLocation {
-  id: string;
-  warehouse_id: string;
-  floor: number;
-  zone: string;
-  created_at: string;
-  updated_at: string;
-}
+import { WarehouseLocation } from '@/types/database';
 
 export const useWarehouseLocations = (warehouseId?: string) => {
   return useQuery({

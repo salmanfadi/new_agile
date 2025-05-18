@@ -8,8 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Warehouse } from '@/types/database';
-import { WarehouseLocation } from '@/types/database';
+import { Warehouse, WarehouseLocation } from '@/types/database';
 
 interface DefaultWarehouseSelectorProps {
   warehouses: Warehouse[] | undefined;

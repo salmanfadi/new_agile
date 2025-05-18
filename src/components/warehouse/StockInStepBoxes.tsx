@@ -5,19 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
-import { WarehouseLocation } from '@/types/database';
+import { Warehouse, WarehouseLocation } from '@/types/database';
 import { DefaultWarehouseSelector } from './DefaultWarehouseSelector';
 import { BoxesList } from './BoxesList';
 import { NavigationButtons } from './NavigationButtons';
-
-// Define a more specific type for the warehouse to match the database structure
-interface Warehouse {
-  id: string;
-  name: string;
-  location?: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
 
 interface StockInStepBoxesProps {
   stockIn: StockInRequestData;
