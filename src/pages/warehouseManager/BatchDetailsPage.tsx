@@ -81,11 +81,11 @@ const BatchDetailsPage = () => {
         productName: products?.name || 'Unknown Product',
         productSku: products?.sku,
         processed_by: data.processed_by,
-        processorName: profiles?.name || 'Unknown User',
+        processorName: profiles?.name ?? 'Unknown User', // Using nullish coalescing for null safety
         total_quantity: data.total_quantity || 0,
         total_boxes: data.total_boxes || 0,
         warehouse_id: data.warehouse_id,
-        warehouseName: warehouses?.name || 'Unknown Warehouse',
+        warehouseName: warehouses?.name ?? 'Unknown Warehouse', // Using nullish coalescing
         status: data.status || 'completed',
         notes: data.notes,
         source: data.source,

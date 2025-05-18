@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -316,8 +317,8 @@ const StockInDetailsPage: React.FC = () => {
               
               if (productObject) {
                 detailObj.product = {
-                  id: productObject.id || '',
-                  name: productObject.name || 'Unknown Product'
+                  id: productObject.id ?? '', // Nullish coalescing for null safety
+                  name: productObject.name ?? 'Unknown Product' // Nullish coalescing
                 };
               } else {
                 detailObj.product = null;
