@@ -77,7 +77,7 @@ export const useInventoryData = (
       });
       
       try {
-        // Build query with explicit column selection to avoid type issues
+        // Build query with explicit column selection and proper foreign key specification
         let queryBuilder = supabase
           .from('inventory')
           .select(`
@@ -93,20 +93,18 @@ export const useInventoryData = (
             batch_id,
             created_at,
             updated_at,
-            products:product_id (
+            products (
               name,
               sku
             ),
-            warehouses:warehouse_id (
+            warehouses (
               name
             ),
-            warehouse_locations:location_id (
+            warehouse_locations (
               floor,
               zone
             )
           `);
-        
-        // Note: We removed 'details' from the select query as it doesn't exist in the inventory table
         
         // Apply filters
         if (warehouseFilter) {
@@ -160,11 +158,9 @@ export const useInventoryData = (
           if (floor !== undefined && zone !== undefined) {
             locationDetails = `Floor ${floor}, Zone ${zone}`;
           }
-
-          // Instead of accessing details, we'll check if we have batch information
-          // to potentially get source info from a separate query in the future
-          // For now, we'll set source to null
-          const source = null; // We've removed the details field that doesn't exist
+          
+          // Set source to null since we don't have this field in current data structure
+          const source = null;
           
           return {
             id: item.id,
