@@ -116,7 +116,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
         toast({
           title: 'Batch Processed with Warnings',
           description: 'There were some issues with barcode processing. Please continue to the next step.',
-          variant: 'warning',
+          // Change 'warning' to 'default' with a customized description to indicate warning
+          variant: 'default',
         });
       } else {
         toast({

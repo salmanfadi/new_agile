@@ -64,7 +64,8 @@ const BarcodeAssignmentPage: React.FC = () => {
         toast({
           title: "Barcode Processing Issues",
           description: "Some barcodes could not be processed automatically. Please review and fix before proceeding.",
-          variant: "warning",
+          // Change 'warning' to 'default' with a descriptive message
+          variant: "default",
         });
       }
     }
@@ -283,7 +284,7 @@ const BarcodeAssignmentPage: React.FC = () => {
 
       {/* Error message when barcode processing had issues */}
       {fromBatchProcessing && hasErrors && (
-        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+        <Alert variant="default" className="bg-amber-50 border-amber-200">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Barcode Processing Issues</AlertTitle>
           <AlertDescription>
