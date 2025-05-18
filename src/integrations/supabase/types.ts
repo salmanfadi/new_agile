@@ -125,13 +125,6 @@ export type Database = {
             foreignKeyName: "fk_inventory_product"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "customer_visible_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_inventory_product"
-            columns: ["product_id"]
-            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -154,13 +147,6 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "warehouse_locations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "customer_visible_products"
             referencedColumns: ["id"]
           },
           {
@@ -238,13 +224,6 @@ export type Database = {
             columns: ["performed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_movements_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "customer_visible_products"
             referencedColumns: ["id"]
           },
           {
@@ -345,13 +324,6 @@ export type Database = {
             foreignKeyName: "inventory_transfers_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "customer_visible_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_transfers_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -365,41 +337,6 @@ export type Database = {
           {
             foreignKeyName: "inventory_transfers_source_warehouse_id_fkey"
             columns: ["source_warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      locations: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          name: string
-          updated_at: string | null
-          warehouse_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          updated_at?: string | null
-          warehouse_id: string
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          updated_at?: string | null
-          warehouse_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "locations_warehouse_id_fkey"
-            columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
             referencedColumns: ["id"]
@@ -485,13 +422,6 @@ export type Database = {
           warehouse_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "processed_batches_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "customer_visible_products"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "processed_batches_product_id_fkey"
             columns: ["product_id"]
@@ -687,13 +617,6 @@ export type Database = {
             foreignKeyName: "sales_inquiry_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "customer_visible_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sales_inquiry_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -754,13 +677,6 @@ export type Database = {
             columns: ["processed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_in_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "customer_visible_products"
             referencedColumns: ["id"]
           },
           {
@@ -860,6 +776,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_in_details_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_in_details_stock_in_id_fkey"
+            columns: ["stock_in_id"]
+            isOneToOne: false
+            referencedRelation: "stock_in"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "stock_in_details_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
@@ -929,13 +859,6 @@ export type Database = {
             foreignKeyName: "stock_out_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "customer_visible_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_out_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -986,147 +909,6 @@ export type Database = {
             columns: ["stock_out_id"]
             isOneToOne: false
             referencedRelation: "stock_out"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      unified_stock_in: {
-        Row: {
-          barcode: string | null
-          batch_id: string | null
-          box_number: number | null
-          color: string | null
-          created_at: string
-          id: string
-          is_box_entry: boolean | null
-          is_processed: boolean | null
-          location_id: string | null
-          notes: string | null
-          parent_stock_in_id: string | null
-          processed_by: string | null
-          processing_completed_at: string | null
-          processing_started_at: string | null
-          processing_step: string | null
-          product_id: string
-          quantity: number | null
-          rejection_reason: string | null
-          size: string | null
-          source: string
-          status: string
-          submitted_by: string
-          total_boxes: number | null
-          updated_at: string
-          warehouse_id: string | null
-        }
-        Insert: {
-          barcode?: string | null
-          batch_id?: string | null
-          box_number?: number | null
-          color?: string | null
-          created_at?: string
-          id?: string
-          is_box_entry?: boolean | null
-          is_processed?: boolean | null
-          location_id?: string | null
-          notes?: string | null
-          parent_stock_in_id?: string | null
-          processed_by?: string | null
-          processing_completed_at?: string | null
-          processing_started_at?: string | null
-          processing_step?: string | null
-          product_id: string
-          quantity?: number | null
-          rejection_reason?: string | null
-          size?: string | null
-          source: string
-          status?: string
-          submitted_by: string
-          total_boxes?: number | null
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Update: {
-          barcode?: string | null
-          batch_id?: string | null
-          box_number?: number | null
-          color?: string | null
-          created_at?: string
-          id?: string
-          is_box_entry?: boolean | null
-          is_processed?: boolean | null
-          location_id?: string | null
-          notes?: string | null
-          parent_stock_in_id?: string | null
-          processed_by?: string | null
-          processing_completed_at?: string | null
-          processing_started_at?: string | null
-          processing_step?: string | null
-          product_id?: string
-          quantity?: number | null
-          rejection_reason?: string | null
-          size?: string | null
-          source?: string
-          status?: string
-          submitted_by?: string
-          total_boxes?: number | null
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "unified_stock_in_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "processed_batches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "unified_stock_in_location_id_fkey"
-            columns: ["location_id"]
-            isOneToOne: false
-            referencedRelation: "warehouse_locations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "unified_stock_in_parent_stock_in_id_fkey"
-            columns: ["parent_stock_in_id"]
-            isOneToOne: false
-            referencedRelation: "unified_stock_in"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "unified_stock_in_processed_by_fkey"
-            columns: ["processed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "unified_stock_in_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "customer_visible_products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "unified_stock_in_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "unified_stock_in_submitted_by_fkey"
-            columns: ["submitted_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "unified_stock_in_warehouse_id_fkey"
-            columns: ["warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -1192,20 +974,7 @@ export type Database = {
       }
     }
     Views: {
-      customer_visible_products: {
-        Row: {
-          category: string | null
-          description: string | null
-          id: string | null
-          image_url: string | null
-          in_stock_quantity: number | null
-          is_out_of_stock: boolean | null
-          name: string | null
-          sku: string | null
-          specifications: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       find_inventory_by_barcode: {
