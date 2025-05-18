@@ -97,14 +97,24 @@ export const useProcessedBatchesWithItems = ({
           const warehouses = batch.warehouses && typeof batch.warehouses === 'object' ? batch.warehouses : null;
           
           // Fix: Check products is not null before accessing name property
-          const productName = products && 'name' in products ? products.name as string : 'Unknown Product';
-          const productSku = products && 'sku' in products ? products.sku as string : undefined;
+          // Using type assertion with safeguards to ensure properties exist
+          const productName = products && 'name' in products && products.name !== null 
+            ? String(products.name) 
+            : 'Unknown Product';
+            
+          const productSku = products && 'sku' in products && products.sku !== null
+            ? String(products.sku)
+            : undefined;
           
           // Fix: Check profiles is not null before accessing name property
-          const processorName = profiles && 'name' in profiles ? profiles.name as string : 'Unknown User';
+          const processorName = profiles && 'name' in profiles && profiles.name !== null
+            ? String(profiles.name)
+            : 'Unknown User';
           
           // Fix: Check warehouses is not null before accessing name property
-          const warehouseName = warehouses && 'name' in warehouses ? warehouses.name as string : 'Unknown Warehouse';
+          const warehouseName = warehouses && 'name' in warehouses && warehouses.name !== null
+            ? String(warehouses.name)
+            : 'Unknown Warehouse';
           
           return {
             id: batch.id,

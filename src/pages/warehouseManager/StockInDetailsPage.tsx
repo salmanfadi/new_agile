@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,7 +11,7 @@ import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ArrowLeft, Layers, List, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { StockInData } from '@/hooks/useStockInRequests';
+import { StockInData } from '@/types/stockIn';
 
 interface StockInRequestDetails {
   id: string;
@@ -52,8 +51,8 @@ interface StockInDetailItem {
   status?: string;
   product_id?: string;
   product?: {
-    id?: string;
-    name?: string;
+    id: string;
+    name: string;
   };
   created_at?: string;
   inventory_id?: string;
@@ -421,13 +420,15 @@ const StockInDetailsPage: React.FC = () => {
             </TabsList>
             
             <TabsContent value="details" className="space-y-4 pt-4">
-              <StockInDetails
-                stockInData={stockInData}
-                approvalNotes={approvalNotes}
-                setApprovalNotes={setApprovalNotes}
-                handleApproval={handleApproval}
-                isSubmitting={isSubmitting}
-              />
+              {stockInData && (
+                <StockInDetails
+                  stockInData={stockInData as StockInData}
+                  approvalNotes={approvalNotes}
+                  setApprovalNotes={setApprovalNotes}
+                  handleApproval={handleApproval}
+                  isSubmitting={isSubmitting}
+                />
+              )}
             </TabsContent>
             
             <TabsContent value="items">

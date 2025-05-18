@@ -68,11 +68,20 @@ export interface StockIn {
 
 export interface StockInData {
   id: string;
-  product: Product;
+  product: {
+    name: string;
+    id?: string | null;
+    sku?: string | null;
+  };
   boxes: number;
   source: string;
-  notes: string;
-  submitter: Profile;
+  notes?: string;
+  submitter: {
+    name: string;
+    username?: string;
+    id?: string | null;
+  } | null;
   status: StockInStatus;
   created_at: string;
+  rejection_reason?: string;
 }

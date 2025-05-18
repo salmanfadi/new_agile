@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { StockInData } from '@/hooks/useStockInRequests';
+import { StockInData } from '@/types/stockIn';
 import { Textarea } from '@/components/ui/textarea';
 
 interface StockInDetailsProps {
