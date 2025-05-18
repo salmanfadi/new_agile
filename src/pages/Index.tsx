@@ -17,7 +17,7 @@ const Index = () => {
       else if (user.role === 'sales_operator') targetRoute = '/sales';
       
       navigate(targetRoute, { replace: true });
-    } else if (!isLoading) {
+    } else if (!isLoading && !isAuthenticated) {
       // If not authenticated and not loading, redirect to login
       navigate('/login', { replace: true });
     }

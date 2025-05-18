@@ -14,7 +14,14 @@ export const RequireAuth = ({ children, allowedRoles }: RequireAuthProps) => {
   const location = useLocation();
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="text-center">
+          <div className="h-12 w-12 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-xl font-medium">Loading...</h2>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {

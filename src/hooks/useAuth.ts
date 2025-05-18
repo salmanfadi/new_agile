@@ -7,6 +7,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     // Get initial session
@@ -21,6 +22,7 @@ export function useAuth() {
       
       setSession(session);
       setUser(session?.user || null);
+      setIsAuthenticated(!!session);
       setLoading(false);
     };
 
@@ -31,6 +33,7 @@ export function useAuth() {
       (event, session) => {
         setSession(session);
         setUser(session?.user || null);
+        setIsAuthenticated(!!session);
         setLoading(false);
       }
     );
@@ -43,6 +46,8 @@ export function useAuth() {
   return {
     user,
     session,
-    loading
+    loading: loading,
+    isLoading: loading,
+    isAuthenticated
   };
 }

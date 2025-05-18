@@ -26,7 +26,7 @@ const Unauthorized: React.FC = () => {
       case 'warehouse_manager':
         return '/manager';
       case 'field_operator':
-        return '/operator';
+        return '/field';
       case 'sales_operator':
         return '/sales';
       default:
@@ -35,21 +35,28 @@ const Unauthorized: React.FC = () => {
   };
   
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-slate-900 p-4">
-      <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg max-w-md w-full text-center border border-gray-100 dark:border-slate-700 animate-fade-in">
-        <div className="flex justify-center mb-6">
-          <div className="h-16 w-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-            <Shield className="h-8 w-8 text-red-500 dark:text-red-400" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-slate-800 rounded-lg shadow-lg">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center p-4 bg-red-100 rounded-full dark:bg-red-900/20 mb-4">
+            <Shield className="h-12 w-12 text-red-500 dark:text-red-400" />
           </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Access Denied</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
+            You don't have permission to access this page.
+          </p>
         </div>
-        <h1 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">Access Denied</h1>
-        <p className="text-gray-600 dark:text-gray-300 mb-6">
-          You don't have permission to access this page. Please contact your administrator if you believe this is an error.
-        </p>
-        <Button onClick={() => navigate(getDashboardRoute())} className="w-full h-11">
-          <Home className="mr-2 h-4 w-4" />
-          Return to Dashboard
-        </Button>
+        
+        <div className="flex flex-col space-y-3">
+          <Button 
+            variant="default" 
+            className="w-full"
+            onClick={() => navigate(getDashboardRoute())}
+          >
+            <Home className="mr-2 h-4 w-4" />
+            Return to Dashboard
+          </Button>
+        </div>
       </div>
     </div>
   );
