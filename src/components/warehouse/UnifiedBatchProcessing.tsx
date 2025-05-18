@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -401,7 +400,7 @@ const UnifiedBatchProcessing: React.FC<UnifiedBatchProcessingProps> = ({
   
   // Process all metadata updates and finish processing
   const completeProcessing = async () => {
-    if (!stockInId || !batches || batches.length === 0 || Object.keys(boxesWithMetadata).length === 0) {
+    if (!finalStockInId || !batches || batches.length === 0 || Object.keys(boxesWithMetadata).length === 0) {
       toast({
         title: 'Missing data',
         description: 'Please ensure batches and barcodes are properly set up before completing',
