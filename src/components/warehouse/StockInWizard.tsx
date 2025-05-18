@@ -53,6 +53,8 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
     }
     
     try {
+      console.log("Initializing boxes with warehouse:", warehouseId, "and location:", locationId);
+      
       // Generate initial box data with unique barcodes
       const newBoxes: BoxData[] = [];
       
@@ -78,6 +80,7 @@ const StockInWizard: React.FC<StockInWizardProps> = ({
       
       setBoxesData(newBoxes);
       setActiveStep('boxes');
+      console.log("Boxes initialized, moving to boxes step");
     } catch (error) {
       console.error("Error initializing boxes:", error);
       toast({

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { toast } from '@/hooks/use-toast';
 
 interface StockInStepDetailsProps {
   stockIn: StockInRequestData;
@@ -42,6 +43,39 @@ const StockInStepDetails: React.FC<StockInStepDetailsProps> = ({
   const { locations, isLoading: isLoadingLocations } = useLocations(warehouseId);
   
   const isContinueDisabled = !warehouseId || !locationId || confirmedBoxes <= 0;
+
+  // Handle continue button click with proper validation
+  const handleContinue = () => {
+    if (!warehouseId) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a warehouse",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!locationId) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a location within the warehouse",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (confirmedBoxes <= 0) {
+      toast({
+        title: "Invalid Input",
+        description: "Number of boxes must be greater than zero",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // All validations passed, proceed to next step
+    onContinue();
+  };
 
   return (
     <div className="space-y-6">
@@ -154,7 +188,7 @@ const StockInStepDetails: React.FC<StockInStepDetailsProps> = ({
         </Button>
         <Button 
           type="button" 
-          onClick={onContinue} 
+          onClick={handleContinue} 
           disabled={isContinueDisabled}
         >
           Continue

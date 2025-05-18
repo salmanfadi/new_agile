@@ -31,7 +31,7 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   adminMode = false,
 }) => {
   const navigate = useNavigate();
-  const [wizardMode, setWizardMode] = useState(false);
+  const [wizardMode, setWizardMode] = useState(true);
   
   // Handle wizard completion
   const handleWizardComplete = (batchId: string) => {
@@ -39,30 +39,6 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
     // Navigate to batch details page
     const baseRoute = adminMode ? '/admin' : '/manager';
     navigate(`${baseRoute}/inventory/batch/${batchId}`);
-  };
-  
-  // Start the wizard processing flow
-  const handleStartProcessing = () => {
-    setWizardMode(true);
-  };
-  
-  // Start the legacy processing flow
-  const handleLegacyProcessing = () => {
-    if (!stockIn || !userId) {
-      return;
-    }
-    
-    // Store preferences in localStorage
-    localStorage.setItem('stock_in_processing_preferences', JSON.stringify({
-      stockInId: stockIn.id
-    }));
-    
-    // Close the dialog
-    onOpenChange(false);
-    
-    // Navigate to the unified batch processing page
-    const baseRoute = adminMode ? '/admin' : '/manager';
-    navigate(`${baseRoute}/stock-in/unified/${stockIn.id}`);
   };
   
   // If wizard is active, show the wizard
@@ -124,19 +100,11 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
             
             <div className="space-y-3">
               <Button 
-                onClick={handleStartProcessing}
+                onClick={() => setWizardMode(true)}
                 className="w-full"
                 variant="default"
               >
-                Use New Processing Wizard
-              </Button>
-              
-              <Button 
-                onClick={handleLegacyProcessing}
-                className="w-full"
-                variant="outline"
-              >
-                Use Legacy Processing
+                Continue to Processing
               </Button>
             </div>
           </div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -82,9 +83,10 @@ const BatchDetailsPage = () => {
         }
       }
       
-      // Handle profiles data with proper type checking and null safety
+      // Handle profiles data with proper type checking and null safety - additional null check for TS
       if (data.profiles && typeof data.profiles === 'object' && data.profiles !== null) {
-        processorName = typeof data.profiles.name === 'string' ? data.profiles.name : 'Unknown User';
+        // Safely access the name property now that we've confirmed it's not null
+        processorName = data.profiles.name ? data.profiles.name.toString() : 'Unknown User';
       }
       
       // Handle warehouses data with proper type checking
