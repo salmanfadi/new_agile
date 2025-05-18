@@ -315,10 +315,15 @@ const StockInDetailsPage: React.FC = () => {
             // First check if product exists, then check if it's an error object
             if (item.product && typeof item.product === 'object' && !('error' in item.product)) {
               // Now we know it's a valid product object with id and name properties
-              detailObj.product = {
-                id: item.product.id,
-                name: item.product.name
-              };
+              // Additional null check to satisfy TypeScript
+              if (item.product !== null) {
+                detailObj.product = {
+                  id: item.product.id || '',
+                  name: item.product.name || 'Unknown Product'
+                };
+              } else {
+                detailObj.product = null;
+              }
             } else {
               detailObj.product = null;
             }
