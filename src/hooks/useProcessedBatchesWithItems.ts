@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessedBatch } from '@/types/database';
 
-// Define a type for the options, including pagination
+// Define more specific types to avoid excessive type instantiation
 interface UseProcessedBatchesWithItemsOptions {
   page?: number;
   pageSize?: number;
@@ -41,7 +41,7 @@ interface BatchesQueryResult {
   limit: number;
 }
 
-// Define a type for raw batch data from the database
+// Define a type for raw batch data from the database with simpler structure
 interface RawBatchData {
   id: string;
   product_id: string;
@@ -54,7 +54,7 @@ interface RawBatchData {
   total_quantity: number;
   total_boxes: number;
   warehouse_id: string;
-  created_at?: string; // Make created_at optional to match DB response
+  created_at?: string; 
   products?: {
     name: string;
     sku?: string;
@@ -69,11 +69,21 @@ interface RawBatchData {
 
 // Hook to fetch processed batches with associated items and pagination
 export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithItemsOptions = {}) => {
-  const { page = 1, pageSize = 10, productId, warehouseId, locationId, startDate, endDate, searchTerm, limit } = options;
+  const { 
+    page = 1, 
+    pageSize = 10, 
+    productId, 
+    warehouseId, 
+    locationId, 
+    startDate, 
+    endDate, 
+    searchTerm, 
+    limit 
+  } = options;
 
   return useQuery({
-    queryKey: ['processed-batches-with-items', page, pageSize, productId, warehouseId, locationId, startDate, endDate, searchTerm],
-    queryFn: async (): Promise<ProcessedBatchesResult | BatchesQueryResult> => {
+    queryKey: ['processed-batches-with-items', page, pageSize, productId, warehouseId, locationId, startDate, endDate, searchTerm, limit],
+    queryFn: async () => {
       try {
         let query = supabase
           .from('processed_batches')
@@ -126,7 +136,7 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           query = query.or(`source.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
         }
 
-        // Apply pagination - use limit if provided, otherwise use pageSize
+        // Apply pagination
         const actualLimit = limit || pageSize;
         const startIndex = (page - 1) * actualLimit;
         const endIndex = startIndex + actualLimit - 1;
@@ -139,56 +149,45 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           throw error;
         }
 
-        // Type guard to safely work with the data
+        // Handle the data based on the requested format
         const typedData = data as RawBatchData[];
         
-        // Check if we're returning data for EnhancedInventoryView
+        // Format for EnhancedInventoryView if limit is provided
         if (limit) {
-          // Format for EnhancedInventoryView
-          const batchesData = typedData.map((batch) => {
-            return {
-              id: batch.id,
-              product_name: batch.products ? batch.products.name : 'Unknown Product',
-              product_sku: batch.products?.sku,
-              warehouse_name: batch.warehouses ? batch.warehouses.name : 'Unknown Warehouse',
-              total_quantity: batch.total_quantity,
-              total_boxes: batch.total_boxes,
-              processor_name: batch.profiles?.name || undefined,
-              processed_at: batch.processed_at || new Date().toISOString()
-            };
-          });
+          const batchesData = typedData.map((batch) => ({
+            id: batch.id,
+            product_name: batch.products?.name || 'Unknown Product',
+            product_sku: batch.products?.sku,
+            warehouse_name: batch.warehouses?.name || 'Unknown Warehouse',
+            total_quantity: batch.total_quantity,
+            total_boxes: batch.total_boxes,
+            processor_name: batch.profiles?.name || undefined,
+            processed_at: batch.processed_at || new Date().toISOString()
+          }));
 
           return {
             batches: batchesData,
             count: count || 0,
             page,
             limit: actualLimit
-          };
+          } as BatchesQueryResult;
         }
 
-        // Map the data to include additional properties for UI display
+        // Format for default view
         const batchesWithDetails = typedData.map((batch) => {
-          const productName = batch.products ? batch.products.name : 'Unknown Product';
-          const productSku = batch.products?.sku || 'N/A';
-          const warehouseName = batch.warehouses ? batch.warehouses.name : 'Unknown Warehouse';
-          const processorName = batch.profiles?.name;
-          const formattedProcessedAt = batch.processed_at 
-            ? new Date(batch.processed_at).toLocaleDateString() 
-            : '';
-          const formattedCreatedAt = batch.created_at 
-            ? new Date(batch.created_at).toLocaleDateString() 
-            : '';
-
-          // Explicitly create ProcessedBatch object
+          // Map to ProcessedBatch type with proper defaults
           const processedBatch: ProcessedBatch = {
             ...batch,
-            productName,
-            productSku,
-            warehouseName,
-            processorName,
-            formattedProcessedAt,
-            formattedCreatedAt,
-            // Ensure created_at is present
+            productName: batch.products?.name || 'Unknown Product',
+            productSku: batch.products?.sku || 'N/A',
+            warehouseName: batch.warehouses?.name || 'Unknown Warehouse',
+            processorName: batch.profiles?.name,
+            formattedProcessedAt: batch.processed_at 
+              ? new Date(batch.processed_at).toLocaleDateString() 
+              : '',
+            formattedCreatedAt: batch.created_at 
+              ? new Date(batch.created_at).toLocaleDateString() 
+              : '',
             created_at: batch.created_at || new Date().toISOString()
           };
           
@@ -200,13 +199,12 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           total: count || 0,
           page,
           pageSize: actualLimit
-        };
+        } as ProcessedBatchesResult;
       } catch (error) {
         console.error('Error in useProcessedBatchesWithItems hook:', error);
         throw error;
       }
     },
-    // Replace keepPreviousData with newer API
     placeholderData: (previousData) => previousData
   });
 };

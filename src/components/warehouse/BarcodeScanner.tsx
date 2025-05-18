@@ -9,7 +9,7 @@ interface BarcodeScannerProps {
   onError?: (error: Error) => void;
 }
 
-const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onError }) => {
+export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onError }) => {
   const [barcode, setBarcode] = useState<string>('');
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scannerAvailable, setScannerAvailable] = useState<boolean>(false);

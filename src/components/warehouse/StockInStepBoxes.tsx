@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { useNavigate } from 'react-router-dom';
+import { useWarehouseLocations } from '@/hooks/useWarehouseLocations';
 
 interface StockInStepBoxesProps {
   stockIn: StockInRequestData;
@@ -34,14 +34,7 @@ interface Warehouse {
   updated_at?: string;
 }
 
-interface WarehouseLocation {
-  id: string;
-  warehouse_id: string;
-  floor: number;
-  zone: string;
-  created_at?: string;
-}
-
+// Export the component as a named export
 export function StockInStepBoxes({ stockIn, boxes, updateBox, onNext, onBack }: StockInStepBoxesProps) {
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
