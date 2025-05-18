@@ -1,5 +1,11 @@
 
-// We should remove this file as it duplicates functionality in use-mobile.ts
-// Instead, let's export the same function from use-mobile.ts and use that file
-// This file can be safely deleted once we update imports
-export { useIsMobile as useMobileDetector } from './use-mobile';
+// This file serves as a compatibility layer for code using the old naming
+// It re-exports the useIsMobile hook as useMobileDetector
+
+import { useIsMobile } from './use-mobile';
+
+// Export the renamed function
+export const useMobileDetector = useIsMobile;
+
+// Also re-export the original function name for consistency
+export { useIsMobile };

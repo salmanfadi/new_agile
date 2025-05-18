@@ -265,7 +265,7 @@ const BatchOverviewPage: React.FC = () => {
                     {allBarcodes.map((barcode, index) => (
                       <div key={barcode} className="border rounded-lg p-4 print:break-inside-avoid">
                         <BarcodePreview 
-                          barcode={barcode} 
+                          value={barcode} 
                           height={80} 
                         />
                         <div className="mt-2 text-center">

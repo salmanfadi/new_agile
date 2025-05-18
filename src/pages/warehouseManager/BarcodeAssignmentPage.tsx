@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -396,7 +395,7 @@ const BarcodeAssignmentPage: React.FC = () => {
               {Object.keys(boxesWithMetadata).map((barcode) => (
                 <div key={barcode} className="border rounded-lg p-4 print:break-inside-avoid">
                   <BarcodePreview 
-                    barcode={boxesWithMetadata[barcode].barcode}
+                    value={boxesWithMetadata[barcode].barcode} 
                     height={80}
                   />
                   <div className="mt-2 text-sm">

@@ -1,16 +1,15 @@
-
 import React, { useState, ReactNode, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useMobileDetector } from '@/hooks/use-mobile.tsx'; // Updated import with explicit .tsx extension
 
 interface MainLayoutProps {
   children?: ReactNode;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const isMobile = useIsMobile();
+  const isMobile = useMobileDetector();
   const location = useLocation();
   
   // On mobile, sidebar should be closed by default
