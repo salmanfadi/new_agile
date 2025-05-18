@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
+import { toast } from '@/hooks/use-toast';
 
 const AdminStockInManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -26,17 +27,25 @@ const AdminStockInManagement: React.FC = () => {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Fetch stock in requests with filter using the shared hook
-  const { data: stockInRequests, isLoading, error } = useStockInRequests({
-    status: statusFilter !== "all" ? statusFilter : undefined
-  });
-
-  // Navigate to unified batch processing page with the stock in ID
+  // Navigate to unified batch processing page with the stock in ID - with improved error handling
   const handleProcess = (stockIn: StockInRequestData) => {
-    navigate(`/admin/stock-in/unified/${stockIn.id}`);
+    console.log("Processing stock in with ID:", stockIn.id);
+    
+    try {
+      // Navigate to the admin unified batch processing page with proper stockInId
+      navigate(`/admin/stock-in/unified/${stockIn.id}`);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      toast({
+        variant: "destructive",
+        title: "Navigation Error",
+        description: "Failed to navigate to processing page. Please try again."
+      });
+    }
   };
 
   const handleReject = (stockIn: StockInRequestData) => {
+    console.log("Rejecting stock in with ID:", stockIn.id);
     setSelectedStockIn(stockIn);
     setIsRejectDialogOpen(true);
   };
@@ -89,19 +98,13 @@ const AdminStockInManagement: React.FC = () => {
           <CardDescription>Monitor and process incoming stock requests from all warehouses</CardDescription>
         </CardHeader>
         <CardContent>
-          {error ? (
-            <div className="p-4 text-red-500">
-              Error loading stock in requests. Please try again.
-            </div>
-          ) : (
-            <StockInRequestsTable 
-              status={statusFilter !== "all" ? statusFilter : ""}
-              filters={{}}
-              onProcess={handleProcess}
-              onReject={handleReject}
-              userId={user?.id}
-            />
-          )}
+          <StockInRequestsTable 
+            status={statusFilter !== "all" ? statusFilter : ""}
+            filters={{}}
+            onProcess={handleProcess}
+            onReject={handleReject}
+            userId={user?.id}
+          />
         </CardContent>
       </Card>
 

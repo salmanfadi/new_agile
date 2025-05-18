@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
+import { toast } from '@/hooks/use-toast';
 
 const StockInProcessing: React.FC = () => {
   const navigate = useNavigate();
@@ -25,10 +27,21 @@ const StockInProcessing: React.FC = () => {
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
 
-  // Handle process button click
+  // Handle process button click - with clear logging for debugging
   const handleProcess = (stockIn: StockInRequestData) => {
-    // Use the new unified batch processing flow
-    navigate(`/manager/stock-in/unified/${stockIn.id}`);
+    console.log("Processing stock in:", stockIn.id);
+    
+    try {
+      // Navigate to the correct route with proper stockInId
+      navigate(`/manager/stock-in/unified/${stockIn.id}`);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      toast({
+        variant: "destructive",
+        title: "Navigation Error",
+        description: "Failed to navigate to processing page. Please try again."
+      });
+    }
   };
 
   return (

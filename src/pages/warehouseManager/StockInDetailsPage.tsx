@@ -1,12 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 interface StockInDetail {
   id: string;
@@ -88,7 +89,7 @@ const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData, stockIn, d
           </div>
           <div className="flex items-center space-x-4">
             <span>Product:</span>
-            <span>{stockIn.product.name}</span>
+            <span>{stockIn.product?.name || 'Unknown Product'}</span>
           </div>
           <div className="flex items-center space-x-4">
             <span>Boxes:</span>
@@ -104,7 +105,7 @@ const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData, stockIn, d
           </div>
           <div className="flex items-center space-x-4">
             <span>Submitted By:</span>
-            <span>{stockIn.submitter.name}</span>
+            <span>{stockIn.submitter?.name || 'Unknown'}</span>
           </div>
           <div className="flex items-center space-x-4">
             <span>Created At:</span>
@@ -142,12 +143,32 @@ const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData, stockIn, d
   );
 };
 
-// Update the component to use StockInWithExtras
+// Update the component to use StockInWithExtras and properly handle missing stockInId
 const StockInDetailsPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId: string }>();
+  const navigate = useNavigate();
   const [stockInData, setStockInData] = useState<StockInData>({ loading: true, error: null });
   const [stockIn, setStockIn] = useState<StockInWithExtras | null>(null);
   const [details, setDetails] = useState<StockInDetail[]>([]);
+
+  // Add effect to check for valid stockInId early
+  useEffect(() => {
+    if (!stockInId) {
+      console.error("StockIn ID is missing in URL parameters");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "StockIn ID is missing. Redirecting to stock in list."
+      });
+      
+      // Redirect back to the stock in list after a short delay
+      const timer = setTimeout(() => {
+        navigate("/manager/stock-in");
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [stockInId, navigate]);
 
   useEffect(() => {
     const fetchStockInDetails = async () => {
@@ -171,22 +192,37 @@ const StockInDetailsPage: React.FC = () => {
         if (error) {
           console.error('Supabase error:', error);
           setStockInData({ loading: false, error: error.message });
-          toast.error(`Failed to fetch stock in details: ${error.message}`);
+          toast({
+            variant: "destructive",
+            title: "Failed to fetch stock in details",
+            description: error.message
+          });
           return;
         }
 
         if (data) {
           setStockIn(data as StockInWithExtras);
           setStockInData({ loading: false, error: null });
-          toast.success('Stock in details fetched successfully!');
+          toast({
+            title: "Success",
+            description: "Stock in details fetched successfully"
+          });
         } else {
           setStockInData({ loading: false, error: 'Stock In details not found' });
-          toast.error('Stock In details not found');
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Stock In details not found"
+          });
         }
       } catch (error: any) {
         console.error('Unexpected error:', error);
         setStockInData({ loading: false, error: error.message });
-        toast.error(`Unexpected error: ${error.message}`);
+        toast({
+          variant: "destructive",
+          title: "Unexpected error",
+          description: error.message
+        });
       }
     };
 
@@ -210,28 +246,53 @@ const StockInDetailsPage: React.FC = () => {
 
         if (error) {
           console.error('Supabase error:', error);
-          toast.error(`Failed to fetch stock in details data: ${error.message}`);
+          toast({
+            variant: "destructive",
+            title: "Failed to fetch stock in details data",
+            description: error.message
+          });
           return;
         }
 
         if (data) {
           setDetails(data);
-          toast.success('Stock in details data fetched successfully!');
+          toast({
+            title: "Success",
+            description: "Stock in details data fetched successfully"
+          });
         }
       } catch (error: any) {
         console.error('Unexpected error:', error);
-        toast.error(`Unexpected error: ${error.message}`);
+        toast({
+          variant: "destructive",
+          title: "Unexpected error",
+          description: error.message
+        });
       }
     };
 
     fetchStockInDetailsData();
   }, [stockInId]);
   
-  // When setting the stockIn state, cast it to StockInWithExtras
+  // If stockInId is missing, show a better error message and navigation option
   if (!stockInId) {
     return (
       <div className="container mx-auto p-4">
-        <p>StockIn ID is missing.</p>
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-red-500">Error</CardTitle>
+            <CardDescription>StockIn ID is missing</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4">Unable to display details because the StockIn ID is missing from the URL.</p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => navigate("/manager/stock-in")}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Stock In List
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }
@@ -239,18 +300,39 @@ const StockInDetailsPage: React.FC = () => {
   // Update the StockInDetails component props to match requirements
   return (
     <div className="container mx-auto p-4">
-      <Button asChild>
-        <Link to="/manager/stock-in">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Stock In List
-        </Link>
+      <Button 
+        variant="outline"
+        onClick={() => navigate("/manager/stock-in")}
+        className="mb-4"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back to Stock In List
       </Button>
-      {stockIn && (
+      
+      {stockIn ? (
         <StockInDetails
           stockInData={stockInData}
-          stockIn={stockIn as any}
+          stockIn={stockIn}
           details={details}
         />
+      ) : stockInData.loading ? (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-center items-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+            <p className="text-center mt-4">Loading stock in details...</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-red-500">Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>{stockInData.error || "Failed to load stock in details"}</p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

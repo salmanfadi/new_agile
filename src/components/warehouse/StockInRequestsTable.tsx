@@ -1,5 +1,4 @@
 
-// Modify the existing StockInRequestsTable to include a link to the new unified processing flow
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -47,13 +46,20 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
     ...filters
   });
 
-  // Handle view details
+  // Handle view details - Ensure we're passing the correct stockInId parameter
   const handleViewDetails = (stockInId: string) => {
-    navigate(`/manager/stock-in/${stockInId}`);
+    console.log("Navigating to details with ID:", stockInId);
+    // Determine the correct path based on role (from the URL)
+    const basePath = window.location.pathname.includes('/admin') ? 
+      '/admin/stock-in/' : 
+      '/manager/stock-in/';
+    
+    navigate(`${basePath}${stockInId}`);
   };
   
-  // Handle process button click
+  // Handle process button click - Fixed to ensure proper parameter passing
   const handleProcess = (stockIn: StockInRequestData) => {
+    console.log("Processing stock in with ID:", stockIn.id);
     if (onProcess) {
       onProcess(stockIn);
     }
@@ -61,6 +67,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   
   // Handle continue processing for requests that are already in processing status
   const handleContinueProcessing = (stockIn: StockInRequestData) => {
+    console.log("Continuing processing with ID:", stockIn.id);
     // Redirect to the unified batch processing page with the correct route based on user role
     const baseUrl = window.location.pathname.includes('/admin') ? 
       '/admin/stock-in/unified/' : 
@@ -70,6 +77,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   };
 
   const handleReject = (stockIn: StockInRequestData) => {
+    console.log("Rejecting stock in with ID:", stockIn.id);
     if (onReject) {
       onReject(stockIn);
     }
