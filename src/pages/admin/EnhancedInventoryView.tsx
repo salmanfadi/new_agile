@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -17,6 +18,23 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { Eye, BoxesIcon, Package, ArrowLeft } from 'lucide-react';
+
+// Define the BatchesQueryResult type for better type checking
+interface BatchesQueryResult {
+  batches: Array<{
+    id: string;
+    product_name: string;
+    product_sku?: string;
+    warehouse_name: string;
+    total_quantity: number;
+    total_boxes: number;
+    processor_name?: string;
+    processed_at: string;
+  }>;
+  count: number;
+  page: number;
+  limit: number;
+}
 
 const AdminEnhancedInventoryView: React.FC = () => {
   const navigate = useNavigate();
@@ -54,7 +72,7 @@ const AdminEnhancedInventoryView: React.FC = () => {
     filters.searchTerm
   );
   
-  // Batches data
+  // Batches data with proper typing
   const {
     data: batchesData,
     isLoading: isLoadingBatchesData,
@@ -65,6 +83,11 @@ const AdminEnhancedInventoryView: React.FC = () => {
     page: batchPage,
     limit: 10
   });
+  
+  // Type guard for batchesData
+  const isBatchesQueryResult = (data: any): data is BatchesQueryResult => {
+    return data && 'batches' in data && Array.isArray(data.batches);
+  };
   
   // Check for navigation state from batch processing
   useEffect(() => {
@@ -215,7 +238,7 @@ const AdminEnhancedInventoryView: React.FC = () => {
                 <div className="p-4 bg-red-50 border border-red-200 rounded text-red-600">
                   <p>Error loading batches: {batchesError instanceof Error ? batchesError.message : 'Unknown error'}</p>
                 </div>
-              ) : !batchesData || !('batches' in batchesData) || batchesData.batches.length === 0 ? (
+              ) : !batchesData || !isBatchesQueryResult(batchesData) || batchesData.batches.length === 0 ? (
                 <div className="p-6 text-center border rounded bg-gray-50">
                   <BoxesIcon className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                   <p className="text-gray-500">No batch data available.</p>
@@ -276,7 +299,7 @@ const AdminEnhancedInventoryView: React.FC = () => {
                   </div>
                   
                   {/* Pagination */}
-                  {'count' in batchesData && batchesData.count > 0 && (
+                  {isBatchesQueryResult(batchesData) && batchesData.count > 0 && (
                     <div className="flex items-center justify-center space-x-2 py-4">
                       <Button
                         variant="outline"

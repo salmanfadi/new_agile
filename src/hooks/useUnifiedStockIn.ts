@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -74,7 +75,8 @@ export const useUnifiedStockIn = (stockInId?: string) => {
       if (!stockInId) return null;
       
       try {
-        // First get the main stock in entry - with explicit column names for submitter and processor
+        // First get the main stock in entry - with column names specified for relationships
+        // Fixed approach to handle the profiles relationship correctly using specific column hints
         const { data: mainEntry, error: mainError } = await supabase
           .from('unified_stock_in')
           .select(`
@@ -121,6 +123,19 @@ export const useUnifiedStockIn = (stockInId?: string) => {
           throw boxError;
         }
         
+        // Type-safe property access with nullish coalescing
+        const submitter = mainEntry.submitter ? {
+          id: mainEntry.submitter.id || '',
+          name: mainEntry.submitter.name || undefined,
+          username: mainEntry.submitter.username || undefined,
+        } : undefined;
+
+        const processor = mainEntry.processor ? {
+          id: mainEntry.processor.id || '',
+          name: mainEntry.processor.name || undefined,
+          username: mainEntry.processor.username || undefined,
+        } : undefined;
+        
         // Map the data to our interface with proper type casting
         const result: UnifiedStockInWithDetails = {
           id: mainEntry.id,
@@ -132,16 +147,8 @@ export const useUnifiedStockIn = (stockInId?: string) => {
           } : undefined,
           source: mainEntry.source,
           notes: mainEntry.notes,
-          submitter: mainEntry.submitter ? {
-            id: mainEntry.submitter.id,
-            name: mainEntry.submitter.name,
-            username: mainEntry.submitter.username,
-          } : undefined,
-          processor: mainEntry.processor ? {
-            id: mainEntry.processor.id,
-            name: mainEntry.processor.name,
-            username: mainEntry.processor.username,
-          } : undefined,
+          submitter: submitter,
+          processor: processor,
           status: mainEntry.status as StockInStatus,
           processing_step: mainEntry.processing_step as ProcessingStep,
           created_at: mainEntry.created_at,
