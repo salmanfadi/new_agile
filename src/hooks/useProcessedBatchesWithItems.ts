@@ -98,24 +98,19 @@ export const useProcessedBatchesWithItems = ({
           let warehouseName = 'Unknown Warehouse';
           
           // Handle products data
-          if (batch.products && typeof batch.products === 'object') {
-            if (batch.products !== null) {
-              productName = typeof batch.products.name === 'string' ? batch.products.name : 'Unknown Product';
-              productSku = typeof batch.products.sku === 'string' ? batch.products.sku : undefined;
-            }
+          if (batch.products && typeof batch.products === 'object' && batch.products !== null) {
+            productName = typeof batch.products.name === 'string' ? batch.products.name : 'Unknown Product';
+            productSku = typeof batch.products.sku === 'string' ? batch.products.sku : undefined;
           }
           
-          // Handle profiles data with proper null safety using optional chaining
-          if (batch.profiles && typeof batch.profiles === 'object') {
-            // Fix: Add explicit null check for batch.profiles
-            processorName = batch.profiles !== null && batch.profiles.name ? batch.profiles.name : 'Unknown User';
+          // Handle profiles data with proper null safety
+          if (batch.profiles && typeof batch.profiles === 'object' && batch.profiles !== null) {
+            processorName = batch.profiles.name ? batch.profiles.name : 'Unknown User';
           }
           
           // Handle warehouses data
-          if (batch.warehouses && typeof batch.warehouses === 'object') {
-            if (batch.warehouses !== null) {
-              warehouseName = typeof batch.warehouses.name === 'string' ? batch.warehouses.name : 'Unknown Warehouse';
-            }
+          if (batch.warehouses && typeof batch.warehouses === 'object' && batch.warehouses !== null) {
+            warehouseName = typeof batch.warehouses.name === 'string' ? batch.warehouses.name : 'Unknown Warehouse';
           }
           
           return {

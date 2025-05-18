@@ -13,6 +13,7 @@ import { generateBarcodeString } from '@/utils/barcodeUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import StockInWizardStep from './StockInWizardStep';
 
 interface StockInWizard2Props {
   stockIn: StockInRequestData;

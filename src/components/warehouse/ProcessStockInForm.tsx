@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Box } from 'lucide-react';
 import StockInWizard from './StockInWizard';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProcessStockInFormProps {
   open: boolean;
@@ -28,54 +29,85 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   adminMode = false,
 }) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  // Add debug logging
+  useEffect(() => {
+    console.log("ProcessStockInForm mounted with:", {
+      open,
+      stockInId: stockIn?.id,
+      userId,
+      adminMode
+    });
+  }, []);
+  
+  useEffect(() => {
+    console.log("ProcessStockInForm props updated:", {
+      open,
+      stockInId: stockIn?.id,
+      userId
+    });
+    
+    // Validate required props
+    if (open && (!stockIn || !userId)) {
+      console.error("Missing required props for ProcessStockInForm:", {
+        stockInMissing: !stockIn,
+        userIdMissing: !userId
+      });
+      
+      if (!userId) {
+        toast({
+          title: "Authentication Error",
+          description: "User ID is missing. Please try logging in again.",
+          variant: "destructive"
+        });
+        onOpenChange(false);
+      }
+    }
+  }, [open, stockIn, userId, onOpenChange, toast]);
   
   // Handle wizard completion
   const handleWizardComplete = (batchId: string) => {
+    console.log("Wizard completed with batch ID:", batchId);
     onOpenChange(false);
     // Navigate to batch details page
     const baseRoute = adminMode ? '/admin' : '/manager';
     navigate(`${baseRoute}/inventory/batch/${batchId}`);
   };
   
-  // Add console logs to debug the component rendering
-  console.log("ProcessStockInForm rendering with:", {
-    open,
-    stockInData: stockIn,
-    userId
-  });
-  
-  // If stockIn and userId exist, show the wizard
-  if (stockIn && userId) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1200px] max-h-[95vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Box className="h-5 w-5" />
-              Process Stock In - ID: {stockIn.id.substring(0, 8)}
-            </DialogTitle>
-            <DialogDescription>
-              Complete the following steps to process this stock in request
-            </DialogDescription>
-          </DialogHeader>
-          
-          <StockInWizard 
-            stockIn={stockIn}
-            userId={userId}
-            onComplete={handleWizardComplete}
-            onCancel={() => onOpenChange(false)}
-          />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  console.log("ProcessStockInForm not rendering wizard:", {
-    stockInMissing: !stockIn,
-    userIdMissing: !userId
-  });
-
-  return null;
-}
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1200px] max-h-[95vh] overflow-y-auto">
+        {stockIn && userId ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Box className="h-5 w-5" />
+                Process Stock In - {stockIn.product?.name || 'Unknown Product'} - ID: {stockIn.id.substring(0, 8)}
+              </DialogTitle>
+              <DialogDescription>
+                Complete the following steps to process this stock in request
+              </DialogDescription>
+            </DialogHeader>
+            
+            <StockInWizard 
+              stockIn={stockIn}
+              userId={userId}
+              onComplete={handleWizardComplete}
+              onCancel={() => onOpenChange(false)}
+            />
+          </>
+        ) : (
+          <div className="py-8 text-center">
+            <p className="text-red-500">
+              {!stockIn ? "Stock in request data is missing." : ""}
+              {!userId ? "User ID is missing. Please log in again." : ""}
+            </p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export default ProcessStockInForm;
