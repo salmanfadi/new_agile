@@ -9,16 +9,28 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 
+// Updated interface to better match what Supabase returns
 interface StockInDetail {
   id: string;
   stock_in_id: string;
   product_id: string;
   quantity: number;
   created_at: string;
-  product: {
+  product?: {
     id: string;
     name: string;
   };
+  barcode: string;
+  color?: string;
+  size?: string;
+  batch_number?: string;
+  processing_order?: number;
+  processed_at?: string;
+  error_message?: string;
+  status?: string;
+  inventory_id?: string;
+  warehouse_id: string;
+  location_id: string;
 }
 
 interface StockInData {
@@ -26,31 +38,31 @@ interface StockInData {
   error: string | null;
 }
 
-// Add batch_id, processing_started_at, and processing_completed_at to the StockIn type used in this component
+// Updated interface to better match what Supabase returns
 interface StockInWithExtras {
   boxes: number;
   created_at: string;
   id: string;
   notes: string;
-  processed_by: string;
+  processed_by: string | null;
   product_id: string;
-  rejection_reason: string;
+  rejection_reason: string | null;
   source: string;
   status: "pending" | "approved" | "rejected" | "completed" | "processing";
   submitted_by: string;
   updated_at: string;
-  product: {
+  product?: {
     id: string;
     name: string;
-  };
-  submitter: {
+  } | null;
+  submitter?: {
     id: string;
-    name: string;
-  };
-  processor: {
+    name: string | null;
+  } | null;
+  processor?: {
     id: string;
-    name: string;
-  };
+    name: string | null;
+  } | null;
   batch_id?: string;
   processing_started_at?: string;
   processing_completed_at?: string;
@@ -143,7 +155,6 @@ const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData, stockIn, d
   );
 };
 
-// Update the component to use StockInWithExtras and properly handle missing stockInId
 const StockInDetailsPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId: string }>();
   const navigate = useNavigate();
@@ -201,7 +212,29 @@ const StockInDetailsPage: React.FC = () => {
         }
 
         if (data) {
-          setStockIn(data as StockInWithExtras);
+          // Parse the data and handle potential missing properties or type issues
+          const safeStockIn: StockInWithExtras = {
+            id: data.id,
+            boxes: data.boxes || 0,
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            product_id: data.product_id,
+            source: data.source,
+            notes: data.notes || '',
+            submitted_by: data.submitted_by,
+            processed_by: data.processed_by,
+            rejection_reason: data.rejection_reason,
+            status: data.status,
+            batch_id: data.batch_id,
+            processing_started_at: data.processing_started_at,
+            processing_completed_at: data.processing_completed_at,
+            // Handle the nested objects with safe defaults
+            product: data.product || { id: '', name: 'Unknown Product' },
+            submitter: data.submitter || { id: '', name: 'Unknown User' },
+            processor: data.processed_by ? (data.processor || { id: '', name: 'Unknown User' }) : undefined
+          };
+          
+          setStockIn(safeStockIn);
           setStockInData({ loading: false, error: null });
           toast({
             title: "Success",
@@ -255,7 +288,29 @@ const StockInDetailsPage: React.FC = () => {
         }
 
         if (data) {
-          setDetails(data);
+          // Process the data to ensure it matches our StockInDetail interface
+          const safeDetails: StockInDetail[] = data.map(item => ({
+            id: item.id,
+            stock_in_id: item.stock_in_id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            created_at: item.created_at,
+            barcode: item.barcode,
+            color: item.color,
+            size: item.size,
+            batch_number: item.batch_number,
+            processing_order: item.processing_order,
+            processed_at: item.processed_at,
+            error_message: item.error_message,
+            status: item.status,
+            inventory_id: item.inventory_id,
+            warehouse_id: item.warehouse_id,
+            location_id: item.location_id,
+            product: item.product && typeof item.product === 'object' ? 
+              { id: item.product.id, name: item.product.name } : undefined
+          }));
+          
+          setDetails(safeDetails);
           toast({
             title: "Success",
             description: "Stock in details data fetched successfully"
@@ -297,7 +352,6 @@ const StockInDetailsPage: React.FC = () => {
     );
   }
   
-  // Update the StockInDetails component props to match requirements
   return (
     <div className="container mx-auto p-4">
       <Button 
