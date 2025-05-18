@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StockInStepDetails from './StockInStepDetails';
-import { StockInStepBoxes } from './StockInStepBoxes';
+import StockInStepBoxes from './StockInStepBoxes';
 import StockInStepPreview from './StockInStepPreview';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { generateBarcodeString } from '@/utils/barcodeUtils';
@@ -38,10 +39,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
   const [warehouseId, setWarehouseId] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
   const [confirmedBoxes, setConfirmedBoxes] = useState<number>(stockIn.boxes || 0);
-  // Initialize state for default values
   const [defaultValues, setDefaultValues] = useState({
-    warehouse: '',
-    location: '',
     quantity: 1,
     color: '',
     size: '',
@@ -548,15 +546,14 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
         
         {activeStep === 'boxes' && (
           <StockInStepBoxes
-            stockIn={stockIn}
-            boxes={boxesData}
-            updateBox={(index, data) => {
-              const updatedBoxes = [...boxesData];
-              updatedBoxes[index] = { ...updatedBoxes[index], ...data };
-              setBoxesData(updatedBoxes);
-            }}
-            onNext={() => navigateToStep('preview')}
+            boxesData={boxesData}
+            updateBox={updateBox}
+            updateBoxLocation={updateBoxLocation}
+            defaultValues={defaultValues}
+            setDefaultValues={setDefaultValues}
+            applyToAllBoxes={applyToAllBoxes}
             onBack={() => navigateToStep('details')}
+            onContinue={() => navigateToStep('preview')}
           />
         )}
         

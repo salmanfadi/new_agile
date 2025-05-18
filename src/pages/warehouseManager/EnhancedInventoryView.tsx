@@ -10,7 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import { InventoryFiltersPanel } from '@/components/warehouse/InventoryFiltersPanel';
 import { useInventoryFilters } from '@/hooks/useInventoryFilters';
 import { useInventoryData } from '@/hooks/useInventoryData';
-import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
+import { InventoryTable } from '@/components/warehouse/InventoryTable';
 import { useProcessedBatchesWithItems } from '@/hooks/useProcessedBatchesWithItems';
 import { 
   Table, TableBody, TableCell, TableHead, 
@@ -18,23 +18,6 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { Eye, BoxesIcon, Package, ArrowLeft } from 'lucide-react';
-
-// Define the BatchesQueryResult type for better type checking
-interface BatchesQueryResult {
-  batches: Array<{
-    id: string;
-    product_name: string;
-    product_sku?: string;
-    warehouse_name: string;
-    total_quantity: number;
-    total_boxes: number;
-    processor_name?: string;
-    processed_at: string;
-  }>;
-  count: number;
-  page: number;
-  limit: number;
-}
 
 const EnhancedInventoryView: React.FC = () => {
   const navigate = useNavigate();
@@ -72,7 +55,7 @@ const EnhancedInventoryView: React.FC = () => {
     filters.searchTerm
   );
   
-  // Batches data with proper typing
+  // Batches data
   const {
     data: batchesData,
     isLoading: isLoadingBatchesData,
@@ -83,11 +66,6 @@ const EnhancedInventoryView: React.FC = () => {
     page: batchPage,
     limit: 10
   });
-  
-  // Type guard for batchesData
-  const isBatchesQueryResult = (data: any): data is BatchesQueryResult => {
-    return data && 'batches' in data && Array.isArray(data.batches);
-  };
   
   // Check for navigation state from batch processing
   useEffect(() => {
@@ -157,16 +135,16 @@ const EnhancedInventoryView: React.FC = () => {
     });
   };
   
-  // Handle view batch details - warehouse manager route
+  // Handle view batch details
   const handleViewBatchDetails = (batchId: string) => {
     navigate(`/manager/inventory/batch/${batchId}`);
   };
 
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title="Global Inventory Management"
-        description="Monitor and manage inventory items and batches across all warehouses"
+      <PageHeader
+        title="Enhanced Inventory Management"
+        description="View and manage inventory items and batches across all warehouses"
       />
       
       <div className="flex justify-between items-center">
@@ -212,13 +190,22 @@ const EnhancedInventoryView: React.FC = () => {
         </TabsList>
         
         <TabsContent value="inventory">
-          <InventoryTableContainer 
-            inventoryItems={inventoryItems}
-            isLoading={isLoadingInventory}
-            error={inventoryError as Error | null}
-            highlightedBarcode={highlightedBarcode}
-            title="Global Inventory"
-          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Inventory Items</CardTitle>
+              <CardDescription>
+                All inventory items matching your selected filters
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InventoryTable 
+                inventoryItems={inventoryItems} 
+                isLoading={isLoadingInventory} 
+                error={inventoryError as Error | null}
+                highlightedBarcode={highlightedBarcode}
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="batches">
@@ -226,7 +213,7 @@ const EnhancedInventoryView: React.FC = () => {
             <CardHeader>
               <CardTitle>Inventory Batches</CardTitle>
               <CardDescription>
-                View batches of inventory processed across all warehouses
+                View batches of inventory processed into the system
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -238,7 +225,7 @@ const EnhancedInventoryView: React.FC = () => {
                 <div className="p-4 bg-red-50 border border-red-200 rounded text-red-600">
                   <p>Error loading batches: {batchesError instanceof Error ? batchesError.message : 'Unknown error'}</p>
                 </div>
-              ) : !batchesData || !isBatchesQueryResult(batchesData) || batchesData.batches.length === 0 ? (
+              ) : !batchesData?.batches.length ? (
                 <div className="p-6 text-center border rounded bg-gray-50">
                   <BoxesIcon className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                   <p className="text-gray-500">No batch data available.</p>
@@ -299,7 +286,7 @@ const EnhancedInventoryView: React.FC = () => {
                   </div>
                   
                   {/* Pagination */}
-                  {isBatchesQueryResult(batchesData) && batchesData.count > 0 && (
+                  {batchesData && batchesData.count > 0 && (
                     <div className="flex items-center justify-center space-x-2 py-4">
                       <Button
                         variant="outline"

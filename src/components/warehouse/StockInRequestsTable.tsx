@@ -129,7 +129,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {stockInRequests?.map((item) => (
+            {stockInRequests.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
                   <StatusBadge status={item.status} />
