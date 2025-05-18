@@ -2,30 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
-import { useNavigate } from 'react-router-dom';
-import { useWarehouseLocations } from '@/hooks/useWarehouseLocations';
 import { WarehouseLocation } from '@/types/database';
-
-interface StockInStepBoxesProps {
-  stockIn: StockInRequestData;
-  boxes: BoxData[];
-  updateBox: (index: number, data: Partial<BoxData>) => void;
-  onNext: () => void;
-  onBack: () => void;
-}
+import { DefaultWarehouseSelector } from './DefaultWarehouseSelector';
+import { BoxesList } from './BoxesList';
+import { NavigationButtons } from './NavigationButtons';
 
 // Define a more specific type for the warehouse to match the database structure
 interface Warehouse {
@@ -36,12 +19,19 @@ interface Warehouse {
   updated_at?: string;
 }
 
+interface StockInStepBoxesProps {
+  stockIn: StockInRequestData;
+  boxes: BoxData[];
+  updateBox: (index: number, data: Partial<BoxData>) => void;
+  onNext: () => void;
+  onBack: () => void;
+}
+
 // Export the component as both default and named export
 export function StockInStepBoxes({ stockIn, boxes, updateBox, onNext, onBack }: StockInStepBoxesProps) {
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
   const [isContinueDisabled, setIsContinueDisabled] = useState(true);
-  const navigate = useNavigate();
 
   // Fetch warehouses
   const { data: warehouses, isLoading: isLoadingWarehouses } = useQuery({
@@ -89,8 +79,7 @@ export function StockInStepBoxes({ stockIn, boxes, updateBox, onNext, onBack }: 
   // Set default warehouse if only one exists
   useEffect(() => {
     if (warehouses && warehouses.length === 1) {
-      // Using a function to update state to avoid type errors
-      setSelectedWarehouse(() => warehouses[0]);
+      setSelectedWarehouse(warehouses[0]);
     }
   }, [warehouses]);
 
@@ -124,163 +113,27 @@ export function StockInStepBoxes({ stockIn, boxes, updateBox, onNext, onBack }: 
 
   return (
     <div className="space-y-6">
-      <div className="bg-muted/50 p-4 rounded-md mb-4">
-        <h3 className="font-medium mb-2">Default Warehouse and Location</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="default-warehouse">Default Warehouse</Label>
-            <Select
-              value={selectedWarehouse?.id || ''}
-              onValueChange={(value) => {
-                const selected = warehouses?.find(w => w.id === value);
-                if (selected) {
-                  // Using a function to update state to avoid type errors
-                  setSelectedWarehouse(() => selected);
-                }
-              }}
-              disabled={isLoadingWarehouses}
-            >
-              <SelectTrigger id="default-warehouse">
-                <SelectValue placeholder="Select warehouse" />
-              </SelectTrigger>
-              <SelectContent>
-                {warehouses?.map((warehouse) => (
-                  <SelectItem key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="default-location">Default Location</Label>
-            <Select
-              value=""
-              onValueChange={(locationId) => {
-                if (selectedWarehouse) {
-                  applyToAll(selectedWarehouse.id, locationId);
-                }
-              }}
-              disabled={!selectedWarehouse || warehouseLocations.length === 0}
-            >
-              <SelectTrigger id="default-location">
-                <SelectValue placeholder="Apply location to all" />
-              </SelectTrigger>
-              <SelectContent>
-                {warehouseLocations.map((location) => (
-                  <SelectItem key={location.id} value={location.id}>
-                    Floor {location.floor}, Zone {location.zone}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
+      <DefaultWarehouseSelector
+        warehouses={warehouses}
+        warehouseLocations={warehouseLocations}
+        selectedWarehouse={selectedWarehouse}
+        setSelectedWarehouse={setSelectedWarehouse}
+        applyToAll={applyToAll}
+        isLoadingWarehouses={isLoadingWarehouses}
+      />
       
-      <div className="space-y-4">
-        {boxes.map((box, index) => (
-          <div key={index} className="border rounded-md p-4">
-            <h4 className="font-medium mb-2">Box {index + 1}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor={`box-${index}-warehouse`}>Warehouse</Label>
-                <Select
-                  value={box.warehouse_id || ''}
-                  onValueChange={(value) => {
-                    updateBox(index, { warehouse_id: value });
-                    // Clear location when warehouse changes
-                    updateBox(index, { location_id: '' });
-                  }}
-                  disabled={isLoadingWarehouses}
-                >
-                  <SelectTrigger id={`box-${index}-warehouse`}>
-                    <SelectValue placeholder="Select warehouse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {warehouses?.map((warehouse) => (
-                      <SelectItem key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor={`box-${index}-location`}>Location</Label>
-                <Select
-                  value={box.location_id || ''}
-                  onValueChange={(value) => updateBox(index, { location_id: value })}
-                  disabled={!box.warehouse_id}
-                >
-                  <SelectTrigger id={`box-${index}-location`}>
-                    <SelectValue placeholder="Select location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {warehouseLocations
-                      .filter(loc => loc.warehouse_id === box.warehouse_id)
-                      .map((location) => (
-                        <SelectItem key={location.id} value={location.id}>
-                          Floor {location.floor}, Zone {location.zone}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor={`box-${index}-quantity`}>Quantity</Label>
-                <Input
-                  id={`box-${index}-quantity`}
-                  type="number"
-                  min="1"
-                  value={box.quantity}
-                  onChange={(e) => updateBox(index, { quantity: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor={`box-${index}-barcode`}>Barcode</Label>
-                <Input
-                  id={`box-${index}-barcode`}
-                  value={box.barcode || ''}
-                  onChange={(e) => updateBox(index, { barcode: e.target.value })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor={`box-${index}-color`}>Color (Optional)</Label>
-                <Input
-                  id={`box-${index}-color`}
-                  value={box.color || ''}
-                  onChange={(e) => updateBox(index, { color: e.target.value })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor={`box-${index}-size`}>Size (Optional)</Label>
-                <Input
-                  id={`box-${index}-size`}
-                  value={box.size || ''}
-                  onChange={(e) => updateBox(index, { size: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <BoxesList
+        boxes={boxes}
+        updateBox={updateBox}
+        warehouses={warehouses}
+        warehouseLocations={warehouseLocations}
+      />
       
-      <div className="flex justify-between pt-4">
-        <Button type="button" variant="outline" onClick={onBack}>
-          Back
-        </Button>
-        <Button type="button" disabled={isContinueDisabled} onClick={onNext}>
-          Continue
-        </Button>
-      </div>
+      <NavigationButtons
+        onBack={onBack}
+        onNext={onNext}
+        isContinueDisabled={isContinueDisabled}
+      />
     </div>
   );
 }
