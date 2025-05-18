@@ -165,12 +165,14 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
             processed_at: batch.processed_at || new Date().toISOString()
           }));
 
-          return {
+          const result: BatchesQueryResult = {
             batches: batchesData,
             count: count || 0,
             page,
             limit: actualLimit
-          } as BatchesQueryResult;
+          };
+
+          return result;
         }
 
         // Format for default view
@@ -194,12 +196,14 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           return processedBatch;
         });
 
-        return {
+        const result: ProcessedBatchesResult = {
           data: batchesWithDetails,
           total: count || 0,
           page,
           pageSize: actualLimit
-        } as ProcessedBatchesResult;
+        };
+
+        return result;
       } catch (error) {
         console.error('Error in useProcessedBatchesWithItems hook:', error);
         throw error;

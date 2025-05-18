@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,7 @@ import { BoxData } from '@/hooks/useStockInBoxes';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { useNavigate } from 'react-router-dom';
 import { useWarehouseLocations } from '@/hooks/useWarehouseLocations';
+import { WarehouseLocation } from '@/types/database';
 
 interface StockInStepBoxesProps {
   stockIn: StockInRequestData;
@@ -34,7 +36,7 @@ interface Warehouse {
   updated_at?: string;
 }
 
-// Export the component as a named export
+// Export the component as both default and named export
 export function StockInStepBoxes({ stockIn, boxes, updateBox, onNext, onBack }: StockInStepBoxesProps) {
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
@@ -282,3 +284,6 @@ export function StockInStepBoxes({ stockIn, boxes, updateBox, onNext, onBack }: 
     </div>
   );
 }
+
+// Add default export pointing to the named export
+export default StockInStepBoxes;
