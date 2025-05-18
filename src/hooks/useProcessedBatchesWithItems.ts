@@ -105,6 +105,7 @@ export const useProcessedBatchesWithItems = ({
           
           // Handle profiles data with proper null safety
           if (batch.profiles && typeof batch.profiles === 'object' && batch.profiles !== null) {
+            // Fixed TypeScript error by checking if name property exists before accessing it
             processorName = batch.profiles.name ? batch.profiles.name : 'Unknown User';
           }
           
