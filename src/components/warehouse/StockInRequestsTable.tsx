@@ -1,127 +1,68 @@
-import React, { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { StockInRequestData, useStockInRequests } from '@/hooks/useStockInRequests';
+
+// Modify the existing StockInRequestsTable to include a link to the new unified processing flow
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { 
+  TableHeader, 
+  TableRow, 
+  TableHead, 
+  TableBody, 
+  TableCell, 
+  Table 
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Box, ClipboardList, AlertTriangle } from 'lucide-react';
+import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 
 interface StockInRequestsTableProps {
-  status: string;
-  filters: Record<string, any>;
+  status?: string;
+  filters?: Record<string, any>;
   onProcess?: (stockIn: StockInRequestData) => void;
   onReject?: (stockIn: StockInRequestData) => void;
-  onRefresh?: () => void;
   userId?: string;
 }
 
 export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
-  status,
-  filters,
+  status = '',
+  filters = {},
   onProcess,
   onReject,
-  onRefresh,
   userId,
 }) => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const currentUserId = userId || user?.id;
   
-  // Merge status into filters
-  const allFilters = { ...filters, status };
-  const { data: stockInRequests, isLoading, refetch } = useStockInRequests(allFilters);
+  // Use the shared hook for stock in requests
+  const { 
+    data: stockInRequests, 
+    isLoading, 
+    error,
+    refetch 
+  } = useStockInRequests({
+    status: status || undefined,
+    ...filters
+  });
 
-  // Force refetch data if needed
-  const refreshData = () => {
-    console.log("Manually refreshing stock-in requests data");
-    refetch();
-    if (onRefresh) onRefresh();
-    toast({
-      title: 'Refreshing data...',
-      description: 'Updating stock-in requests list'
-    });
+  // Handle view details
+  const handleViewDetails = (stockInId: string) => {
+    navigate(`/manager/stock-in/${stockInId}`);
   };
-
-  // Setup Supabase real-time subscription on component mount with improved error handling
-  useEffect(() => {
-    console.log("Setting up real-time subscription for stock_in table");
-    let channel;
-    
-    try {
-      channel = supabase
-        .channel('stock_in_table_changes')
-        .on('postgres_changes', 
-          { event: '*', schema: 'public', table: 'stock_in' }, 
-          (payload) => {
-            console.log('Real-time update received for stock-in table:', payload);
-            
-            // Show toast based on status updates
-            if (payload.eventType === 'UPDATE' && payload.new && payload.old) {
-              const oldStatus = payload.old.status;
-              const newStatus = payload.new.status;
-              
-              if (oldStatus !== newStatus) {
-                let message = '';
-                let title = '';
-                
-                switch (newStatus) {
-                  case 'completed':
-                    title = 'Stock In Completed';
-                    message = 'A stock in request has been fully processed';
-                    break;
-                  case 'processing':
-                    title = 'Stock In Processing';
-                    message = 'A stock in request is being processed';
-                    break;
-                  case 'approved':
-                    title = 'Stock In Approved';
-                    message = 'A stock in request has been approved';
-                    break;
-                  case 'rejected':
-                    title = 'Stock In Rejected';
-                    message = 'A stock in request has been rejected';
-                    break;
-                }
-                
-                if (message) {
-                  toast({
-                    title,
-                    description: message,
-                  });
-                }
-              }
-            }
-            
-            // Always invalidate the query to refresh data
-            queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-            refetch();
-          }
-        )
-        .subscribe();
-    } catch (err) {
-      console.error("Error setting up real-time subscription:", err);
-    }
-
-    return () => {
-      console.log('Unsubscribing from stock-in table changes');
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, [queryClient, refetch]);
-
+  
+  // Handle process button click
   const handleProcess = (stockIn: StockInRequestData) => {
     if (onProcess) {
       onProcess(stockIn);
     }
+  };
+  
+  // Handle continue processing for requests that are already in processing status
+  const handleContinueProcessing = (stockIn: StockInRequestData) => {
+    // Redirect to the unified batch processing page instead
+    navigate(`/manager/stock-in/unified/${stockIn.id}`);
   };
 
   const handleReject = (stockIn: StockInRequestData) => {
@@ -129,129 +70,136 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
       onReject(stockIn);
     }
   };
-
+  
   if (isLoading) {
     return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+      <div className="w-full py-10 flex justify-center">
+        <div className="animate-pulse flex space-x-4">
+          <div className="flex-1 space-y-4 py-1">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded"></div>
+              <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="w-full py-10 text-center">
+        <AlertTriangle className="mx-auto h-8 w-8 text-red-500 mb-2" />
+        <p className="text-lg font-medium">Error loading stock in requests</p>
+        <Button onClick={() => refetch()} className="mt-4">Try Again</Button>
       </div>
     );
   }
   
   if (!stockInRequests || stockInRequests.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <p>No {status} stock in requests</p>
-        <Button 
-          variant="outline" 
-          size="sm"
-          className="mt-4" 
-          onClick={refreshData}
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh Data
-        </Button>
+      <div className="w-full py-10 text-center border rounded-md bg-gray-50">
+        <ClipboardList className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+        <p className="text-lg font-medium text-gray-600">No stock in requests found</p>
+        <p className="text-gray-500 mt-1">
+          {status ? `No ${status} requests available.` : 'Try adjusting your filters.'}
+        </p>
       </div>
     );
   }
-  
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={refreshData}
-          className="text-xs flex items-center gap-1"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Refresh
-        </Button>
-      </div>
 
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>User</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Boxes</TableHead>
-              <TableHead>Submission Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {stockInRequests.map((stockIn) => (
-              <TableRow key={stockIn.id} className={stockIn.status === 'pending' ? "bg-green-50" : undefined}>
-                <TableCell className="font-medium">
-                  {stockIn.product?.name || 'Unknown Product'}
-                  {stockIn.product?.sku && <span className="block text-xs text-slate-500">SKU: {stockIn.product.sku}</span>}
-                </TableCell>
-                <TableCell>
-                  {stockIn.submitter ? (
-                    <div className="flex flex-col">
-                      <span className="font-medium">{stockIn.submitter.name}</span>
-                      <span className="text-sm text-gray-600">@{stockIn.submitter.username}</span>
-                    </div>
-                  ) : (
-                    <span className="text-amber-500">Unknown User</span>
-                  )}
-                </TableCell>
-                <TableCell>{stockIn.source}</TableCell>
-                <TableCell>{stockIn.boxes}</TableCell>
-                <TableCell>{new Date(stockIn.created_at).toLocaleString()}</TableCell>
-                <TableCell>
-                  <StatusBadge status={stockIn.status} />
-                </TableCell>
-                <TableCell className="text-right space-x-2">
-                  {stockIn.status === 'pending' && (
-                    <>
-                      {onProcess && (
-                        <Button 
-                          size="sm" 
-                          variant="default"
-                          onClick={() => handleProcess(stockIn)}
-                          className="relative overflow-hidden transition-all hover:shadow-lg hover:shadow-blue-200 group"
-                        >
-                          <span className="absolute right-0 top-0 h-full w-8 translate-x-12 transform bg-blue-600 opacity-10 transition-all duration-1000 group-hover:-translate-x-40"></span>
-                          Batch Process
-                        </Button>
-                      )}
-                      {onReject && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="text-red-600"
-                          onClick={() => handleReject(stockIn)}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      )}
-                    </>
-                  )}
-                  {stockIn.status === 'processing' && (
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Status</TableHead>
+            <TableHead>Product</TableHead>
+            <TableHead>Boxes</TableHead>
+            <TableHead>Submitted By</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {stockInRequests.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>
+                <StatusBadge status={item.status} />
+              </TableCell>
+              <TableCell>
+                <div className="font-medium">{item.product?.name || 'Unknown Product'}</div>
+                <div className="text-xs text-gray-500">
+                  {item.product?.sku && `SKU: ${item.product.sku}`}
+                </div>
+              </TableCell>
+              <TableCell>{item.boxes}</TableCell>
+              <TableCell>
+                {item.submitter ? (
+                  <div>
+                    <div>{item.submitter.name}</div>
+                    <div className="text-xs text-gray-500">{item.submitter.username}</div>
+                  </div>
+                ) : (
+                  'Unknown'
+                )}
+              </TableCell>
+              <TableCell>{item.source}</TableCell>
+              <TableCell>
+                {item.created_at ? (
+                  format(new Date(item.created_at), 'MMM d, yyyy')
+                ) : (
+                  'Unknown date'
+                )}
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewDetails(item.id)}
+                  >
+                    Details
+                  </Button>
+                  
+                  {item.status === 'pending' && onProcess && (
                     <Button 
-                      size="sm" 
                       variant="default"
-                      onClick={() => handleProcess(stockIn)}
+                      size="sm"
+                      onClick={() => handleProcess(item)}
+                    >
+                      <Box className="mr-1 h-4 w-4" />
+                      Process
+                    </Button>
+                  )}
+                  
+                  {item.status === 'processing' && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleContinueProcessing(item)}
                     >
                       Continue Processing
                     </Button>
                   )}
-                  {stockIn.status === 'rejected' && stockIn.rejection_reason && (
-                    <div className="text-xs text-red-600">
-                      Reason: {stockIn.rejection_reason}
-                    </div>
+                  
+                  {item.status === 'pending' && onReject && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleReject(item)}
+                    >
+                      Reject
+                    </Button>
                   )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 };

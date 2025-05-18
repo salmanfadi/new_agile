@@ -1,187 +1,96 @@
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import BatchStockInComponent from '@/components/warehouse/BatchStockInComponent';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
-import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTable';
-import { StockInFilters } from '@/components/warehouse/StockInFilters';
-import { ProcessedBatchesFilters } from '@/components/warehouse/ProcessedBatchesFilters';
-import { useAuth } from '@/context/AuthContext';
-import { DateRange } from 'react-day-picker';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
+import { ProcessStockInDialog } from '@/components/warehouse/ProcessStockInDialog';
+import { useAuth } from '@/context/AuthContext';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { StockInRequestData } from '@/hooks/useStockInRequests';
 
 const StockInProcessing: React.FC = () => {
-  const { user } = useAuth();
-  const userId = user?.id || '';
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
   
-  // Tab state
-  const [activeTab, setActiveTab] = useState<string>('pending');
-  
-  // Filters state for stock in requests
-  const [pendingFilters, setPendingFilters] = useState<Record<string, any>>({});
-  const [processingFilters, setProcessingFilters] = useState<Record<string, any>>({});
-  const [completedFilters, setCompletedFilters] = useState<Record<string, any>>({});
-  const [rejectedFilters, setRejectedFilters] = useState<Record<string, any>>({});
-  
-  // Filters state for processed batches
-  const [batchFilters, setBatchFilters] = useState<Record<string, any>>({});
-  const [batchSearchTerm, setBatchSearchTerm] = useState<string>('');
-  const [batchDateRange, setBatchDateRange] = useState<DateRange | undefined>(undefined);
-  
-  // Sheet state for batch processing
-  const [isSheetOpen, setIsSheetOpen] = useState<boolean>(false);
-  const [selectedStockInId, setSelectedStockInId] = useState<string | null>(null);
-  
-  // Stock in table actions
-  const handleProcess = (stockIn: any) => {
-    const stockInId = stockIn.id;
-    navigate(`/manager/stock-in/batch/${stockInId}`);
-  };
-  
-  const handleReject = (stockIn: any) => {
-    navigate(`/manager/stock-in/reject/${stockIn.id}`);
-  };
-  
-  // Filter handlers for stock in requests
-  const handleStockInFilterChange = (status: string, filters: Record<string, any>) => {
-    switch (status) {
-      case 'pending':
-        setPendingFilters(filters);
-        break;
-      case 'processing':
-        setProcessingFilters(filters);
-        break;
-      case 'completed':
-        setCompletedFilters(filters);
-        break;
-      case 'rejected':
-        setRejectedFilters(filters);
-        break;
-    }
-  };
-  
-  // Filter handlers for processed batches
-  const handleBatchSearch = (searchTerm: string) => {
-    setBatchSearchTerm(searchTerm);
-    setBatchFilters(prev => ({ ...prev, searchTerm }));
-  };
-  
-  const handleBatchDateChange = (dateRange: DateRange | undefined) => {
-    setBatchDateRange(dateRange);
-    
-    if (dateRange) {
-      const { from, to } = dateRange;
-      setBatchFilters(prev => ({
-        ...prev,
-        fromDate: from,
-        toDate: to
-      }));
-    } else {
-      const { fromDate, toDate, ...rest } = batchFilters;
-      setBatchFilters(rest);
-    }
-  };
-  
-  const handleBatchFilterReset = () => {
-    setBatchSearchTerm('');
-    setBatchDateRange(undefined);
-    setBatchFilters({});
+  const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
+  const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("pending");
+
+  // Handle process button click
+  const handleProcess = (stockIn: StockInRequestData) => {
+    // Use the new unified batch processing flow
+    navigate(`/manager/stock-in/unified/${stockIn.id}`);
   };
 
-  const handleFilterChange = (filters: Record<string, any>) => {
-    setBatchFilters(prev => ({ ...prev, ...filters }));
-  };
-  
-  const handleSheetClose = () => {
-    setIsSheetOpen(false);
-    setSelectedStockInId(null);
-    
-    // Refresh data after closing the sheet
-    queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-    queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
-  };
-  
   return (
     <div className="space-y-6">
       <PageHeader 
-        title="Stock In Processing"
-        description="Manage incoming stock requests and process new inventory"
+        title="Stock In Processing" 
+        description="Process incoming stock and add to inventory"
       />
       
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/manager')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Button>
+        
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filter by status:</span>
+          <Select 
+            value={statusFilter} 
+            onValueChange={setStatusFilter}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="all">All Requests</SelectItem>
+                <SelectItem value="pending">Awaiting Processing</SelectItem>
+                <SelectItem value="processing">In Processing</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      
       <Card>
-        <CardContent className="pt-6">
-          <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-5 mb-6">
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="processing">In Progress</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
-              <TabsTrigger value="batches">Processed Batches</TabsTrigger>
-            </TabsList>
-            
-            <div className="mb-6">
-              {activeTab === 'batches' ? (
-                <ProcessedBatchesFilters 
-                  onSearch={handleBatchSearch}
-                  onDateChange={handleBatchDateChange}
-                  onReset={handleBatchFilterReset}
-                  onFilterChange={handleFilterChange}
-                />
-              ) : (
-                <StockInFilters 
-                  onFilterChange={(filters) => handleStockInFilterChange(activeTab, filters)}
-                />
-              )}
-            </div>
-            
-            <TabsContent value="pending" className="mt-0">
-              <StockInRequestsTable 
-                status="pending" 
-                filters={pendingFilters} 
-                onProcess={handleProcess}
-                onReject={handleReject}
-                userId={userId}
-              />
-            </TabsContent>
-            
-            <TabsContent value="processing" className="mt-0">
-              <StockInRequestsTable 
-                status="processing" 
-                filters={processingFilters}
-                onProcess={handleProcess}
-                userId={userId}
-              />
-            </TabsContent>
-            
-            <TabsContent value="completed" className="mt-0">
-              <StockInRequestsTable 
-                status="completed" 
-                filters={completedFilters}
-                userId={userId}
-              />
-            </TabsContent>
-            
-            <TabsContent value="rejected" className="mt-0">
-              <StockInRequestsTable 
-                status="rejected" 
-                filters={rejectedFilters}
-                userId={userId}
-              />
-            </TabsContent>
-            
-            <TabsContent value="batches" className="mt-0">
-              <ProcessedBatchesTable 
-                filters={batchFilters}
-              />
-            </TabsContent>
-          </Tabs>
+        <CardHeader>
+          <CardTitle>Stock In Requests</CardTitle>
+          <CardDescription>Process incoming stock requests and add to inventory</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <StockInRequestsTable 
+            status={statusFilter !== "all" ? statusFilter : ""}
+            onProcess={handleProcess}
+          />
         </CardContent>
       </Card>
+
+      {/* Legacy Process Dialog - keeping for backward compatibility */}
+      <ProcessStockInDialog
+        open={isProcessDialogOpen}
+        onOpenChange={setIsProcessDialogOpen}
+        selectedStockIn={selectedStockIn}
+        userId={user?.id}
+      />
     </div>
   );
 };

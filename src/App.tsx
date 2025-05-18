@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -81,6 +80,10 @@ import ResetPassword from './pages/customer/ResetPassword';
 import ProductCatalogue from './pages/public/ProductCatalogue';
 import ProductDetail from './pages/public/ProductDetail';
 import Cart from './pages/public/Cart';
+
+// Import the new UnifiedBatchProcessingPage components
+import UnifiedBatchProcessingPage from '@/pages/warehouseManager/UnifiedBatchProcessingPage';
+import AdminUnifiedBatchProcessingPage from '@/pages/admin/UnifiedBatchProcessingPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -196,6 +199,15 @@ function App() {
                 <Route path="/manager/stock-in/batch/:stockInId" element={<ManagerBatchStockInPage />} />
                 <Route path="/manager/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />
                 <Route path="/manager/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
+                
+                {/* Add unified batch processing routes */}
+                <Route path="/manager/stock-in/unified/:stockInId" element={
+                  <RequireAuth allowedRoles={["warehouse_manager"]}>
+                    <MainLayout>
+                      <UnifiedBatchProcessingPage />
+                    </MainLayout>
+                  </RequireAuth>
+                } />
               </Route>
               
               {/* Field Operator Routes */}

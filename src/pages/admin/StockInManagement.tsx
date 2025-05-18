@@ -31,9 +31,9 @@ const AdminStockInManagement: React.FC = () => {
     status: statusFilter !== "all" ? statusFilter : undefined
   });
 
-  // Navigate to batch processing page with the stock in ID
+  // Navigate to unified batch processing page with the stock in ID
   const handleProcess = (stockIn: StockInRequestData) => {
-    navigate(`/admin/stock-in/batch/${stockIn.id}`);
+    navigate(`/admin/stock-in/unified/${stockIn.id}`);
   };
 
   const handleReject = (stockIn: StockInRequestData) => {
