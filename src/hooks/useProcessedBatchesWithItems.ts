@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ProcessedBatch } from '@/types/database';
@@ -53,6 +54,7 @@ interface RawBatchData {
   total_quantity: number;
   total_boxes: number;
   warehouse_id: string;
+  created_at?: string; // Make created_at optional to match DB response
   products?: {
     name: string;
     sku?: string;
@@ -62,9 +64,7 @@ interface RawBatchData {
   };
   profiles?: {
     name?: string;
-  }; 
-  // Add explicit created_at field for type safety
-  created_at: string;
+  } | null; 
 }
 
 // Hook to fetch processed batches with associated items and pagination
@@ -79,7 +79,17 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           .from('processed_batches')
           .select(
             `
-            *,
+            id,
+            product_id,
+            stock_in_id,
+            processed_by,
+            processed_at,
+            source,
+            notes,
+            status,
+            total_quantity,
+            total_boxes,
+            warehouse_id,
             products (
               name,
               sku
@@ -112,8 +122,8 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           query = query.lte('processed_at', endDate);
         }
         if (searchTerm) {
-          // Search in product name or other relevant fields
-          query = query.textSearch('products.name', searchTerm);
+          // Use more precise search approach
+          query = query.or(`source.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
         }
 
         // Apply pagination - use limit if provided, otherwise use pageSize
@@ -129,19 +139,24 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           throw error;
         }
 
+        // Type guard to safely work with the data
+        const typedData = data as unknown as RawBatchData[];
+
         // Check if we're returning data for EnhancedInventoryView
         if (limit) {
           // Format for EnhancedInventoryView
-          const batchesData = data.map((batch: RawBatchData) => ({
-            id: batch.id,
-            product_name: batch.products?.name || 'Unknown Product',
-            product_sku: batch.products?.sku,
-            warehouse_name: batch.warehouses?.name || 'Unknown Warehouse',
-            total_quantity: batch.total_quantity,
-            total_boxes: batch.total_boxes,
-            processor_name: batch.profiles?.name || undefined,
-            processed_at: batch.processed_at || new Date().toISOString()
-          }));
+          const batchesData = typedData.map((batch) => {
+            return {
+              id: batch.id,
+              product_name: batch.products?.name || 'Unknown Product',
+              product_sku: batch.products?.sku,
+              warehouse_name: batch.warehouses?.name || 'Unknown Warehouse',
+              total_quantity: batch.total_quantity,
+              total_boxes: batch.total_boxes,
+              processor_name: batch.profiles?.name || undefined,
+              processed_at: batch.processed_at || new Date().toISOString()
+            };
+          });
 
           return {
             batches: batchesData,
@@ -152,15 +167,19 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
         }
 
         // Map the data to include additional properties for UI display
-        const batchesWithDetails = data.map((batch: RawBatchData) => {
+        const batchesWithDetails = typedData.map((batch) => {
           const productName = batch.products?.name || 'Unknown Product';
           const productSku = batch.products?.sku || 'N/A';
           const warehouseName = batch.warehouses?.name || 'Unknown Warehouse';
           const processorName = batch.profiles?.name;
-          const formattedProcessedAt = batch.processed_at ? new Date(batch.processed_at).toLocaleDateString() : '';
-          const formattedCreatedAt = batch.created_at ? new Date(batch.created_at).toLocaleDateString() : '';
+          const formattedProcessedAt = batch.processed_at 
+            ? new Date(batch.processed_at).toLocaleDateString() 
+            : '';
+          const formattedCreatedAt = batch.created_at 
+            ? new Date(batch.created_at).toLocaleDateString() 
+            : '';
 
-          // Explicitly cast to ProcessedBatch to ensure type safety
+          // Explicitly create ProcessedBatch object
           return {
             ...batch,
             productName,
@@ -169,7 +188,7 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
             processorName,
             formattedProcessedAt,
             formattedCreatedAt,
-            // Ensure created_at is present for ProcessedBatch type
+            // Ensure created_at is present
             created_at: batch.created_at || new Date().toISOString()
           } as ProcessedBatch;
         });

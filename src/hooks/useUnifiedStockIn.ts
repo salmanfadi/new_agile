@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -36,6 +35,12 @@ export interface UnifiedStockIn {
   is_processed: boolean;
 }
 
+export interface ProfileInfo {
+  id?: string;
+  name?: string;
+  username?: string;
+}
+
 export interface UnifiedStockInWithDetails {
   id: string;
   product_id: string;
@@ -46,16 +51,8 @@ export interface UnifiedStockInWithDetails {
   };
   source: string;
   notes?: string;
-  submitter?: {
-    id: string;
-    name?: string;
-    username?: string;
-  };
-  processor?: {
-    id: string;
-    name?: string;
-    username?: string;
-  };
+  submitter?: ProfileInfo;
+  processor?: ProfileInfo;
   status: StockInStatus;
   processing_step?: ProcessingStep;
   created_at: string;
@@ -75,8 +72,7 @@ export const useUnifiedStockIn = (stockInId?: string) => {
       if (!stockInId) return null;
       
       try {
-        // First get the main stock in entry - with column names specified for relationships
-        // Fixed approach to handle the profiles relationship correctly using specific column hints
+        // First get the main stock in entry - with explicit column names for relationships
         const { data: mainEntry, error: mainError } = await supabase
           .from('unified_stock_in')
           .select(`
@@ -122,18 +118,19 @@ export const useUnifiedStockIn = (stockInId?: string) => {
           console.error('Error fetching box entries:', boxError);
           throw boxError;
         }
-        
-        // Type-safe property access with nullish coalescing
-        const submitter = mainEntry.submitter ? {
-          id: mainEntry.submitter.id || '',
-          name: mainEntry.submitter.name || undefined,
-          username: mainEntry.submitter.username || undefined,
+
+        // Safely handle submitter data
+        const submitter: ProfileInfo | undefined = mainEntry.submitter ? {
+          id: mainEntry.submitter.id,
+          name: mainEntry.submitter.name,
+          username: mainEntry.submitter.username
         } : undefined;
 
-        const processor = mainEntry.processor ? {
-          id: mainEntry.processor.id || '',
-          name: mainEntry.processor.name || undefined,
-          username: mainEntry.processor.username || undefined,
+        // Safely handle processor data
+        const processor: ProfileInfo | undefined = mainEntry.processor ? {
+          id: mainEntry.processor.id,
+          name: mainEntry.processor.name,
+          username: mainEntry.processor.username
         } : undefined;
         
         // Map the data to our interface with proper type casting
@@ -147,8 +144,8 @@ export const useUnifiedStockIn = (stockInId?: string) => {
           } : undefined,
           source: mainEntry.source,
           notes: mainEntry.notes,
-          submitter: submitter,
-          processor: processor,
+          submitter,
+          processor,
           status: mainEntry.status as StockInStatus,
           processing_step: mainEntry.processing_step as ProcessingStep,
           created_at: mainEntry.created_at,
@@ -320,9 +317,9 @@ export const useUnifiedStockIn = (stockInId?: string) => {
     stockIn: query.data,
     isLoading: query.isLoading,
     isError: query.isError,
-    updateProcessingStep,
-    upsertBoxes,
-    completeStockIn,
+    updateProcessingStep: query.updateProcessingStep,
+    upsertBoxes: query.upsertBoxes,
+    completeStockIn: query.completeStockIn,
   };
 };
 

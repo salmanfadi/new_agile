@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { Button } from '@/components/ui/button';
@@ -48,6 +47,7 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
 }) => {
   const { warehouses } = useWarehouses();
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [hasIncompleteBoxes, setHasIncompleteBoxes] = useState(false);
   
@@ -68,23 +68,29 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
   // Select the current warehouse object based on default values
   useEffect(() => {
     if (warehouses && defaultValues.warehouse) {
-      const warehouse = warehouses.find(w => w.id === defaultValues.warehouse);
-      if (warehouse) {
-        // Fix: Use setState function with callback to ensure type safety
-        setSelectedWarehouse(() => warehouse as Warehouse);
+      const selectedWarehouse = warehouses.find(w => w.id === defaultValues.warehouse);
+      if (selectedWarehouse) {
+        setSelectedWarehouse(selectedWarehouse);
+        // Reset the location when warehouse changes
+        setSelectedLocation(null);
       }
     }
   }, [warehouses, defaultValues.warehouse]);
   
   // Handle warehouse change
   const handleWarehouseChange = (warehouseId: string) => {
-    const newDefaultValues = {
-      ...defaultValues,
-      warehouse: warehouseId,
-      location: '' // Reset location when warehouse changes
-    };
-    setDefaultValues(newDefaultValues);
-    setHasChanges(true);
+    const selectedWarehouse = warehouses.find(w => w.id === warehouseId);
+    if (selectedWarehouse) {
+      setSelectedWarehouse(selectedWarehouse);
+      // Reset the location when warehouse changes
+      setSelectedLocation(null);
+      setDefaultValues({
+        ...defaultValues,
+        warehouse: warehouseId,
+        location: '' // Reset location when warehouse changes
+      });
+      setHasChanges(true);
+    }
   };
   
   // Update default values
