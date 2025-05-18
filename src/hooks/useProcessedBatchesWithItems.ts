@@ -41,7 +41,7 @@ interface BatchesQueryResult {
   limit: number;
 }
 
-// Define a type for raw batch data from the database with simpler structure
+// Define a type for raw batch data from the database
 interface RawBatchData {
   id: string;
   product_id: string;
@@ -54,7 +54,7 @@ interface RawBatchData {
   total_quantity: number;
   total_boxes: number;
   warehouse_id: string;
-  created_at?: string; 
+  created_at?: string;
   products?: {
     name: string;
     sku?: string;
@@ -64,7 +64,7 @@ interface RawBatchData {
   };
   profiles?: {
     name?: string;
-  } | null; 
+  } | null;
 }
 
 // Hook to fetch processed batches with associated items and pagination
@@ -85,6 +85,7 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
     queryKey: ['processed-batches-with-items', page, pageSize, productId, warehouseId, locationId, startDate, endDate, searchTerm, limit],
     queryFn: async () => {
       try {
+        // Build the query
         let query = supabase
           .from('processed_batches')
           .select(
@@ -115,7 +116,7 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           )
           .order('processed_at', { ascending: false });
 
-        // Apply filters based on options
+        // Apply filters
         if (productId) {
           query = query.eq('product_id', productId);
         }
@@ -132,7 +133,6 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
           query = query.lte('processed_at', endDate);
         }
         if (searchTerm) {
-          // Use more precise search approach
           query = query.or(`source.ilike.%${searchTerm}%,id.ilike.%${searchTerm}%`);
         }
 
@@ -142,6 +142,7 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
         const endIndex = startIndex + actualLimit - 1;
         query = query.range(startIndex, endIndex);
 
+        // Execute the query
         const { data, error, count } = await query;
 
         if (error) {
@@ -150,43 +151,40 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
         }
 
         // Cast data to RawBatchData[] to avoid excessive type instantiation
-        const typedData = data as RawBatchData[];
+        const rawData: RawBatchData[] = data as RawBatchData[];
         
-        // Format for EnhancedInventoryView if limit is provided
+        // Handle different return formats based on whether limit is provided
         if (limit) {
-          const batchesData = typedData.map((batch) => ({
+          // Format for EnhancedInventoryView
+          const batchesFormatted = rawData.map(batch => ({
             id: batch.id,
             product_name: batch.products?.name || 'Unknown Product',
             product_sku: batch.products?.sku,
             warehouse_name: batch.warehouses?.name || 'Unknown Warehouse',
             total_quantity: batch.total_quantity,
             total_boxes: batch.total_boxes,
-            processor_name: batch.profiles?.name || undefined,
+            processor_name: batch.profiles?.name,
             processed_at: batch.processed_at || new Date().toISOString()
           }));
 
-          // Create the result object explicitly typed
-          const result: BatchesQueryResult = {
-            batches: batchesData,
+          return {
+            batches: batchesFormatted,
             count: count || 0,
             page,
             limit: actualLimit
-          };
-
-          return result;
+          } as BatchesQueryResult;
         }
 
-        // Format for default view - map each batch to ProcessedBatch type with explicit properties
-        const batchesWithDetails = typedData.map((batch) => {
-          // Create a new ProcessedBatch object with explicit properties to avoid type inference issues
-          const processedBatch: ProcessedBatch = {
+        // Format for default view with explicit mapping
+        const processedBatches = rawData.map(batch => {
+          const formattedBatch: ProcessedBatch = {
             id: batch.id,
             product_id: batch.product_id,
             stock_in_id: batch.stock_in_id,
             processed_by: batch.processed_by,
-            processed_at: batch.processed_at || null,
+            processed_at: batch.processed_at,
             source: batch.source,
-            notes: batch.notes || null,
+            notes: batch.notes,
             status: batch.status,
             total_quantity: batch.total_quantity,
             total_boxes: batch.total_boxes,
@@ -204,18 +202,15 @@ export const useProcessedBatchesWithItems = (options: UseProcessedBatchesWithIte
             created_at: batch.created_at || new Date().toISOString()
           };
           
-          return processedBatch;
+          return formattedBatch;
         });
 
-        // Create the result object explicitly typed
-        const result: ProcessedBatchesResult = {
-          data: batchesWithDetails,
+        return {
+          data: processedBatches,
           total: count || 0,
           page,
           pageSize: actualLimit
-        };
-
-        return result;
+        } as ProcessedBatchesResult;
       } catch (error) {
         console.error('Error in useProcessedBatchesWithItems hook:', error);
         throw error;
