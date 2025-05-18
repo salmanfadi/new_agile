@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -254,8 +255,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       
       {!sheetMode && (
         <PageHeader 
-          title={stockInId ? "Process Stock In Request" : "Batch Stock In Processing"}
-          description={stockInId 
+          title={finalStockInId ? "Process Stock In Request" : "Batch Stock In Processing"}
+          description={finalStockInId 
             ? `Process the stock-in request with multiple batches` 
             : "Create and process multiple batches at once"
           }
@@ -275,7 +276,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
             remainingBoxes={remainingBoxes}
             isSubmitting={isSubmitting}
             isProcessing={isProcessing}
-            stockInId={stockInId}
+            stockInId={finalStockInId}
           />
           
           {(isSubmitting || isProcessing) && (
