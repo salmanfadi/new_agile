@@ -229,10 +229,10 @@ const StockInDetailsPage: React.FC = () => {
             batch_id: data.batch_id,
             processing_started_at: data.processing_started_at,
             processing_completed_at: data.processing_completed_at,
-            // Handle the nested objects with safe defaults
-            product: data.product || null,
-            submitter: data.submitter || null,
-            processor: data.processed_by ? (data.processor || null) : null
+            // Handle the nested objects with safe defaults - carefully check for errors
+            product: data.product && !('error' in data.product) ? data.product : null,
+            submitter: data.submitter && !('error' in data.submitter) ? data.submitter : null,
+            processor: data.processed_by && data.processor && !('error' in data.processor) ? data.processor : null
           };
           
           setStockIn(safeStockIn);
@@ -312,7 +312,9 @@ const StockInDetailsPage: React.FC = () => {
             };
             
             // Then conditionally add the product if it exists and is valid
-            if (item.product && typeof item.product === 'object' && 'id' in item.product && 'name' in item.product) {
+            // First check if product exists, then check if it's an error object
+            if (item.product && typeof item.product === 'object' && !('error' in item.product)) {
+              // Now we know it's a valid product object with id and name properties
               detailObj.product = {
                 id: item.product.id,
                 name: item.product.name
