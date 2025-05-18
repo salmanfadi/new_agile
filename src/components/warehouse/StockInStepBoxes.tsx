@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { Button } from '@/components/ui/button';
@@ -511,7 +510,7 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
                 ))}
               </div>
             ) : (
-              <Alert variant="warning">
+              <Alert>
                 <AlertTitle>No batches created yet</AlertTitle>
                 <AlertDescription>
                   Assign warehouses and locations to your boxes to create batches
