@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { Button } from '@/components/ui/button';
@@ -70,8 +69,8 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
     if (warehouses && defaultValues.warehouse) {
       const warehouse = warehouses.find(w => w.id === defaultValues.warehouse);
       if (warehouse) {
-        // Use a function to update the state to avoid the TypeScript error
-        setSelectedWarehouse(() => warehouse);
+        // Fix: Use a proper setState function
+        setSelectedWarehouse(warehouse);
       }
     }
   }, [warehouses, defaultValues.warehouse]);

@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -75,7 +74,7 @@ export const useUnifiedStockIn = (stockInId?: string) => {
       if (!stockInId) return null;
       
       try {
-        // First get the main stock in entry
+        // First get the main stock in entry - with explicit column names for submitter and processor
         const { data: mainEntry, error: mainError } = await supabase
           .from('unified_stock_in')
           .select(`
@@ -152,7 +151,7 @@ export const useUnifiedStockIn = (stockInId?: string) => {
             ...box,
             status: box.status as StockInStatus,
             processing_step: box.processing_step as ProcessingStep,
-          })),
+          })) as UnifiedStockIn[],
           is_box_entry: false,
         };
         

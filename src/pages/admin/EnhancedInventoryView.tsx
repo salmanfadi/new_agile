@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -216,7 +215,7 @@ const AdminEnhancedInventoryView: React.FC = () => {
                 <div className="p-4 bg-red-50 border border-red-200 rounded text-red-600">
                   <p>Error loading batches: {batchesError instanceof Error ? batchesError.message : 'Unknown error'}</p>
                 </div>
-              ) : !batchesData?.batches.length ? (
+              ) : !batchesData || !('batches' in batchesData) || batchesData.batches.length === 0 ? (
                 <div className="p-6 text-center border rounded bg-gray-50">
                   <BoxesIcon className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                   <p className="text-gray-500">No batch data available.</p>
@@ -277,7 +276,7 @@ const AdminEnhancedInventoryView: React.FC = () => {
                   </div>
                   
                   {/* Pagination */}
-                  {batchesData && batchesData.count > 0 && (
+                  {'count' in batchesData && batchesData.count > 0 && (
                     <div className="flex items-center justify-center space-x-2 py-4">
                       <Button
                         variant="outline"
