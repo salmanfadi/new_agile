@@ -16,8 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
-import { toast } from '@/hooks/use-toast';
+import { StockInRequestData } from '@/hooks/useStockInRequests';
 
 const AdminStockInManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -26,23 +25,6 @@ const AdminStockInManagement: React.FC = () => {
   const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-
-  // Navigate to unified batch processing page with the stock in ID - with improved error handling
-  const handleProcess = (stockIn: StockInRequestData) => {
-    console.log("Processing stock in with ID:", stockIn.id);
-    
-    try {
-      // Navigate to the admin unified batch processing page with proper stockInId
-      navigate(`/admin/stock-in/unified/${stockIn.id}`);
-    } catch (error) {
-      console.error("Navigation error:", error);
-      toast({
-        variant: "destructive",
-        title: "Navigation Error",
-        description: "Failed to navigate to processing page. Please try again."
-      });
-    }
-  };
 
   const handleReject = (stockIn: StockInRequestData) => {
     console.log("Rejecting stock in with ID:", stockIn.id);
@@ -101,9 +83,9 @@ const AdminStockInManagement: React.FC = () => {
           <StockInRequestsTable 
             status={statusFilter !== "all" ? statusFilter : ""}
             filters={{}}
-            onProcess={handleProcess}
             onReject={handleReject}
             userId={user?.id}
+            adminMode={true}
           />
         </CardContent>
       </Card>

@@ -96,6 +96,7 @@ export const useProcessedBatchesWithItems = ({
           const products = batch.products && typeof batch.products === 'object' ? batch.products : null;
           const warehouses = batch.warehouses && typeof batch.warehouses === 'object' ? batch.warehouses : null;
           
+          // Using optional chaining with nullish coalescing for better null safety
           return {
             id: batch.id,
             stock_in_id: batch.stock_in_id,
@@ -103,11 +104,11 @@ export const useProcessedBatchesWithItems = ({
             product_name: products?.name || 'Unknown Product',
             product_sku: products?.sku,
             processed_by: batch.processed_by,
-            processor_name: profiles?.name ?? 'Unknown User', // Using nullish coalescing to handle null
+            processor_name: profiles ? profiles.name ?? 'Unknown User' : 'Unknown User', 
             total_quantity: batch.total_quantity || 0,
             total_boxes: batch.total_boxes || 0,
             warehouse_id: batch.warehouse_id,
-            warehouse_name: warehouses?.name ?? 'Unknown Warehouse', // Using nullish coalescing
+            warehouse_name: warehouses ? warehouses.name ?? 'Unknown Warehouse' : 'Unknown Warehouse', 
             status: batch.status || 'completed',
             processed_at: batch.processed_at || new Date().toISOString(),
             itemCount: batch.batch_items_count?.length || 0

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,28 +12,32 @@ import {
   Table 
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Box, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Box, AlertTriangle } from 'lucide-react';
 import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import ProcessStockInForm from './ProcessStockInForm';
 
 interface StockInRequestsTableProps {
   status?: string;
   filters?: Record<string, any>;
-  onProcess?: (stockIn: StockInRequestData) => void;
   onReject?: (stockIn: StockInRequestData) => void;
   userId?: string;
+  adminMode?: boolean;
 }
 
 export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   status = '',
   filters = {},
-  onProcess,
   onReject,
   userId,
+  adminMode = false,
 }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  
+  // State for the process form dialog
+  const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
+  const [isProcessFormOpen, setIsProcessFormOpen] = useState(false);
   
   // Use the shared hook for stock in requests
   const { 
@@ -45,31 +49,19 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
     status: status || undefined,
     ...filters
   });
-
-  // Handle view details - Ensure we're passing the correct stockInId parameter
-  const handleViewDetails = (stockInId: string) => {
-    console.log("Navigating to details with ID:", stockInId);
-    // Determine the correct path based on role (from the URL)
-    const basePath = window.location.pathname.includes('/admin') ? 
-      '/admin/stock-in/' : 
-      '/manager/stock-in/';
-    
-    navigate(`${basePath}${stockInId}`);
-  };
   
-  // Handle process button click - Fixed to ensure proper parameter passing
+  // Handle process button click - Open the form dialog
   const handleProcess = (stockIn: StockInRequestData) => {
-    console.log("Processing stock in with ID:", stockIn.id);
-    if (onProcess) {
-      onProcess(stockIn);
-    }
+    console.log("Opening process form for stock in with ID:", stockIn.id);
+    setSelectedStockIn(stockIn);
+    setIsProcessFormOpen(true);
   };
   
   // Handle continue processing for requests that are already in processing status
   const handleContinueProcessing = (stockIn: StockInRequestData) => {
     console.log("Continuing processing with ID:", stockIn.id);
     // Redirect to the unified batch processing page with the correct route based on user role
-    const baseUrl = window.location.pathname.includes('/admin') ? 
+    const baseUrl = adminMode ? 
       '/admin/stock-in/unified/' : 
       '/manager/stock-in/unified/';
     
@@ -112,7 +104,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   if (!stockInRequests || stockInRequests.length === 0) {
     return (
       <div className="w-full py-10 text-center border rounded-md bg-gray-50">
-        <ClipboardList className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+        <Box className="mx-auto h-8 w-8 text-gray-400 mb-2" />
         <p className="text-lg font-medium text-gray-600">No stock in requests found</p>
         <p className="text-gray-500 mt-1">
           {status ? `No ${status} requests available.` : 'Try adjusting your filters.'}
@@ -122,96 +114,99 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Status</TableHead>
-            <TableHead>Product</TableHead>
-            <TableHead>Boxes</TableHead>
-            <TableHead>Submitted By</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {stockInRequests.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>
-                <StatusBadge status={item.status} />
-              </TableCell>
-              <TableCell>
-                <div className="font-medium">{item.product?.name || 'Unknown Product'}</div>
-                <div className="text-xs text-gray-500">
-                  {item.product?.sku && `SKU: ${item.product.sku}`}
-                </div>
-              </TableCell>
-              <TableCell>{item.boxes}</TableCell>
-              <TableCell>
-                {item.submitter ? (
-                  <div>
-                    <div>{item.submitter.name}</div>
-                    <div className="text-xs text-gray-500">{item.submitter.username}</div>
-                  </div>
-                ) : (
-                  'Unknown'
-                )}
-              </TableCell>
-              <TableCell>{item.source}</TableCell>
-              <TableCell>
-                {item.created_at ? (
-                  format(new Date(item.created_at), 'MMM d, yyyy')
-                ) : (
-                  'Unknown date'
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewDetails(item.id)}
-                  >
-                    Details
-                  </Button>
-                  
-                  {item.status === 'pending' && onProcess && (
-                    <Button 
-                      variant="default"
-                      size="sm"
-                      onClick={() => handleProcess(item)}
-                    >
-                      <Box className="mr-1 h-4 w-4" />
-                      Process
-                    </Button>
-                  )}
-                  
-                  {item.status === 'processing' && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => handleContinueProcessing(item)}
-                    >
-                      Continue Processing
-                    </Button>
-                  )}
-                  
-                  {item.status === 'pending' && onReject && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleReject(item)}
-                    >
-                      Reject
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
+    <>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Status</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead>Boxes</TableHead>
+              <TableHead>Submitted By</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {stockInRequests.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>
+                  <StatusBadge status={item.status} />
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{item.product?.name || 'Unknown Product'}</div>
+                  <div className="text-xs text-gray-500">
+                    {item.product?.sku && `SKU: ${item.product.sku}`}
+                  </div>
+                </TableCell>
+                <TableCell>{item.boxes}</TableCell>
+                <TableCell>
+                  {item.submitter ? (
+                    <div>
+                      <div>{item.submitter.name}</div>
+                      <div className="text-xs text-gray-500">{item.submitter.username}</div>
+                    </div>
+                  ) : (
+                    'Unknown'
+                  )}
+                </TableCell>
+                <TableCell>{item.source}</TableCell>
+                <TableCell>
+                  {item.created_at ? (
+                    format(new Date(item.created_at), 'MMM d, yyyy')
+                  ) : (
+                    'Unknown date'
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    {item.status === 'pending' && (
+                      <Button 
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleProcess(item)}
+                      >
+                        <Box className="mr-1 h-4 w-4" />
+                        Process
+                      </Button>
+                    )}
+                    
+                    {item.status === 'processing' && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleContinueProcessing(item)}
+                      >
+                        Continue Processing
+                      </Button>
+                    )}
+                    
+                    {item.status === 'pending' && onReject && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleReject(item)}
+                      >
+                        Reject
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Process Stock In Form Dialog */}
+      <ProcessStockInForm
+        open={isProcessFormOpen}
+        onOpenChange={setIsProcessFormOpen}
+        stockIn={selectedStockIn}
+        userId={userId}
+        adminMode={adminMode}
+      />
+    </>
   );
 };

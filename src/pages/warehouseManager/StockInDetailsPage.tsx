@@ -3,411 +3,457 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { StockInDetails } from '@/components/warehouse/StockInDetails';
+import { format } from 'date-fns';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { ArrowLeft, Layers, List, ShieldAlert, ShieldCheck } from 'lucide-react';
 
-// Updated interface to better match what Supabase returns
-interface StockInDetail {
+interface StockInRequestDetails {
+  id: string;
+  product_id: string;
+  status: string;
+  created_at: string;
+  boxes: number;
+  source: string;
+  notes?: string;
+  submitted_by: string;
+  submitter?: {
+    name?: string;
+    username?: string;
+  };
+  product?: {
+    id?: string;
+    name?: string;
+    sku?: string;
+  };
+}
+
+interface StockInDetailItem {
   id: string;
   stock_in_id: string;
-  product_id: string;
-  quantity: number;
-  created_at: string;
-  product?: {
-    id: string;
-    name: string;
-  } | null;
+  warehouse_id: string;
+  warehouse_name?: string;
+  location_id: string;
+  location_name?: string;
   barcode: string;
+  quantity: number;
   color?: string;
   size?: string;
-  batch_number?: string;
-  processing_order?: number;
-  processed_at?: string;
-  error_message?: string;
   status?: string;
-  inventory_id?: string;
-  warehouse_id: string;
-  location_id: string;
-}
-
-interface StockInData {
-  loading: boolean;
-  error: string | null;
-}
-
-// Updated interface to better match what Supabase returns and handle null/undefined better
-interface StockInWithExtras {
-  boxes: number;
-  created_at: string;
-  id: string;
-  notes: string;
-  processed_by: string | null;
-  product_id: string;
-  rejection_reason: string | null;
-  source: string;
-  status: "pending" | "approved" | "rejected" | "completed" | "processing";
-  submitted_by: string;
-  updated_at: string;
+  product_id?: string;
   product?: {
-    id: string;
-    name: string;
-  } | null;
-  submitter?: {
-    id: string;
-    name: string | null;
-  } | null;
-  processor?: {
-    id: string;
-    name: string | null;
-  } | null;
-  batch_id?: string;
-  processing_started_at?: string;
-  processing_completed_at?: string;
+    id?: string;
+    name?: string;
+  };
+  created_at?: string;
+  inventory_id?: string;
 }
-
-interface StockInDetailsProps {
-  stockInData: StockInData;
-  stockIn: StockInWithExtras;
-  details: StockInDetail[];
-}
-
-const StockInDetails: React.FC<StockInDetailsProps> = ({ stockInData, stockIn, details }) => {
-  if (stockInData.loading) {
-    return <p>Loading stock in details...</p>;
-  }
-
-  if (stockInData.error) {
-    return <p>Error: {stockInData.error}</p>;
-  }
-
-  if (!stockIn) {
-    return <p>Stock In details not found.</p>;
-  }
-
-  return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Stock In Details</CardTitle>
-        <CardDescription>Details of stock in {stockIn.id}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-4">
-          <div className="flex items-center space-x-4">
-            <span>Status:</span>
-            <Badge variant="secondary">{stockIn.status}</Badge>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>Product:</span>
-            <span>{stockIn.product?.name || 'Unknown Product'}</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>Boxes:</span>
-            <span>{stockIn.boxes}</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>Source:</span>
-            <span>{stockIn.source}</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>Notes:</span>
-            <span>{stockIn.notes}</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>Submitted By:</span>
-            <span>{stockIn.submitter?.name || 'Unknown'}</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>Created At:</span>
-            <span>{new Date(stockIn.created_at).toLocaleDateString()}</span>
-          </div>
-          {stockIn.batch_id && (
-            <div className="flex items-center space-x-4">
-              <span>Batch ID:</span>
-              <span>{stockIn.batch_id}</span>
-            </div>
-          )}
-          {stockIn.processing_started_at && (
-            <div className="flex items-center space-x-4">
-              <span>Processing Started At:</span>
-              <span>{new Date(stockIn.processing_started_at).toLocaleDateString()}</span>
-            </div>
-          )}
-          {stockIn.processing_completed_at && (
-            <div className="flex items-center space-x-4">
-              <span>Processing Completed At:</span>
-              <span>{new Date(stockIn.processing_completed_at).toLocaleDateString()}</span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-      <CardFooter>
-        <Link to="/manager/stock-in">
-          <Button variant="outline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Stock In List
-          </Button>
-        </Link>
-      </CardFooter>
-    </Card>
-  );
-};
 
 const StockInDetailsPage: React.FC = () => {
-  const { stockInId } = useParams<{ stockInId: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [stockInData, setStockInData] = useState<StockInData>({ loading: true, error: null });
-  const [stockIn, setStockIn] = useState<StockInWithExtras | null>(null);
-  const [details, setDetails] = useState<StockInDetail[]>([]);
-
-  // Add effect to check for valid stockInId early
+  const { user } = useAuth();
+  
+  const [stockInData, setStockInData] = useState<StockInRequestDetails | null>(null);
+  const [stockInDetails, setStockInDetails] = useState<StockInDetailItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [approvalNotes, setApprovalNotes] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('details');
+  const [continueProcessingUrl, setContinueProcessingUrl] = useState<string | null>(null);
+  
+  // Fetch stock-in data
   useEffect(() => {
-    if (!stockInId) {
-      console.error("StockIn ID is missing in URL parameters");
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "StockIn ID is missing. Redirecting to stock in list."
-      });
+    const fetchStockInData = async () => {
+      if (!id) return;
       
-      // Redirect back to the stock in list after a short delay
-      const timer = setTimeout(() => {
-        navigate("/manager/stock-in");
-      }, 2000);
+      setIsLoading(true);
+      setError(null);
       
-      return () => clearTimeout(timer);
-    }
-  }, [stockInId, navigate]);
-
-  useEffect(() => {
-    const fetchStockInDetails = async () => {
-      if (!stockInId) {
-        setStockInData({ loading: false, error: 'StockIn ID is missing' });
-        return;
-      }
-
       try {
-        // Update the query to use explicit column hints for joins to avoid ambiguity
         const { data, error } = await supabase
           .from('stock_in')
           .select(`
             *,
-            product:product_id (id, name),
-            submitter:submitted_by (id, name),
-            processor:processed_by (id, name)
+            products (
+              id,
+              name,
+              sku
+            ),
+            profiles:submitted_by (
+              id,
+              name,
+              username
+            )
           `)
-          .eq('id', stockInId)
+          .eq('id', id)
           .single();
-
+        
         if (error) {
-          console.error('Supabase error:', error);
-          setStockInData({ loading: false, error: error.message });
-          toast({
-            variant: "destructive",
-            title: "Failed to fetch stock in details",
-            description: error.message
-          });
-          return;
+          throw new Error(error.message);
         }
-
-        if (data) {
-          // Parse the data and handle potential missing properties or type issues
-          const safeStockIn: StockInWithExtras = {
-            id: data.id,
-            boxes: data.boxes || 0,
-            created_at: data.created_at,
-            updated_at: data.updated_at,
-            product_id: data.product_id,
-            source: data.source,
-            notes: data.notes || '',
-            submitted_by: data.submitted_by,
-            processed_by: data.processed_by,
-            rejection_reason: data.rejection_reason,
-            status: data.status,
-            batch_id: data.batch_id,
-            processing_started_at: data.processing_started_at,
-            processing_completed_at: data.processing_completed_at,
-            // Handle the nested objects with safe defaults - carefully check for errors
-            product: data.product && !('error' in data.product) ? data.product : null,
-            submitter: data.submitter && !('error' in data.submitter) ? data.submitter : null,
-            processor: data.processed_by && data.processor && !('error' in data.processor) ? data.processor : null
+        
+        if (!data) {
+          throw new Error('Stock in request not found');
+        }
+        
+        // Format the data
+        const formattedData: StockInRequestDetails = {
+          id: data.id,
+          product_id: data.product_id,
+          status: data.status,
+          created_at: data.created_at,
+          boxes: data.boxes || 0,
+          source: data.source || '',
+          notes: data.notes,
+          submitted_by: data.submitted_by,
+          submitter: data.profiles ? {
+            name: data.profiles.name || 'Unknown',
+            username: data.profiles.username
+          } : undefined,
+          product: data.products ? {
+            id: data.products.id,
+            name: data.products.name,
+            sku: data.products.sku
+          } : undefined
+        };
+        
+        setStockInData(formattedData);
+        
+        // Check if this is a processing request and set the continue URL
+        if (data.status === 'processing') {
+          const baseUrl = window.location.pathname.includes('/admin') ? 
+            '/admin/stock-in/unified/' : 
+            '/manager/stock-in/unified/';
+          
+          setContinueProcessingUrl(`${baseUrl}${data.id}`);
+        }
+        
+        // Now fetch the details
+        fetchStockInDetails(data.id);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+        setIsLoading(false);
+      }
+    };
+    
+    fetchStockInData();
+  }, [id]);
+  
+  // Fetch stock-in details
+  const fetchStockInDetails = async (stockInId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('stock_in_details')
+        .select(`
+          *,
+          products (
+            id,
+            name
+          ),
+          warehouses (
+            id,
+            name
+          ),
+          warehouse_locations (
+            id,
+            floor,
+            zone
+          )
+        `)
+        .eq('stock_in_id', stockInId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Format the detail items
+        const formattedDetails: StockInDetailItem[] = data.map(item => {
+          // Create location name from floor and zone if available
+          let locationName;
+          if (item.warehouse_locations && 
+              typeof item.warehouse_locations === 'object' &&
+              'floor' in item.warehouse_locations &&
+              'zone' in item.warehouse_locations) {
+            locationName = `Floor ${item.warehouse_locations.floor}, Zone ${item.warehouse_locations.zone}`;
+          }
+          
+          const detailObj: StockInDetailItem = {
+            id: item.id,
+            stock_in_id: item.stock_in_id,
+            warehouse_id: item.warehouse_id,
+            warehouse_name: item.warehouses?.name,
+            location_id: item.location_id,
+            location_name: locationName,
+            barcode: item.barcode,
+            quantity: item.quantity || 0,
+            color: item.color,
+            size: item.size,
+            status: item.status,
+            created_at: item.created_at,
+            inventory_id: item.inventory_id,
+            product_id: item.product_id
           };
           
-          setStockIn(safeStockIn);
-          setStockInData({ loading: false, error: null });
-          toast({
-            title: "Success",
-            description: "Stock in details fetched successfully"
-          });
-        } else {
-          setStockInData({ loading: false, error: 'Stock In details not found' });
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Stock In details not found"
-          });
-        }
-      } catch (error: any) {
-        console.error('Unexpected error:', error);
-        setStockInData({ loading: false, error: error.message });
-        toast({
-          variant: "destructive",
-          title: "Unexpected error",
-          description: error.message
-        });
-      }
-    };
-
-    fetchStockInDetails();
-  }, [stockInId]);
-
-  useEffect(() => {
-    const fetchStockInDetailsData = async () => {
-      if (!stockInId) {
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('stock_in_details')
-          .select(`
-            *,
-            product:product_id (id, name)
-          `)
-          .eq('stock_in_id', stockInId);
-
-        if (error) {
-          console.error('Supabase error:', error);
-          toast({
-            variant: "destructive",
-            title: "Failed to fetch stock in details data",
-            description: error.message
-          });
-          return;
-        }
-
-        if (data) {
-          // Process the data to ensure it matches our StockInDetail interface
-          const safeDetails: StockInDetail[] = data.map(item => {
-            // First create a base object with required properties
-            const detailObj: StockInDetail = {
-              id: item.id,
-              stock_in_id: item.stock_in_id,
-              product_id: item.product_id,
-              quantity: item.quantity,
-              created_at: item.created_at,
-              barcode: item.barcode,
-              color: item.color,
-              size: item.size,
-              batch_number: item.batch_number,
-              processing_order: item.processing_order,
-              processed_at: item.processed_at,
-              error_message: item.error_message,
-              status: item.status,
-              inventory_id: item.inventory_id,
-              warehouse_id: item.warehouse_id,
-              location_id: item.location_id
-            };
-            
-            // Handle the product object safely with proper type checking
-            if (item.product && typeof item.product === 'object' && !('error' in item.product)) {
-              const productObject = item.product as { id?: string; name?: string } | null;
+          // Safely extract product information
+          const productObject = item.products && typeof item.products === 'object' ? item.products : null;
               
-              if (productObject) {
-                detailObj.product = {
-                  id: productObject.id ?? '', // Nullish coalescing for null safety
-                  name: productObject.name ?? 'Unknown Product' // Nullish coalescing
-                };
-              } else {
-                detailObj.product = null;
-              }
-            } else {
-              detailObj.product = null;
-            }
-            
-            return detailObj;
-          });
+          if (productObject) {
+            detailObj.product = {
+              id: productObject.id ?? '', // Nullish coalescing for null safety
+              name: productObject.name ?? 'Unknown Product' // Nullish coalescing
+            };
+          } else {
+            detailObj.product = null;
+          }
           
-          setDetails(safeDetails);
-          toast({
-            title: "Success",
-            description: "Stock in details data fetched successfully"
-          });
-        }
-      } catch (error: any) {
-        console.error('Unexpected error:', error);
-        toast({
-          variant: "destructive",
-          title: "Unexpected error",
-          description: error.message
+          return detailObj;
+        });
+        
+        setStockInDetails(formattedDetails);
+      }
+    } catch (err) {
+      console.error('Error fetching stock in details:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to load stock in details.'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle approval/rejection
+  const handleApproval = async (isApproved: boolean) => {
+    if (!id || !user?.id) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Update the stock-in status
+      const newStatus = isApproved ? 'approved' : 'rejected';
+      
+      const { error } = await supabase
+        .from('stock_in')
+        .update({
+          status: newStatus,
+          processed_by: user.id,
+          rejection_reason: isApproved ? null : approvalNotes
+        })
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: `Stock-in request ${isApproved ? 'approved' : 'rejected'}`,
+        description: isApproved ? 'The stock-in request has been approved' : 'The stock-in request has been rejected',
+      });
+      
+      // Refresh the data
+      if (stockInData) {
+        setStockInData({
+          ...stockInData,
+          status: newStatus
         });
       }
-    };
+      
+      // Navigate back to the stock-in list
+      setTimeout(() => {
+        const path = window.location.pathname.includes('/admin') ? 
+          '/admin/stock-in' : 
+          '/manager/stock-in';
+        navigate(path);
+      }, 1500);
+    } catch (error) {
+      console.error('Error updating stock-in:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: `Failed to ${isApproved ? 'approve' : 'reject'} the stock-in request.`
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-    fetchStockInDetailsData();
-  }, [stockInId]);
+  // Handle continue processing
+  const handleContinueProcessing = () => {
+    if (continueProcessingUrl) {
+      navigate(continueProcessingUrl);
+    }
+  };
   
-  // If stockInId is missing, show a better error message and navigation option
-  if (!stockInId) {
+  const getStatusIndicator = () => {
+    if (!stockInData) return null;
+    
+    const statusProps: { color: string; icon: React.ReactNode } = {
+      pending: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: <ShieldAlert className="h-4 w-4" /> },
+      approved: { color: 'bg-green-100 text-green-800 border-green-200', icon: <ShieldCheck className="h-4 w-4" /> },
+      rejected: { color: 'bg-red-100 text-red-800 border-red-200', icon: <ShieldAlert className="h-4 w-4" /> },
+      processing: { color: 'bg-blue-100 text-blue-800 border-blue-200', icon: <Layers className="h-4 w-4" /> },
+      completed: { color: 'bg-green-100 text-green-800 border-green-200', icon: <ShieldCheck className="h-4 w-4" /> }
+    }[stockInData.status] || { color: 'bg-gray-100 text-gray-800 border-gray-200', icon: <List className="h-4 w-4" /> };
+    
     return (
-      <div className="container mx-auto p-4">
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-red-500">Error</CardTitle>
-            <CardDescription>StockIn ID is missing</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-4">Unable to display details because the StockIn ID is missing from the URL.</p>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={() => navigate("/manager/stock-in")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Stock In List
-            </Button>
-          </CardFooter>
-        </Card>
+      <div className={`px-2 py-1 rounded-md inline-flex items-center space-x-1 ${statusProps.color}`}>
+        {statusProps.icon}
+        <span className="capitalize">{stockInData.status}</span>
+      </div>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 rounded-full border-4 border-t-blue-500 border-b-blue-700 border-gray-200 animate-spin"></div>
+        <p className="mt-4 text-gray-600">Loading stock-in details...</p>
       </div>
     );
   }
-  
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <div className="text-red-500 text-xl mb-2">Error</div>
+        <p className="text-gray-600">{error.message}</p>
+        <Button onClick={() => navigate(-1)} className="mt-4">
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
+  if (!stockInData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <div className="text-gray-500 text-xl mb-2">Not Found</div>
+        <p className="text-gray-600">Stock-in request not found</p>
+        <Button onClick={() => navigate(-1)} className="mt-4">
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto p-4">
-      <Button 
-        variant="outline"
-        onClick={() => navigate("/manager/stock-in")}
-        className="mb-4"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Stock In List
-      </Button>
+    <div className="container mx-auto p-4 space-y-6">
+      <div className="flex items-center mb-6">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate(-1)} 
+          size="sm" 
+          className="mr-2"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back
+        </Button>
+      </div>
       
-      {stockIn ? (
-        <StockInDetails
-          stockInData={stockInData}
-          stockIn={stockIn}
-          details={details}
-        />
-      ) : stockInData.loading ? (
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-center items-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <PageHeader 
+        title={`Stock In Request: ${id?.slice(0, 8)}`}
+        description={`View details and status for this stock in request`}
+      />
+      
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                Stock In Request
+                {getStatusIndicator()}
+              </CardTitle>
+              <CardDescription>
+                Submitted on {stockInData.created_at ? format(new Date(stockInData.created_at), 'MMMM d, yyyy') : 'Unknown date'}
+              </CardDescription>
             </div>
-            <p className="text-center mt-4">Loading stock in details...</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-red-500">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{stockInData.error || "Failed to load stock in details"}</p>
-          </CardContent>
-        </Card>
-      )}
+            
+            {/* Conditionally render continue button for processing requests */}
+            {stockInData.status === 'processing' && continueProcessingUrl && (
+              <Button 
+                onClick={handleContinueProcessing}
+                className="w-full md:w-auto"
+              >
+                Continue Processing
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Tabs 
+            defaultValue="details" 
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="details">Request Details</TabsTrigger>
+              <TabsTrigger value="items">Detail Items ({stockInDetails.length})</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="details" className="space-y-4 pt-4">
+              <StockInDetails
+                stockInData={stockInData}
+                approvalNotes={approvalNotes}
+                setApprovalNotes={setApprovalNotes}
+                handleApproval={handleApproval}
+                isSubmitting={isSubmitting}
+              />
+            </TabsContent>
+            
+            <TabsContent value="items">
+              {stockInDetails.length === 0 ? (
+                <div className="py-8 text-center text-gray-500">
+                  <p>No detail items found for this stock-in request.</p>
+                  {stockInData.status === 'pending' && (
+                    <p className="mt-2">Items will be created during processing.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-muted/60">
+                        <th className="px-4 py-2 text-left">Product</th>
+                        <th className="px-4 py-2 text-left">Barcode</th>
+                        <th className="px-4 py-2 text-left">Location</th>
+                        <th className="px-4 py-2 text-left">Quantity</th>
+                        <th className="px-4 py-2 text-left">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stockInDetails.map((item) => (
+                        <tr key={item.id} className="border-b hover:bg-muted/50">
+                          <td className="px-4 py-2">{item.product?.name || 'Unknown Product'}</td>
+                          <td className="px-4 py-2">
+                            <code className="bg-muted/70 px-1 py-0.5 rounded">{item.barcode}</code>
+                          </td>
+                          <td className="px-4 py-2">{item.location_name || 'Unknown'}</td>
+                          <td className="px-4 py-2">{item.quantity}</td>
+                          <td className="px-4 py-2">
+                            <Badge variant="outline" className="capitalize">
+                              {item.status || 'pending'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 };

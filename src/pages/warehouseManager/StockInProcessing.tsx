@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { StockInRequestsTable } from '@/components/warehouse/StockInRequestsTable';
-import { ProcessStockInDialog } from '@/components/warehouse/ProcessStockInDialog';
+import { RejectStockInDialog } from '@/components/warehouse/RejectStockInDialog';
 import { useAuth } from '@/context/AuthContext';
 import {
   Select,
@@ -17,31 +17,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
-import { toast } from '@/hooks/use-toast';
 
 const StockInProcessing: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
   const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
-  const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
 
-  // Handle process button click - with clear logging for debugging
-  const handleProcess = (stockIn: StockInRequestData) => {
-    console.log("Processing stock in:", stockIn.id);
-    
-    try {
-      // Navigate to the correct route with proper stockInId
-      navigate(`/manager/stock-in/unified/${stockIn.id}`);
-    } catch (error) {
-      console.error("Navigation error:", error);
-      toast({
-        variant: "destructive",
-        title: "Navigation Error",
-        description: "Failed to navigate to processing page. Please try again."
-      });
-    }
+  // Handle reject button click
+  const handleReject = (stockIn: StockInRequestData) => {
+    console.log("Rejecting stock in with ID:", stockIn.id);
+    setSelectedStockIn(stockIn);
+    setIsRejectDialogOpen(true);
   };
 
   return (
@@ -92,15 +81,17 @@ const StockInProcessing: React.FC = () => {
         <CardContent>
           <StockInRequestsTable 
             status={statusFilter !== "all" ? statusFilter : ""}
-            onProcess={handleProcess}
+            onReject={handleReject}
+            userId={user?.id}
+            adminMode={false}
           />
         </CardContent>
       </Card>
 
-      {/* Legacy Process Dialog - keeping for backward compatibility */}
-      <ProcessStockInDialog
-        open={isProcessDialogOpen}
-        onOpenChange={setIsProcessDialogOpen}
+      {/* Rejection Dialog */}
+      <RejectStockInDialog
+        open={isRejectDialogOpen}
+        onOpenChange={setIsRejectDialogOpen}
         selectedStockIn={selectedStockIn}
         userId={user?.id}
       />
