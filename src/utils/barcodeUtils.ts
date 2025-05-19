@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for handling barcodes in the inventory system
  */
@@ -70,4 +69,28 @@ export const isValidBarcode = (barcode: string): boolean => {
   // Simple pattern matching validation
   const pattern = /^[A-Z]{3}-[A-Z0-9]{1,5}-[0-9]{1,3}-[0-9]{1,6}$/;
   return pattern.test(barcode);
+};
+
+/**
+ * Formats a barcode string for display by adding spaces for readability
+ * 
+ * @param barcode The raw barcode string
+ * @returns A formatted barcode string for display
+ */
+export const formatBarcodeForDisplay = (barcode: string): string => {
+  if (!barcode) return '';
+  
+  // If the barcode is already in the format with dashes, return it as-is
+  if (barcode.includes('-')) {
+    return barcode;
+  }
+  
+  // Otherwise try to format it into our standard format if it matches the length pattern
+  if (barcode.length >= 15) {
+    // Attempt to parse as our standard format: XXX-XXXXX-XXX-XXXXXX
+    return `${barcode.substring(0, 3)}-${barcode.substring(3, 8)}-${barcode.substring(8, 11)}-${barcode.substring(11)}`;
+  }
+  
+  // If we can't format it correctly, return the original
+  return barcode;
 };

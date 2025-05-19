@@ -2,7 +2,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { BatchItem } from '@/types/batchStockIn';
+
+// Define BatchItem type directly here since it's not exported from batchStockIn
+export interface BatchItem {
+  id: string;
+  barcode: string;
+  quantity: number;
+  status: string;
+  batch_id: string;
+  warehouses?: { name: string };
+  locations?: { floor: number; zone: string };
+  color?: string;
+  size?: string;
+}
 
 export interface ProcessedBatchWithItems {
   id: string;
