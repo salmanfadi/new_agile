@@ -17,6 +17,13 @@ interface LocationData {
   zone?: string | null;
 }
 
+// Define the shape of the joined data from Supabase
+interface InventoryItemWithRelations extends Omit<InventoryItem, 'productName' | 'productSku' | 'warehouseName' | 'locationDetails'> {
+  products?: ProductData | null;
+  warehouses?: WarehouseData | null;
+  warehouse_locations?: LocationData | null;
+}
+
 // Define proper types for inventory items
 export interface InventoryItem {
   id: string;
@@ -94,14 +101,14 @@ export const useInventoryData = (
             batch_id,
             created_at,
             updated_at,
-            products (
+            products!fk_inventory_product (
               name,
               sku
             ),
-            warehouses (
+            warehouses!fk_inventory_warehouse (
               name
             ),
-            warehouse_locations (
+            warehouse_locations!fk_inventory_location (
               floor,
               zone
             )
@@ -131,8 +138,12 @@ export const useInventoryData = (
           console.error('Error fetching inventory:', error);
           throw new Error(`Failed to fetch inventory: ${error.message}`);
         }
+        
+        // Cast the data to our typed interface
+        const typedData = data as unknown as InventoryItemWithRelations[];
+        
         // Transform the data to InventoryItem[]
-        const items: InventoryItem[] = (data ?? []).map((item: any) => {
+        const items: InventoryItem[] = (typedData ?? []).map((item: any) => {
           const productData = item.products || {};
           const productName = productData?.name || 'Unknown Product';
           const productSku = productData?.sku || undefined;
@@ -142,9 +153,10 @@ export const useInventoryData = (
           let locationDetails = 'Unknown Location';
           const floor = locationData?.floor;
           const zone = locationData?.zone;
-          if (floor !== undefined && zone !== undefined) {
+          if (floor !== null && zone !== null) {
             locationDetails = `Floor ${floor}, Zone ${zone}`;
           }
+          
           return {
             id: item.id,
             productId: item.product_id,
@@ -159,10 +171,10 @@ export const useInventoryData = (
             color: item.color || undefined,
             size: item.size || undefined,
             status: item.status,
-            batchId: item.batch_id,
+            batchId: item.batch_id || undefined,
             lastUpdated: item.updated_at,
-            source: null
-          };
+            source: item.details?.source || null
+          } as InventoryItem;
         });
         return { data: items, totalCount: count ?? 0 };
       } catch (error) {
