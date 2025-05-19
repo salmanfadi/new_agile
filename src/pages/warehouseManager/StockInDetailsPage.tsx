@@ -1,8 +1,13 @@
+
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { StockInDetailView } from '@/components/warehouse/StockInDetailView';
 import { StockInApprovalForm } from '@/components/warehouse/StockInApprovalForm';
 import { useStockInProcessing } from '@/hooks/useStockInProcessing';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 const StockInDetailsPage: React.FC = () => {
   const { stockInId } = useParams<{ stockInId: string }>();
@@ -23,15 +28,42 @@ const StockInDetailsPage: React.FC = () => {
   } = useStockInProcessing(stockInId, page, pageSize);
 
   if (stockInData.loading) {
-    return <div className="p-4">Loading stock in details...</div>;
+    return (
+      <div className="space-y-4 p-4">
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-8 w-3/4 mb-4" />
+            <Skeleton className="h-4 w-1/2 mb-2" />
+            <Skeleton className="h-4 w-2/3 mb-2" />
+            <Skeleton className="h-4 w-1/4" />
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (stockInData.error) {
-    return <div className="p-4 text-red-500">Error: {stockInData.error.message}</div>;
+    return (
+      <Alert variant="destructive" className="m-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>
+          {stockInData.error instanceof Error 
+            ? stockInData.error.message 
+            : 'Failed to load stock-in details'}
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   if (!currentStockIn) {
-    return <div className="p-4 text-red-500">Stock in not found</div>;
+    return (
+      <Alert variant="destructive" className="m-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Not Found</AlertTitle>
+        <AlertDescription>The requested stock-in record could not be found.</AlertDescription>
+      </Alert>
+    );
   }
 
   const totalPages = Math.ceil(detailsTotalCount / pageSize);

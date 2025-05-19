@@ -37,7 +37,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   const { user } = useAuth();
   // Use the prop stockInId if provided, otherwise use the one from URL params
   const finalStockInId = propStockInId || paramStockInId;
-  const { stockInData, isLoadingStockIn } = useStockInData(finalStockInId);
+  const { stockInData, isLoadingStockIn, error: stockInError } = useStockInData(finalStockInId);
   const queryClient = useQueryClient();
 
   const [source, setSource] = useState<string>('');
@@ -106,6 +106,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
   useEffect(() => {
     if (isSuccess && !isProcessing && !isSubmitting && !isNavigating) {
       setIsNavigating(true);
+      
+      // Invalidate all relevant queries to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
       queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
       queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
@@ -116,7 +118,6 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
         toast({
           title: 'Batch Processed with Warnings',
           description: 'There were some issues with barcode processing. Please continue to the next step.',
-          // Change 'warning' to 'default' with a customized description to indicate warning
           variant: 'default',
         });
       } else {
@@ -145,7 +146,7 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
         // Navigate to barcode assignment page instead of batch overview
         const path = barcodeErrors && barcodeErrors.length > 0
           ? `${adminMode ? '/admin' : '/manager'}/stock-in/${finalStockInId}/barcode-assignment`
-          : `${adminMode ? '/admin' : '/manager'}/stock-in/batches/${finalStockInId}`;
+          : `${adminMode ? '/admin' : '/manager'}/inventory/batch/${processedBatchId}`;
         
         console.log(`Navigating to: ${path}`);
         navigate(path, { 
@@ -157,7 +158,8 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
         });
       }, 500);
     }
-  }, [isSuccess, isProcessing, isSubmitting, queryClient, navigate, adminMode, finalStockInId, processedBatchId, onClose, sheetMode, resetBatches, isNavigating, onComplete, barcodeErrors]);
+  }, [isSuccess, isProcessing, isSubmitting, queryClient, navigate, adminMode, finalStockInId, 
+      processedBatchId, onClose, sheetMode, resetBatches, isNavigating, onComplete, barcodeErrors]);
 
   // Populate form with stockInData when it's loaded and initialize remaining boxes
   useEffect(() => {
@@ -204,7 +206,15 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
     e.preventDefault(); // Prevent form submission
     e.stopPropagation(); // Stop event propagation
     
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to process batches.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (batches.length === 0) {
       toast({
         title: 'No batches added',
@@ -254,6 +264,32 @@ const BatchStockInComponent: React.FC<BatchStockInComponentProps> = ({
       batches: processedBatches
     });
   };
+
+  // Error handling
+  if (stockInError) {
+    return (
+      <div className="space-y-4">
+        {!sheetMode && (
+          <div className="flex items-center gap-2 mb-6">
+            <BackButton onClick={handleGoBack} className="hover-lift" />
+          </div>
+        )}
+        
+        <Alert variant="destructive">
+          <AlertTitle>Error loading stock-in data</AlertTitle>
+          <AlertDescription>
+            {stockInError instanceof Error 
+              ? stockInError.message 
+              : 'Failed to load stock-in data. Please try again.'}
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={handleGoBack}>Go Back</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

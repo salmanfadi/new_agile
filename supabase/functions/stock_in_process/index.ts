@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -106,9 +107,27 @@ serve(async (req) => {
 
         if (batchError) throw batchError;
         batchIds.push(processedBatch.id);
-
+        
         // Create stock_in_details records first
         for (const box of batch.boxes) {
+          // Check if barcode already exists to prevent duplicates
+          const { data: existingBarcode, error: barcodeCheckError } = await client
+            .from('stock_in_details')
+            .select('id')
+            .eq('barcode', box.barcode)
+            .maybeSingle();
+            
+          if (barcodeCheckError) {
+            console.error('Error checking existing barcode:', barcodeCheckError);
+            throw barcodeCheckError;
+          }
+          
+          if (existingBarcode) {
+            console.warn(`Barcode ${box.barcode} already exists, skipping this box`);
+            continue; // Skip this box if the barcode already exists
+          }
+          
+          // Create stock_in_detail record
           const { data: stockInDetail, error: detailError } = await client
             .from('stock_in_details')
             .insert({
@@ -120,7 +139,9 @@ serve(async (req) => {
               color: box.color,
               size: box.size,
               product_id: payload.product_id,
-              status: 'completed'
+              status: 'completed',
+              // Use batch_id to reference the processed_batches table
+              batch_number: processedBatch.id
             })
             .select()
             .single();
@@ -134,7 +155,7 @@ serve(async (req) => {
           const { error: itemsError } = await client
             .from('batch_items')
             .insert({
-              batch_id: processedBatch.id,
+              batch_id: processedBatch.id, // This correctly links to processed_batches.id
               barcode: box.barcode,
               quantity: box.quantity,
               color: box.color,
@@ -146,7 +167,8 @@ serve(async (req) => {
 
           if (itemsError) throw itemsError;
 
-          // Now create inventory record with the stock_in_detail ID
+          // Now create inventory record - use the stock_in_detail.id as a reference
+          // but store the processed_batch.id in the batch_id field
           const { error: inventoryError } = await client
             .from('inventory')
             .insert({
@@ -158,7 +180,9 @@ serve(async (req) => {
               color: box.color,
               size: box.size,
               status: 'available',
-              batch_id: stockInDetail.id // Link to stock_in_detail
+              batch_id: processedBatch.id, // Store processed_batch.id in batch_id
+              stock_in_id: payload.stock_in_id,
+              stock_in_detail_id: stockInDetail.id // Save reference to the detail
             });
 
           if (inventoryError) {
@@ -223,4 +247,4 @@ serve(async (req) => {
       }
     );
   }
-}); 
+});

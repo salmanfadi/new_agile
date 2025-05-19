@@ -384,6 +384,7 @@ export type Database = {
       processed_batches: {
         Row: {
           id: string
+          location_id: string | null
           notes: string | null
           processed_at: string | null
           processed_by: string | null
@@ -397,6 +398,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          location_id?: string | null
           notes?: string | null
           processed_at?: string | null
           processed_by?: string | null
@@ -410,6 +412,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          location_id?: string | null
           notes?: string | null
           processed_at?: string | null
           processed_by?: string | null
@@ -422,6 +425,13 @@ export type Database = {
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "processed_batches_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "processed_batches_product_id_fkey"
             columns: ["product_id"]
@@ -977,6 +987,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      begin_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      commit_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       find_inventory_by_barcode: {
         Args: { search_barcode: string }
         Returns: {
@@ -1041,6 +1059,10 @@ export type Database = {
           p_status: Database["public"]["Enums"]["stock_in_detail_status"]
           p_error_message?: string
         }
+        Returns: undefined
+      }
+      rollback_transaction: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
     }

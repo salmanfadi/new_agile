@@ -106,6 +106,24 @@ export const useBatchStockIn = (userId: string = '') => {
   const processBatch = async (stockInId: string, boxes: BoxData[], userId?: string) => {
     setIsProcessing(true);
     try {
+      // Before creating any records, verify that none of the barcodes exist already
+      const barcodes = boxes.map(box => box.barcode);
+      
+      // Check for existing barcodes in inventory
+      const { data: existingBarcodes, error: barcodeCheckError } = await supabase
+        .from('inventory')
+        .select('barcode')
+        .in('barcode', barcodes);
+        
+      if (barcodeCheckError) {
+        throw new Error(`Error checking existing barcodes: ${barcodeCheckError.message}`);
+      }
+      
+      if (existingBarcodes && existingBarcodes.length > 0) {
+        const duplicates = existingBarcodes.map(item => item.barcode).join(', ');
+        throw new Error(`These barcodes already exist in inventory: ${duplicates}`);
+      }
+      
       // Create processed batch record
       const { data: batchData, error: batchError } = await supabase
         .from('processed_batches')
@@ -131,6 +149,31 @@ export const useBatchStockIn = (userId: string = '') => {
       // Process each box in sequence to maintain referential integrity
       for (const box of boxes) {
         try {
+          // Check if this specific barcode already exists in stock_in_details
+          const { data: existingDetail, error: detailCheckError } = await supabase
+            .from('stock_in_details')
+            .select('id')
+            .eq('barcode', box.barcode)
+            .maybeSingle();
+            
+          if (detailCheckError) {
+            console.error(`Error checking if barcode ${box.barcode} exists:`, detailCheckError);
+            barcodeErrors.push({
+              barcode: box.barcode,
+              error: `Failed to check barcode existence: ${detailCheckError.message}`
+            });
+            continue;
+          }
+          
+          if (existingDetail) {
+            console.warn(`Barcode ${box.barcode} already exists in stock_in_details, skipping`);
+            barcodeErrors.push({
+              barcode: box.barcode,
+              error: `Barcode ${box.barcode} already exists in the system`
+            });
+            continue;
+          }
+          
           // 1. First create stock_in_detail record to satisfy the foreign key constraint
           const { data: detailData, error: detailError } = await supabase
             .from('stock_in_details')
@@ -142,7 +185,8 @@ export const useBatchStockIn = (userId: string = '') => {
               quantity: box.quantity,
               color: box.color,
               size: box.size,
-              product_id: box.product_id
+              product_id: box.product_id,
+              batch_number: processed_batch_id // Use the processed_batch_id as batch_number
             })
             .select()
             .single();
@@ -178,7 +222,7 @@ export const useBatchStockIn = (userId: string = '') => {
             });
           }
           
-          // 3. Create inventory entry with the stock_in_detail_id to satisfy the FK constraint
+          // 3. Create inventory entry with correct references
           const { error: inventoryError, data: inventoryData } = await supabase
             .from('inventory')
             .insert({
@@ -189,10 +233,9 @@ export const useBatchStockIn = (userId: string = '') => {
               barcode: box.barcode,
               color: box.color,
               size: box.size,
-              batch_id: processed_batch_id,
+              batch_id: processed_batch_id, // Use processed_batch_id for batch_id
               stock_in_id: stockInId,
-              stock_in_detail_id: detailData.id, // Include the stock_in_detail_id to satisfy FK constraint
-              status: 'available'
+              stock_in_detail_id: detailData.id // Include the stock_in_detail_id to satisfy FK constraint
             })
             .select()
             .single();
