@@ -1,96 +1,41 @@
-/**
- * Utility functions for handling barcodes in the inventory system
- */
+import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Generates a unique barcode string using product information and other parameters
+ * Generates a unique barcode string for inventory items
  * 
- * @param category Product category code (optional)
- * @param sku Product SKU (optional)
- * @param boxNumber Box number within a batch
- * @param timestamp Optional timestamp to ensure uniqueness (defaults to current time)
+ * @param prefix - Optional prefix to add to the barcode
+ * @param productId - Optional product ID to include in the barcode
  * @returns A unique barcode string
  */
-export const generateBarcodeString = async (
-  category?: string,
-  sku?: string,
-  boxNumber?: number,
-  timestamp = Date.now()
-): Promise<string> => {
-  // Clean and format category (default to "PRD" if not provided)
-  const cleanCategory = (category || "PRD")
-    .replace(/[^a-zA-Z]/g, '')
-    .substring(0, 3)
-    .toUpperCase();
+export const generateBarcodeString = async (prefix: string = 'INV', productId?: string, boxNumber?: number): Promise<string> => {
+  // Extract first 6 chars of product ID if available
+  const productPrefix = productId ? productId.substring(0, 6) : '';
   
-  // Clean and format SKU (default to random string if not provided)
-  const cleanSku = sku 
-    ? sku.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5).toUpperCase()
-    : generateRandomString(5);
+  // Generate a timestamp component for uniqueness
+  const timestamp = Date.now().toString().substring(6);
   
-  // Format box number (default to random number if not provided)
-  const boxStr = boxNumber 
-    ? boxNumber.toString().padStart(3, '0') 
-    : Math.floor(Math.random() * 999).toString().padStart(3, '0');
+  // Generate a short random component (last 6 chars of a UUID)
+  const random = uuidv4().substring(0, 6);
   
-  // Get timestamp portion (last 6 digits)
-  const timeStr = timestamp.toString().slice(-6);
+  // Include box number if provided
+  const boxSuffix = boxNumber ? `-${boxNumber.toString().padStart(3, '0')}` : '';
   
-  // Combine all parts
-  const barcode = `${cleanCategory}-${cleanSku}-${boxStr}-${timeStr}`;
-  
-  return barcode;
+  // Construct the barcode with format PREFIX-PRODUCTID-TIMESTAMP-RANDOM
+  return `${prefix}-${productPrefix}-${timestamp}-${random}${boxSuffix}`.toUpperCase();
 };
 
 /**
- * Generates a random alphanumeric string of the specified length
+ * Format a barcode for display - adds hyphens for readability if they don't exist
  * 
- * @param length Length of the string to generate
- * @returns Random alphanumeric string
- */
-const generateRandomString = (length: number): string => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars like 0/O, 1/I
-  let result = '';
-  
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  
-  return result;
-};
-
-/**
- * Checks if a barcode is well-formed according to our system's format
- * 
- * @param barcode The barcode to validate
- * @returns True if the barcode is valid, false otherwise
- */
-export const isValidBarcode = (barcode: string): boolean => {
-  // Simple pattern matching validation
-  const pattern = /^[A-Z]{3}-[A-Z0-9]{1,5}-[0-9]{1,3}-[0-9]{1,6}$/;
-  return pattern.test(barcode);
-};
-
-/**
- * Formats a barcode string for display by adding spaces for readability
- * 
- * @param barcode The raw barcode string
- * @returns A formatted barcode string for display
+ * @param barcode - The barcode to format
+ * @returns Formatted barcode string
  */
 export const formatBarcodeForDisplay = (barcode: string): string => {
-  if (!barcode) return '';
-  
-  // If the barcode is already in the format with dashes, return it as-is
+  // If the barcode already has hyphens, return as is
   if (barcode.includes('-')) {
     return barcode;
   }
   
-  // Otherwise try to format it into our standard format if it matches the length pattern
-  if (barcode.length >= 15) {
-    // Attempt to parse as our standard format: XXX-XXXXX-XXX-XXXXXX
-    return `${barcode.substring(0, 3)}-${barcode.substring(3, 8)}-${barcode.substring(8, 11)}-${barcode.substring(11)}`;
-  }
-  
-  // If we can't format it correctly, return the original
-  return barcode;
+  // Otherwise, add hyphens every 4 characters for readability
+  return barcode.match(/.{1,4}/g)?.join('-') || barcode;
 };

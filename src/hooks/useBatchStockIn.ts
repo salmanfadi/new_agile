@@ -124,6 +124,7 @@ export const useBatchStockIn = (userId: string = '') => {
         throw new Error(`These barcodes already exist in inventory: ${duplicates}`);
       }
       
+      // Create a client to use transaction-like operations
       // Create processed batch record
       const { data: batchData, error: batchError } = await supabase
         .from('processed_batches')
@@ -174,7 +175,7 @@ export const useBatchStockIn = (userId: string = '') => {
             continue;
           }
           
-          // 1. First create stock_in_detail record to satisfy the foreign key constraint
+          // IMPORTANT: Create stock_in_detail first
           const { data: detailData, error: detailError } = await supabase
             .from('stock_in_details')
             .insert({
@@ -186,7 +187,8 @@ export const useBatchStockIn = (userId: string = '') => {
               color: box.color,
               size: box.size,
               product_id: box.product_id,
-              batch_number: processed_batch_id // Use the processed_batch_id as batch_number
+              batch_number: processed_batch_id, // Use the processed_batch_id as batch_number
+              status: 'completed' // Mark as completed immediately
             })
             .select()
             .single();
@@ -222,7 +224,7 @@ export const useBatchStockIn = (userId: string = '') => {
             });
           }
           
-          // 3. Create inventory entry with correct references
+          // 3. Create inventory entry with reference to the stock_in_detail
           const { error: inventoryError, data: inventoryData } = await supabase
             .from('inventory')
             .insert({
@@ -235,7 +237,7 @@ export const useBatchStockIn = (userId: string = '') => {
               size: box.size,
               batch_id: processed_batch_id, // Use processed_batch_id for batch_id
               stock_in_id: stockInId,
-              stock_in_detail_id: detailData.id // Include the stock_in_detail_id to satisfy FK constraint
+              stock_in_detail_id: detailData.id // Important: Reference the detail ID
             })
             .select()
             .single();
