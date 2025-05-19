@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -43,12 +44,13 @@ const AdminEnhancedInventoryView: React.FC = () => {
   
   // Batches data
   const {
-    data: batchesData,
+    batches,
+    count: batchesCount,
     isLoading: isLoadingBatchesData,
     error: batchesError
   } = useProcessedBatchesWithItems({
-    warehouseId: filters.warehouseFilter || undefined,
-    searchTerm: filters.searchTerm || undefined,
+    warehouseId: filters.warehouseFilter,
+    searchTerm: filters.searchTerm,
     page: batchPage,
     limit: 10
   });
@@ -217,7 +219,7 @@ const AdminEnhancedInventoryView: React.FC = () => {
                 <div className="p-4 bg-red-50 border border-red-200 rounded text-red-600">
                   <p>Error loading batches: {batchesError instanceof Error ? batchesError.message : 'Unknown error'}</p>
                 </div>
-              ) : !batchesData?.batches.length ? (
+              ) : !batches?.length ? (
                 <div className="p-6 text-center border rounded bg-gray-50">
                   <BoxesIcon className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                   <p className="text-gray-500">No batch data available.</p>
@@ -239,27 +241,25 @@ const AdminEnhancedInventoryView: React.FC = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {batchesData.batches.map((batch) => (
+                        {batches.map((batch) => (
                           <TableRow key={batch.id}>
                             <TableCell className="font-medium">
                               {batch.id.substring(0, 8)}...
                             </TableCell>
                             <TableCell>
                               <div>
-                                <div>{batch.product_name}</div>
-                                {batch.product_sku && (
-                                  <div className="text-xs text-gray-500">
-                                    SKU: {batch.product_sku}
-                                  </div>
-                                )}
+                                <div>{batch.productName}</div>
+                                <div className="text-xs text-gray-500">
+                                  {batch.items.length} items
+                                </div>
                               </div>
                             </TableCell>
-                            <TableCell>{batch.total_quantity}</TableCell>
-                            <TableCell>{batch.total_boxes}</TableCell>
-                            <TableCell>{batch.warehouse_name}</TableCell>
-                            <TableCell>{batch.processor_name}</TableCell>
+                            <TableCell>{batch.totalQuantity}</TableCell>
+                            <TableCell>{batch.totalBoxes}</TableCell>
+                            <TableCell>{batch.warehouseName}</TableCell>
+                            <TableCell>{batch.processedBy}</TableCell>
                             <TableCell>
-                              {format(new Date(batch.processed_at), 'MMM d, yyyy')}
+                              {format(new Date(batch.createdAt), 'MMM d, yyyy')}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
@@ -278,7 +278,7 @@ const AdminEnhancedInventoryView: React.FC = () => {
                   </div>
                   
                   {/* Pagination */}
-                  {batchesData && batchesData.count > 0 && (
+                  {batchesCount > 0 && (
                     <div className="flex items-center justify-center space-x-2 py-4">
                       <Button
                         variant="outline"
@@ -290,14 +290,14 @@ const AdminEnhancedInventoryView: React.FC = () => {
                       </Button>
                       <span className="text-sm">
                         Page {batchPage} of{' '}
-                        {Math.ceil(batchesData.count / 10)}
+                        {Math.ceil(batchesCount / 10)}
                       </span>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setBatchPage(prev => prev + 1)}
                         disabled={
-                          batchPage >= Math.ceil(batchesData.count / 10)
+                          batchPage >= Math.ceil(batchesCount / 10)
                         }
                       >
                         Next

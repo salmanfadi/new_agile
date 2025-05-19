@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/card';
@@ -61,7 +62,7 @@ const InventoryView: React.FC = () => {
   
   // Use shared inventory hook with filters
   const { 
-    inventoryItems, 
+    data, 
     isLoading, 
     error, 
     refetch 
@@ -71,6 +72,9 @@ const InventoryView: React.FC = () => {
     filters.statusFilter, 
     filters.searchTerm
   );
+  
+  // Extract inventory items from the data
+  const inventoryItems = data?.data || [];
   
   // Handle barcode scanned
   const handleBarcodeScanned = async (barcode: string) => {

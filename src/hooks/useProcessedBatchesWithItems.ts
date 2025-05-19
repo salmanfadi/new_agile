@@ -28,36 +28,60 @@ export interface ProcessedBatchWithItems {
   items: BatchItem[];
 }
 
-export const useProcessedBatchesWithItems = (batchId?: string) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  
-  const fetchBatchesWithItems = async (): Promise<ProcessedBatchWithItems[]> => {
-    try {
-      // If a specific batch ID is provided, fetch only that batch
-      const batchQuery = batchId
-        ? supabase
-            .from('processed_batches')
-            .select(`
-              *,
-              products (id, name, sku),
-              profiles (id, name, username),
-              warehouses (id, name, location)
-            `)
-            .eq('id', batchId)
-            .order('processed_at', { ascending: false })
-        : supabase
-            .from('processed_batches')
-            .select(`
-              *,
-              products (id, name, sku),
-              profiles (id, name, username),
-              warehouses (id, name, location)
-            `)
-            .order('processed_at', { ascending: false })
-            .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
+// Define parameter interface for the hook
+export interface ProcessedBatchesParams {
+  batchId?: string;
+  warehouseId?: string;
+  searchTerm?: string;
+  page?: number;
+  limit?: number;
+}
 
-      const { data: batches, error: batchesError } = await batchQuery;
+export const useProcessedBatchesWithItems = (params?: string | ProcessedBatchesParams) => {
+  // Handle both string (legacy) and object params
+  const batchId = typeof params === 'string' ? params : params?.batchId;
+  const warehouseId = typeof params === 'object' ? params?.warehouseId : undefined;
+  const searchTerm = typeof params === 'object' ? params?.searchTerm : undefined;
+  const page = typeof params === 'object' ? params?.page : 1;
+  const limit = typeof params === 'object' ? params?.limit : 10;
+  
+  const [currentPage, setCurrentPage] = useState(page || 1);
+  const [pageSize, setPageSize] = useState(limit || 10);
+  
+  const fetchBatchesWithItems = async (): Promise<{
+    batches: ProcessedBatchWithItems[];
+    count: number;
+  }> => {
+    try {
+      // Start building the query
+      let batchQuery = supabase
+        .from('processed_batches')
+        .select(`
+          *,
+          products (id, name, sku),
+          profiles (id, name, username),
+          warehouses (id, name, location)
+        `, { count: 'exact' });
+
+      // Apply filters based on parameters
+      if (batchId) {
+        batchQuery = batchQuery.eq('id', batchId);
+      }
+      
+      if (warehouseId) {
+        batchQuery = batchQuery.eq('warehouse_id', warehouseId);
+      }
+      
+      if (searchTerm) {
+        batchQuery = batchQuery.or(`products.name.ilike.%${searchTerm}%,products.sku.ilike.%${searchTerm}%`);
+      }
+      
+      // Apply ordering and pagination
+      batchQuery = batchQuery
+        .order('processed_at', { ascending: false })
+        .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
+
+      const { data: batches, error: batchesError, count } = await batchQuery;
 
       if (batchesError) {
         console.error('Error fetching batches:', batchesError);
@@ -65,7 +89,7 @@ export const useProcessedBatchesWithItems = (batchId?: string) => {
       }
 
       if (!batches || batches.length === 0) {
-        return [];
+        return { batches: [], count: 0 };
       }
 
       const batchesWithItems = await Promise.all(
@@ -107,7 +131,7 @@ export const useProcessedBatchesWithItems = (batchId?: string) => {
         })
       );
 
-      return batchesWithItems;
+      return { batches: batchesWithItems, count: count || 0 };
     } catch (error) {
       console.error('Error in useProcessedBatchesWithItems:', error);
       throw error;
@@ -115,17 +139,18 @@ export const useProcessedBatchesWithItems = (batchId?: string) => {
   };
 
   const {
-    data: batches,
+    data,
     isLoading,
     error,
     refetch,
   } = useQuery({
-    queryKey: ['processed-batches-with-items', batchId, currentPage, pageSize],
+    queryKey: ['processed-batches-with-items', batchId, warehouseId, searchTerm, currentPage, pageSize],
     queryFn: fetchBatchesWithItems,
   });
 
   return {
-    batches: batches || [],
+    batches: data?.batches || [],
+    count: data?.count || 0,
     isLoading,
     error,
     refetch,

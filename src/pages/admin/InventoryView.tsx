@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -40,7 +41,7 @@ const AdminInventoryView = () => {
   
   // Use shared inventory hook with filters
   const { 
-    inventoryItems, 
+    data, 
     isLoading, 
     error, 
     refetch 
@@ -50,6 +51,9 @@ const AdminInventoryView = () => {
     filters.statusFilter, 
     filters.searchTerm
   );
+  
+  // Extract inventory items from the data
+  const inventoryItems = data?.data || [];
 
   // Handle barcode scanned
   const handleBarcodeScanned = async (barcode: string) => {
