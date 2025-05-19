@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -6,10 +5,10 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, BoxesIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { useInventoryData } from '@/hooks/useInventoryData';
 import { useInventoryFilters } from '@/hooks/useInventoryFilters';
 import { InventoryFiltersPanel } from '@/components/warehouse/InventoryFiltersPanel';
 import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
+import { useInventoryData } from '@/hooks/useInventoryData';
 
 const AdminInventoryView = () => {
   const navigate = useNavigate();
@@ -147,9 +146,10 @@ const AdminInventoryView = () => {
       />
       
       <InventoryTableContainer 
-        inventoryItems={inventoryItems}
-        isLoading={isLoading}
-        error={error as Error | null}
+        warehouseFilter={filters.warehouseFilter}
+        batchFilter={filters.batchFilter}
+        statusFilter={filters.statusFilter}
+        searchTerm={filters.searchTerm}
         highlightedBarcode={highlightedBarcode}
         title="Current Inventory"
       />

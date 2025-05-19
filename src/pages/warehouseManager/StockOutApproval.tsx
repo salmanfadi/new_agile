@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -32,65 +32,29 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { Product } from '@/types/database';
-
-interface StockOutData {
-  id: string;
-  product: { name: string; id: string };
-  requester: { name: string; username: string } | null;
-  quantity: number;
-  approved_quantity: number | null;
-  destination: string;
-  reason: string | null;
-  status: string;
-  created_at: string;
-}
+import { useStockOutRequests } from '@/hooks/useStockOutRequests';
 
 const StockOutApproval: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
-  const [selectedStockOut, setSelectedStockOut] = useState<StockOutData | null>(null);
+
+  const [selectedStockOut, setSelectedStockOut] = useState<any | null>(null);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [approvedQuantity, setApprovedQuantity] = useState<number>(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  // Fetch pending stock out requests
-  const { data: stockOutRequests, isLoading } = useQuery({
-    queryKey: ['stock-out-requests'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_out')
-        .select(`
-          id,
-          product:product_id(name, id),
-          requester:requested_by(name, username),
-          quantity,
-          approved_quantity,
-          destination,
-          reason,
-          status,
-          created_at
-        `)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+  // Fetch paginated pending stock out requests
+  const {
+    data: stockOutResult,
+    isLoading,
+    error
+  } = useStockOutRequests({ status: 'pending' }, page, pageSize);
 
-      if (error) throw error;
-      
-      // Transform the data to handle potential embedding errors
-      return (data as any[]).map(item => ({
-        id: item.id,
-        product: item.product || { name: 'Unknown Product', id: '' },
-        requester: item.requester && !item.requester.error ? item.requester : { name: 'Unknown', username: 'unknown' },
-        quantity: item.quantity,
-        approved_quantity: item.approved_quantity,
-        destination: item.destination,
-        reason: item.reason,
-        status: item.status,
-        created_at: item.created_at
-      })) as StockOutData[];
-    },
-  });
+  const stockOutRequests = stockOutResult?.data ?? [];
+  const totalCount = stockOutResult?.totalCount ?? 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   // Check available inventory for a product
   const getAvailableInventory = async (productId: string) => {
@@ -98,9 +62,7 @@ const StockOutApproval: React.FC = () => {
       .from('inventory')
       .select('quantity')
       .eq('product_id', productId);
-      
     if (error) throw error;
-    
     const totalQuantity = data.reduce((sum, item) => sum + item.quantity, 0);
     return totalQuantity;
   };
@@ -112,17 +74,14 @@ const StockOutApproval: React.FC = () => {
         status,
         approved_by: user?.id 
       };
-      
       if (approved_quantity !== undefined) {
         updateData.approved_quantity = approved_quantity;
       }
-      
       const { data, error } = await supabase
         .from('stock_out')
         .update(updateData)
         .eq('id', id)
         .select();
-
       if (error) throw error;
       return data;
     },
@@ -147,11 +106,10 @@ const StockOutApproval: React.FC = () => {
     updateStockOutMutation.mutate({ id, status });
   };
 
-  const handleApprove = async (stockOut: StockOutData) => {
+  const handleApprove = async (stockOut: any) => {
     try {
       // Check available inventory
       const availableQuantity = await getAvailableInventory(stockOut.product.id);
-      
       setSelectedStockOut(stockOut);
       setApprovedQuantity(Math.min(stockOut.quantity, availableQuantity));
       setIsApprovalDialogOpen(true);
@@ -164,34 +122,12 @@ const StockOutApproval: React.FC = () => {
     }
   };
 
-  const handleApprovalSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedStockOut) return;
-
-    updateStockOutMutation.mutate({
-      id: selectedStockOut.id,
-      status: 'approved',
-      approved_quantity: approvedQuantity
-    });
-  };
-
   return (
     <div className="space-y-6">
       <PageHeader 
         title="Stock Out Approval" 
         description="Review and approve stock out requests"
       />
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate('/manager')}
-        className="mb-4"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Dashboard
-      </Button>
-      
       <Card>
         <CardHeader>
           <CardTitle>Pending Stock Out Requests</CardTitle>
@@ -221,65 +157,130 @@ const StockOutApproval: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockOutRequests.map((stockOut) => (
-                    <TableRow key={stockOut.id} className="bg-blue-50">
-                      <TableCell className="font-medium">{stockOut.product?.name || 'Unknown Product'}</TableCell>
-                      <TableCell>{stockOut.requester ? `${stockOut.requester.name} (${stockOut.requester.username})` : 'Unknown'}</TableCell>
-                      <TableCell>{stockOut.quantity}</TableCell>
-                      <TableCell>{stockOut.destination}</TableCell>
-                      <TableCell>{stockOut.reason || '-'}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={stockOut.status as any} />
-                      </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="text-green-600"
-                          onClick={() => handleApprove(stockOut)}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" /> Approve
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="text-red-600"
-                          onClick={() => handleStatusUpdate(stockOut.id, 'rejected')}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" /> Reject
-                        </Button>
+                  {stockOutRequests.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.product.name}</TableCell>
+                      <TableCell>{item.requester?.name || 'Unknown'}</TableCell>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell>{item.destination}</TableCell>
+                      <TableCell>{item.reason || '-'}</TableCell>
+                      <TableCell><StatusBadge status={item.status} /></TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleApprove(item)}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleStatusUpdate(item.id, 'rejected')}
+                          >
+                            Reject
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between py-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Showing page {page} of {totalPages} ({totalCount} requests)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setPage(1)}
+                      disabled={page === 1}
+                      className="h-8 w-8"
+                    >
+                      {'<<'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setPage(page - 1)}
+                      disabled={page === 1}
+                      className="h-8 w-8"
+                    >
+                      {'<'}
+                    </Button>
+                    <span className="mx-2 text-sm font-medium">
+                      Page {page} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setPage(page + 1)}
+                      disabled={page >= totalPages}
+                      className="h-8 w-8"
+                    >
+                      {'>'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setPage(totalPages)}
+                      disabled={page >= totalPages}
+                      className="h-8 w-8"
+                    >
+                      {'>>'}
+                    </Button>
+                    <select
+                      className="ml-4 border rounded px-2 py-1 text-sm"
+                      value={pageSize}
+                      onChange={e => {
+                        setPageSize(Number(e.target.value));
+                        setPage(1);
+                      }}
+                    >
+                      {[10, 20, 50, 100].map(size => (
+                        <option key={size} value={size}>{size} per page</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
-
       {/* Approval Dialog */}
       <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Approve Stock Out</DialogTitle>
           </DialogHeader>
-          
           {selectedStockOut && (
-            <form onSubmit={handleApprovalSubmit}>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              updateStockOutMutation.mutate({
+                id: selectedStockOut.id,
+                status: 'approved',
+                approved_quantity: approvedQuantity
+              });
+            }}>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <div className="font-medium">Product: {selectedStockOut.product?.name}</div>
+                  <div className="font-medium">Product: {selectedStockOut.product.name}</div>
                   <div className="text-sm text-gray-500">Requested Quantity: {selectedStockOut.quantity}</div>
                   <div className="text-sm text-gray-500">Destination: {selectedStockOut.destination}</div>
                 </div>
-                
                 <div className="space-y-2">
                   <Label htmlFor="approved_quantity">Approved Quantity</Label>
                   <Input 
                     id="approved_quantity"
                     type="number"
-                    min="1"
+                    min={1}
                     max={selectedStockOut.quantity}
                     value={approvedQuantity}
                     onChange={(e) => setApprovedQuantity(parseInt(e.target.value) || 0)}
@@ -290,7 +291,6 @@ const StockOutApproval: React.FC = () => {
                   </p>
                 </div>
               </div>
-              
               <DialogFooter>
                 <Button 
                   type="button" 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -9,7 +8,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import { InventoryFiltersPanel } from '@/components/warehouse/InventoryFiltersPanel';
 import { useInventoryFilters } from '@/hooks/useInventoryFilters';
-import { useInventoryData } from '@/hooks/useInventoryData';
 import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
 import { useProcessedBatchesWithItems } from '@/hooks/useProcessedBatchesWithItems';
 import { 
@@ -18,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { Eye, BoxesIcon, Package, ArrowLeft } from 'lucide-react';
+import { useInventoryData } from '@/hooks/useInventoryData';
 
 const AdminEnhancedInventoryView: React.FC = () => {
   const navigate = useNavigate();
@@ -42,19 +41,6 @@ const AdminEnhancedInventoryView: React.FC = () => {
     isLoadingWarehouses
   } = useInventoryFilters();
   
-  // Inventory data
-  const { 
-    inventoryItems, 
-    isLoading: isLoadingInventory, 
-    error: inventoryError, 
-    refetch: refetchInventory
-  } = useInventoryData(
-    filters.warehouseFilter, 
-    filters.batchFilter, 
-    filters.statusFilter, 
-    filters.searchTerm
-  );
-  
   // Batches data
   const {
     data: batchesData,
@@ -66,6 +52,20 @@ const AdminEnhancedInventoryView: React.FC = () => {
     page: batchPage,
     limit: 10
   });
+  
+  // Add inventory data hook for barcode scanning and refresh
+  const {
+    data: inventoryData,
+    isLoading: isLoadingInventory,
+    error: inventoryError,
+    refetch: refetchInventory
+  } = useInventoryData(
+    filters.warehouseFilter,
+    filters.batchFilter,
+    filters.statusFilter,
+    filters.searchTerm
+  );
+  const inventoryItems = inventoryData?.data ?? [];
   
   // Check for navigation state from batch processing
   useEffect(() => {
@@ -191,9 +191,10 @@ const AdminEnhancedInventoryView: React.FC = () => {
         
         <TabsContent value="inventory">
           <InventoryTableContainer 
-            inventoryItems={inventoryItems}
-            isLoading={isLoadingInventory}
-            error={inventoryError as Error | null}
+            warehouseFilter={filters.warehouseFilter}
+            batchFilter={filters.batchFilter}
+            statusFilter={filters.statusFilter}
+            searchTerm={filters.searchTerm}
             highlightedBarcode={highlightedBarcode}
             title="Global Inventory"
           />

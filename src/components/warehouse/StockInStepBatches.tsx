@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { generateBarcodeString } from '@/utils/barcodeUtils';
 import { Button } from '@/components/ui/button';
@@ -47,16 +47,65 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
   const [boxesCount, setBoxesCount] = useState<number>(1);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Log component state
+  useEffect(() => {
+    console.log('StockInStepBatches state:', {
+      remainingBoxes,
+      selectedWarehouse,
+      selectedLocation,
+      boxesCount,
+      isGenerating
+    });
+  }, [remainingBoxes, selectedWarehouse, selectedLocation, boxesCount, isGenerating]);
+
   const handleAddBatch = async () => {
-    if (!selectedWarehouse || !selectedLocation || boxesCount <= 0) return;
+    console.log('Starting batch generation with:', {
+      productName,
+      productSku,
+      selectedWarehouse,
+      selectedLocation,
+      boxesCount,
+      remainingBoxes
+    });
+
+    if (!selectedWarehouse || !selectedLocation || boxesCount <= 0) {
+      console.error('Invalid batch data:', { 
+        hasWarehouse: !!selectedWarehouse, 
+        hasLocation: !!selectedLocation, 
+        boxesCount 
+      });
+      return;
+    }
+    
+    if (boxesCount > remainingBoxes) {
+      console.error('Too many boxes:', { boxesCount, remainingBoxes });
+      return;
+    }
+
+    if (!productName) {
+      console.error('Missing product name for barcode generation');
+      return;
+    }
+    
     setIsGenerating(true);
     try {
-      // generate barcodes parallel
-      const barcodes = await Promise.all(
-        Array.from({ length: boxesCount }, (_, i) =>
-          generateBarcodeString(productName.substring(0, 3), productSku ?? undefined, i + 1)
-        )
-      );
+      console.log('Starting barcode generation:', {
+        productPrefix: productName.substring(0, 3),
+        productSku,
+        boxesCount
+      });
+      
+      // Generate barcodes in parallel
+      const barcodePromises = Array.from({ length: boxesCount }, (_, i) => {
+        const prefix = productName.substring(0, 3).toUpperCase();
+        console.log(`Generating barcode ${i + 1}/${boxesCount} with prefix ${prefix}`);
+        return generateBarcodeString(prefix, productSku ?? undefined, i + 1);
+      });
+
+      const barcodes = await Promise.all(barcodePromises);
+      
+      console.log('Generated barcodes:', barcodes);
+      
       const boxes: BoxData[] = barcodes.map((barcode, idx) => ({
         id: `box-${Date.now()}-${idx}`,
         barcode,
@@ -68,15 +117,30 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
         warehouse: selectedWarehouse,
         location: selectedLocation,
       }));
-      onAddBatch({
+      
+      console.log('Created box data:', boxes);
+      
+      const newBatch: BatchData = {
         id: `tmp-${Date.now()}`,
         warehouse_id: selectedWarehouse,
         location_id: selectedLocation,
         boxes,
-      });
+      };
+
+      console.log('Adding new batch:', newBatch);
+      onAddBatch(newBatch);
+      
       // reset for next batch
       setSelectedLocation('');
       setBoxesCount(1);
+      
+      console.log('Batch added successfully');
+    } catch (error) {
+      console.error('Error generating batch:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -86,43 +150,45 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Create a New Batch</CardTitle>
+          <CardTitle>Create Batch</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Warehouse</Label>
-            <Select value={selectedWarehouse} onValueChange={(v) => setSelectedWarehouse(v)}>
+            <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
               <SelectTrigger>
                 <SelectValue placeholder="Select warehouse" />
               </SelectTrigger>
               <SelectContent>
-                {warehouses?.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>
-                    {w.name}
+                {warehouses.map((warehouse) => (
+                  <SelectItem key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+          
           <div className="space-y-2">
             <Label>Location</Label>
-            <Select
-              value={selectedLocation}
+            <Select 
+              value={selectedLocation} 
               onValueChange={setSelectedLocation}
               disabled={!selectedWarehouse}
             >
               <SelectTrigger>
-                <SelectValue placeholder={selectedWarehouse ? 'Select location' : 'Select warehouse first'} />
+                <SelectValue placeholder="Select location" />
               </SelectTrigger>
               <SelectContent>
-                {locations?.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    Floor {loc.floor} - Zone {loc.zone}
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    Floor {location.floor} - Zone {location.zone}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+          
           <div className="space-y-2">
             <Label>Number of Boxes</Label>
             <Input
@@ -130,14 +196,20 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
               min={1}
               max={remainingBoxes}
               value={boxesCount}
-              onChange={(e) => setBoxesCount(parseInt(e.target.value) || 1)}
+              onChange={(e) => setBoxesCount(Math.min(parseInt(e.target.value) || 1, remainingBoxes))}
             />
-            <p className="text-sm text-muted-foreground">Remaining: {remainingBoxes} boxes</p>
+            <p className="text-sm text-muted-foreground">
+              {remainingBoxes} boxes remaining to allocate
+            </p>
           </div>
+          
           <Button
             onClick={handleAddBatch}
             disabled={
-              !selectedWarehouse || !selectedLocation || boxesCount <= 0 || boxesCount > remainingBoxes ||
+              !selectedWarehouse || 
+              !selectedLocation || 
+              boxesCount <= 0 || 
+              boxesCount > remainingBoxes ||
               isGenerating
             }
           >
@@ -158,8 +230,15 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
         <Button variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button onClick={onContinue} disabled={remainingBoxes > 0}>
-          Continue
+        <Button 
+          onClick={onContinue} 
+          disabled={remainingBoxes > 0}
+          className="min-w-[140px]"
+        >
+          {remainingBoxes > 0 ? 
+            `${remainingBoxes} boxes remaining` : 
+            'Continue to Preview'
+          }
         </Button>
       </div>
     </div>

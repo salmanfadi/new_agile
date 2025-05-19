@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -18,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { Eye, BoxesIcon, Package, ArrowLeft } from 'lucide-react';
+import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
 
 const EnhancedInventoryView: React.FC = () => {
   const navigate = useNavigate();
@@ -190,22 +190,14 @@ const EnhancedInventoryView: React.FC = () => {
         </TabsList>
         
         <TabsContent value="inventory">
-          <Card>
-            <CardHeader>
-              <CardTitle>Inventory Items</CardTitle>
-              <CardDescription>
-                All inventory items matching your selected filters
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InventoryTable 
-                inventoryItems={inventoryItems} 
-                isLoading={isLoadingInventory} 
-                error={inventoryError as Error | null}
-                highlightedBarcode={highlightedBarcode}
-              />
-            </CardContent>
-          </Card>
+          <InventoryTableContainer 
+            warehouseFilter={filters.warehouseFilter}
+            batchFilter={filters.batchFilter}
+            statusFilter={filters.statusFilter}
+            searchTerm={filters.searchTerm}
+            highlightedBarcode={highlightedBarcode}
+            title="Inventory Items"
+          />
         </TabsContent>
         
         <TabsContent value="batches">

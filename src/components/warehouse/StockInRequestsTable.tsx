@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -37,20 +36,28 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  
   // State for the process form dialog
   const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
   const [isProcessFormOpen, setIsProcessFormOpen] = useState(false);
   
   // Use the shared hook for stock in requests
   const { 
-    data: stockInRequests, 
+    data: stockInResult, 
     isLoading, 
     error,
     refetch 
   } = useStockInRequests({
     status: status || undefined,
     ...filters
-  });
+  }, page, pageSize);
+  
+  const stockInRequests = stockInResult?.data ?? [];
+  const totalCount = stockInResult?.totalCount ?? 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
   
   // Handle process button click - Open the form dialog
   const handleProcess = (stockIn: StockInRequestData) => {
@@ -70,6 +77,10 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
     setSelectedStockIn(stockIn);
     setIsProcessFormOpen(true);
   };
+  
+  useEffect(() => {
+    setPage(1); // Reset to first page when filters/status change
+  }, [status, JSON.stringify(filters)]);
   
   // Log when the dialog opens/closes
   useEffect(() => {
@@ -141,46 +152,26 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Status</TableHead>
               <TableHead>Product</TableHead>
               <TableHead>Boxes</TableHead>
-              <TableHead>Submitted By</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Source</TableHead>
+              <TableHead>Submitted By</TableHead>
               <TableHead>Date</TableHead>
+              <TableHead>Notes</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {stockInRequests.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>
-                  <StatusBadge status={item.status} />
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{item.product?.name || 'Unknown Product'}</div>
-                  <div className="text-xs text-gray-500">
-                    {item.product?.sku && `SKU: ${item.product.sku}`}
-                  </div>
-                </TableCell>
+                <TableCell className="font-medium">{item.product?.name}</TableCell>
                 <TableCell>{item.boxes}</TableCell>
-                <TableCell>
-                  {item.submitter ? (
-                    <div>
-                      <div>{item.submitter.name}</div>
-                      <div className="text-xs text-gray-500">{item.submitter.username}</div>
-                    </div>
-                  ) : (
-                    'Unknown'
-                  )}
-                </TableCell>
+                <TableCell><StatusBadge status={item.status} /></TableCell>
                 <TableCell>{item.source}</TableCell>
-                <TableCell>
-                  {item.created_at ? (
-                    format(new Date(item.created_at), 'MMM d, yyyy')
-                  ) : (
-                    'Unknown date'
-                  )}
-                </TableCell>
+                <TableCell>{item.submitter?.name || 'Unknown'}</TableCell>
+                <TableCell>{format(new Date(item.created_at), 'MMM d, yyyy')}</TableCell>
+                <TableCell>{item.notes || '-'}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     {item.status === 'pending' && (
@@ -220,6 +211,70 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between py-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Showing page {page} of {totalPages} ({totalCount} requests)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              className="h-8 w-8"
+            >
+              {'<<'}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              className="h-8 w-8"
+            >
+              {'<'}
+            </Button>
+            <span className="mx-2 text-sm font-medium">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setPage(page + 1)}
+              disabled={page >= totalPages}
+              className="h-8 w-8"
+            >
+              {'>'}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages}
+              className="h-8 w-8"
+            >
+              {'>>'}
+            </Button>
+            <select
+              className="ml-4 border rounded px-2 py-1 text-sm"
+              value={pageSize}
+              onChange={e => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+            >
+              {[10, 20, 50, 100].map(size => (
+                <option key={size} value={size}>{size} per page</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Process Stock In Form Dialog */}
       <ProcessStockInForm

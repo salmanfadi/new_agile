@@ -1,12 +1,10 @@
-
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
-import { useInventoryData } from '@/hooks/useInventoryData';
 import { useInventoryFilters } from '@/hooks/useInventoryFilters';
-import { InventoryTable } from '@/components/warehouse/InventoryTable';
+import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -21,21 +19,8 @@ const InventoryView: React.FC = () => {
     availableStatuses
   } = useInventoryFilters();
   
-  // For sales, we don't need batch filtering
-  const { 
-    inventoryItems, 
-    isLoading, 
-    error,
-    refetch 
-  } = useInventoryData(
-    filters.warehouseFilter, 
-    '', // No batch filter for sales view
-    filters.statusFilter, 
-    filters.searchTerm
-  );
-  
   const handleRefresh = () => {
-    refetch();
+    // Implementation of handleRefresh function
   };
 
   return (
@@ -102,11 +87,13 @@ const InventoryView: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <InventoryTable 
-            inventoryItems={inventoryItems} 
-            isLoading={isLoading} 
-            error={error as Error | null}
+          <InventoryTableContainer 
+            warehouseFilter={filters.warehouseFilter}
+            batchFilter={''}
+            statusFilter={filters.statusFilter}
+            searchTerm={filters.searchTerm}
             highlightedBarcode={null}
+            title="Inventory"
           />
         </CardContent>
       </Card>

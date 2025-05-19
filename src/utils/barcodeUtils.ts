@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Generates a unique barcode string
@@ -13,93 +13,122 @@ export const generateBarcodeString = async (
   sku?: string,
   boxNumber?: number
 ): Promise<string> => {
-  // Format and validate inputs
-  const formattedCategory = category 
-    ? category.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 3) 
-    : 'GEN';
-    
-  const formattedSku = sku 
-    ? sku.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 6) 
-    : '';
-    
-  // Generate a batch identifier (using part of a UUID)
-  const batchId = uuidv4().substring(0, 8);
-  
-  // Format box number with leading zeros (001, 002, etc)
-  const formattedBoxNumber = boxNumber 
-    ? boxNumber.toString().padStart(3, '0') 
-    : '001';
-  
-  // Combine parts to create the barcode
-  // Format: CAT-SKU-BATCH-BOX
-  const parts = [
-    formattedCategory,
-    formattedSku,
-    batchId,
-    formattedBoxNumber
-  ].filter(Boolean); // Remove empty parts
-  
-  let barcode = parts.join('-');
-  
-  // Calculate and append check digit
-  const checkDigit = calculateCheckDigit(barcode.replace(/-/g, ''));
-  barcode = `${barcode}-${checkDigit}`;
-  
-  // Check if the barcode already exists in the inventory or batch_items
-  let exists = true;
-  let attempts = 0;
-  const maxAttempts = 5;
-  
-  while (exists && attempts < maxAttempts) {
-    attempts++;
-    
-    // Check inventory table
-    const { data: inventoryData } = await supabase
-      .from('inventory')
-      .select('barcode')
-      .eq('barcode', barcode)
-      .limit(1);
+  try {
+    // Format and validate inputs
+    const formattedCategory = category 
+      ? category.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 3) 
+      : 'GEN';
       
-    // Check batch_items table
-    const { data: batchItemsData } = await supabase
-      .from('batch_items')
-      .select('barcode')
-      .eq('barcode', barcode)
-      .limit(1);
-    
-    // Check stock_in_details table (to avoid conflicts on unique constraint)
-    const { data: detailsData } = await supabase
-      .from('stock_in_details')
-      .select('barcode')
-      .eq('barcode', barcode)
-      .limit(1);
-    
-    // If barcode exists in either table, generate a new one
-    if ((inventoryData && inventoryData.length > 0) || 
-        (batchItemsData && batchItemsData.length > 0) ||
-        (detailsData && detailsData.length > 0)) {
-      // Generate new batch ID for uniqueness
-      const newBatchId = uuidv4().substring(0, 8);
-      const newParts = [
-        formattedCategory,
-        formattedSku,
-        newBatchId,
-        formattedBoxNumber
-      ].filter(Boolean);
+    const formattedSku = sku 
+      ? sku.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 6) 
+      : '';
       
-      barcode = newParts.join('-');
-      const newCheckDigit = calculateCheckDigit(barcode.replace(/-/g, ''));
-      barcode = `${barcode}-${newCheckDigit}`;
-    } else {
-      exists = false;
+    // Generate a batch identifier (using part of a UUID)
+    const batchId = uuidv4().substring(0, 8);
+    
+    // Format box number with leading zeros (001, 002, etc)
+    const formattedBoxNumber = boxNumber 
+      ? boxNumber.toString().padStart(3, '0') 
+      : '001';
+    
+    // Combine parts to create the barcode
+    // Format: CAT-SKU-BATCH-BOX
+    const parts = [
+      formattedCategory,
+      formattedSku,
+      batchId,
+      formattedBoxNumber
+    ].filter(Boolean); // Remove empty parts
+    
+    let barcode = parts.join('-');
+    
+    // Calculate and append check digit
+    const checkDigit = calculateCheckDigit(barcode.replace(/-/g, ''));
+    barcode = `${barcode}-${checkDigit}`;
+    
+    // Check if the barcode already exists in the inventory or batch_items
+    let exists = true;
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    while (exists && attempts < maxAttempts) {
+      attempts++;
+      console.log(`Attempt ${attempts} to generate unique barcode: ${barcode}`);
+      
+      try {
+        // Check inventory table
+        const { data: inventoryData, error: inventoryError } = await supabase
+          .from('inventory')
+          .select('barcode')
+          .eq('barcode', barcode)
+          .limit(1);
+          
+        if (inventoryError) {
+          console.error('Error checking inventory:', inventoryError);
+          throw inventoryError;
+        }
+        
+        // Check batch_items table
+        const { data: batchItemsData, error: batchError } = await supabase
+          .from('batch_items')
+          .select('barcode')
+          .eq('barcode', barcode)
+          .limit(1);
+        
+        if (batchError) {
+          console.error('Error checking batch_items:', batchError);
+          throw batchError;
+        }
+        
+        // Check stock_in_details table
+        const { data: detailsData, error: detailsError } = await supabase
+          .from('stock_in_details')
+          .select('barcode')
+          .eq('barcode', barcode)
+          .limit(1);
+        
+        if (detailsError) {
+          console.error('Error checking stock_in_details:', detailsError);
+          throw detailsError;
+        }
+        
+        // If barcode exists in either table, generate a new one
+        if ((inventoryData && inventoryData.length > 0) || 
+            (batchItemsData && batchItemsData.length > 0) ||
+            (detailsData && detailsData.length > 0)) {
+          console.log('Barcode exists, generating new one');
+          // Generate new batch ID for uniqueness
+          const newBatchId = uuidv4().substring(0, 8);
+          const newParts = [
+            formattedCategory,
+            formattedSku,
+            newBatchId,
+            formattedBoxNumber
+          ].filter(Boolean);
+          
+          barcode = newParts.join('-');
+          const newCheckDigit = calculateCheckDigit(barcode.replace(/-/g, ''));
+          barcode = `${barcode}-${newCheckDigit}`;
+        } else {
+          exists = false;
+        }
+      } catch (error) {
+        console.error('Error checking barcode existence:', error);
+        // On error, assume barcode doesn't exist to prevent infinite loop
+        exists = false;
+      }
     }
+    
+    if (attempts >= maxAttempts) {
+      throw new Error('Unable to generate a unique barcode after multiple attempts');
+    }
+    
+    console.log('Successfully generated barcode:', barcode);
+    return barcode;
+  } catch (error) {
+    console.error('Error in generateBarcodeString:', error);
+    throw error;
   }
-  
-  if (attempts >= maxAttempts) {
-    throw new Error('Unable to generate a unique barcode after multiple attempts');
-  }
-  
-  return barcode;
 };
 
 /**

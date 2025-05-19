@@ -10,6 +10,7 @@ import { useInventoryFilters } from '@/hooks/useInventoryFilters';
 import { InventoryFiltersPanel } from '@/components/warehouse/InventoryFiltersPanel';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BoxesIcon } from 'lucide-react';
+import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
 
 const InventoryView: React.FC = () => {
   const [highlightedBarcode, setHighlightedBarcode] = useState<string | null>(null);
@@ -153,14 +154,14 @@ const InventoryView: React.FC = () => {
         isLoadingWarehouses={isLoadingWarehouses}
       />
       
-      <Card>
-        <InventoryTable 
-          inventoryItems={inventoryItems} 
-          isLoading={isLoading} 
-          error={error as Error | null}
-          highlightedBarcode={highlightedBarcode}
-        />
-      </Card>
+      <InventoryTableContainer 
+        warehouseFilter={filters.warehouseFilter}
+        batchFilter={filters.batchFilter}
+        statusFilter={filters.statusFilter}
+        searchTerm={filters.searchTerm}
+        highlightedBarcode={highlightedBarcode}
+        title="Inventory"
+      />
     </div>
   );
 };

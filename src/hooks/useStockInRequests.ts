@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -16,12 +15,12 @@ export interface StockInRequestData {
   rejection_reason?: string;
 }
 
-export const useStockInRequests = (filters: Record<string, any> = {}) => {
+export const useStockInRequests = (filters: Record<string, any> = {}, page: number = 1, pageSize: number = 20) => {
   const queryClient = useQueryClient();
 
   // Fetch function that we can call both from the query and when revalidating via subscription
   const fetchStockInRequests = useCallback(async () => {
-    console.log('Fetching stock in requests with filter:', filters);
+    console.log('Fetching stock in requests with filter:', filters, 'page:', page, 'pageSize:', pageSize);
     try {
       // Build query based on filter
       let query = supabase
@@ -36,30 +35,31 @@ export const useStockInRequests = (filters: Record<string, any> = {}) => {
           source,
           notes,
           rejection_reason
-        `);
-        
+        `, { count: 'exact' });
+      
       // Apply filters
       if (filters.status) {
         query = query.eq('status', filters.status);
       }
-      
       if (filters.source) {
         query = query.ilike('source', `%${filters.source}%`);
       }
-      
       if (filters.date_from) {
         query = query.gte('created_at', filters.date_from);
       }
-      
       if (filters.date_to) {
         query = query.lte('created_at', filters.date_to);
       }
-      
       if (filters.submitted_by) {
         query = query.eq('submitted_by', filters.submitted_by);
       }
-      
-      const { data: stockData, error: stockError } = await query
+
+      // Pagination
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
+
+      const { data: stockData, error: stockError, count } = await query
         .order('created_at', { ascending: false });
 
       if (stockError) {
@@ -68,7 +68,7 @@ export const useStockInRequests = (filters: Record<string, any> = {}) => {
       }
 
       if (!stockData || stockData.length === 0) {
-        return [];
+        return { data: [], totalCount: count ?? 0 };
       }
       
       // Process each stock in record to fetch related data
@@ -134,7 +134,7 @@ export const useStockInRequests = (filters: Record<string, any> = {}) => {
         } as StockInRequestData;
       }));
       
-      return processedData;
+      return { data: processedData, totalCount: count ?? 0 };
     } catch (error) {
       console.error('Failed to fetch stock in requests:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -143,13 +143,13 @@ export const useStockInRequests = (filters: Record<string, any> = {}) => {
         title: 'Failed to load stock requests',
         description: errorMessage,
       });
-      return [];
+      return { data: [], totalCount: 0 };
     }
-  }, [filters]);
+  }, [filters, page, pageSize]);
 
   // Set up the main React Query with increased poll interval for better responsiveness
   const queryResult = useQuery({
-    queryKey: ['stock-in-requests', filters],
+    queryKey: ['stock-in-requests', filters, page, pageSize],
     queryFn: fetchStockInRequests,
     staleTime: 1000 * 30, // Data is fresh for 30 seconds
     refetchInterval: 1000 * 60, // Refetch every minute as a backup
@@ -207,7 +207,7 @@ export const useStockInRequests = (filters: Record<string, any> = {}) => {
       supabase.removeChannel(channel);
       supabase.removeChannel(detailsChannel);
     };
-  }, [filters, queryClient]);
+  }, [filters, page, pageSize, queryClient]);
 
   return queryResult;
 };

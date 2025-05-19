@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -65,19 +64,21 @@ export const useInventoryData = (
   batchFilter: string = '',
   statusFilter: string = '',
   searchTerm: string = '',
+  page: number = 1,
+  pageSize: number = 20
 ) => {
-  const query = useQuery({
-    queryKey: ['inventory-data', warehouseFilter, batchFilter, statusFilter, searchTerm],
-    queryFn: async (): Promise<InventoryItem[]> => {
+  return useQuery({
+    queryKey: ['inventory-data', warehouseFilter, batchFilter, statusFilter, searchTerm, page, pageSize],
+    queryFn: async (): Promise<{ data: InventoryItem[]; totalCount: number }> => {
       console.log('Fetching inventory data with filters:', {
         warehouseFilter,
         batchFilter,
         statusFilter,
-        searchTerm
+        searchTerm,
+        page,
+        pageSize
       });
-      
       try {
-        // Build query with explicit column selection and proper foreign key specification
         let queryBuilder = supabase
           .from('inventory')
           .select(`
@@ -104,64 +105,46 @@ export const useInventoryData = (
               floor,
               zone
             )
-          `);
-        
+          `, { count: 'exact' });
+
         // Apply filters
         if (warehouseFilter) {
           queryBuilder = queryBuilder.eq('warehouse_id', warehouseFilter);
         }
-        
         if (batchFilter) {
           queryBuilder = queryBuilder.eq('batch_id', batchFilter);
         }
-        
         if (statusFilter) {
           queryBuilder = queryBuilder.eq('status', statusFilter);
         }
-        
         if (searchTerm) {
-          // Use more advanced search logic
           queryBuilder = queryBuilder.or(`barcode.ilike.%${searchTerm}%,products.name.ilike.%${searchTerm}%`);
         }
-        
-        const { data, error } = await queryBuilder;
-        
+
+        // Pagination
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        queryBuilder = queryBuilder.range(from, to);
+
+        const { data, error, count } = await queryBuilder;
         if (error) {
           console.error('Error fetching inventory:', error);
           throw new Error(`Failed to fetch inventory: ${error.message}`);
         }
-
-        console.log('Raw inventory data:', data);
-        
-        // Use type assertion with safeguards
-        if (!data) return [];
-        
-        // Transform the data with proper type handling
-        return (data as unknown as RawInventoryItem[]).map((item) => {
-          // Extract product info with safe type handling
+        // Transform the data to InventoryItem[]
+        const items: InventoryItem[] = (data ?? []).map((item: any) => {
           const productData = item.products || {};
           const productName = productData?.name || 'Unknown Product';
           const productSku = productData?.sku || undefined;
-          
-          // Extract warehouse info
           const warehouseData = item.warehouses || {};
           const warehouseName = warehouseData?.name || 'Unknown Warehouse';
-          
-          // Extract location info
           const locationData = item.warehouse_locations || {};
           let locationDetails = 'Unknown Location';
-          
-          // Safe access to potentially undefined properties
           const floor = locationData?.floor;
           const zone = locationData?.zone;
-          
           if (floor !== undefined && zone !== undefined) {
             locationDetails = `Floor ${floor}, Zone ${zone}`;
           }
-          
-          // Set source to null since we don't have this field in current data structure
-          const source = null;
-          
           return {
             id: item.id,
             productId: item.product_id,
@@ -177,24 +160,15 @@ export const useInventoryData = (
             size: item.size || undefined,
             status: item.status,
             batchId: item.batch_id,
-            lastUpdated: format(new Date(item.updated_at), 'MMM d, yyyy h:mm a'),
-            source
+            lastUpdated: item.updated_at,
+            source: null
           };
         });
-      } catch (err) {
-        console.error('Error in useInventoryData:', err);
-        throw err;
+        return { data: items, totalCount: count ?? 0 };
+      } catch (error) {
+        console.error('Failed to fetch inventory:', error);
+        throw error;
       }
     },
-    // Optimize with stale time and cache time
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
   });
-
-  return {
-    inventoryItems: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch
-  };
 };

@@ -13,6 +13,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import StockInWizardStep from './StockInWizardStep';
+import { Button } from '@/components/ui/button';
+
+// UUID generation utility
+const generateUUID = () => {
+  let dt = new Date().getTime();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (dt + Math.random() * 16) % 16 | 0;
+    dt = Math.floor(dt / 16);
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+};
 
 interface StockInWizard2Props {
   stockIn: StockInRequestData;
@@ -59,7 +70,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
     totalBatches: 0,
     message: '',
   });
-  const [runId] = useState(() => crypto.randomUUID());
+  const [runId] = useState(() => generateUUID());
   const [useEdgeFunction, setUseEdgeFunction] = useState(true);
   const [processingMode, setProcessingMode] = useState<'edge' | 'local'>('edge');
 
@@ -71,9 +82,9 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
 
   // Memoize the navigation function to prevent unnecessary rerenders
   const navigateToStep = useCallback((step: StepType) => {
-    console.log(`Navigating to step: ${step}`);
+    console.log(`Navigating to step: ${step} from ${activeStep}`);
     setActiveStep(step);
-  }, []);
+  }, [activeStep]);
 
   // Initialize box data when warehouse and location are selected
   const initializeBoxes = async () => {
@@ -223,71 +234,119 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
     
     // Try Edge Function first
     if (useEdgeFunction) {
-      try {
-        console.log("Attempting Edge Function processing...");
-        setProcessingMode('edge');
-        
-        const session = (await supabase.auth.getSession()).data.session;
-        const token = session?.access_token;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`Attempt ${retryCount + 1} to process via Edge Function...`);
+          setProcessingMode('edge');
+          
+          const session = (await supabase.auth.getSession()).data.session;
+          if (!session?.access_token) {
+            throw new Error('No authentication token available');
+          }
 
-        const payload = {
-          run_id: runId,
-          stock_in_id: stockIn.id,
-          user_id: userId,
-          batches: batches.map((b) => ({
-            warehouse_id: b.warehouse_id,
-            location_id: b.location_id,
-            boxes: b.boxes.map((box) => ({
-              barcode: box.barcode,
-              quantity: box.quantity,
-              color: box.color,
-              size: box.size,
-              product_id: stockIn.product?.id,
+          const payload = {
+            run_id: runId,
+            stock_in_id: stockIn.id,
+            user_id: userId,
+            product_id: stockIn.product?.id,
+            batches: batches.map((b) => ({
+              warehouse_id: b.warehouse_id,
+              location_id: b.location_id,
+              boxes: b.boxes.map((box) => ({
+                barcode: box.barcode,
+                quantity: box.quantity,
+                color: box.color || '',
+                size: box.size || '',
+                product_id: stockIn.product?.id,
+                warehouse_id: b.warehouse_id,
+                location_id: b.location_id,
+                status: 'available'
+              })),
             })),
-          })),
-        };
+          };
 
-        const resp = await fetch("/functions/v1/stock_in_process", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify(payload),
-        });
+          console.log('Sending payload to Edge Function:', payload);
 
-        if (!resp.ok) {
-          throw new Error(await resp.text() || "Edge function returned error");
+          const resp = await fetch("/functions/v1/stock_in_process", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error('Edge function error response:', {
+              status: resp.status,
+              statusText: resp.statusText,
+              body: errorText
+            });
+            
+            // If it's a 401/403, don't retry
+            if (resp.status === 401 || resp.status === 403) {
+              throw new Error('Authentication failed for Edge Function');
+            }
+            
+            throw new Error(errorText || `Edge function failed with status ${resp.status}`);
+          }
+
+          let result;
+          try {
+            result = await resp.json();
+            console.log("Edge function response:", result);
+          } catch (parseError) {
+            console.error('Failed to parse edge function response:', parseError);
+            throw new Error('Invalid response from edge function');
+          }
+
+          if (!result.batch_ids?.length) {
+            console.error('Edge function returned no batch IDs:', result);
+            throw new Error('No batch IDs returned from edge function');
+          }
+
+          // Success! Invalidate queries and notify
+          queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
+          queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
+          queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
+
+          toast({ 
+            title: 'Success', 
+            description: 'Stock-In processed successfully via Edge Function' 
+          });
+
+          if (onComplete && result.batch_ids?.length) {
+            onComplete(result.batch_ids[0]);
+          }
+          
+          setIsSubmitting(false);
+          return;
+          
+        } catch (error) {
+          console.warn(`Edge Function attempt ${retryCount + 1} failed:`, error);
+          retryCount++;
+          
+          // If we have more retries, wait before trying again
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            continue;
+          }
+          
+          // If we're out of retries, fall back to local processing
+          console.warn("Edge Function failed after retries, falling back to local processing:", error);
+          setUseEdgeFunction(false);
+          setProcessingMode('local');
+          toast({
+            title: "Notice",
+            description: "Using local processing mode after Edge Function failed",
+            variant: "default"
+          });
+          break;
         }
-
-        const result = await resp.json();
-        console.log("Edge function success:", result);
-
-        // Invalidate queries
-        queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
-        queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-        queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
-
-        toast({ 
-          title: 'Success', 
-          description: 'Stock-In processed successfully via Edge Function' 
-        });
-
-        if (onComplete && result.batch_ids?.length) {
-          onComplete(result.batch_ids[0]);
-        }
-        
-        setIsSubmitting(false);
-        return;
-      } catch (error) {
-        console.warn("Edge Function failed, falling back to local processing:", error);
-        setUseEdgeFunction(false);
-        setProcessingMode('local');
-        toast({
-          title: "Notice",
-          description: "Using local processing mode",
-          variant: "default"
-        });
       }
     }
 
@@ -515,6 +574,13 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
     setRemainingBoxes((prev) => prev - batch.boxes.length);
   };
 
+  // Add function to delete a batch
+  const handleDeleteBatch = (batchIndex: number) => {
+    const batchToDelete = batches[batchIndex];
+    setBatches(batches.filter((_, index) => index !== batchIndex));
+    setRemainingBoxes(prev => prev + batchToDelete.boxes.length);
+  };
+
   return (
     <Card className="w-full h-full flex flex-col">
       {/* Processing mode indicator */}
@@ -559,7 +625,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
             <TabsTrigger 
               value="finalize" 
               className="py-3"
-              disabled={activeStep !== 'finalize'}
+              disabled={activeStep === 'review' || (activeStep === 'batches' && remainingBoxes > 0)}
             >
               <div className="flex flex-col items-center gap-1">
                 <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">

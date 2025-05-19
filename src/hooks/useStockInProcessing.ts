@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,9 +25,10 @@ export interface StockInWithDetails extends Omit<StockIn, 'boxes'> {
   details: StockInDetail[];
   product?: Product;
   submitter?: Submitter;
+  detailsTotalCount: number;
 }
 
-export const useStockInProcessing = (stockInId?: string) => {
+export const useStockInProcessing = (stockInId?: string, page: number = 1, pageSize: number = 20) => {
   const [approvalNotes, setApprovalNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
@@ -39,7 +39,6 @@ export const useStockInProcessing = (stockInId?: string) => {
       if (!stockInId) {
         return [];
       }
-      
       try {
         const { data: stockIns, error } = await supabase
           .from('stock_in')
@@ -58,33 +57,31 @@ export const useStockInProcessing = (stockInId?: string) => {
             )
           `)
           .eq('id', stockInId);
-
         if (error) {
           console.error('Error fetching stock-in data:', error);
           throw error;
         }
-
         if (!stockIns || stockIns.length === 0) {
           console.warn('No stock-in data found.');
           return [];
         }
-
         const stockInWithDetails = await Promise.all(
           stockIns.map(async (stockIn) => {
-            const { data: details, error: detailsError } = await supabase
+            // Paginated details
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize - 1;
+            const { data: details, error: detailsError, count } = await supabase
               .from('stock_in_details')
-              .select('*')
-              .eq('stock_in_id', stockIn.id);
-
+              .select('*', { count: 'exact' })
+              .eq('stock_in_id', stockIn.id)
+              .range(from, to);
             if (detailsError) {
               console.error(`Error fetching details for stock-in ID ${stockIn.id}:`, detailsError);
-              return mapStockInWithDetails(stockIn, []);
+              return { ...mapStockInWithDetails(stockIn, []), detailsTotalCount: 0 };
             }
-
-            return mapStockInWithDetails(stockIn, details || []);
+            return { ...mapStockInWithDetails(stockIn, details || []), detailsTotalCount: count ?? 0 };
           })
         );
-
         return stockInWithDetails;
       } catch (error) {
         console.error('Failed to fetch stock-in data:', error);
@@ -113,6 +110,7 @@ export const useStockInProcessing = (stockInId?: string) => {
       rejection_reason: stockIn.rejection_reason,
       status: stockIn.status,
       details: details || [],
+      detailsTotalCount: 0,
     };
     
     // Fix product and submitter parsing
@@ -139,8 +137,9 @@ export const useStockInProcessing = (stockInId?: string) => {
   // Get the first item from the array (if there is one)
   const currentStockIn = stockInQuery.data && stockInQuery.data.length > 0 ? stockInQuery.data[0] : null;
 
-  // Get the stock-in details
+  // Get the paginated stock-in details and total count
   const details = currentStockIn ? currentStockIn.details : [];
+  const detailsTotalCount = currentStockIn ? currentStockIn.detailsTotalCount : 0;
 
   const handleApproval = async (isApproved: boolean) => {
     if (!stockInId || !currentStockIn) return;
@@ -191,6 +190,7 @@ export const useStockInProcessing = (stockInId?: string) => {
     },
     currentStockIn,
     details,
+    detailsTotalCount,
     approvalNotes,
     setApprovalNotes,
     handleApproval,

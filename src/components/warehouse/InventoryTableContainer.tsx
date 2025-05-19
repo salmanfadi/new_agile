@@ -1,69 +1,68 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InventoryTable } from '@/components/warehouse/InventoryTable';
 import InventoryPagination from './InventoryPagination';
-import { useInventoryPagination } from '@/hooks/useInventoryPagination';
-import { InventoryItem } from '@/hooks/useInventoryData';
+import { useInventoryData } from '@/hooks/useInventoryData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download } from 'lucide-react';
-import { format } from 'date-fns';
 
 interface InventoryTableContainerProps {
-  inventoryItems: InventoryItem[];
-  isLoading: boolean;
-  error: Error | null;
+  warehouseFilter: string;
+  batchFilter: string;
+  statusFilter: string;
+  searchTerm: string;
   highlightedBarcode: string | null;
   title?: string;
 }
 
 export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = ({
-  inventoryItems,
-  isLoading,
-  error,
+  warehouseFilter,
+  batchFilter,
+  statusFilter,
+  searchTerm,
   highlightedBarcode,
-  title = 'Inventory Items'
+  title = 'Inventory Items',
 }) => {
-  const [sortField, setSortField] = useState<keyof InventoryItem>('lastUpdated');
+  const [sortField, setSortField] = useState<'lastUpdated' | 'quantity' | 'productName'>('lastUpdated');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  
-  // Sort inventory items
-  const sortedItems = [...inventoryItems].sort((a, b) => {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [warehouseFilter, batchFilter, statusFilter, searchTerm]);
+
+  const { data, isLoading, error } = useInventoryData(
+    warehouseFilter,
+    batchFilter,
+    statusFilter,
+    searchTerm,
+    page,
+    pageSize
+  );
+
+  // Sorting (client-side for current page)
+  const sortedItems = (data?.data ?? []).sort((a, b) => {
     if (sortField === 'quantity') {
       return sortDirection === 'asc' 
         ? a.quantity - b.quantity 
         : b.quantity - a.quantity;
     }
-    
     if (sortField === 'lastUpdated') {
       return sortDirection === 'asc'
         ? new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime()
         : new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
     }
-    
-    // String comparison for other fields
-    const aValue = a[sortField]?.toString() || '';
-    const bValue = b[sortField]?.toString() || '';
-    return sortDirection === 'asc'
-      ? aValue.localeCompare(bValue)
-      : bValue.localeCompare(aValue);
+    if (sortField === 'productName') {
+      return sortDirection === 'asc'
+        ? a.productName.localeCompare(b.productName)
+        : b.productName.localeCompare(a.productName);
+    }
+    return 0;
   });
-  
-  // Set up pagination
-  const { 
-    currentPage, 
-    pageSize, 
-    totalItems,
-    paginatedItems,
-    setCurrentPage,
-    setPageSize
-  } = useInventoryPagination({
-    items: sortedItems,
-    initialPage: 1,
-    initialPageSize: 20
-  });
-  
-  const handleSort = (field: keyof InventoryItem) => {
+
+  const handleSort = (field: 'lastUpdated' | 'quantity' | 'productName') => {
     if (field === sortField) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -71,57 +70,51 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
       setSortDirection('asc');
     }
   };
-  
+
   const exportToCSV = () => {
-    // Prepare CSV data
-    const headers = [
-      'Product Name',
-      'Barcode',
-      'Quantity',
-      'Warehouse',
-      'Location',
-      'Status',
-      'Color',
-      'Size',
-      'Last Updated'
+    // Export only the current page
+    if (!sortedItems.length) return;
+    const csvRows = [
+      [
+        'Product',
+        'Barcode',
+        'Quantity',
+        'Warehouse',
+        'Location',
+        'Status',
+        'Color',
+        'Size',
+        'Source',
+        'Last Updated',
+      ],
+      ...sortedItems.map((item) => [
+        item.productName,
+        item.barcode,
+        item.quantity,
+        item.warehouseName,
+        item.locationDetails,
+        item.status,
+        item.color ?? '',
+        item.size ?? '',
+        item.source ?? '',
+        item.lastUpdated,
+      ]),
     ];
-    
-    const csvData = sortedItems.map(item => [
-      item.productName,
-      item.barcode,
-      item.quantity,
-      item.warehouseName,
-      item.locationDetails,
-      item.status,
-      item.color || '',
-      item.size || '',
-      item.lastUpdated
-    ]);
-    
-    // Convert to CSV string
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => row.map(cell => 
-        // Handle commas in fields by wrapping in quotes
-        `"${String(cell).replace(/"/g, '""')}"`
-      ).join(','))
-    ].join('\n');
-    
-    // Create download link
-    const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `inventory_export_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csvContent = csvRows.map((row) => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'inventory_page.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
-  
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{title}</CardTitle>
-        {inventoryItems.length > 0 && (
+        {sortedItems.length > 0 && (
           <Button
             variant="outline"
             size="sm"
@@ -134,22 +127,21 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
         )}
       </CardHeader>
       <CardContent>
-        <InventoryTable 
-          inventoryItems={paginatedItems} 
-          isLoading={isLoading} 
-          error={error}
+        <InventoryTable
+          inventoryItems={sortedItems}
+          isLoading={isLoading}
+          error={error as Error | null}
           highlightedBarcode={highlightedBarcode}
           onSort={handleSort}
           sortField={sortField}
           sortDirection={sortDirection}
         />
-        
-        {inventoryItems.length > 0 && (
-          <InventoryPagination 
-            currentPage={currentPage}
+        {(data?.totalCount ?? 0) > 0 && (
+          <InventoryPagination
+            currentPage={page}
             pageSize={pageSize}
-            totalItems={totalItems}
-            onPageChange={setCurrentPage}
+            totalItems={data?.totalCount ?? 0}
+            onPageChange={setPage}
             onPageSizeChange={setPageSize}
           />
         )}
