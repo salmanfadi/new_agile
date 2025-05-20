@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -265,7 +264,7 @@ const AdminEnhancedInventoryView: React.FC = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleViewBatchDetails(batch.id)}
+                                onClick={() => navigate(`/admin/inventory/batch/${batch.id}`)}
                               >
                                 <Eye className="mr-1 h-4 w-4" />
                                 Details

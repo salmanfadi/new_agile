@@ -21,6 +21,221 @@ A **React + Vite + TypeScript** front-end for Agile Warehouse – an inventory-m
 ```
 
 ---
+## 🗄️ Database Schema & Supabase Migration
+
+Below is the full schema for the Agile Warehouse system, including all major tables and a ready-to-use Supabase migration SQL. Use this to quickly set up your database structure in a new Supabase project.
+
+### **Core Tables**
+- `profiles` (user info, roles)
+- `warehouses` (warehouse locations)
+- `warehouse_locations` (zones, shelves, etc.)
+- `products` (product catalog)
+- `inventory` (box-level inventory)
+- `stock_in` (stock-in requests)
+- `stock_in_details` (box-level stock-in details)
+- `stock_out` (stock-out requests)
+- `stock_out_details` (box-level stock-out details)
+- `processed_batches` (header for batch processing)
+- `batch_items` (box-level rows per batch)
+- `sales_inquiries` (customer inquiries)
+- `sales_inquiry_items` (products in inquiries)
+- `barcode_logs` (barcode scan logs)
+- `pricing_inquiries` (customer price requests)
+- `stock_movement_audit` (audit log for inventory changes)
+- `batch_operations` (batch process audit)
+- `batch_inventory_items` (link batch to inventory)
+
+### 🏗️ Example Supabase Migration SQL
+
+```sql
+-- 1. User Profiles (extends Supabase Auth)
+create table profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text,
+  role text check (role in ('admin', 'warehouse_manager', 'field_operator', 'sales_operator')),
+  created_at timestamp with time zone default now()
+);
+
+-- 2. Warehouses
+create table warehouses (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  location text,
+  created_at timestamp with time zone default now()
+);
+
+-- 3. Warehouse Locations (zones, shelves, etc.)
+create table warehouse_locations (
+  id uuid primary key default gen_random_uuid(),
+  warehouse_id uuid references warehouses(id) on delete cascade,
+  name text not null,
+  description text,
+  created_at timestamp with time zone default now()
+);
+
+-- 4. Products
+create table products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  sku text unique,
+  created_at timestamp with time zone default now()
+);
+
+-- 5. Inventory (box-level)
+create table inventory (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid references products(id),
+  warehouse_id uuid references warehouses(id),
+  location_id uuid references warehouse_locations(id),
+  barcode text unique,
+  quantity integer not null,
+  status text default 'available',
+  created_at timestamp with time zone default now()
+);
+
+-- 6. Stock In (header)
+create table stock_in (
+  id uuid primary key default gen_random_uuid(),
+  requested_by uuid references profiles(id),
+  status text default 'pending',
+  created_at timestamp with time zone default now()
+);
+
+-- 7. Stock In Details (box-level)
+create table stock_in_details (
+  id uuid primary key default gen_random_uuid(),
+  stock_in_id uuid references stock_in(id) on delete cascade,
+  product_id uuid references products(id),
+  quantity integer not null,
+  barcode text,
+  created_at timestamp with time zone default now()
+);
+
+-- 8. Stock Out (header)
+create table stock_out (
+  id uuid primary key default gen_random_uuid(),
+  requested_by uuid references profiles(id),
+  status text default 'pending',
+  created_at timestamp with time zone default now()
+);
+
+-- 9. Stock Out Details (box-level)
+create table stock_out_details (
+  id uuid primary key default gen_random_uuid(),
+  stock_out_id uuid references stock_out(id) on delete cascade,
+  product_id uuid references products(id),
+  quantity integer not null,
+  barcode text,
+  created_at timestamp with time zone default now()
+);
+
+-- 10. Processed Batches (header)
+create table processed_batches (
+  id uuid primary key default gen_random_uuid(),
+  warehouse_id uuid references warehouses(id),
+  product_id uuid references products(id),
+  processed_by uuid references profiles(id),
+  created_at timestamp with time zone default now()
+);
+
+-- 11. Batch Items (box-level per batch)
+create table batch_items (
+  id uuid primary key default gen_random_uuid(),
+  batch_id uuid references processed_batches(id) on delete cascade,
+  inventory_id uuid references inventory(id),
+  quantity integer not null,
+  created_at timestamp with time zone default now()
+);
+
+-- 12. Sales Inquiries
+create table sales_inquiries (
+  id uuid primary key default gen_random_uuid(),
+  customer_name text,
+  customer_email text,
+  status text default 'open',
+  created_at timestamp with time zone default now()
+);
+
+-- 13. Sales Inquiry Items
+create table sales_inquiry_items (
+  id uuid primary key default gen_random_uuid(),
+  inquiry_id uuid references sales_inquiries(id) on delete cascade,
+  product_id uuid references products(id),
+  quantity integer not null
+);
+
+-- 14. Barcode Logs
+create table barcode_logs (
+  id uuid primary key default gen_random_uuid(),
+  scanned_by uuid references profiles(id),
+  barcode text,
+  action text,
+  created_at timestamp with time zone default now()
+);
+
+-- 15. Pricing Inquiries
+create table pricing_inquiries (
+  id uuid primary key default gen_random_uuid(),
+  customer_name text,
+  customer_email text,
+  product_id uuid references products(id),
+  requested_price numeric,
+  status text default 'pending',
+  created_at timestamp with time zone default now()
+);
+
+-- 16. Stock Movement Audit
+create table stock_movement_audit (
+  id uuid primary key default gen_random_uuid(),
+  inventory_id uuid references inventory(id),
+  action text,
+  quantity integer,
+  performed_by uuid references profiles(id),
+  created_at timestamp with time zone default now()
+);
+
+-- 17. Batch Operations (audit)
+create table batch_operations (
+  id uuid primary key default gen_random_uuid(),
+  batch_id uuid references processed_batches(id),
+  operation text,
+  performed_by uuid references profiles(id),
+  created_at timestamp with time zone default now()
+);
+
+-- 18. Batch Inventory Items (link batch to inventory)
+create table batch_inventory_items (
+  id uuid primary key default gen_random_uuid(),
+  batch_id uuid references processed_batches(id),
+  inventory_id uuid references inventory(id),
+  created_at timestamp with time zone default now()
+);
+
+-- Enable Row Level Security (RLS) for all tables
+alter table profiles enable row level security;
+alter table warehouses enable row level security;
+alter table warehouse_locations enable row level security;
+alter table products enable row level security;
+alter table inventory enable row level security;
+alter table stock_in enable row level security;
+alter table stock_in_details enable row level security;
+alter table stock_out enable row level security;
+alter table stock_out_details enable row level security;
+alter table processed_batches enable row level security;
+alter table batch_items enable row level security;
+alter table sales_inquiries enable row level security;
+alter table sales_inquiry_items enable row level security;
+alter table barcode_logs enable row level security;
+alter table pricing_inquiries enable row level security;
+alter table stock_movement_audit enable row level security;
+alter table batch_operations enable row level security;
+alter table batch_inventory_items enable row level security;
+
+-- Add RLS policies as needed for your roles and access patterns.
+```
+
+---
 ## 🛠️ Setup
 1. **Clone & install**
    ```bash

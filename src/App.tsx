@@ -28,6 +28,7 @@ import InventoryTransfers from './pages/admin/InventoryTransfers';
 import BarcodeInventoryPage from './pages/admin/BarcodeInventoryPage';
 import BatchStockInPage from './pages/admin/BatchStockInPage';
 import AdminEnhancedInventoryView from './pages/admin/EnhancedInventoryView';
+import BatchDetailsPage from './pages/admin/BatchDetailsPage';
 
 // Manager pages
 import ManagerDashboard from './pages/warehouseManager/ManagerDashboard';
@@ -41,7 +42,6 @@ import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehou
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
 import BatchOverviewPage from './pages/warehouseManager/BatchOverviewPage';
 import BarcodeAssignmentPage from './pages/warehouseManager/BarcodeAssignmentPage';
-import BatchDetailsPage from './pages/warehouseManager/BatchDetailsPage';
 
 // Field operator pages
 import OperatorDashboard from './pages/fieldOperator/OperatorDashboard';
