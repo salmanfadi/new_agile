@@ -67,7 +67,6 @@ export const InventoryBarcodeScanner: React.FC<InventoryBarcodeScannerProps> = (
           
           <div className="p-4">
             <BarcodeScanner
-              onScan={handleBarcodeDetected}
               onDetected={handleBarcodeDetected}
               onClose={handleCloseScanner}
               allowManualEntry={true}

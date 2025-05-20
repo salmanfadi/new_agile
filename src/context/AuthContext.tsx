@@ -54,68 +54,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setIsLoading(true);
       
       try {
-        console.log('Fetching session from Supabase...');
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error getting session:', error);
           setError(error);
         } else if (data.session) {
-          console.log('Session found, checking user profile...');
           setSession(data.session);
           setIsAuthenticated(true);
           
           // Need to fetch user role from profiles table
           if (data.session.user) {
-            try {
-              console.log('Fetching user profile for user ID:', data.session.user.id);
-              // Only select columns that exist in the profiles table
-              const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('role, name, username, active')
-                .eq('id', data.session.user.id)
-                .single();
+            // Only select columns that exist in the profiles table
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('role, name, username, active')
+              .eq('id', data.session.user.id)
+              .single();
               
-              console.log('Profile fetch result:', { profileData, profileError });
-                
-              if (profileError) {
-                console.error('Error fetching user profile:', profileError);
-                // Set default user role if profile not found
-                setUser({ 
-                  ...data.session.user, 
-                  role: 'customer' as UserRole,
-                  name: data.session.user.email?.split('@')[0] || 'User',
-                  username: data.session.user.email || '',
-                  active: true
-                } as User);
-              } else if (profileData) {
-                // Set the user with the role from the profiles table
-                setUser({ 
-                  ...data.session.user, 
-                  role: (profileData.role || 'customer') as UserRole,
-                  name: profileData.name || data.session.user.email?.split('@')[0] || 'User',
-                  username: profileData.username || data.session.user.email || '',
-                  active: profileData.active !== false
-                } as User);
-              } else {
-                // Handle case where profileData is null
-                setUser({ 
-                  ...data.session.user, 
-                  role: 'customer' as UserRole,
-                  name: data.session.user.email?.split('@')[0] || 'User',
-                  username: data.session.user.email || '',
-                  active: true
-                } as User);
-              }
-            } catch (err) {
-              console.error('Error processing user profile:', err);
-              // Set default user values if there's an error
+            if (profileError) {
+              console.error('Error fetching user profile:', profileError);
+            } else if (profileData) {
+              // Set the user with the role from the profiles table
               setUser({ 
                 ...data.session.user, 
-                role: 'customer' as UserRole,
-                name: data.session.user.email?.split('@')[0] || 'User',
-                username: data.session.user.email || '',
-                active: true
+                role: profileData.role as UserRole,
+                name: profileData.name,
+                username: profileData.username,
+                active: profileData.active
               } as User);
             }
           }
@@ -131,11 +96,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', { event, session });
       setSession(session);
       
       if (session?.user) {
-        console.log('User session found, checking profile...');
         setIsAuthenticated(true);
         try {
           // Fetch the user role from profiles table

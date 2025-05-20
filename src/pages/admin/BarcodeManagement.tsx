@@ -34,16 +34,6 @@ const BarcodeManagementPage: React.FC = () => {
     }
   ] : [];
   
-  const handleScan = (barcode: string) => {
-    console.log('Barcode scanned:', barcode);
-    // In a real implementation, this would call an API to get the barcode data
-    // For this example, we'll just show a success message
-    toast({
-      title: "Barcode Scanned",
-      description: `Scanned: ${barcode}`
-    });
-  };
-  
   const handleScanComplete = (data: ScanResponse['data']) => {
     setLastScannedData(data);
     toast({
@@ -88,7 +78,6 @@ const BarcodeManagementPage: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <BarcodeScanner
-                onScan={handleScan}
                 onScanComplete={handleScanComplete}
                 allowCameraScanning={true}
                 allowManualEntry={true}

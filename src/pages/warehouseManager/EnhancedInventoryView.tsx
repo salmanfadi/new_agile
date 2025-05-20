@@ -9,7 +9,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import { InventoryFiltersPanel } from '@/components/warehouse/InventoryFiltersPanel';
 import { useInventoryFilters } from '@/hooks/useInventoryFilters';
-import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
+import { useInventoryData } from '@/hooks/useInventoryData';
+import { InventoryTable } from '@/components/warehouse/InventoryTable';
 import { useProcessedBatchesWithItems } from '@/hooks/useProcessedBatchesWithItems';
 import { 
   Table, TableBody, TableCell, TableHead, 
@@ -17,9 +18,9 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { Eye, BoxesIcon, Package, ArrowLeft } from 'lucide-react';
-import { useInventoryData } from '@/hooks/useInventoryData';
+import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
 
-const WarehouseManagerEnhancedInventoryView: React.FC = () => {
+const EnhancedInventoryView: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -42,32 +43,34 @@ const WarehouseManagerEnhancedInventoryView: React.FC = () => {
     isLoadingWarehouses
   } = useInventoryFilters();
   
+  // Inventory data
+  const { 
+    data: inventoryData, 
+    isLoading: isLoadingInventory, 
+    error: inventoryError, 
+    refetch: refetchInventory
+  } = useInventoryData(
+    filters.warehouseFilter, 
+    filters.batchFilter, 
+    filters.statusFilter, 
+    filters.searchTerm
+  );
+  
+  // Extract inventory items from data
+  const inventoryItems = inventoryData?.data || [];
+  
   // Batches data
-  const batchesResult = useProcessedBatchesWithItems({
+  const {
+    batches,
+    count: batchesCount,
+    isLoading: isLoadingBatchesData,
+    error: batchesError
+  } = useProcessedBatchesWithItems({
     warehouseId: filters.warehouseFilter,
     searchTerm: filters.searchTerm,
     page: batchPage,
     limit: 10
   });
-  
-  const batches = batchesResult.data?.batches || [];
-  const batchesCount = batchesResult.data?.count || 0;
-  const isLoadingBatchesData = batchesResult.isLoading;
-  const batchesError = batchesResult.error;
-  
-  // Add inventory data hook for barcode scanning and refresh
-  const {
-    data: inventoryData,
-    isLoading: isLoadingInventory,
-    error: inventoryError,
-    refetch: refetchInventory
-  } = useInventoryData(
-    filters.warehouseFilter,
-    filters.batchFilter,
-    filters.statusFilter,
-    filters.searchTerm
-  );
-  const inventoryItems = inventoryData?.data ?? [];
   
   // Check for navigation state from batch processing
   useEffect(() => {
@@ -137,16 +140,16 @@ const WarehouseManagerEnhancedInventoryView: React.FC = () => {
     });
   };
   
-  // Handle view batch details - warehouse manager route
+  // Handle view batch details
   const handleViewBatchDetails = (batchId: string) => {
-    navigate(`/manager/batch/${batchId}`);
+    navigate(`/manager/inventory/batch/${batchId}`);
   };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Warehouse Inventory Management"
-        description="Monitor and manage inventory items and batches across your warehouses"
+        title="Enhanced Inventory Management"
+        description="View and manage inventory items and batches across all warehouses"
       />
       
       <div className="flex justify-between items-center">
@@ -198,7 +201,7 @@ const WarehouseManagerEnhancedInventoryView: React.FC = () => {
             statusFilter={filters.statusFilter}
             searchTerm={filters.searchTerm}
             highlightedBarcode={highlightedBarcode}
-            title="Warehouse Inventory"
+            title="Inventory Items"
           />
         </TabsContent>
         
@@ -207,7 +210,7 @@ const WarehouseManagerEnhancedInventoryView: React.FC = () => {
             <CardHeader>
               <CardTitle>Inventory Batches</CardTitle>
               <CardDescription>
-                View batches of inventory processed across your warehouses
+                View batches of inventory processed into the system
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -248,7 +251,8 @@ const WarehouseManagerEnhancedInventoryView: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               <div>
-                                <div>{batch.product?.name || 'Unknown Product'}</div>
+                                <div>{batch.productName}</div>
+                                {/* Previous this was using batch.product_sku which doesn't exist in the standardized interface */}
                                 <div className="text-xs text-gray-500">
                                   {batch.items.length} items
                                 </div>
@@ -256,8 +260,8 @@ const WarehouseManagerEnhancedInventoryView: React.FC = () => {
                             </TableCell>
                             <TableCell>{batch.totalQuantity}</TableCell>
                             <TableCell>{batch.totalBoxes}</TableCell>
-                            <TableCell>{batch.warehouseName || 'Unknown'}</TableCell>
-                            <TableCell>{batch.processorName || 'Unknown'}</TableCell>
+                            <TableCell>{batch.warehouseName}</TableCell>
+                            <TableCell>{batch.processedBy}</TableCell>
                             <TableCell>
                               {format(new Date(batch.createdAt), 'MMM d, yyyy')}
                             </TableCell>
@@ -314,4 +318,4 @@ const WarehouseManagerEnhancedInventoryView: React.FC = () => {
   );
 };
 
-export default WarehouseManagerEnhancedInventoryView;
+export default EnhancedInventoryView;

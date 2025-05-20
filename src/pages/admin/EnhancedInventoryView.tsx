@@ -43,17 +43,17 @@ const AdminEnhancedInventoryView: React.FC = () => {
   } = useInventoryFilters();
   
   // Batches data
-  const batchesResult = useProcessedBatchesWithItems({
+  const {
+    batches,
+    count: batchesCount,
+    isLoading: isLoadingBatchesData,
+    error: batchesError
+  } = useProcessedBatchesWithItems({
     warehouseId: filters.warehouseFilter,
     searchTerm: filters.searchTerm,
     page: batchPage,
     limit: 10
   });
-  
-  const batches = batchesResult.data?.batches || [];
-  const batchesCount = batchesResult.data?.count || 0;
-  const isLoadingBatchesData = batchesResult.isLoading;
-  const batchesError = batchesResult.error;
   
   // Add inventory data hook for barcode scanning and refresh
   const {
@@ -248,7 +248,7 @@ const AdminEnhancedInventoryView: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               <div>
-                                <div>{batch.product?.name || 'Unknown Product'}</div>
+                                <div>{batch.productName}</div>
                                 <div className="text-xs text-gray-500">
                                   {batch.items.length} items
                                 </div>
@@ -256,8 +256,8 @@ const AdminEnhancedInventoryView: React.FC = () => {
                             </TableCell>
                             <TableCell>{batch.totalQuantity}</TableCell>
                             <TableCell>{batch.totalBoxes}</TableCell>
-                            <TableCell>{batch.warehouseName || 'Unknown'}</TableCell>
-                            <TableCell>{batch.processorName || 'Unknown'}</TableCell>
+                            <TableCell>{batch.warehouseName}</TableCell>
+                            <TableCell>{batch.processedBy}</TableCell>
                             <TableCell>
                               {format(new Date(batch.createdAt), 'MMM d, yyyy')}
                             </TableCell>

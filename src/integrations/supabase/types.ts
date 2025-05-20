@@ -82,8 +82,6 @@ export type Database = {
           quantity: number
           size: string | null
           status: string
-          stock_in_detail_id: string | null
-          stock_in_id: string | null
           updated_at: string
           warehouse_id: string
         }
@@ -98,8 +96,6 @@ export type Database = {
           quantity?: number
           size?: string | null
           status?: string
-          stock_in_detail_id?: string | null
-          stock_in_id?: string | null
           updated_at?: string
           warehouse_id: string
         }
@@ -114,19 +110,10 @@ export type Database = {
           quantity?: number
           size?: string | null
           status?: string
-          stock_in_detail_id?: string | null
-          stock_in_id?: string | null
           updated_at?: string
           warehouse_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_inventory_batch_id"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "processed_batches"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "fk_inventory_location"
             columns: ["location_id"]
@@ -138,26 +125,12 @@ export type Database = {
             foreignKeyName: "fk_inventory_product"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "product_inventory_summary"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "fk_inventory_product"
-            columns: ["product_id"]
-            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fk_inventory_stock_in"
-            columns: ["stock_in_id"]
-            isOneToOne: false
-            referencedRelation: "stock_in"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_inventory_stock_in_detail_id"
-            columns: ["stock_in_detail_id"]
+            foreignKeyName: "fk_inventory_stock_in_details"
+            columns: ["batch_id"]
             isOneToOne: false
             referencedRelation: "stock_in_details"
             referencedColumns: ["id"]
@@ -180,28 +153,7 @@ export type Database = {
             foreignKeyName: "inventory_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "product_inventory_summary"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "inventory_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_stock_in_detail_id_fkey"
-            columns: ["stock_in_detail_id"]
-            isOneToOne: false
-            referencedRelation: "stock_in_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_stock_in_id_fkey"
-            columns: ["stock_in_id"]
-            isOneToOne: false
-            referencedRelation: "stock_in"
             referencedColumns: ["id"]
           },
           {
@@ -273,13 +225,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_movements_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "product_inventory_summary"
-            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "inventory_movements_product_id_fkey"
@@ -374,13 +319,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_transfers_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "product_inventory_summary"
-            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "inventory_transfers_product_id_fkey"
@@ -493,13 +431,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "warehouse_locations"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "processed_batches_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "product_inventory_summary"
-            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "processed_batches_product_id_fkey"
@@ -696,13 +627,6 @@ export type Database = {
             foreignKeyName: "sales_inquiry_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "product_inventory_summary"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "sales_inquiry_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -764,13 +688,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_in_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "product_inventory_summary"
-            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "stock_in_product_id_fkey"
@@ -872,13 +789,6 @@ export type Database = {
             foreignKeyName: "stock_in_details_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "product_inventory_summary"
-            referencedColumns: ["product_id"]
-          },
-          {
-            foreignKeyName: "stock_in_details_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -954,13 +864,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_out_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "product_inventory_summary"
-            referencedColumns: ["product_id"]
           },
           {
             foreignKeyName: "stock_out_product_id_fkey"
@@ -1081,20 +984,7 @@ export type Database = {
       }
     }
     Views: {
-      product_inventory_summary: {
-        Row: {
-          last_updated: string | null
-          location_breakdown: Json | null
-          location_count: number | null
-          product_category: string | null
-          product_id: string | null
-          product_name: string | null
-          product_sku: string | null
-          total_quantity: number | null
-          warehouse_count: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       begin_transaction: {
@@ -1122,10 +1012,6 @@ export type Database = {
           batch_id: string
           status: string
         }[]
-      }
-      generate_unique_barcode: {
-        Args: { prefix?: string; batch_identifier?: string }
-        Returns: string
       }
       get_inventory_details: {
         Args: { item_id: string }
@@ -1159,20 +1045,6 @@ export type Database = {
           last_updated: string
         }[]
       }
-      get_product_inventory_details: {
-        Args: { product_id_param: string }
-        Returns: {
-          warehouse_id: string
-          warehouse_name: string
-          location_id: string
-          location_name: string
-          quantity: number
-          available_quantity: number
-          reserved_quantity: number
-          batch_count: number
-          last_movement_date: string
-        }[]
-      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
@@ -1182,27 +1054,16 @@ export type Database = {
         Returns: undefined
       }
       process_stock_in_detail: {
-        Args:
-          | {
-              p_detail_id: string
-              p_status: Database["public"]["Enums"]["stock_in_detail_status"]
-              p_error_message?: string
-            }
-          | {
-              p_stock_in_id: string
-              p_detail_id: string
-              p_status: string
-              p_error?: string
-            }
+        Args: {
+          p_detail_id: string
+          p_status: Database["public"]["Enums"]["stock_in_detail_status"]
+          p_error_message?: string
+        }
         Returns: undefined
       }
       rollback_transaction: {
         Args: Record<PropertyKey, never>
         Returns: undefined
-      }
-      validate_barcode: {
-        Args: { barcode: string }
-        Returns: boolean
       }
     }
     Enums: {

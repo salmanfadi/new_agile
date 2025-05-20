@@ -33,13 +33,8 @@ const BarcodeLookup: React.FC = () => {
     }
   };
   
-  const handleScan = (barcode: string) => {
-    console.log('Barcode detected:', barcode);
-    processScan(barcode);
-  };
-  
   const handleBarcodeDetected = (barcode: string) => {
-    console.log('Barcode detected through onDetected:', barcode);
+    console.log('Barcode detected:', barcode);
     processScan(barcode);
   };
 
@@ -85,7 +80,6 @@ const BarcodeLookup: React.FC = () => {
         <BarcodeScanner 
           allowManualEntry={true}
           allowCameraScanning={true}
-          onScan={handleScan}
           onDetected={handleBarcodeDetected}
         />
         

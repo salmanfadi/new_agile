@@ -1,15 +1,9 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 
 const BarcodeScannerPage: React.FC = () => {
-  const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
-
-  const handleScan = (barcode: string) => {
-    setScannedBarcode(barcode);
-  };
-
   return (
     <div className="space-y-6">
       <PageHeader 
@@ -32,15 +26,7 @@ const BarcodeScannerPage: React.FC = () => {
         <BarcodeScanner 
           allowManualEntry={true}
           allowCameraScanning={true}
-          onScan={handleScan}
         />
-
-        {scannedBarcode && (
-          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-            <h3 className="font-medium text-green-800 mb-2">Barcode Detected</h3>
-            <p className="text-sm text-green-700">Scanned barcode: <code className="bg-green-100 px-1.5 py-0.5 rounded">{scannedBarcode}</code></p>
-          </div>
-        )}
       </div>
     </div>
   );
