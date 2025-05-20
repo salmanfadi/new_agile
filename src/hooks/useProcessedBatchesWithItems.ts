@@ -54,14 +54,25 @@ export const useProcessedBatchesWithItems = (params?: string | ProcessedBatchesP
   }> => {
     try {
       // Start building the query
+      // First, get the batches with product and warehouse info
       let batchQuery = supabase
         .from('processed_batches')
         .select(`
           *,
           products (id, name, sku),
-          profiles (id, name, username),
           warehouses (id, name, location)
         `, { count: 'exact' });
+      
+      // Then, we'll fetch the user profiles separately if needed
+      const fetchUserProfile = async (userId: string | null) => {
+        if (!userId) return null;
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, name, username')
+          .eq('id', userId)
+          .single();
+        return error ? null : data;
+      };
 
       // Apply filters based on parameters
       if (batchId) {
@@ -92,8 +103,12 @@ export const useProcessedBatchesWithItems = (params?: string | ProcessedBatchesP
         return { batches: [], count: 0 };
       }
 
+      // Process batches and fetch user profiles in parallel
       const batchesWithItems = await Promise.all(
         batches.map(async (batch) => {
+          // Fetch user profile for this batch
+          const processedByUser = batch.processed_by ? await fetchUserProfile(batch.processed_by) : null;
+          
           // Fetch items for this batch
           const { data: items, error: itemsError } = await supabase
             .from('batch_items')
@@ -110,8 +125,8 @@ export const useProcessedBatchesWithItems = (params?: string | ProcessedBatchesP
               totalQuantity: batch.total_quantity || 0,
               productName: batch.products?.name || 'Unknown Product',
               warehouseName: batch.warehouses?.name || 'Unknown Warehouse',
-              // Add proper null checks for profiles
-              processedBy: batch.profiles?.name || batch.profiles?.username || 'Unknown User',
+              // Use the fetched user profile
+              processedBy: processedByUser?.name || processedByUser?.username || 'System',
               items: [],
             };
           }
@@ -124,8 +139,8 @@ export const useProcessedBatchesWithItems = (params?: string | ProcessedBatchesP
             totalQuantity: batch.total_quantity || 0,
             productName: batch.products?.name || 'Unknown Product',
             warehouseName: batch.warehouses?.name || 'Unknown Warehouse',
-            // Add proper null checks for profiles
-            processedBy: batch.profiles?.name || batch.profiles?.username || 'Unknown User',
+            // Use the fetched user profile
+            processedBy: processedByUser?.name || processedByUser?.username || 'System',
             items: items || [],
           };
         })
