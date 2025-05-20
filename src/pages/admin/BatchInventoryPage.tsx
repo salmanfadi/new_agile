@@ -14,7 +14,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTable';
-import { BatchDetailsDialog } from '@/components/warehouse/BatchDetailsDialog';
+import { BatchDetailView } from '@/components/warehouse/BatchDetailView';
 import { useProcessedBatches } from '@/hooks/useProcessedBatches';
 
 const AdminBatchInventoryPage: React.FC = () => {
@@ -97,7 +97,7 @@ const AdminBatchInventoryPage: React.FC = () => {
         </CardContent>
       </Card>
       
-      <BatchDetailsDialog
+      <BatchDetailView
         open={showBatchDetails}
         onOpenChange={setShowBatchDetails}
         batchId={selectedBatchId}

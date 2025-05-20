@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Table,
@@ -30,16 +29,16 @@ export interface BatchItem {
 
 interface BatchItemsTableProps {
   items: BatchItem[];
-  isLoading: boolean;
-  error: Error | null;
+  isLoading?: boolean;
+  error?: Error | null;
   onPrintBarcode?: (barcode: string) => void;
   onViewDetails?: (itemId: string) => void;
 }
 
 const BatchItemsTable: React.FC<BatchItemsTableProps> = ({
   items,
-  isLoading,
-  error,
+  isLoading = false,
+  error = null,
   onPrintBarcode,
   onViewDetails,
 }) => {
