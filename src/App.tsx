@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/ui/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -34,58 +33,45 @@ import NotFound from '@/pages/NotFound';
 // Auth Components
 import { RequireAuth } from '@/components/auth/RequireAuth';
 
-const queryClient = new QueryClient();
-
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-        <div className="min-h-screen flex flex-col">
-          <Toaster />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route
-              path="/login"
-              element={
-                <PublicLayout>
-                  <Login />
-                </PublicLayout>
-              }
-            />
-            <Route path="/register" element={<Register />} />
-            <Route path="/barcode-scanner" element={<BarcodeScanner />} />
-            
-            {/* Admin Routes */}
-            <Route element={
-              <RequireAuth allowedRoles={['admin']}>
-                {/* This wrapper supplies the children prop */}
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <div className="min-h-screen flex flex-col">
+        <Toaster />
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route
+            path="/login"
+            element={
+              <PublicLayout>
+                <Login />
+              </PublicLayout>
+            }
+          />
+          <Route path="/register" element={<Register />} />
+          <Route path="/barcode-scanner" element={<BarcodeScanner />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin/*" element={
+            <RequireAuth allowedRoles={['admin']}>
+              <MainLayout>
                 <Routes>
-                  <Route
-                    path="/admin/*"
-                    element={
-                      <MainLayout>
-                        <Routes>
-                          <Route index element={<AdminDashboard />} />
-                          <Route path="inventory" element={<AdminEnhancedInventoryView />} />
-                          <Route path="inventory/batch" element={<AdminBatchInventoryPage />} />
-                          <Route path="inventory/batch/:batchId" element={<BatchDetailsPage />} />
-                          <Route path="inventory/box/:barcode" element={<BoxDetailsPage />} />
-                          <Route path="inventory/barcodes/:batchId" element={<BarcodePrintPage />} />
-                        </Routes>
-                      </MainLayout>
-                    }
-                  />
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="inventory" element={<AdminEnhancedInventoryView />} />
+                  <Route path="inventory/batch" element={<AdminBatchInventoryPage />} />
+                  <Route path="inventory/batch/:batchId" element={<BatchDetailsPage />} />
+                  <Route path="inventory/box/:barcode" element={<BoxDetailsPage />} />
+                  <Route path="inventory/barcodes/:batchId" element={<BarcodePrintPage />} />
                 </Routes>
-              </RequireAuth>
-            }>
-            </Route>
+              </MainLayout>
+            </RequireAuth>
+          } />
 
-            {/* Fallback route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-      </ThemeProvider>
-    </QueryClientProvider>
+          {/* Fallback route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+    </ThemeProvider>
   );
 }
 
