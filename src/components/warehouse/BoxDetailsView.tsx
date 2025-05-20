@@ -72,6 +72,24 @@ export const BoxDetailsView: React.FC<BoxDetailsViewProps> = ({ box, onRefresh, 
     return format(new Date(dateString), 'MMM d, yyyy h:mm a');
   };
 
+  // Helper function to map status to appropriate variant
+  const getStatusVariant = (status: string): "default" | "destructive" | "outline" | "secondary" | "success" => {
+    switch (status) {
+      case 'In Stock':
+        return 'default';
+      case 'In Transit':
+        return 'secondary';
+      case 'Sold':
+        return 'success';
+      case 'Reserved':
+        return 'outline';
+      case 'Damaged':
+        return 'destructive';
+      default:
+        return 'default';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -102,12 +120,7 @@ export const BoxDetailsView: React.FC<BoxDetailsViewProps> = ({ box, onRefresh, 
                 <BarcodePreview barcode={box.barcode} width={200} height={80} />
               </div>
               <p className="font-mono text-sm">{box.barcode}</p>
-              <Badge className="mt-2" variant={
-                box.status === 'In Stock' ? 'default' :
-                box.status === 'In Transit' ? 'secondary' :
-                box.status === 'Sold' ? 'success' :
-                box.status === 'Reserved' ? 'warning' : 'destructive'
-              }>
+              <Badge className="mt-2" variant={getStatusVariant(box.status)}>
                 {box.status}
               </Badge>
             </div>

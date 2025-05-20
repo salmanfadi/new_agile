@@ -2,7 +2,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from './components/theme-provider';
+import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 // Auth Layouts
@@ -54,7 +54,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             
             {/* Admin Routes */}
-            <Route element={<RequireAuth allowedRoles={['admin']} />}>
+            <Route element={<RequireAuth allowedRoles={['admin']}>{/* Children will be rendered by Outlet */}</RequireAuth>}>
               <Route
                 path="/admin/*"
                 element={

@@ -10,7 +10,7 @@ interface BarcodePreviewProps {
   scale?: number;
 }
 
-const BarcodePreview: React.FC<BarcodePreviewProps> = ({ 
+export const BarcodePreview: React.FC<BarcodePreviewProps> = ({ 
   barcode, 
   width = 150, 
   height = 50,
@@ -53,4 +53,5 @@ const BarcodePreview: React.FC<BarcodePreviewProps> = ({
   );
 };
 
+// Add default export to maintain backward compatibility
 export default BarcodePreview;

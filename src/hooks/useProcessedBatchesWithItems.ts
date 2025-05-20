@@ -2,307 +2,218 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { format } from 'date-fns';
 
-// Define types for batch items with proper nullable handling
 export interface BatchItem {
   id: string;
-  batch_id: string;
   barcode: string;
   quantity: number;
   color: string | null;
   size: string | null;
-  warehouse_id: string;
-  location_id: string;
-  status: 'available' | 'reserved' | 'sold' | 'damaged' | 'in_transit';
-  created_at: string;
+  status: string;
+  batch_id: string;
+  location_id?: string | null;
+  warehouse_id?: string | null;
+  warehouses?: {
+    name: string;
+  } | null;
+  locations?: {
+    floor: number;
+    zone: string;
+  } | null;
   warehouseName?: string;
   locationDetails?: string;
 }
 
-// Define comprehensive batch type with null safety
 export interface ProcessedBatchWithItems {
   id: string;
   stock_in_id: string | null;
-  product_id: string;
-  processedBy: string;
+  product_id: string | null;
+  processedBy: string | null;
   processorName: string | null;
   totalBoxes: number;
   totalQuantity: number;
-  items: BatchItem[];
-  status: 'completed' | 'processing' | 'failed' | 'cancelled';
+  status: "processing" | "completed" | "failed" | "cancelled";
   source: string | null;
   notes: string | null;
   createdAt: string;
   warehouseId: string | null;
   warehouseName: string | null;
-  productName: string | null;
-  productSku: string | null;
+  locationId: string | null;
+  locationDetails: string | null;
+  product: {
+    name: string | null;
+    sku: string | null;
+  } | null;
   progress: {
-    completed: number;
-    total: number;
     percentage: number;
+    processed: number;
+    total: number;
   };
+  items: BatchItem[];
 }
 
-interface FetchOptions {
-  page?: number;
-  limit?: number;
-  warehouseId?: string;
-  productId?: string;
-  searchTerm?: string;
-  fromDate?: Date;
-  toDate?: Date;
+interface UseProcessedBatchesWithItemsProps {
+  batchId?: string | null;
 }
 
-/**
- * Fetches processed batches with their items from the database
- */
-export const useProcessedBatchesWithItems = (options: FetchOptions = {}) => {
-  const {
-    page = 1,
-    limit = 10,
-    warehouseId,
-    productId,
-    searchTerm,
-    fromDate,
-    toDate
-  } = options;
+export function useProcessedBatchesWithItems({ batchId }: UseProcessedBatchesWithItemsProps = {}) {
+  const [error, setError] = useState<Error | null>(null);
 
-  const [batches, setBatches] = useState<ProcessedBatchWithItems[]>([]);
-  const [count, setCount] = useState<number>(0);
-  
-  const fetchBatchesWithItems = async (): Promise<{
-    batches: ProcessedBatchWithItems[];
-    count: number;
-  }> => {
+  const fetchProcessedBatchesWithItems = async () => {
     try {
-      // 1. First get count of batches for pagination
-      let countQuery = supabase
-        .from('processed_batches')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'completed');
-        
-      if (warehouseId) {
-        countQuery = countQuery.eq('warehouse_id', warehouseId);
-      }
-      
-      if (productId) {
-        countQuery = countQuery.eq('product_id', productId);
-      }
-      
-      if (fromDate) {
-        countQuery = countQuery.gte('processed_at', fromDate.toISOString());
-      }
-      
-      if (toDate) {
-        const endDate = new Date(toDate);
-        endDate.setHours(23, 59, 59, 999);
-        countQuery = countQuery.lte('processed_at', endDate.toISOString());
-      }
-      
-      if (searchTerm) {
-        // Add search term filter
-        const { data: productIds } = await supabase
-          .from('products')
-          .select('id')
-          .ilike('name', `%${searchTerm}%`);
-          
-        const productIdList = productIds?.map(p => p.id) || [];
-        
-        if (productIdList.length > 0) {
-          countQuery = countQuery.in('product_id', productIdList);
-        } else {
-          // If no products match the search term, return empty results
-          return { batches: [], count: 0 };
-        }
-      }
-      
-      const { count: totalCount, error: countError } = await countQuery;
-      if (countError) throw countError;
-
-      // 2. Get batches with pagination
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      
-      let batchesQuery = supabase
+      // 1. Fetch processed batches
+      const { data: batches, error: batchesError } = await supabase
         .from('processed_batches')
         .select(`
-          id,
-          stock_in_id,
-          product_id,
-          processed_by,
-          warehouse_id,
-          total_boxes,
-          total_quantity,
-          status,
-          source,
-          notes,
-          processed_at,
-          products:product_id (
-            name,
-            sku
-          ),
-          processor:processed_by (name),
-          warehouses:warehouse_id (name)
+          *,
+          warehouse:warehouse_id (name),
+          location:location_id (floor, zone),
+          processor:processed_by (name)
         `)
-        .eq('status', 'completed')
-        .order('processed_at', { ascending: false })
-        .range(from, to);
-        
-      // Apply the same filters as count query
-      if (warehouseId) {
-        batchesQuery = batchesQuery.eq('warehouse_id', warehouseId);
-      }
-      
-      if (productId) {
-        batchesQuery = batchesQuery.eq('product_id', productId);
-      }
-      
-      if (fromDate) {
-        batchesQuery = batchesQuery.gte('processed_at', fromDate.toISOString());
-      }
-      
-      if (toDate) {
-        const endDate = new Date(toDate);
-        endDate.setHours(23, 59, 59, 999);
-        batchesQuery = batchesQuery.lte('processed_at', endDate.toISOString());
-      }
-      
-      if (searchTerm) {
-        const { data: productIds } = await supabase
-          .from('products')
-          .select('id')
-          .ilike('name', `%${searchTerm}%`);
-          
-        const productIdList = productIds?.map(p => p.id) || [];
-        
-        if (productIdList.length > 0) {
-          batchesQuery = batchesQuery.in('product_id', productIdList);
-        } else {
-          // If no products match the search term, return empty results
-          return { batches: [], count: 0 };
-        }
-      }
-      
-      const { data: batchesData, error: batchesError } = await batchesQuery;
+        .order('processed_at', { ascending: false });
+
       if (batchesError) throw batchesError;
 
-      // Process each batch to get its items
-      const processedBatches: ProcessedBatchWithItems[] = [];
-      for (const batch of batchesData || []) {
-        // Get items for this batch
-        const { data: itemsData } = await supabase
-          .from('batch_items')
-          .select(`
-            id,
-            batch_id,
-            barcode,
-            quantity,
-            color,
-            size,
-            warehouse_id,
-            location_id,
-            status,
-            created_at,
-            warehouses:warehouse_id (name),
-            locations:location_id (floor, zone)
-          `)
-          .eq('batch_id', batch.id);
+      if (!batches || batches.length === 0) {
+        return [];
+      }
 
-        // Transform items
-        const items = (itemsData || []).map(item => {
-          // Safely construct location details with null checks
-          const floor = item.locations?.floor;
-          const zone = item.locations?.zone;
-          const locationDetails = (floor !== null && zone !== null) 
-            ? `Floor ${floor}, Zone ${zone}` 
-            : 'Unknown Location';
+      // 2. Fetch product information for all batches
+      const productIds = batches
+        .map(batch => batch.product_id)
+        .filter(Boolean) as string[];
 
-          return {
-            id: item.id,
-            batch_id: item.batch_id,
-            barcode: item.barcode,
-            quantity: item.quantity,
-            color: item.color,
-            size: item.size,
-            warehouse_id: item.warehouse_id,
-            location_id: item.location_id,
-            status: item.status,
-            created_at: item.created_at,
-            warehouseName: item.warehouses?.name || 'Unknown Warehouse',
-            locationDetails
-          } as BatchItem;
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, sku')
+        .in('id', productIds);
+
+      if (productsError) throw productsError;
+
+      // Create a map of products for easy lookup
+      const productMap = new Map();
+      if (products) {
+        products.forEach(product => {
+          productMap.set(product.id, product);
         });
+      }
 
-        // Calculate progress stats
-        const totalItems = items.length;
-        const completedItems = items.filter(item => 
-          item.status === 'available' || item.status === 'reserved' || 
-          item.status === 'sold').length;
+      // 3. Batch IDs for fetching items
+      const batchIds = batches.map(batch => batch.id);
+
+      // 4. Fetch all batch items
+      const { data: allBatchItems, error: itemsError } = await supabase
+        .from('batch_items')
+        .select(`
+          *,
+          warehouses:warehouse_id (name),
+          locations:location_id (floor, zone)
+        `)
+        .in('batch_id', batchIds);
+
+      if (itemsError) throw itemsError;
+
+      // 5. Group batch items by batch_id
+      const batchItemsMap = new Map();
+      if (allBatchItems) {
+        allBatchItems.forEach(item => {
+          const id = item.batch_id;
+          if (!batchItemsMap.has(id)) {
+            batchItemsMap.set(id, []);
+          }
+          
+          // Enhance the item with warehouse and location display info
+          const enhancedItem = {
+            ...item,
+            warehouseName: item.warehouses?.name || 'Unknown',
+            locationDetails: item.locations ? 
+              `Floor ${item.locations.floor}, Zone ${item.locations.zone}` : 
+              'Unknown'
+          };
+          
+          batchItemsMap.get(id).push(enhancedItem);
+        });
+      }
+
+      // 6. Create full batch objects with items
+      const processedBatchesWithItems: ProcessedBatchWithItems[] = batches.map(batch => {
+        const items = batchItemsMap.get(batch.id) || [];
+        const product = batch.product_id ? productMap.get(batch.product_id) : null;
         
-        const percentageComplete = totalItems > 0 
-          ? Math.round((completedItems / totalItems) * 100) 
-          : 0;
-
-        // Build the processed batch object with proper null handling
-        const processedBatch: ProcessedBatchWithItems = {
+        return {
           id: batch.id,
           stock_in_id: batch.stock_in_id,
           product_id: batch.product_id,
-          processedBy: batch.processed_by || '',
-          processorName: batch.processor?.name || null,
-          totalBoxes: batch.total_boxes || 0,
-          totalQuantity: batch.total_quantity || 0,
-          items,
-          status: batch.status,
+          processedBy: batch.processed_by,
+          processorName: batch.processor?.name || 'Unknown',
+          totalBoxes: batch.total_boxes,
+          totalQuantity: batch.total_quantity,
+          status: (batch.status || 'completed') as "processing" | "completed" | "failed" | "cancelled",
           source: batch.source,
           notes: batch.notes,
-          createdAt: batch.processed_at || new Date().toISOString(),
-          warehouseId: batch.warehouse_id || null,
-          warehouseName: batch.warehouses?.name || null,
-          productName: batch.products?.name || null,
-          productSku: batch.products?.sku || null,
+          createdAt: batch.processed_at,
+          warehouseId: batch.warehouse_id,
+          warehouseName: batch.warehouse?.name || null,
+          locationId: batch.location_id,
+          locationDetails: batch.location ? 
+            `Floor ${batch.location.floor}, Zone ${batch.location.zone}` : 
+            null,
+          product: product ? {
+            name: product.name,
+            sku: product.sku
+          } : null,
           progress: {
-            completed: completedItems,
-            total: totalItems,
-            percentage: percentageComplete
-          }
+            percentage: batch.total_boxes ? 100 : 0,
+            processed: batch.total_boxes,
+            total: batch.total_boxes
+          },
+          items
         };
+      });
 
-        processedBatches.push(processedBatch);
+      // If batchId is provided, filter for just that batch
+      if (batchId) {
+        const foundBatch = processedBatchesWithItems.find(batch => batch.id === batchId);
+        return foundBatch ? [foundBatch] : [];
       }
 
-      return {
-        batches: processedBatches,
-        count: totalCount || 0
-      };
-    } catch (error) {
-      console.error('Error fetching processed batches with items:', error);
-      throw error;
+      return processedBatchesWithItems;
+    } catch (err) {
+      console.error('Error fetching processed batches with items:', err);
+      setError(err as Error);
+      return [];
     }
   };
 
-  const queryResult = useQuery({
-    queryKey: [
-      'processed-batches-with-items', 
-      page, 
-      limit, 
-      warehouseId, 
-      productId, 
-      searchTerm,
-      fromDate?.toISOString(),
-      toDate?.toISOString()
-    ],
-    queryFn: fetchBatchesWithItems,
-    refetchInterval: 300000, // Refetch every 5 minutes
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['processed-batches-with-items', batchId],
+    queryFn: fetchProcessedBatchesWithItems
   });
 
   return {
-    batches: queryResult.data?.batches || [],
-    count: queryResult.data?.count || 0,
-    isLoading: queryResult.isLoading,
-    error: queryResult.error,
-    refetch: queryResult.refetch,
+    data,
+    isLoading,
+    error,
+    refetch
   };
-};
+}
+
+export function useBatchDetails(batchId?: string | null) {
+  const { data, isLoading, error, refetch } = useProcessedBatchesWithItems({ batchId });
+  return {
+    data: data && data.length > 0 ? data[0] : null,
+    isLoading,
+    error,
+    refetch
+  };
+}
+
+export function useBatchItems(batchId?: string | null) {
+  const { data, isLoading, error, refetch } = useProcessedBatchesWithItems({ batchId });
+  return {
+    data: data && data.length > 0 ? data[0].items : [],
+    isLoading,
+    error,
+    refetch
+  };
+}

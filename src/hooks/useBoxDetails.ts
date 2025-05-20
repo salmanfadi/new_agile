@@ -18,39 +18,36 @@ export const useBoxDetails = (barcode: string | null): BoxDetailsResult => {
     if (!barcode) return null;
     
     try {
-      // First, get the inventory item with all its relations
+      // First, get the inventory item basic info
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
-        .select(`
-          id,
-          barcode,
-          product_id,
-          warehouse_id,
-          location_id,
-          quantity,
-          color,
-          size,
-          status,
-          batch_id,
-          created_at,
-          updated_at,
-          products:product_id (
-            name,
-            sku
-          ),
-          warehouses:warehouse_id (
-            name
-          ),
-          locations:location_id (
-            floor,
-            zone
-          )
-        `)
+        .select('id, barcode, product_id, warehouse_id, location_id, quantity, color, size, status, batch_id, created_at, updated_at')
         .eq('barcode', barcode)
         .single();
       
       if (inventoryError) throw inventoryError;
       if (!inventoryData) return null;
+      
+      // Fetch product info separately
+      const { data: productData } = await supabase
+        .from('products')
+        .select('name, sku')
+        .eq('id', inventoryData.product_id)
+        .single();
+      
+      // Fetch warehouse info separately
+      const { data: warehouseData } = await supabase
+        .from('warehouses')
+        .select('name')
+        .eq('id', inventoryData.warehouse_id)
+        .single();
+      
+      // Fetch location info separately
+      const { data: locationData } = await supabase
+        .from('warehouse_locations')
+        .select('floor, zone')
+        .eq('id', inventoryData.location_id)
+        .single();
       
       // Next, get scan history (from inventory_movements table)
       const { data: movementsData } = await supabase
@@ -62,16 +59,49 @@ export const useBoxDetails = (barcode: string | null): BoxDetailsResult => {
           quantity,
           status,
           details,
-          profiles:performed_by (
-            name,
-            role
-          ),
-          warehouses:warehouse_id (
-            name
-          )
+          performed_by,
+          warehouse_id
         `)
         .eq('details->barcode', barcode)
         .order('created_at', { ascending: false });
+      
+      // Get user info for the movements
+      let userMap: { [key: string]: { name: string; role: string } } = {};
+      
+      if (movementsData && movementsData.length > 0) {
+        const userIds = movementsData.map(m => m.performed_by).filter(Boolean);
+        if (userIds.length > 0) {
+          const { data: usersData } = await supabase
+            .from('profiles')
+            .select('id, name, role')
+            .in('id', userIds);
+          
+          if (usersData) {
+            usersData.forEach(user => {
+              userMap[user.id] = { name: user.name || 'Unknown', role: user.role || 'unknown' };
+            });
+          }
+        }
+      }
+      
+      // Get warehouse info for the movements
+      let warehouseMap: { [key: string]: string } = {};
+      
+      if (movementsData && movementsData.length > 0) {
+        const warehouseIds = movementsData.map(m => m.warehouse_id).filter(Boolean);
+        if (warehouseIds.length > 0) {
+          const { data: warehousesData } = await supabase
+            .from('warehouses')
+            .select('id, name')
+            .in('id', warehouseIds);
+          
+          if (warehousesData) {
+            warehousesData.forEach(warehouse => {
+              warehouseMap[warehouse.id] = warehouse.name;
+            });
+          }
+        }
+      }
       
       // Format scan history
       const scanHistory: ScanHistoryItem[] = (movementsData || []).map(movement => {
@@ -84,15 +114,15 @@ export const useBoxDetails = (barcode: string | null): BoxDetailsResult => {
           'release': 'Box Released from Reservation'
         };
         
+        const userInfo = movement.performed_by ? userMap[movement.performed_by] : undefined;
+        const warehouseName = movement.warehouse_id ? warehouseMap[movement.warehouse_id] : undefined;
+        
         return {
           id: movement.id,
           timestamp: movement.created_at,
-          action: actionMap[movement.movement_type] || `${movement.movement_type.charAt(0).toUpperCase() + movement.movement_type.slice(1)} Action`,
-          location: movement.warehouses?.name,
-          user: movement.profiles ? {
-            name: movement.profiles.name,
-            role: movement.profiles.role
-          } : undefined,
+          action: actionMap[movement.movement_type as string] || `${(movement.movement_type as string).charAt(0).toUpperCase() + (movement.movement_type as string).slice(1)} Action`,
+          location: warehouseName,
+          user: userInfo,
           details: movement.details && typeof movement.details === 'object' ? 
                   (movement.details as any).notes : 
                   undefined
@@ -131,8 +161,8 @@ export const useBoxDetails = (barcode: string | null): BoxDetailsResult => {
       };
 
       // Format the location code
-      const floor = inventoryData.locations ? inventoryData.locations.floor : 'Unknown';
-      const zone = inventoryData.locations ? inventoryData.locations.zone : 'Unknown';
+      const floor = locationData ? locationData.floor : 'Unknown';
+      const zone = locationData ? locationData.zone : 'Unknown';
       const locationCode = floor && zone ? `${zone}-${floor}` : 'Unknown';
       
       // Construct and return the box details object
@@ -140,15 +170,15 @@ export const useBoxDetails = (barcode: string | null): BoxDetailsResult => {
         id: inventoryData.id,
         barcode: inventoryData.barcode,
         productId: inventoryData.product_id,
-        productName: inventoryData.products ? inventoryData.products.name : 'Unknown Product',
-        productSku: inventoryData.products ? inventoryData.products.sku : undefined,
+        productName: productData ? productData.name : 'Unknown Product',
+        productSku: productData ? productData.sku : undefined,
         quantity: inventoryData.quantity || 0,
         color: inventoryData.color || undefined,
         size: inventoryData.size || undefined,
         status: statusMap[inventoryData.status] || 'In Stock',
         batchId: inventoryData.batch_id || 'unknown',
         warehouseId: inventoryData.warehouse_id,
-        warehouseName: inventoryData.warehouses ? inventoryData.warehouses.name : 'Unknown Warehouse',
+        warehouseName: warehouseData ? warehouseData.name : 'Unknown Warehouse',
         locationId: inventoryData.location_id,
         locationCode: locationCode,
         locationDetails: `Floor ${floor}, Zone ${zone}`,
