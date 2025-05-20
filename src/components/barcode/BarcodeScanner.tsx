@@ -4,22 +4,40 @@ import Quagga from '@ericblade/quagga2';
 import { Button } from '@/components/ui/button';
 import { Loader2, Camera, Check } from 'lucide-react';
 
-interface BarcodeScannerProps {
+export interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
   onError?: (error: Error) => void;
+  onBarcodeScanned?: (barcode: string) => Promise<void>;
+  onScanComplete?: (data: any) => void;
+  onDetected?: (barcode: string) => void;
+  onClose?: () => void;
   stopOnDetect?: boolean;
   scanButtonLabel?: string;
   previewWidth?: number;
   previewHeight?: number;
+  allowManualEntry?: boolean;
+  allowCameraScanning?: boolean;
+  inputValue?: string;
+  onInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  embedded?: boolean;
 }
 
 export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   onScan,
   onError,
+  onBarcodeScanned,
+  onScanComplete,
+  onDetected,
+  onClose,
   stopOnDetect = true,
   scanButtonLabel = 'Scan Barcode',
   previewWidth = 320,
-  previewHeight = 240
+  previewHeight = 240,
+  allowManualEntry = false,
+  allowCameraScanning = true,
+  inputValue = '',
+  onInputChange,
+  embedded = false
 }) => {
   const [scanning, setScanning] = useState(false);
   const [detected, setDetected] = useState(false);
@@ -83,6 +101,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
       }
     }
     setScanning(false);
+    if (onClose) onClose();
   };
 
   const handleDetection = (result: any) => {
@@ -90,7 +109,12 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
     if (code) {
       setLastDetected(code);
       setDetected(true);
+      
+      // Call all provided callbacks with the barcode
       onScan(code);
+      if (onBarcodeScanned) onBarcodeScanned(code);
+      if (onDetected) onDetected(code);
+      if (onScanComplete) onScanComplete({ code });
       
       if (stopOnDetect) {
         stopScanner();
@@ -111,8 +135,36 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
 
   return (
     <div className="barcode-scanner-container">
+      {allowManualEntry && (
+        <div className="mb-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Enter barcode manually"
+              value={inputValue}
+              onChange={onInputChange}
+            />
+            <Button 
+              type="button"
+              onClick={() => {
+                if (inputValue && inputValue.trim() !== '') {
+                  onScan(inputValue);
+                  if (onBarcodeScanned) onBarcodeScanned(inputValue);
+                  if (onDetected) onDetected(inputValue);
+                  if (onScanComplete) onScanComplete({ code: inputValue });
+                }
+              }}
+              disabled={!inputValue}
+            >
+              Submit
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-center mb-4">
-        {!scanning && !detected && (
+        {!scanning && !detected && allowCameraScanning && (
           <Button 
             onClick={startScanner}
             className="flex items-center gap-2"

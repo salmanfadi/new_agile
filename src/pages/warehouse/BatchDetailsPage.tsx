@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { BatchDetailsView } from '@/components/warehouse/BatchDetailsView';
-import { BatchItemsTable } from '@/components/warehouse/BatchItemsTable';
+import BatchItemsTable from '@/components/warehouse/BatchItemsTable';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const BatchDetailsPage = () => {
@@ -79,6 +79,24 @@ const BatchDetailsPage = () => {
     warehouse: item.warehouseName || 'Unknown'
   }));
 
+  const batchData = {
+    id: data.id,
+    stockId: data.stock_in_id || undefined,
+    productId: data.product_id || undefined,
+    productName: data.product?.name || 'Unknown Product',
+    productSku: data.product?.sku || undefined,
+    status: data.status,
+    totalBoxes: data.totalBoxes,
+    totalQuantity: data.totalQuantity,
+    processedBy: data.processorName || 'Unknown',
+    source: data.source || 'Unknown',
+    notes: data.notes || undefined,
+    warehouseName: data.warehouseName || 'Unknown',
+    locationDetails: data.locationDetails || 'Unknown',
+    createdAt: data.createdAt,
+    progress: data.progress
+  };
+
   return (
     <div className="space-y-6">
       <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
@@ -96,23 +114,7 @@ const BatchDetailsPage = () => {
         </Button>
       </div>
       
-      <BatchDetailsView batch={{
-        id: data.id,
-        stockId: data.stock_in_id || undefined,
-        productId: data.product_id || undefined,
-        productName: data.product?.name || 'Unknown Product',
-        productSku: data.product?.sku || undefined,
-        status: data.status,
-        totalBoxes: data.totalBoxes,
-        totalQuantity: data.totalQuantity,
-        processedBy: data.processorName || 'Unknown',
-        source: data.source || 'Unknown',
-        notes: data.notes || undefined,
-        warehouseName: data.warehouseName || 'Unknown',
-        locationDetails: data.locationDetails || 'Unknown',
-        createdAt: data.createdAt,
-        progress: data.progress
-      }} />
+      <BatchDetailsView batchData={batchData} />
       
       <h2 className="text-xl font-bold mt-8 mb-4">Boxes in this Batch</h2>
       <BatchItemsTable items={batchItems} />

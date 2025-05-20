@@ -54,7 +54,11 @@ function App() {
             <Route path="/register" element={<Register />} />
             
             {/* Admin Routes */}
-            <Route element={<RequireAuth allowedRoles={['admin']}>{/* Children will be rendered by Outlet */}</RequireAuth>}>
+            <Route element={
+              <RequireAuth allowedRoles={['admin']}>
+                {/* Outlet will render child routes */}
+              </RequireAuth>
+            }>
               <Route
                 path="/admin/*"
                 element={
