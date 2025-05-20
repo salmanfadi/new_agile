@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -8,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useBatchDetails, useBatchItems } from '@/hooks/useProcessedBatches';
-import BarcodePreview from '@/components/barcode/BarcodePreview'; // Changed to default import
+import BarcodePreview from '@/components/barcode/BarcodePreview'; 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -209,7 +210,7 @@ const BarcodePrintPage = () => {
                       }`}
                       onClick={() => handleItemSelect(item.id)}
                     >
-                      <BarcodePreview value={item.barcode} height={80} />
+                      <BarcodePreview barcode={item.barcode} height={80} />
                       <div className="mt-2">
                         <p className="font-mono text-xs text-center">{item.barcode}</p>
                         <p className="text-xs text-center">Qty: {item.quantity}</p>
@@ -312,7 +313,7 @@ const BarcodePrintPage = () => {
         <div className="grid grid-cols-2 gap-4 print:grid-cols-3">
           {items?.map((item, index) => (
             <div key={item.id} className="border rounded-lg p-4 print:break-inside-avoid">
-              <BarcodePreview value={item.barcode} height={80} />
+              <BarcodePreview barcode={item.barcode} height={80} />
               <div className="mt-2 text-center">
                 <p className="font-mono text-xs">{item.barcode}</p>
                 <p className="text-xs">

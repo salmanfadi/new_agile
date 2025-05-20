@@ -1,6 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { BoxDetails } from '@/types/barcode';
 
 export interface BoxDetailsType {
   id: string;
@@ -97,26 +98,29 @@ export function useBoxDetails(barcode?: string) {
         console.error('Error fetching box history:', historyError);
       }
 
-      return {
+      const boxDetails: BoxDetails = {
         id: box.id,
         barcode: box.barcode,
         batch_id: box.batch_id,
+        productId: box.batch?.product?.id || '',
+        productName: box.batch?.product?.name || 'Unknown Product',
+        productSku: box.batch?.product?.sku,
         status: box.status,
         quantity: box.quantity,
         color: box.color,
         size: box.size,
+        warehouseId: box.warehouse?.id,
+        warehouseName: box.warehouse?.name,
+        locationId: box.location?.id,
+        locationDetails: box.location ? 
+          `${box.location.zone || ''} ${box.location.aisle || ''}-${box.location.shelf || ''}` : 
+          undefined,
         created_at: box.created_at,
         updated_at: box.updated_at,
-        batch: box.batch ? {
-          id: box.batch.id,
-          status: box.batch.status,
-          created_at: box.batch.created_at,
-          product: box.batch.product
-        } : undefined,
-        warehouse: box.warehouse,
-        location: box.location,
         history: history || []
-      } as BoxDetailsType;
+      };
+
+      return boxDetails;
     },
     enabled: !!barcode
   });

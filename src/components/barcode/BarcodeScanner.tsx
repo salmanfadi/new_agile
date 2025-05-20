@@ -44,6 +44,17 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   const [lastDetected, setLastDetected] = useState<string | null>(null);
   const scannerRef = useRef<HTMLDivElement>(null);
   const hasMounted = useRef(false);
+  const [manualInput, setManualInput] = useState<string>('');
+
+  // Use controlled input if provided, otherwise use local state
+  const inputValueToUse = inputValue !== undefined ? inputValue : manualInput;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onInputChange) {
+      onInputChange(e);
+    } else {
+      setManualInput(e.target.value);
+    }
+  };
 
   const startScanner = async () => {
     if (!scannerRef.current) return;
@@ -142,20 +153,20 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
               type="text"
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="Enter barcode manually"
-              value={inputValue}
-              onChange={onInputChange}
+              value={inputValueToUse}
+              onChange={handleInputChange}
             />
             <Button 
               type="button"
               onClick={() => {
-                if (inputValue && inputValue.trim() !== '') {
-                  onScan(inputValue);
-                  if (onBarcodeScanned) onBarcodeScanned(inputValue);
-                  if (onDetected) onDetected(inputValue);
-                  if (onScanComplete) onScanComplete({ code: inputValue });
+                if (inputValueToUse && inputValueToUse.trim() !== '') {
+                  onScan(inputValueToUse);
+                  if (onBarcodeScanned) onBarcodeScanned(inputValueToUse);
+                  if (onDetected) onDetected(inputValueToUse);
+                  if (onScanComplete) onScanComplete({ code: inputValueToUse });
                 }
               }}
-              disabled={!inputValue}
+              disabled={!inputValueToUse}
             >
               Submit
             </Button>

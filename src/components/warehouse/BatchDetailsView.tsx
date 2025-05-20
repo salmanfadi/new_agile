@@ -33,18 +33,18 @@ export const BatchDetailsView: React.FC<BatchDetailsViewProps> = ({ batchData })
     : batchData.createdAt.toLocaleDateString();
 
   // Get appropriate status badge color
-  const getBadgeVariant = (status: string) => {
+  const getBadgeVariant = (status: string): "default" | "destructive" | "outline" | "secondary" | "success" => {
     switch (status.toLowerCase()) {
       case 'completed':
         return 'success';
       case 'processing':
-        return 'warning';
+        return 'secondary';
       case 'failed':
         return 'destructive';
       case 'cancelled':
         return 'outline';
       default:
-        return 'secondary';
+        return 'default';
     }
   };
 

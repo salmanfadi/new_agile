@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { BatchDetailsView } from '@/components/warehouse/BatchDetailsView';
 import BatchItemsTable from '@/components/warehouse/BatchItemsTable';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BatchItem } from '@/types/barcode';
 
 const BatchDetailsPage = () => {
   const { batchId } = useParams<{ batchId: string }>();
@@ -67,16 +68,18 @@ const BatchDetailsPage = () => {
     );
   }
 
-  // Transform the data for the batch items table
-  const batchItems = data.items.map(item => ({
+  // Transform the data for the batch items table to match BatchItem type
+  const batchItems: BatchItem[] = data.items.map(item => ({
     id: item.id,
     barcode: item.barcode,
+    batch_id: data.id,
+    warehouse_id: '', // These fields are required by the BatchItem type
+    location_id: '',
     quantity: item.quantity,
     color: item.color || undefined,
     size: item.size || undefined,
     status: item.status,
-    location: item.locationDetails || 'Unknown',
-    warehouse: item.warehouseName || 'Unknown'
+    created_at: data.createdAt
   }));
 
   const batchData = {

@@ -1,6 +1,7 @@
 
-import { useQuery, type RefetchOptions, type QueryObserverResult } from "@tanstack/react-query";
-import supabase from "@/lib/supabase";
+import { useQuery, type QueryObserverResult } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { BatchItem } from "@/types/barcode";
 
 export interface ProcessedBatchItemType {
   id: string;
@@ -50,6 +51,11 @@ export interface UseProcessedBatchesWithItemsProps {
   page?: number;
 }
 
+export interface ProcessedBatchesResult {
+  batches: ProcessedBatchWithItems[];
+  count: number;
+}
+
 export function useProcessedBatchesWithItems({
   limit = 10,
   status,
@@ -59,7 +65,7 @@ export function useProcessedBatchesWithItems({
   searchTerm,
   warehouseId,
   page = 1,
-}: UseProcessedBatchesWithItemsProps = {}) {
+}: UseProcessedBatchesWithItemsProps = {}): QueryObserverResult<ProcessedBatchesResult, Error> {
   return useQuery({
     queryKey: ['processedBatches', { limit, status, productId, sortBy, sortOrder, searchTerm, warehouseId, page }],
     queryFn: async () => {

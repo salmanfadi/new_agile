@@ -1,192 +1,208 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from '@/hooks/use-toast';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer } from 'lucide-react';
 import { useBoxDetails } from '@/hooks/useBoxDetails';
-import { BoxDetailsView } from '@/components/warehouse/BoxDetailsView';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Tag, Clock, Truck } from 'lucide-react';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { BoxDetailsView } from '@/components/warehouse/BoxDetailsView';
 
 const BoxDetailsPage = () => {
   const { barcode } = useParams<{ barcode: string }>();
   const navigate = useNavigate();
-  const { data: boxDetails, isLoading, error, refetch } = useBoxDetails(barcode || null);
   
-  useEffect(() => {
-    if (error) {
-      toast({
-        title: 'Error loading box details',
-        description: error.message,
-        variant: 'destructive'
-      });
+  const { data: boxDetails, isLoading, error } = useBoxDetails(barcode);
+  
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+        
+        <PageHeader 
+          title="Box Details" 
+          description="Loading box information..." 
+        />
+        
+        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+        
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error:</strong>
+          <span className="block sm:inline"> {error.message}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!boxDetails) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+        
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold mb-2">Box Not Found</h2>
+          <p className="text-gray-500">The box with barcode {barcode} could not be found.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleViewBatch = () => {
+    if (boxDetails.batch_id) {
+      navigate(`/admin/inventory/batch/${boxDetails.batch_id}`);
     }
-  }, [error]);
-  
-  const handleRefresh = () => {
-    toast({
-      title: 'Refreshing data',
-      description: 'Getting the latest box details'
-    });
-    refetch();
   };
-  
-  const handlePrint = () => {
-    if (!boxDetails) return;
-    
-    // Open a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast({
-        title: 'Print failed',
-        description: 'Could not open print window. Please check your popup settings.',
-        variant: 'destructive'
-      });
-      return;
-    }
-    
-    // Create the print content
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Box Barcode - ${boxDetails.barcode}</title>
-        <style>
-          body {
-            font-family: sans-serif;
-            padding: 20px;
-          }
-          .barcode-container {
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 20px;
-            border: 1px solid #ccc;
-          }
-          .details {
-            margin-top: 20px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          th, td {
-            padding: 8px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-          }
-          th {
-            background-color: #f2f2f2;
-          }
-          @media print {
-            .no-print {
-              display: none;
-            }
-            button {
-              display: none;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="no-print">
-          <button onclick="window.print()">Print</button>
-          <hr>
-        </div>
-        
-        <h1>Box Barcode - ${boxDetails.barcode}</h1>
-        
-        <div class="barcode-container">
-          <img src="https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(boxDetails.barcode)}&scale=3&includetext&textsize=13" />
-          <p style="font-family: monospace; margin-top: 10px;">${boxDetails.barcode}</p>
-        </div>
-        
-        <div class="details">
-          <table>
-            <tr>
-              <th>Product:</th>
-              <td>${boxDetails.productName} ${boxDetails.productSku ? `(${boxDetails.productSku})` : ''}</td>
-            </tr>
-            <tr>
-              <th>Quantity:</th>
-              <td>${boxDetails.quantity}</td>
-            </tr>
-            <tr>
-              <th>Batch ID:</th>
-              <td>${boxDetails.batchId.substring(0, 8).toUpperCase()}</td>
-            </tr>
-            <tr>
-              <th>Status:</th>
-              <td>${boxDetails.status}</td>
-            </tr>
-            <tr>
-              <th>Location:</th>
-              <td>${boxDetails.warehouseName} - ${boxDetails.locationDetails}</td>
-            </tr>
-          </table>
-        </div>
-      </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
-    
-    // Wait for resources to load then print
-    printWindow.onload = function() {
-      printWindow.focus();
-      printWindow.print();
-    };
-  };
-  
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(-1)}
-          className="gap-1"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-      </div>
+      <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+      </Button>
       
       <PageHeader 
-        title={isLoading ? "Loading Box Details..." : `Box ${barcode}`}
-        description={isLoading ? "Please wait" : boxDetails?.productName}
+        title="Box Details" 
+        description={boxDetails.productName || 'Unknown Product'} 
       />
-      
-      <div>
-        {isLoading ? (
-          <div className="space-y-6">
-            <Skeleton className="h-[300px] w-full" />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div>Box Information</div>
+              <Badge variant={boxDetails.status === 'available' ? 'success' : 'secondary'}>
+                {boxDetails.status}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Skeleton className="h-[200px] w-full" />
-              <Skeleton className="h-[200px] w-full" />
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Product</h3>
+                <p className="text-base">{boxDetails.productName}</p>
+                {boxDetails.productSku && (
+                  <p className="text-xs text-muted-foreground">SKU: {boxDetails.productSku}</p>
+                )}
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Barcode</h3>
+                <p className="text-base font-mono">{boxDetails.barcode}</p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Batch</h3>
+                <div className="flex items-center">
+                  <p className="text-base mr-2">{boxDetails.batch_id ? `#${boxDetails.batch_id.substring(0, 8)}` : 'N/A'}</p>
+                  {boxDetails.batch_id && (
+                    <Button variant="ghost" size="sm" onClick={handleViewBatch} className="h-6 px-2">
+                      View
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Quantity</h3>
+                <p className="text-base">{boxDetails.quantity} units</p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Location</h3>
+                <p className="text-base">{boxDetails.warehouseName || 'Unknown'}</p>
+                <p className="text-xs text-muted-foreground">{boxDetails.locationDetails || 'Unknown location'}</p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
+                <p className="text-base">{new Date(boxDetails.updated_at).toLocaleDateString()}</p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(boxDetails.updated_at).toLocaleTimeString()}
+                </p>
+              </div>
+              
+              {(boxDetails.color || boxDetails.size) && (
+                <div className="md:col-span-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Attributes</h3>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {boxDetails.color && (
+                      <div className="flex items-center">
+                        <Tag className="h-4 w-4 mr-1 text-blue-500" />
+                        <span>Color: {boxDetails.color}</span>
+                      </div>
+                    )}
+                    {boxDetails.size && (
+                      <div className="flex items-center ml-4">
+                        <Tag className="h-4 w-4 mr-1 text-green-500" />
+                        <span>Size: {boxDetails.size}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        ) : !boxDetails ? (
-          <div className="text-center py-10 border rounded-md bg-background">
-            <h3 className="text-xl font-semibold mb-2">Box Not Found</h3>
-            <p className="text-muted-foreground">
-              The box with barcode <code>{barcode}</code> could not be found.
-            </p>
-            <Button
-              onClick={() => navigate(-1)}
-              className="mt-4"
-            >
-              Go Back
-            </Button>
-          </div>
-        ) : (
-          <BoxDetailsView 
-            box={boxDetails} 
-            onRefresh={handleRefresh}
-            onPrint={handlePrint}
-          />
-        )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {boxDetails.history && boxDetails.history.length > 0 ? (
+              <div className="space-y-4">
+                {boxDetails.history.map((event) => (
+                  <div key={event.id} className="border-l-2 border-gray-200 pl-4 py-1">
+                    <div className="flex items-start">
+                      {event.event_type === 'created' ? (
+                        <Tag className="h-4 w-4 mr-2 mt-1 text-green-500" />
+                      ) : event.event_type === 'moved' ? (
+                        <Truck className="h-4 w-4 mr-2 mt-1 text-blue-500" />
+                      ) : (
+                        <Clock className="h-4 w-4 mr-2 mt-1 text-orange-500" />
+                      )}
+                      <div>
+                        <p className="font-medium text-sm">
+                          {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
+                        </p>
+                        {event.details && (
+                          <p className="text-xs text-muted-foreground">{event.details}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(event.created_at).toLocaleString()} 
+                          {event.user?.name && ` by ${event.user.name}`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No history records available</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+      
+      <BoxDetailsView boxDetails={boxDetails} />
     </div>
   );
 };
