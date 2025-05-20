@@ -10,6 +10,10 @@ export interface BatchItem {
   size?: string;
   status: string;
   created_at: string;
+  warehouseName?: string; // Added for compatibility
+  locationDetails?: string; // Added for compatibility
+  warehouse?: string; // Added for compatibility
+  location?: string; // Added for compatibility
 }
 
 export interface BoxDetails {

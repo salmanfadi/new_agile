@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Camera, Check } from 'lucide-react';
 
 export interface BarcodeScannerProps {
-  onScan: (barcode: string) => void;
+  onScan?: (barcode: string) => void;
   onError?: (error: Error) => void;
   onBarcodeScanned?: (barcode: string) => Promise<void>;
   onScanComplete?: (data: any) => void;
@@ -23,7 +23,7 @@ export interface BarcodeScannerProps {
 }
 
 export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
-  onScan,
+  onScan = () => {}, // Make this optional with a default empty function
   onError,
   onBarcodeScanned,
   onScanComplete,

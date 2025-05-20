@@ -108,11 +108,11 @@ export function useProcessedBatchesWithItems({
           throw new Error(`Error fetching batches: ${batchesError.message}`);
         }
 
-        // For each batch, get its items
+        // For each batch, get its items from batch_items rather than processed_batch_items
         const batchesWithItems = await Promise.all(
           batchesData.map(async (batch) => {
             const { data: itemsData, error: itemsError } = await supabase
-              .from('processed_batch_items')
+              .from('batch_items')
               .select(`
                 *,
                 warehouses:warehouses(name),
@@ -224,7 +224,7 @@ export function useBatchDetails(batchId?: string) {
 
       // Get batch items
       const { data: itemsData, error: itemsError } = await supabase
-        .from('processed_batch_items')
+        .from('batch_items')
         .select(`
           *,
           warehouses:warehouses(name),
@@ -294,7 +294,7 @@ export function useBatchItems(batchId?: string) {
       }
 
       const { data, error } = await supabase
-        .from('processed_batch_items')
+        .from('batch_items')
         .select(`
           *,
           warehouses:warehouses(name),
