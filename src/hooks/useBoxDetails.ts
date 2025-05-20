@@ -41,7 +41,7 @@ export const useBoxDetails = (barcode: string | null): BoxDetailsResult => {
           warehouses:warehouse_id (
             name
           ),
-          warehouse_locations:location_id (
+          locations:location_id (
             floor,
             zone
           )
@@ -93,7 +93,9 @@ export const useBoxDetails = (barcode: string | null): BoxDetailsResult => {
             name: movement.profiles.name,
             role: movement.profiles.role
           } : undefined,
-          details: movement.details?.notes
+          details: movement.details && typeof movement.details === 'object' ? 
+                  (movement.details as any).notes : 
+                  undefined
         };
       });
       
@@ -129,8 +131,8 @@ export const useBoxDetails = (barcode: string | null): BoxDetailsResult => {
       };
 
       // Format the location code
-      const floor = inventoryData.warehouse_locations?.floor;
-      const zone = inventoryData.warehouse_locations?.zone;
+      const floor = inventoryData.locations ? inventoryData.locations.floor : 'Unknown';
+      const zone = inventoryData.locations ? inventoryData.locations.zone : 'Unknown';
       const locationCode = floor && zone ? `${zone}-${floor}` : 'Unknown';
       
       // Construct and return the box details object
@@ -138,15 +140,15 @@ export const useBoxDetails = (barcode: string | null): BoxDetailsResult => {
         id: inventoryData.id,
         barcode: inventoryData.barcode,
         productId: inventoryData.product_id,
-        productName: inventoryData.products?.name || 'Unknown Product',
-        productSku: inventoryData.products?.sku,
+        productName: inventoryData.products ? inventoryData.products.name : 'Unknown Product',
+        productSku: inventoryData.products ? inventoryData.products.sku : undefined,
         quantity: inventoryData.quantity || 0,
         color: inventoryData.color || undefined,
         size: inventoryData.size || undefined,
         status: statusMap[inventoryData.status] || 'In Stock',
         batchId: inventoryData.batch_id || 'unknown',
         warehouseId: inventoryData.warehouse_id,
-        warehouseName: inventoryData.warehouses?.name || 'Unknown Warehouse',
+        warehouseName: inventoryData.warehouses ? inventoryData.warehouses.name : 'Unknown Warehouse',
         locationId: inventoryData.location_id,
         locationCode: locationCode,
         locationDetails: `Floor ${floor}, Zone ${zone}`,
