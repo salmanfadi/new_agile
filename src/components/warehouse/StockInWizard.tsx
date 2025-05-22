@@ -36,6 +36,10 @@ type StepType = 'review' | 'batches' | 'finalize';
 
 const LOCATION_SEPARATOR = '||';
 
+// Use the full Supabase Edge Function URL for stock_in_process
+// Vite: use import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://kysvcexqmywyrawakwfs.supabase.co";
+
 const StockInWizard: React.FC<StockInWizard2Props> = ({
   stockIn,
   userId,
@@ -270,7 +274,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
 
           console.log('Sending payload to Edge Function:', payload);
 
-          const resp = await fetch("/functions/v1/stock_in_process", {
+          const resp = await fetch(`${SUPABASE_URL}/functions/v1/stock_in_process`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

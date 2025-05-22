@@ -33,6 +33,7 @@ interface ScannedBox {
   quantity: number;
   requestedQuantity: number;
   category?: string;
+  batch_id: string | null;
 }
 
 interface GroupedBoxes {
@@ -109,6 +110,7 @@ const StockOutForm: React.FC = () => {
         barcode: string;
         quantity: number;
         product_id: string;
+        batch_id: string | null;
         products: {
           id: string;
           name: string;
@@ -125,6 +127,7 @@ const StockOutForm: React.FC = () => {
           barcode,
           quantity,
           product_id,
+          batch_id,
           products(id, name, sku, category)
         `)
         .eq('barcode', barcode)
@@ -163,7 +166,8 @@ const StockOutForm: React.FC = () => {
         sku: typedData.products[0]?.sku,
         quantity: typedData.quantity,
         requestedQuantity: typedData.quantity, // Default to full box quantity
-        category: typedData.products[0]?.category || 'Uncategorized'
+        category: typedData.products[0]?.category || 'Uncategorized',
+        batch_id: typedData.batch_id ?? null,
       };
       
       setScannedBoxes([...scannedBoxes, newBox]);
@@ -333,9 +337,9 @@ const StockOutForm: React.FC = () => {
         inventory_id: string;
         product_id: string;
         quantity: number;
+        batch_id: string | null;
       }>;
     }) => {
-      // Group boxes by product for the main stock_out record
       const productGroups = data.boxes.reduce((acc, box) => {
         if (!acc[box.product_id]) {
           acc[box.product_id] = 0;
@@ -343,12 +347,8 @@ const StockOutForm: React.FC = () => {
         acc[box.product_id] += box.quantity;
         return acc;
       }, {} as Record<string, number>);
-      
-      // Use the product with the highest quantity as the main product
       const mainProductId = Object.entries(productGroups)
         .sort((a, b) => b[1] - a[1])[0][0];
-      
-      // First create the main stock_out record
       const { data: stockOutRecord, error: stockOutError } = await supabase
         .from('stock_out')
         .insert([{
@@ -359,25 +359,20 @@ const StockOutForm: React.FC = () => {
           reason: data.reason
         }])
         .select('id');
-        
       if (stockOutError) throw stockOutError;
       if (!stockOutRecord || stockOutRecord.length === 0) {
         throw new Error('Failed to create stock out record');
       }
-      
       const stockOutId = stockOutRecord[0].id;
-      
-      // Then create stock_out_details for each box
       const detailsPromises = data.boxes.map(box => 
         supabase.from('stock_out_details').insert([{
           stock_out_id: stockOutId,
           inventory_id: box.inventory_id,
-          quantity: box.quantity
+          quantity: box.quantity,
+          batch_id: box.batch_id,
         }])
       );
-      
       await Promise.all(detailsPromises);
-      
       return stockOutRecord;
     },
     onSuccess: () => {
@@ -479,7 +474,8 @@ const StockOutForm: React.FC = () => {
     const boxesData = scannedBoxes.map(box => ({
       inventory_id: box.inventory_id,
       product_id: box.product_id,
-      quantity: box.requestedQuantity
+      quantity: box.requestedQuantity,
+      batch_id: box.batch_id ?? null,
     }));
     
     createBarcodeStockOutMutation.mutate({
@@ -753,6 +749,11 @@ const StockOutForm: React.FC = () => {
                                   <div className="text-sm text-gray-500 mb-1">
                                     {box.sku ? `SKU: ${box.sku} • ` : ''}
                                     Box ID: {box.barcode}
+                                    {box.batch_id && (
+                                      <>
+                                        {' • '}<span className="text-blue-600">Batch: {box.batch_id}</span>
+                                      </>
+                                    )}
                                   </div>
                                   <div className="flex items-center mt-2">
                                     <Label htmlFor={`box-qty-${index}`} className="mr-2 text-xs">
@@ -770,6 +771,9 @@ const StockOutForm: React.FC = () => {
                                     <span className="text-xs ml-2 text-gray-500">
                                       / {box.quantity} available
                                     </span>
+                                    {box.batch_id && box.quantity === box.requestedQuantity && (
+                                      <span className="ml-2 text-xs text-yellow-600 font-semibold">(Last box in batch!)</span>
+                                    )}
                                   </div>
                                 </div>
                               );
