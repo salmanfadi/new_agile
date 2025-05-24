@@ -14,7 +14,7 @@ import {
   FileText,
   Hash
 } from 'lucide-react';
-import { BatchItemsTable } from './BatchItemsTable';
+import BatchItemsTable from './BatchItemsTable';
 import { ProcessedBatchWithItems } from '@/hooks/useProcessedBatchesWithItems';
 import { format } from 'date-fns';
 
