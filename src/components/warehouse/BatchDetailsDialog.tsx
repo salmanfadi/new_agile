@@ -8,14 +8,12 @@ interface BatchDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   batchId: string;
-  onPrintBarcodes: () => void;
 }
 
 export const BatchDetailsDialog: React.FC<BatchDetailsDialogProps> = ({ 
   open, 
   onOpenChange, 
-  batchId, 
-  onPrintBarcodes 
+  batchId
 }) => {
   const { data, isLoading, error } = useProcessedBatchesWithItems({
     limit: 1,
@@ -38,7 +36,7 @@ export const BatchDetailsDialog: React.FC<BatchDetailsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[90vh] p-0">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
         <BatchDetailView 
           batch={batch} 
           onClose={() => onOpenChange(false)} 

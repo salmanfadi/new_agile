@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useProcessedBatchesWithItems } from '@/hooks/useProcessedBatchesWithItems';
 import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTable';
-import { ProcessedBatchesFilters } from '@/components/warehouse/ProcessedBatchesFilters';
 import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
 
 const EnhancedInventoryView: React.FC = () => {
@@ -61,7 +60,6 @@ const EnhancedInventoryView: React.FC = () => {
   const completedBatches = batches.filter(b => b.status === 'completed').length;
   const processingBatches = batches.filter(b => b.status === 'processing').length;
   const failedBatches = batches.filter(b => b.status === 'failed').length;
-  const totalItems = batches.reduce((sum, batch) => sum + batch.totalBoxes, 0);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -133,26 +131,6 @@ const EnhancedInventoryView: React.FC = () => {
         </Card>
       </div>
 
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Search className="w-5 h-5 mr-2" />
-            Search & Filter Batches
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProcessedBatchesFilters
-            searchTerm={searchTerm}
-            onSearchChange={handleSearch}
-            statusFilter={statusFilter}
-            onStatusChange={handleStatusFilter}
-            warehouseFilter={warehouseFilter}
-            onWarehouseChange={handleWarehouseFilter}
-          />
-        </CardContent>
-      </Card>
-
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
@@ -221,12 +199,18 @@ const EnhancedInventoryView: React.FC = () => {
             </CardHeader>
             <CardContent>
               <ProcessedBatchesTable
-                batches={batches}
+                data={batches}
                 isLoading={processedBatchesQuery.isLoading}
                 error={processedBatchesQuery.error}
                 currentPage={currentPage}
                 totalPages={Math.ceil(batchCount / 10)}
                 onPageChange={setCurrentPage}
+                searchTerm={searchTerm}
+                onSearchChange={handleSearch}
+                statusFilter={statusFilter}
+                onStatusChange={handleStatusFilter}
+                warehouseFilter={warehouseFilter}
+                onWarehouseChange={handleWarehouseFilter}
               />
             </CardContent>
           </Card>
@@ -241,7 +225,13 @@ const EnhancedInventoryView: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <InventoryTableContainer />
+              <InventoryTableContainer 
+                warehouseFilter=""
+                batchFilter=""
+                statusFilter=""
+                searchTerm=""
+                highlightedBarcode=""
+              />
             </CardContent>
           </Card>
         </TabsContent>
