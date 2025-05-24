@@ -199,7 +199,7 @@ const EnhancedInventoryView: React.FC = () => {
             </CardHeader>
             <CardContent>
               <ProcessedBatchesTable
-                data={batches}
+                batches={batches}
                 isLoading={processedBatchesQuery.isLoading}
                 error={processedBatchesQuery.error}
                 currentPage={currentPage}

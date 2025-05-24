@@ -27,7 +27,9 @@ interface BatchDetailViewProps {
 const transformBatchItems = (items: ProcessedBatchItemType[]) => {
   return items.map(item => ({
     ...item,
-    batch_id: item.batch_id || '', // Provide default empty string if undefined
+    batch_id: item.batch_id || '',
+    warehouse_id: item.warehouse_id || '',
+    location_id: item.location_id || '',
   }));
 };
 
