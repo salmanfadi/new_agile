@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Eye, Printer } from 'lucide-react';
 import { format } from 'date-fns';
-import { useProcessedBatches, ProcessedBatchType } from '@/hooks/useProcessedBatches';
+import { useProcessedBatches } from '@/hooks/useProcessedBatches';
 
 export interface ProcessedBatchesTableProps {
   filters?: Record<string, any>;
@@ -37,7 +37,7 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
     isLoading, 
     isError, 
     error,
-    refetch // Add refetch method to manually refresh data
+    refetch
   } = useProcessedBatches(page, pageSize, filters);
   const totalCount = data?.count || 0;
   const totalPages = Math.ceil(totalCount / pageSize);

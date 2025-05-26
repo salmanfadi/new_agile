@@ -1,272 +1,169 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Download, 
-  Printer, 
-  Package, 
-  MapPin, 
-  Calendar,
-  User,
-  FileText,
-  Hash
-} from 'lucide-react';
-import BatchItemsTable from './BatchItemsTable';
-import { ProcessedBatchWithItems, ProcessedBatchItemType } from '@/hooks/useProcessedBatchesWithItems';
 import { format } from 'date-fns';
+import BatchItemsTable, { BatchItem } from './BatchItemsTable';
 
 interface BatchDetailViewProps {
-  batch: ProcessedBatchWithItems;
-  onClose: () => void;
+  batch: {
+    id: string;
+    product?: {
+      name: string;
+      sku?: string;
+    };
+    totalBoxes: number;
+    totalQuantity: number;
+    status: string;
+    createdAt: string;
+    processorName?: string;
+    warehouseName?: string;
+    locationDetails?: string;
+    source?: string;
+    notes?: string;
+  };
+  items: any[];
+  isLoading?: boolean;
+  error?: Error | null;
+  onPrintBarcode?: (barcode: string) => void;
+  onViewItemDetails?: (itemId: string) => void;
 }
 
-// Transform ProcessedBatchItemType to match BatchItemsTable expected format
-const transformBatchItems = (items: ProcessedBatchItemType[]) => {
-  return items.map(item => ({
-    ...item,
-    batch_id: item.batch_id || '',
-    warehouse_id: item.warehouse_id || '',
-    location_id: item.location_id || '',
-  }));
-};
-
-export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batch, onClose }) => {
-  const [activeTab, setActiveTab] = useState('summary');
-
-  const handleExportCSV = () => {
-    const csvContent = [
-      ['Barcode', 'Quantity', 'Color', 'Size', 'Status', 'Warehouse', 'Location'],
-      ...batch.items.map(item => [
-        item.barcode,
-        item.quantity.toString(),
-        item.color || '',
-        item.size || '',
-        item.status,
-        item.warehouseName || '',
-        item.locationDetails || ''
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `batch-${batch.id}-items.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handlePrintBarcodes = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const barcodeHtml = batch.items.map(item => `
-      <div style="margin: 10px; text-align: center;">
-        <div style="font-family: 'Courier New', monospace; font-size: 16px; border: 1px solid #000; padding: 10px;">
-          ${item.barcode}
-        </div>
-        <div style="font-size: 12px; margin-top: 5px;">
-          ${item.color || ''} ${item.size || ''} - Qty: ${item.quantity}
-        </div>
-      </div>
-    `).join('');
-
-    printWindow.document.write(`
-      <html>
-        <head><title>Batch ${batch.id} - Barcodes</title></head>
-        <body>
-          <h2>Batch ${batch.id} - Barcodes</h2>
-          <div style="display: flex; flex-wrap: wrap;">
-            ${barcodeHtml}
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+const BatchDetailView: React.FC<BatchDetailViewProps> = ({
+  batch,
+  items,
+  isLoading = false,
+  error = null,
+  onPrintBarcode,
+  onViewItemDetails,
+}) => {
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return <Badge className="bg-green-500">Completed</Badge>;
+      case 'processing':
+        return <Badge className="bg-blue-500">Processing</Badge>;
+      case 'failed':
+        return <Badge className="bg-red-500">Failed</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
     }
   };
 
+  // Transform items to match BatchItem interface
+  const transformedItems: BatchItem[] = items.map(item => ({
+    id: item.id,
+    batch_id: item.batch_id || batch.id,
+    barcode: item.barcode,
+    quantity: item.quantity,
+    color: item.color,
+    size: item.size,
+    warehouse_id: item.warehouse_id,
+    warehouseName: item.warehouseName,
+    location_id: item.location_id,
+    locationDetails: item.locationDetails,
+    status: item.status,
+    created_at: item.created_at || batch.createdAt || new Date().toISOString(),
+  }));
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Batch Details</h2>
-          <p className="text-gray-600">Batch ID: {batch.id}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleExportCSV} variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-          <Button onClick={handlePrintBarcodes} variant="outline" size="sm">
-            <Printer className="w-4 h-4 mr-2" />
-            Print Barcodes
-          </Button>
-          <Button onClick={onClose} variant="outline" size="sm">
-            Close
-          </Button>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="summary">Summary</TabsTrigger>
-          <TabsTrigger value="items">Items ({batch.items.length})</TabsTrigger>
-          <TabsTrigger value="barcodes">Barcodes</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="summary" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center">
-                  <Package className="w-4 h-4 mr-2" />
-                  Batch Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Badge className={getStatusColor(batch.status)}>
-                  {batch.status}
-                </Badge>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center">
-                  <Hash className="w-4 h-4 mr-2" />
-                  Total Items
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{batch.totalBoxes}</div>
-                <div className="text-sm text-gray-500">
-                  Qty: {batch.totalQuantity}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Created
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm">
-                  {format(new Date(batch.createdAt), 'MMM d, yyyy')}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {format(new Date(batch.createdAt), 'h:mm a')}
-                </div>
-              </CardContent>
-            </Card>
-
-            {batch.product && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <Package className="w-4 h-4 mr-2" />
-                    Product
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="font-medium">{batch.product.name}</div>
-                  {batch.product.sku && (
-                    <div className="text-sm text-gray-500">SKU: {batch.product.sku}</div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {batch.warehouseName && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Location
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="font-medium">{batch.warehouseName}</div>
-                  {batch.locationDetails && (
-                    <div className="text-sm text-gray-500">{batch.locationDetails}</div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {batch.processorName && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <User className="w-4 h-4 mr-2" />
-                    Processed By
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="font-medium">{batch.processorName}</div>
-                </CardContent>
-              </Card>
-            )}
+    <div className="space-y-6">
+      {/* Batch Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Batch Details</span>
+            {getStatusBadge(batch.status)}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-medium text-gray-900">Product Information</h4>
+              <p className="text-sm text-gray-600">
+                <strong>Name:</strong> {batch.product?.name || 'Unknown Product'}
+              </p>
+              {batch.product?.sku && (
+                <p className="text-sm text-gray-600">
+                  <strong>SKU:</strong> {batch.product.sku}
+                </p>
+              )}
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-gray-900">Batch Information</h4>
+              <p className="text-sm text-gray-600">
+                <strong>Total Boxes:</strong> {batch.totalBoxes}
+              </p>
+              <p className="text-sm text-gray-600">
+                <strong>Total Quantity:</strong> {batch.totalQuantity}
+              </p>
+              <p className="text-sm text-gray-600">
+                <strong>Created:</strong> {format(new Date(batch.createdAt), 'MMM d, yyyy h:mm a')}
+              </p>
+            </div>
           </div>
 
-          {batch.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium flex items-center">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm">{batch.notes}</p>
-              </CardContent>
-            </Card>
+          {batch.processorName && (
+            <div>
+              <h4 className="font-medium text-gray-900">Processing Information</h4>
+              <p className="text-sm text-gray-600">
+                <strong>Processed by:</strong> {batch.processorName}
+              </p>
+            </div>
           )}
-        </TabsContent>
 
-        <TabsContent value="items">
-          <BatchItemsTable 
-            items={transformBatchItems(batch.items)} 
-            isLoading={false}
-            error={null}
+          {(batch.warehouseName || batch.locationDetails) && (
+            <div>
+              <h4 className="font-medium text-gray-900">Location Information</h4>
+              {batch.warehouseName && (
+                <p className="text-sm text-gray-600">
+                  <strong>Warehouse:</strong> {batch.warehouseName}
+                </p>
+              )}
+              {batch.locationDetails && (
+                <p className="text-sm text-gray-600">
+                  <strong>Location:</strong> {batch.locationDetails}
+                </p>
+              )}
+            </div>
+          )}
+
+          {(batch.source || batch.notes) && (
+            <div>
+              <h4 className="font-medium text-gray-900">Additional Information</h4>
+              {batch.source && (
+                <p className="text-sm text-gray-600">
+                  <strong>Source:</strong> {batch.source}
+                </p>
+              )}
+              {batch.notes && (
+                <p className="text-sm text-gray-600">
+                  <strong>Notes:</strong> {batch.notes}
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Batch Items */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Batch Items</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BatchItemsTable
+            items={transformedItems}
+            isLoading={isLoading}
+            error={error}
+            onPrintBarcode={onPrintBarcode}
+            onViewDetails={onViewItemDetails}
           />
-        </TabsContent>
-
-        <TabsContent value="barcodes">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {batch.items.map((item) => (
-              <Card key={item.id} className="p-4">
-                <div className="text-center">
-                  <div className="font-mono text-lg font-bold border-2 border-gray-300 p-2 mb-2">
-                    {item.barcode}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {item.color} {item.size} - Qty: {item.quantity}
-                  </div>
-                  <Badge variant="outline" className="mt-2">
-                    {item.status}
-                  </Badge>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 };
+
+export default BatchDetailView;
