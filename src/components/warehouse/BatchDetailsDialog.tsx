@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { BatchDetailView } from './BatchDetailView';
+import BatchDetailView from './BatchDetailView';
 import { useProcessedBatchesWithItems } from '@/hooks/useProcessedBatchesWithItems';
 
 interface BatchDetailsDialogProps {
@@ -38,8 +38,10 @@ export const BatchDetailsDialog: React.FC<BatchDetailsDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
         <BatchDetailView 
-          batch={batch} 
-          onClose={() => onOpenChange(false)} 
+          batch={batch}
+          items={batch.items || []}
+          isLoading={isLoading}
+          error={error as Error | null}
         />
       </DialogContent>
     </Dialog>

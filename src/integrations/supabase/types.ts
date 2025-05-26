@@ -200,7 +200,6 @@ export type Database = {
         Row: {
           barcode: string | null
           batch_id: string | null
-          batch_number: string
           color: string | null
           created_at: string | null
           expiry_date: string | null
@@ -210,13 +209,14 @@ export type Database = {
           quantity: number
           size: string | null
           status: string | null
+          stock_in_detail_id: string | null
+          stock_in_id: string | null
           updated_at: string | null
           warehouse_id: string | null
         }
         Insert: {
           barcode?: string | null
           batch_id?: string | null
-          batch_number: string
           color?: string | null
           created_at?: string | null
           expiry_date?: string | null
@@ -226,13 +226,14 @@ export type Database = {
           quantity?: number
           size?: string | null
           status?: string | null
+          stock_in_detail_id?: string | null
+          stock_in_id?: string | null
           updated_at?: string | null
           warehouse_id?: string | null
         }
         Update: {
           barcode?: string | null
           batch_id?: string | null
-          batch_number?: string
           color?: string | null
           created_at?: string | null
           expiry_date?: string | null
@@ -242,6 +243,8 @@ export type Database = {
           quantity?: number
           size?: string | null
           status?: string | null
+          stock_in_detail_id?: string | null
+          stock_in_id?: string | null
           updated_at?: string | null
           warehouse_id?: string | null
         }
@@ -254,10 +257,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fk_inventory_product"
+            foreignKeyName: "fk_inventory_products"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventory_stock_in"
+            columns: ["stock_in_id"]
+            isOneToOne: false
+            referencedRelation: "stock_in"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventory_stock_in_detail"
+            columns: ["stock_in_detail_id"]
+            isOneToOne: false
+            referencedRelation: "stock_in_details"
             referencedColumns: ["id"]
           },
           {
@@ -673,7 +690,7 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fk_processed_batches_product"
+            foreignKeyName: "fk_processed_batches_products"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -124,7 +123,6 @@ export const useBatchStockIn = (userId: string = '') => {
         throw new Error(`These barcodes already exist in inventory: ${duplicates}`);
       }
       
-      // Create a client to use transaction-like operations
       // Create processed batch record
       const { data: batchData, error: batchError } = await supabase
         .from('processed_batches')
@@ -224,7 +222,7 @@ export const useBatchStockIn = (userId: string = '') => {
             });
           }
           
-          // 3. Create inventory entry with reference to the stock_in_detail
+          // 3. Create inventory entry with reference to the stock_in_detail - updated to use correct columns
           const { error: inventoryError, data: inventoryData } = await supabase
             .from('inventory')
             .insert({

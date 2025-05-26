@@ -73,7 +73,7 @@ export function useProcessedBatchesWithItems({
     queryKey: ['processedBatches', { limit, status, productId, sortBy, sortOrder, searchTerm, warehouseId, page }],
     queryFn: async () => {
       try {
-        // First, get processed batches with product and warehouse info
+        // First, get processed batches with product and warehouse info - use proper foreign key hint
         let query = supabase
           .from('processed_batches')
           .select(`
@@ -89,7 +89,7 @@ export function useProcessedBatchesWithItems({
             total_boxes, 
             processed_by, 
             processed_at,
-            products:product_id (
+            products!fk_processed_batches_products (
               id,
               name,
               sku

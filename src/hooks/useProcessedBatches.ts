@@ -115,7 +115,7 @@ const fetchProcessedBatches = async (
     const { count: totalCount, error: countError } = await countQuery;
     if (countError) throw countError;
 
-    // 2. Get the paginated data with joins
+    // 2. Get the paginated data with joins - fix the foreign key hint
     let dataQuery = supabase
       .from('processed_batches')
       .select(`
@@ -130,7 +130,7 @@ const fetchProcessedBatches = async (
         processed_at,
         total_quantity,
         warehouse_id,
-        products:product_id (
+        products!fk_processed_batches_products (
           name,
           sku
         )
@@ -206,7 +206,7 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
         processed_at,
         total_quantity,
         warehouse_id,
-        products:product_id (
+        products!fk_processed_batches_products (
           name,
           sku,
           description
