@@ -1,49 +1,12 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { toast } from '@/components/ui/use-toast';
-import { User, Users, Edit, Plus, Eye, EyeOff, Ban, UserCheck, Filter, ExternalLink, KeyRound } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { UserRole } from '@/types/auth';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { Plus, Filter } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,95 +17,24 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Tabs,
-  TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-
-// Business Types
-const businessTypes = [
-  { value: 'manufacturer', label: 'Manufacturer' },
-  { value: 'wholesaler', label: 'Wholesaler' },
-  { value: 'retailer', label: 'Retailer' },
-  { value: 'distributor', label: 'Distributor' },
-  { value: 'ecommerce', label: 'E-Commerce' },
-  { value: 'service_provider', label: 'Service Provider' },
-  { value: 'other', label: 'Other' }
-];
-
-interface UserData {
-  id: string;
-  username: string;
-  name: string | null;
-  role: UserRole;
-  active: boolean;
-  created_at: string;
-  company_name?: string | null;
-  gstin?: string | null;
-  phone?: string | null;
-  business_type?: string | null;
-  address?: string | null;
-  business_reg_number?: string | null;
-}
-
-// Define form schema for staff edit
-const editStaffSchema = z.object({
-  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
-  name: z.string().optional(),
-  role: z.enum(['admin', 'warehouse_manager', 'field_operator', 'sales_operator', 'customer'] as const),
-  active: z.boolean().default(true),
-});
-
-// Define form schema for customer edit
-const editCustomerSchema = z.object({
-  username: z.string().email({ message: "Invalid email address" }),
-  name: z.string().min(2, { message: "Full name is required" }),
-  company_name: z.string().min(2, { message: "Company name is required" }),
-  gstin: z.string().optional(),
-  phone: z.string().optional(),
-  business_type: z.string().optional(),
-  address: z.string().optional(),
-  business_reg_number: z.string().optional(),
-  active: z.boolean().default(true),
-  // Role is fixed as 'customer' for this schema
-});
-
-// Schema for reset password form
-const resetPasswordSchema = z.object({
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
-});
-
-// Define form schema for user creation
-const createUserSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-  password: z.string().min(8, { 
-    message: "Password must be at least 8 characters" 
-  }),
-  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
-  name: z.string().min(2, { message: "Name is required" }),
-  role: z.enum(['admin', 'warehouse_manager', 'field_operator', 'sales_operator', 'customer'] as const),
-  active: z.boolean().default(true),
-  // Customer fields (optional based on role)
-  company_name: z.string().optional(),
-  gstin: z.string().optional(),
-  phone: z.string().optional(),
-  business_type: z.string().optional(),
-  address: z.string().optional(),
-  business_reg_number: z.string().optional(),
-});
-
-type EditStaffFormValues = z.infer<typeof editStaffSchema>;
-type EditCustomerFormValues = z.infer<typeof editCustomerSchema>;
-type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
-type CreateUserFormValues = z.infer<typeof createUserSchema>;
-
-// This is for audit logging
-interface AuditLogEntry {
-  userId: string;
-  action: string;
-  details: object;
-  timestamp: string;
-}
+import { UserRole } from '@/types/auth';
+import { UserData } from '@/types/userManagement';
+import { logAdminAction } from '@/utils/userManagementUtils';
+import { ViewUserDetailsDialog } from '@/components/admin/users/ViewUserDetailsDialog';
+import { EditStaffDialog } from '@/components/admin/users/EditStaffDialog';
+import { EditCustomerDialog } from '@/components/admin/users/EditCustomerDialog';
+import { ResetPasswordDialog } from '@/components/admin/users/ResetPasswordDialog';
+import { CreateUserDialog } from '@/components/admin/users/CreateUserDialog';
+import { UsersTable } from '@/components/admin/users/UsersTable';
+import {
+  EditStaffFormValues,
+  EditCustomerFormValues,
+  ResetPasswordFormValues,
+  CreateUserFormValues,
+} from '@/components/admin/users/userFormSchemas';
 
 const UsersManagement = () => {
   const queryClient = useQueryClient();
@@ -154,87 +46,8 @@ const UsersManagement = () => {
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [viewingUser, setViewingUser] = useState<UserData | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('all');
-  const [showCustomerFields, setShowCustomerFields] = useState(false);
-
-  // Edit staff form
-  const editStaffForm = useForm<EditStaffFormValues>({
-    resolver: zodResolver(editStaffSchema),
-    defaultValues: {
-      username: '',
-      name: '',
-      role: 'field_operator',
-      active: true,
-    },
-  });
-
-  // Edit customer form
-  const editCustomerForm = useForm<EditCustomerFormValues>({
-    resolver: zodResolver(editCustomerSchema),
-    defaultValues: {
-      username: '',
-      name: '',
-      company_name: '',
-      gstin: '',
-      phone: '',
-      business_type: '',
-      address: '',
-      business_reg_number: '',
-      active: true,
-    },
-  });
-
-  // Reset password form
-  const resetPasswordForm = useForm<ResetPasswordFormValues>({
-    resolver: zodResolver(resetPasswordSchema),
-    defaultValues: {
-      password: '',
-    },
-  });
-
-  // Create user form
-  const createUserForm = useForm<CreateUserFormValues>({
-    resolver: zodResolver(createUserSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-      username: '',
-      name: '',
-      role: 'field_operator',
-      active: true,
-      company_name: '',
-      gstin: '',
-      phone: '',
-      business_type: '',
-      address: '',
-      business_reg_number: '',
-    },
-  });
-
-  // Log admin actions for audit
-  const logAdminAction = async (entry: AuditLogEntry) => {
-    try {
-      // In a real system, you'd save this to a database table
-      // For now, we'll just log to console
-      console.log('ADMIN AUDIT LOG:', entry);
-      
-      // You could implement this in the future with a database table:
-      /*
-      await supabase
-        .from('admin_audit_logs')
-        .insert({
-          user_id: entry.userId,
-          action: entry.action,
-          details: entry.details,
-          created_at: entry.timestamp,
-        });
-      */
-    } catch (error) {
-      console.error('Failed to log admin action:', error);
-    }
-  };
 
   // Fetch users from the database
   const { data: users, isLoading } = useQuery({
@@ -342,7 +155,6 @@ const UsersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsCreateDialogOpen(false);
-      createUserForm.reset();
       toast({
         title: 'User created',
         description: 'New user has been created successfully.',
@@ -469,7 +281,6 @@ const UsersManagement = () => {
     },
     onSuccess: () => {
       setIsResetPasswordDialogOpen(false);
-      resetPasswordForm.reset();
       toast({
         title: 'Password reset',
         description: 'User password has been reset successfully.',
@@ -527,39 +338,12 @@ const UsersManagement = () => {
     },
   });
 
-  // Watch the role field to show/hide customer fields
-  useEffect(() => {
-    const subscription = createUserForm.watch((value, { name }) => {
-      if (name === 'role' || name === undefined) {
-        setShowCustomerFields(value.role === 'customer');
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [createUserForm.watch]);
-
   const handleEditUser = (user: UserData) => {
     if (user.role === 'customer') {
       setEditingUser(user);
-      editCustomerForm.reset({
-        username: user.username,
-        name: user.name || '',
-        company_name: user.company_name || '',
-        gstin: user.gstin || '',
-        phone: user.phone || '',
-        business_type: user.business_type || '',
-        address: user.address || '',
-        business_reg_number: user.business_reg_number || '',
-        active: user.active,
-      });
       setIsCustomerEditDialogOpen(true);
     } else {
       setEditingUser(user);
-      editStaffForm.reset({
-        username: user.username,
-        name: user.name || '',
-        role: user.role,
-        active: user.active,
-      });
       setIsEditDialogOpen(true);
     }
   };
@@ -614,25 +398,8 @@ const UsersManagement = () => {
     });
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const getRoleBadgeColor = (role: UserRole) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-red-100 text-red-800';
-      case 'warehouse_manager':
-        return 'bg-blue-100 text-blue-800';
-      case 'field_operator':
-        return 'bg-green-100 text-green-800';
-      case 'sales_operator':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'customer':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const handleCreateUserSubmit = (values: CreateUserFormValues) => {
+    createUserMutation.mutate(values);
   };
 
   // Filter users based on selected role
@@ -649,11 +416,6 @@ const UsersManagement = () => {
     }
     return true;
   });
-
-  // Add the missing handleCreateUserSubmit function
-  const handleCreateUserSubmit = (values: CreateUserFormValues) => {
-    createUserMutation.mutate(values);
-  };
 
   return (
     <div className="space-y-6">
@@ -710,284 +472,55 @@ const UsersManagement = () => {
       
       <Card>
         <CardContent className="p-6">
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="h-10 w-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  {activeTab === 'customers' && (
-                    <TableHead>Company</TableHead>
-                  )}
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers && filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.username}</TableCell>
-                      <TableCell>{user.name || '-'}</TableCell>
-                      <TableCell>
-                        <Badge className={getRoleBadgeColor(user.role)} variant="outline">
-                          {user.role.replace('_', ' ')}
-                        </Badge>
-                      </TableCell>
-                      {activeTab === 'customers' && (
-                        <TableCell>{user.company_name || '-'}</TableCell>
-                      )}
-                      <TableCell>
-                        <Badge variant={user.active ? 'default' : 'secondary'}>
-                          {user.active ? 'Active' : 'Blocked'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => handleViewUserDetails(user)}
-                            title="View details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => handleEditUser(user)}
-                            title="Edit user"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => handleResetPassword(user)}
-                            title="Reset password"
-                          >
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant={user.active ? "ghost" : "outline"} 
-                            onClick={() => handleToggleUserStatus(user)}
-                            className={user.active ? "text-red-500 hover:text-red-700" : "text-green-500 hover:text-green-700"}
-                            title={user.active ? "Block user" : "Activate user"}
-                          >
-                            {user.active ? <Ban className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={activeTab === 'customers' ? 7 : 6} className="text-center py-8 text-gray-500">
-                      No users found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
+          <UsersTable
+            users={filteredUsers || []}
+            activeTab={activeTab}
+            isLoading={isLoading}
+            onViewDetails={handleViewUserDetails}
+            onEdit={handleEditUser}
+            onResetPassword={handleResetPassword}
+            onToggleStatus={handleToggleUserStatus}
+          />
         </CardContent>
       </Card>
 
-      {/* View User Details Dialog */}
-      <Dialog open={isViewDetailsDialogOpen} onOpenChange={setIsViewDetailsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>User Details</DialogTitle>
-          </DialogHeader>
-          
-          {viewingUser && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Basic Information</h3>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <div className="text-sm font-medium">Username:</div>
-                  <div className="text-sm">{viewingUser.username}</div>
-                  
-                  <div className="text-sm font-medium">Name:</div>
-                  <div className="text-sm">{viewingUser.name || '-'}</div>
-                  
-                  <div className="text-sm font-medium">Role:</div>
-                  <div className="text-sm">
-                    <Badge className={getRoleBadgeColor(viewingUser.role)} variant="outline">
-                      {viewingUser.role.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                  
-                  <div className="text-sm font-medium">Status:</div>
-                  <div className="text-sm">
-                    <Badge variant={viewingUser.active ? 'default' : 'secondary'}>
-                      {viewingUser.active ? 'Active' : 'Blocked'}
-                    </Badge>
-                  </div>
-                  
-                  <div className="text-sm font-medium">Created:</div>
-                  <div className="text-sm">{new Date(viewingUser.created_at).toLocaleString()}</div>
-                </div>
-              </div>
-              
-              {viewingUser.role === 'customer' && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Customer Information</h3>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    <div className="text-sm font-medium">Company:</div>
-                    <div className="text-sm">{viewingUser.company_name || '-'}</div>
-                    
-                    <div className="text-sm font-medium">GSTIN:</div>
-                    <div className="text-sm">{viewingUser.gstin || '-'}</div>
-                    
-                    <div className="text-sm font-medium">Phone:</div>
-                    <div className="text-sm">{viewingUser.phone || '-'}</div>
-                    
-                    <div className="text-sm font-medium">Business Type:</div>
-                    <div className="text-sm">
-                      {viewingUser.business_type 
-                        ? businessTypes.find(t => t.value === viewingUser.business_type)?.label || viewingUser.business_type
-                        : '-'
-                      }
-                    </div>
-                    
-                    <div className="text-sm font-medium">Address:</div>
-                    <div className="text-sm">{viewingUser.address || '-'}</div>
-                    
-                    <div className="text-sm font-medium">Business Reg #:</div>
-                    <div className="text-sm">{viewingUser.business_reg_number || '-'}</div>
-                  </div>
-                </div>
-              )}
-              
-              <DialogFooter>
-                <Button
-                  onClick={() => setIsViewDetailsDialogOpen(false)}
-                >
-                  Close
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* All Dialogs */}
+      <ViewUserDetailsDialog
+        open={isViewDetailsDialogOpen}
+        onOpenChange={setIsViewDetailsDialogOpen}
+        user={viewingUser}
+      />
 
-      {/* Edit Staff Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Staff Member</DialogTitle>
-            <DialogDescription>
-              Update staff member information and permissions.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...editStaffForm}>
-            <form onSubmit={editStaffForm.handleSubmit(handleEditStaffSubmit)} className="space-y-4">
-              <FormField
-                control={editStaffForm.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={editStaffForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={editStaffForm.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
-                        <SelectItem value="field_operator">Field Operator</SelectItem>
-                        <SelectItem value="sales_operator">Sales Operator</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={editStaffForm.control}
-                name="active"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel>Active Status</FormLabel>
-                      <FormDescription>
-                        User can access the system when active
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={field.onChange}
-                        className="h-4 w-4"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateStaffMutation.isPending}
-                >
-                  {updateStaffMutation.isPending ? 'Updating...' : 'Update User'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <EditStaffDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        user={editingUser}
+        onSubmit={handleEditStaffSubmit}
+        isLoading={updateStaffMutation.isPending}
+      />
 
-      {/* Remaining dialogs would go here - Create User, Edit Customer, Reset Password */}
+      <EditCustomerDialog
+        open={isCustomerEditDialogOpen}
+        onOpenChange={setIsCustomerEditDialogOpen}
+        user={editingUser}
+        onSubmit={handleEditCustomerSubmit}
+        isLoading={updateCustomerMutation.isPending}
+      />
+
+      <ResetPasswordDialog
+        open={isResetPasswordDialogOpen}
+        onOpenChange={setIsResetPasswordDialogOpen}
+        user={selectedUser}
+        onSubmit={handleResetPasswordSubmit}
+        isLoading={resetPasswordMutation.isPending}
+      />
+
+      <CreateUserDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSubmit={handleCreateUserSubmit}
+        isLoading={createUserMutation.isPending}
+      />
     </div>
   );
 };
