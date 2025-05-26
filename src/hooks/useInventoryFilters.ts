@@ -63,7 +63,11 @@ export const useInventoryFilters = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('processed_batches')
-        .select('id, product_id, products:product_id(name)')
+        .select(`
+          id, 
+          product_id, 
+          products!fk_processed_batches_products(name)
+        `)
         .order('processed_at', { ascending: false })
         .limit(20);
       
