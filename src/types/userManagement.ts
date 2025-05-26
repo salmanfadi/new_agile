@@ -8,6 +8,7 @@ export interface UserData {
   role: UserRole;
   active: boolean;
   created_at: string;
+  updated_at?: string;
   company_name?: string | null;
   gstin?: string | null;
   phone?: string | null;
