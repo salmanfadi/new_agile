@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -42,10 +41,14 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated && user && !authLoading) {
       console.log("User is authenticated, redirecting to appropriate dashboard");
+      console.log("Current user:", user);
       
       // Determine correct route based on user role
       let targetRoute = '/';
-      if (user.role === 'admin') targetRoute = '/admin';
+      if (user.role === 'admin') {
+        console.log("User is admin, redirecting to admin dashboard");
+        targetRoute = '/admin';
+      }
       else if (user.role === 'warehouse_manager') targetRoute = '/manager';
       else if (user.role === 'field_operator') targetRoute = '/field';
       else if (user.role === 'sales_operator') targetRoute = '/sales';

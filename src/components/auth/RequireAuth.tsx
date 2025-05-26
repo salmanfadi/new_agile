@@ -1,4 +1,3 @@
-
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -29,8 +28,16 @@ export const RequireAuth = ({ children, allowedRoles }: RequireAuthProps) => {
   }
 
   // If roles are specified, check if user has one of them
-  if (allowedRoles && user && !allowedRoles.includes(user.role as UserRole)) {
-    return <Navigate to="/unauthorized" replace />;
+  if (allowedRoles && user) {
+    // Admin has access to all routes
+    if (user.role === 'admin') {
+      return <>{children}</>;
+    }
+    
+    // For non-admin users, check if they have the required role
+    if (!allowedRoles.includes(user.role as UserRole)) {
+      return <Navigate to="/unauthorized" replace />;
+    }
   }
 
   return <>{children}</>;
