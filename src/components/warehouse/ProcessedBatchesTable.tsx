@@ -60,13 +60,19 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
   
   // Only use the hook if batches aren't passed as props
   const shouldFetchData = !passedBatches;
+  
+  // Conditionally call the hook based on whether we need to fetch data
+  const hookResult = shouldFetchData 
+    ? useProcessedBatches(page, pageSize, filters)
+    : { data: null, isLoading: false, isError: false, error: null, refetch: () => {} };
+  
   const { 
     data, 
     isLoading: hookIsLoading, 
     isError, 
     error: hookError,
     refetch
-  } = useProcessedBatches(page, pageSize, filters, { enabled: shouldFetchData });
+  } = hookResult;
 
   // Use passed props or hook data
   const batches = passedBatches || data?.data || [];
