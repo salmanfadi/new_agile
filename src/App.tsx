@@ -29,6 +29,7 @@ import BarcodeInventoryPage from './pages/admin/BarcodeInventoryPage';
 import BatchStockInPage from './pages/admin/BatchStockInPage';
 import AdminEnhancedInventoryView from './pages/admin/EnhancedInventoryView';
 import BatchDetailsPage from './pages/admin/BatchDetailsPage';
+import ReserveStock from './pages/admin/ReserveStock';
 
 // Manager pages
 import ManagerDashboard from './pages/warehouseManager/ManagerDashboard';
@@ -164,6 +165,7 @@ function App() {
                 <Route path="/admin/stock-in" element={<StockInManagement />} />
                 <Route path="/admin/stock-out" element={<StockOutManagement />} />
                 <Route path="/admin/transfers" element={<InventoryTransfers />} />
+                <Route path="/admin/reserve-stock" element={<ReserveStock />} />
                 
                 {/* Admin Batch Stock In Routes */}
                 <Route path="/admin/stock-in/batch/:stockInId" element={<BatchStockInPage />} />
@@ -202,8 +204,6 @@ function App() {
                 <Route path="/manager/stock-in/batch/:stockInId" element={<ManagerBatchStockInPage />} />
                 <Route path="/manager/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />
                 <Route path="/manager/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
-                
-                {/* Add unified batch processing routes */}
                 <Route path="/manager/stock-in/:stockInId/unified" element={<UnifiedBatchProcessingPage />} />
               </Route>
               

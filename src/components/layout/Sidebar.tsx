@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { 
   LayoutGrid, Boxes, PackageOpen, Package, 
   Users, ShoppingBag, BarChart3, Warehouse, PanelLeft,
-  BarChart, BarChart2, ChartBar
+  BarChart, BarChart2, ChartBar, Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,6 +54,10 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 <NavLink to="/admin/stock-out" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Package className="mr-3 h-5 w-5" />
                   <span>Stock Out</span>
+                </NavLink>
+                <NavLink to="/admin/reserve-stock" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Clock className="mr-3 h-5 w-5" />
+                  <span>Reserve Stock</span>
                 </NavLink>
                 <NavLink to="/admin/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Warehouse className="mr-3 h-5 w-5" />
