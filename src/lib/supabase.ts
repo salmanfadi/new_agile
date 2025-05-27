@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const dbUrl = import.meta.env.VITE_SUPABASE_DB_URL;
+// Update these to match your actual Supabase project
+const supabaseUrl = "https://okdjzvycedbkkpzicjlu.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rZGp6dnljZWRia2twemljamx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4OTg3MTQsImV4cCI6MjA2MzQ3NDcxNH0.F_MHeulkleWOUx3iWsvlpYptAmylNgjVkqWRdQwlNSs";
+const dbUrl = "postgresql://postgres:[WzDl0nxFJo8404MA]@db.okdjzvycedbkkpzicjlu.supabase.co:5432/postgres";
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');

@@ -337,16 +337,3 @@ List of boxes with live quantity, warehouse & zone; per-row print icon opens `Ba
 ---
 ## 📜 License
 MIT © Agile Warehouse
-
-## Environment Variables
-
-The following environment variables are required in your `.env` file:
-
-```env
-# Supabase Configuration
-VITE_SUPABASE_URL=your_supabase_url_here
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-VITE_SUPABASE_DB_URL=your_supabase_db_url_here
-```
-
-Make sure to replace these values with your actual Supabase configuration.
