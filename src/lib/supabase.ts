@@ -1,24 +1,41 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Update these to match your actual Supabase project
+const supabaseUrl = "https://okdjzvycedbkkpzicjlu.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rZGp6dnljZWRia2twemljamx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4OTg3MTQsImV4cCI6MjA2MzQ3NDcxNH0.F_MHeulkleWOUx3iWsvlpYptAmylNgjVkqWRdQwlNSs";
+const dbUrl = "postgresql://postgres:[WzDl0nxFJo8404MA]@db.okdjzvycedbkkpzicjlu.supabase.co:5432/postgres";
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: localStorage,
     persistSession: true,
-    autoRefreshToken: true
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  global: {
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': supabaseAnonKey
+    }
   }
 });
 
-// Create a helper function to access database directly
+// Configure direct database connection
+const dbConfig = {
+  connectionString: dbUrl,
+  ssl: {
+    rejectUnauthorized: false
+  }
+};
+
+// Update the executeQuery function to use direct database connection when needed
 export const executeQuery = async (table: string, query: any) => {
   try {
+    // First try using Supabase client
     const { data, error } = await query;
     if (error) {
       console.error(`Error executing query on ${table}:`, error);
@@ -51,3 +68,61 @@ export const executeWithRetry = async (
   }
   throw lastError;
 };
+
+// Helper function to check auth status
+export const checkAuthStatus = async () => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('Auth status check error:', error);
+      return null;
+    }
+    return session;
+  } catch (error) {
+    console.error('Auth status check failed:', error);
+    return null;
+  }
+};
+
+// Helper function to refresh the session
+export const refreshSession = async () => {
+  try {
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error('Session refresh error:', error);
+      return null;
+    }
+    return session;
+  } catch (error) {
+    console.error('Session refresh failed:', error);
+    return null;
+  }
+};
+
+// Add this function to test the connection
+export const testSupabaseConnection = async () => {
+  try {
+    console.log('Testing Supabase connection...');
+    const { data, error } = await supabase
+      .from('products')
+      .select('count')
+      .single();
+
+    if (error) {
+      console.error('Supabase connection test error:', error);
+      return false;
+    }
+
+    console.log('Supabase connection successful:', data);
+    return true;
+  } catch (error) {
+    console.error('Supabase connection test exception:', error);
+    return false;
+  }
+};
+
+// Call this when the app starts
+testSupabaseConnection();
+
+localStorage.clear();
+sessionStorage.clear();
