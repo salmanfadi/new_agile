@@ -163,6 +163,9 @@ const WarehouseManagement = () => {
 
   // Create location mutation
   const createLocationMutation = useMutation({
+<<<<<<< HEAD
+    mutationFn: async (newLocation: WarehouseLocationInsert) => {
+=======
     mutationFn: async (newLocation: { warehouse_id: string, floor: number, zone: string }) => {
       // Check for existing location first
       const exists = await checkExistingLocation(
@@ -175,6 +178,7 @@ const WarehouseManagement = () => {
         throw new Error('A location with this floor and zone already exists in this warehouse');
       }
 
+>>>>>>> origin/reserve-stock
       const { data, error } = await supabase
         .from('warehouse_locations')
         .insert([newLocation])
@@ -219,7 +223,7 @@ const WarehouseManagement = () => {
     createLocationMutation.mutate({
       warehouse_id: selectedWarehouseId!,
       zone: locationForm.zone,
-      floor: parseInt(locationForm.floor, 10),
+      floor: locationForm.floor,
     });
   };
 

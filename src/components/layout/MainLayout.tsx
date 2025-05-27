@@ -32,8 +32,7 @@ import {
   Settings,
   LayoutDashboard,
   LogOut,
-  Bell,
-  Clock
+  Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -331,7 +330,11 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
           <SidebarGroupLabel>Field Operations</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
+<<<<<<< HEAD
+              <SidebarMenuButton asChild tooltip="Stock In">
+=======
               <SidebarMenuButton asChild tooltip="New Stock In">
+>>>>>>> origin/reserve-stock
                 <NavLink to="/operator/stock-in" className={getNavLinkClass}>
                   <PackagePlus className="h-4 w-4" />
                   <span>Stock In</span>
@@ -339,7 +342,11 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
+<<<<<<< HEAD
+              <SidebarMenuButton asChild tooltip="Stock Out">
+=======
               <SidebarMenuButton asChild tooltip="New Stock Out">
+>>>>>>> origin/reserve-stock
                 <NavLink to="/operator/stock-out" className={getNavLinkClass}>
                   <PackageMinus className="h-4 w-4" />
                   <span>Stock Out</span>
@@ -356,7 +363,11 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Barcode Lookup">
+<<<<<<< HEAD
+                <NavLink to="/operator/barcode" className={getNavLinkClass}>
+=======
                 <NavLink to="/operator/barcode-lookup" className={getNavLinkClass}>
+>>>>>>> origin/reserve-stock
                   <ScanLine className="h-4 w-4" />
                   <span>Barcode Lookup</span>
                 </NavLink>

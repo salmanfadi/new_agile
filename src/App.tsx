@@ -42,9 +42,12 @@ import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehou
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
 import BatchOverviewPage from './pages/warehouseManager/BatchOverviewPage';
 import BarcodeAssignmentPage from './pages/warehouseManager/BarcodeAssignmentPage';
+<<<<<<< HEAD
 import { default as ManagerReserveStock } from './pages/warehouseManager/ReserveStock';
+=======
 import EnhancedInventoryView from './pages/warehouseManager/EnhancedInventoryView';
 import ManagerInventoryView from './pages/warehouseManager/InventoryView';
+>>>>>>> origin/reserve-stock
 
 // Field operator pages
 import OperatorDashboard from './pages/fieldOperator/OperatorDashboard';
