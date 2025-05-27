@@ -30,41 +30,111 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [error, setError] = useState<Error | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Remove or conditionally enable debug logging
-  const DEBUG = false;
-  // Replace all console.log with:
-  if (DEBUG) {
-    console.log('...');
-  }
-
   // Helper function to clean up auth state
   const cleanupAuthState = () => {
-    console.log('Cleaning up auth state...');
-    
-    // Clear all localStorage
+    // Remove all Supabase auth keys from localStorage
     Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('supabase.') || key.includes('sb-') || key.includes('auth.')) {
-        console.log('Removing from localStorage:', key);
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
         localStorage.removeItem(key);
       }
     });
     
-    // Clear all sessionStorage
+    // Remove from sessionStorage if in use
     Object.keys(sessionStorage || {}).forEach((key) => {
-      if (key.startsWith('supabase.') || key.includes('sb-') || key.includes('auth.')) {
-        console.log('Removing from sessionStorage:', key);
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
         sessionStorage.removeItem(key);
       }
     });
+  };
 
-    // Reset auth state
-    setUser(null);
-    setSession(null);
-    setIsAuthenticated(false);
-    setError(null);
+  // Helper function to get user profile
+  const getUserProfile = async (authUser: any) => {
+    try {
+      console.log('Fetching user profile for user ID:', authUser.id);
+      
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, name, username, active')
+        .eq('id', authUser.id)
+        .single();
+        
+      console.log('Profile fetch result:', { profileData, profileError });
+      
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        // If profile doesn't exist, create a default one
+        const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: authUser.id,
+            username: authUser.email?.split('@')[0] || 'user',
+            name: authUser.email?.split('@')[0] || 'User',
+            role: defaultRole as UserRole,
+            active: true
+          }])
+          .select()
+          .single();
+          
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          // Fallback to default user with proper role
+          return {
+            ...authUser,
+            role: defaultRole as UserRole,
+            name: authUser.email?.split('@')[0] || 'User',
+            username: authUser.email || '',
+            active: true
+          } as User;
+        }
+        
+        return {
+          ...authUser,
+          role: newProfile.role as UserRole,
+          name: newProfile.name,
+          username: newProfile.username,
+          active: newProfile.active
+        } as User;
+      }
+      
+      if (profileData) {
+        // Ensure admin@gmail.com always has admin role
+        const role = authUser.email === 'admin@gmail.com' ? 'admin' : profileData.role;
+        return {
+          ...authUser,
+          role: role as UserRole,
+          name: profileData.name || authUser.email?.split('@')[0] || 'User',
+          username: profileData.username || authUser.email || '',
+          active: profileData.active !== false
+        } as User;
+      }
+      
+      // Fallback if no profile data, with proper role for admin
+      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+      return {
+        ...authUser,
+        role: defaultRole as UserRole,
+        name: authUser.email?.split('@')[0] || 'User',
+        username: authUser.email || '',
+        active: true
+      } as User;
+    } catch (err) {
+      console.error('Error processing user profile:', err);
+      // Return fallback user with proper role for admin
+      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+      return {
+        ...authUser,
+        role: defaultRole as UserRole,
+        name: authUser.email?.split('@')[0] || 'User',
+        username: authUser.email || '',
+        active: true
+      } as User;
+    }
   };
 
   useEffect(() => {
+    console.log('AuthContext: Initializing...');
+    
     // Get initial session
     const getInitialSession = async () => {
       setIsLoading(true);
@@ -76,72 +146,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (error) {
           console.error('Error getting session:', error);
           setError(error);
-          setIsLoading(false);
-          return;
-        }
-
-        if (data.session) {
-          console.log('Session found, checking user profile...');
+          setSession(null);
+          setUser(null);
+          setIsAuthenticated(false);
+        } else if (data.session) {
+          console.log('Session found, processing user...');
           setSession(data.session);
           
           if (data.session.user) {
-            try {
-              console.log('Fetching user profile for user ID:', data.session.user.id);
-              const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('id, role')
-                .eq('id', data.session.user.id)
-                .single();
-              
-              if (profileError) {
-                console.error('Error fetching user profile:', profileError);
-                setIsAuthenticated(false);
-                setUser(null);
-                throw profileError;
-              }
-
-              if (!profileData) {
-                console.error('No profile found for user');
-                setIsAuthenticated(false);
-                setUser(null);
-                throw new Error('No profile found for user');
-              }
-
-              if (!profileData.active) {
-                console.error('User account is inactive');
-                setIsAuthenticated(false);
-                setUser(null);
-                throw new Error('Your account is currently inactive');
-              }
-
-              // Set the user with the role from the profiles table
-              const userData: User = {
-                ...data.session.user,
-                role: profileData.role as UserRole,
-                name: profileData.name || data.session.user.email?.split('@')[0] || 'User',
-                username: profileData.username || data.session.user.email || '',
-                active: profileData.active
-              };
-
-              console.log('Setting user data:', userData);
-              setUser(userData);
-              setIsAuthenticated(true);
-            } catch (err) {
-              console.error('Error processing user profile:', err);
-              setIsAuthenticated(false);
-              setUser(null);
-              setError(err instanceof Error ? err : new Error('Failed to process user profile'));
-            }
+            const userWithProfile = await getUserProfile(data.session.user);
+            setUser(userWithProfile);
+            setIsAuthenticated(true);
+            console.log('User authenticated:', userWithProfile);
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
           }
         } else {
-          setIsAuthenticated(false);
+          console.log('No session found');
+          setSession(null);
           setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (err) {
         console.error('Error in getInitialSession:', err);
         setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-        setIsAuthenticated(false);
+        setSession(null);
         setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
@@ -155,32 +187,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setSession(session);
       
       if (session?.user) {
-        console.log('User session found, checking profile...');
+        console.log('User session found, processing profile...');
         setIsAuthenticated(true);
-        try {
-          // Fetch the user role from profiles table
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, role')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (profileError) {
-            console.error('Error fetching user profile:', profileError);
-          } else if (profileData) {
-            // Set the user with the role from the profiles table
-            setUser({ 
-              ...session.user, 
-              role: profileData.role as UserRole,
-              name: profileData.name,
-              username: profileData.username,
-              active: profileData.active
-            } as User);
+        
+        // Use setTimeout to avoid potential deadlocks
+        setTimeout(async () => {
+          try {
+            const userWithProfile = await getUserProfile(session.user);
+            setUser(userWithProfile);
+            console.log('User profile updated:', userWithProfile);
+          } catch (err) {
+            console.error('Error in auth state change:', err);
+            setError(err instanceof Error ? err : new Error('Failed to load user profile'));
           }
-        } catch (err) {
-          console.error('Error in auth state change:', err);
-        }
+        }, 0);
       } else {
+        console.log('No user session, clearing state');
         setUser(null);
         setIsAuthenticated(false);
       }
@@ -193,89 +215,42 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const login = async (email: string, password: string) => {
     try {
-      // Clear any existing session first
-      await supabase.auth.signOut();
+      setError(null);
+      setIsLoading(true);
       
-      console.log('Attempting login for:', email);
+      console.log('Attempting login with email:', email);
       
-      // Basic login attempt
+      // Clean up any existing auth state
+      cleanupAuthState();
+      
+      // Attempt global sign out to ensure clean state
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log("Sign out before login failed:", err);
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
       });
-
+      
       if (error) {
         console.error('Login error:', error);
-        throw new Error('Login failed. Please check your credentials and try again.');
+        setError(error);
+        throw error;
       }
-
-      if (!data?.user) {
-        throw new Error('No user data received');
-      }
-
-      console.log('Auth successful, checking for existing profile...', data.user.id);
-
-      // First check if profile exists
-      const { data: existingProfiles, error: checkError } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .eq('id', data.user.id);
-
-      if (checkError) {
-        console.error('Error checking profile:', checkError);
-        throw new Error(`Error checking profile: ${checkError.message}`);
-      }
-
-      let profileData;
-
-      // If no profile exists or empty array returned, create one
-      if (!existingProfiles || existingProfiles.length === 0) {
-        console.log('No profile found, creating new profile...');
-        
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert([{
-            id: data.user.id,
-            role: 'field_operator'
-          }])
-          .select('id, role')
-          .single();
-
-        if (createError) {
-          console.error('Profile creation error:', createError);
-          throw new Error(`Failed to create profile: ${createError.message}`);
-        }
-
-        profileData = newProfile;
-        console.log('New profile created:', profileData);
-      } else {
-        // Use the first profile found
-        profileData = existingProfiles[0];
-        console.log('Existing profile found:', profileData);
-      }
-
-      // Set up the authenticated session with minimal required data
-      const userData = {
-        ...data.user,
-        role: profileData.role,
-        email: email
-      };
-
-      console.log('Final user data:', userData);
-
-      setUser(userData);
-      setSession(data.session);
-      setIsAuthenticated(true);
-      setError(null);
-
-      return userData;
-
-    } catch (error) {
-      console.error('Login process error:', error);
-      setUser(null);
-      setSession(null);
-      setIsAuthenticated(false);
+      
+      console.log('Login successful:', data);
+      
+      // The auth state change listener will handle setting the user
+      return;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('An unknown error occurred');
+      setError(error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -372,44 +347,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const forceRefreshSession = async () => {
-    setIsLoading(true);
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) throw error;
-      
-      if (session?.user) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('role, name, username, active')
-          .eq('id', session.user.id)
-          .single();
-          
-        if (profileError) throw profileError;
-        
-        if (!profileData) throw new Error('No profile found');
-        
-        setUser({
-          ...session.user,
-          role: profileData.role as UserRole,
-          name: profileData.name,
-          username: profileData.username,
-          active: profileData.active
-        } as User);
-        setIsAuthenticated(true);
-      } else {
-        setUser(null);
-        setIsAuthenticated(false);
-      }
-    } catch (error) {
-      console.error('Force refresh error:', error);
-      cleanupAuthState();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const value = {
     user,
     session,
@@ -424,7 +361,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     updateUser,
     resetPassword,
     verifyOTP,
-    forceRefreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

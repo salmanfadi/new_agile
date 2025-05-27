@@ -118,7 +118,7 @@ const StockInForm: React.FC = () => {
         title: 'Stock In request submitted!',
         description: `${formData.numberOfBoxes} boxes of the selected product have been submitted for processing.`,
       });
-      navigate('/field/submissions');
+      navigate('/operator/submissions');
     },
     onError: (error) => {
       console.error("Submission error:", error);
