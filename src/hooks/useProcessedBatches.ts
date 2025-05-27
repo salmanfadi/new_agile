@@ -106,7 +106,6 @@ const fetchProcessedBatches = async (
         id,
         product_id,
         processed_by,
-        submitted_by,
         total_boxes,
         status,
         source,
@@ -117,8 +116,7 @@ const fetchProcessedBatches = async (
         products:product_id (
           name,
           sku
-        ),
-        processor:processed_by (name)
+        )
       `)
       .eq('status', 'completed')
       .order('processed_at', { ascending: false });
@@ -145,7 +143,6 @@ const fetchProcessedBatches = async (
       return {
         id: item.id || '',
         product_id: item.product_id || '',
-        submitted_by: item.submitted_by || '',
         processed_by: item.processed_by || '',
         boxes: item.total_boxes || 0,
         status: item.status || 'completed',
@@ -155,8 +152,7 @@ const fetchProcessedBatches = async (
         completed_at: item.processed_at || null,
         product_name: item.products?.name || 'Unknown Product',
         product_sku: item.products?.sku || '',
-        submitter_name: item.submitted_by || '',
-        processor_name: item.processor?.name || '',
+        processor_name: item.processed_by || '',
         total_quantity: item.total_quantity || 0,
         warehouse_id: item.warehouse_id || '',
       };
@@ -193,7 +189,9 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
           name,
           sku,
           description
-        )
+        ),
+        processor:processed_by (name),
+        warehouses:warehouse_id (name)
       `)
       .eq('id', batchId)
       .single();

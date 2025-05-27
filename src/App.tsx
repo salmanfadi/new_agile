@@ -18,7 +18,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ProductManagement from './pages/admin/ProductManagement';
 import WarehouseManagement from './pages/admin/WarehouseManagement';
 import UsersManagement from './pages/admin/UsersManagement';
-import InventoryView from './pages/admin/InventoryView';
+import AdminInventoryView from './pages/admin/InventoryView';
 import SalesInquiries from './pages/admin/SalesInquiries';
 import BatchInventoryPage from './pages/admin/BatchInventoryPage';
 import BarcodeManagement from './pages/admin/BarcodeManagement';
@@ -38,12 +38,13 @@ import StockInDetailsPage from './pages/warehouseManager/StockInDetailsPage';
 import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
 import StockOutApproval from './pages/warehouseManager/StockOutApproval';
 import BarcodeLookup from './pages/warehouseManager/BarcodeLookup';
-import { InventoryView as ManagerInventoryView } from './pages/warehouseManager/InventoryView';
 import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehouseManager/InventoryTransfers';
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
 import BatchOverviewPage from './pages/warehouseManager/BatchOverviewPage';
 import BarcodeAssignmentPage from './pages/warehouseManager/BarcodeAssignmentPage';
 import { default as ManagerReserveStock } from './pages/warehouseManager/ReserveStock';
+import EnhancedInventoryView from './pages/warehouseManager/EnhancedInventoryView';
+import ManagerInventoryView from './pages/warehouseManager/InventoryView';
 
 // Field operator pages
 import OperatorDashboard from './pages/fieldOperator/OperatorDashboard';
@@ -199,7 +200,8 @@ function App() {
                 <Route path="/manager/stock-in/process/:id" element={<ProcessStockInPage />} />
                 <Route path="/manager/stock-out" element={<StockOutApproval />} />
                 <Route path="/manager/barcode" element={<BarcodeLookup />} />
-                <Route path="/manager/inventory" element={<ManagerInventoryView />} />
+                <Route path="/manager/inventory" element={<EnhancedInventoryView />} />
+                <Route path="/manager/inventory/search" element={<ManagerInventoryView />} />
                 <Route path="/manager/transfers" element={<ManagerInventoryTransfers />} />
                 <Route path="/manager/stock-in/batch/:stockInId" element={<ManagerBatchStockInPage />} />
                 <Route path="/manager/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />

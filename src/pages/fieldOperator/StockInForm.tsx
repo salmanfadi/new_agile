@@ -84,11 +84,11 @@ const StockInForm: React.FC = () => {
       
       const stockInData = {
         product_id: data.product_id,
-        number_of_boxes: data.number_of_boxes,
         submitted_by: data.submitted_by,
         source: data.source,
         notes: data.notes,
-        status: 'pending'
+        status: 'pending' as const,
+        boxes: Number(data.number_of_boxes)
       };
       
       const { data: result, error } = await supabase
@@ -302,6 +302,7 @@ const StockInForm: React.FC = () => {
                     <SelectValue placeholder="Select a product" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="" disabled>Select a product</SelectItem>
                     {productsLoading ? (
                       <SelectItem value="loading-products" disabled>Loading products...</SelectItem>
                     ) : products && products.length > 0 ? (

@@ -1,4 +1,3 @@
-
 import { useQuery, type QueryObserverResult } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -93,10 +92,6 @@ export function useProcessedBatchesWithItems({
               id,
               name,
               sku
-            ),
-            warehouses:warehouse_id (
-              id,
-              name
             )
           `)
           .order(sortBy, { ascending: sortOrder === 'asc' });
@@ -177,24 +172,23 @@ export function useProcessedBatchesWithItems({
               }
             }
 
+            // Get warehouse name if available
+            let warehouseName = undefined;
+            if (batch.warehouse_id) {
+              const { data: warehouseData } = await supabase
+                .from('warehouses')
+                .select('name')
+                .eq('id', batch.warehouse_id)
+                .single();
+              if (warehouseData) {
+                warehouseName = warehouseData.name;
+              }
+            }
+
             // Process items with warehouse and location info
             const processedItems = await Promise.all(
               (itemsData || []).map(async (item) => {
-                let warehouseName = undefined;
                 let itemLocationDetails = undefined;
-
-                // Get warehouse name
-                if (item.warehouse_id) {
-                  const { data: warehouseData } = await supabase
-                    .from('warehouses')
-                    .select('name')
-                    .eq('id', item.warehouse_id)
-                    .single();
-                  
-                  if (warehouseData) {
-                    warehouseName = warehouseData.name;
-                  }
-                }
 
                 // Get location details
                 if (item.location_id) {
@@ -229,7 +223,7 @@ export function useProcessedBatchesWithItems({
               processorName,
               source: batch.source,
               notes: batch.notes,
-              warehouseName: batch.warehouses?.name,
+              warehouseName,
               locationDetails,
               createdAt: createdAt,
               progress: {

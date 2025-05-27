@@ -1,111 +1,100 @@
-
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { AuthSession, User } from '@supabase/supabase-js';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import { Profile } from '@/types/database';
-import { UserRole } from '@/types/auth';
-
-interface AuthUser extends Omit<User, 'role'> {
-  role: UserRole;
-  name?: string;
-  username?: string;
-}
+import { useNavigate } from 'react-router-dom';
+import { toast } from './use-toast';
 
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<Profile | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const getUserProfile = async (userId: string) => {
+    try {
+      console.log('Fetching profile for user:', userId);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        throw error;
+      }
+
+      console.log('Profile data:', data);
+      return data;
+    } catch (error) {
+      console.error('Profile fetch error:', error);
+      return null;
+    }
+  };
 
   useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      setLoading(true);
-      
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Error getting session:', error);
-      }
-      
-      setSession(session);
-      
-      if (session?.user) {
-        await getUserProfile(session.user);
-      } else {
-        setUser(null);
-        setIsAuthenticated(false);
-      }
-      
-      setLoading(false);
-    };
-
-    const getUserProfile = async (authUser: User) => {
+    const initAuth = async () => {
       try {
-        // Get user profile from profiles table
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('role, name, username')
-          .eq('id', authUser.id)
-          .single();
-          
-        if (profileError) {
-          console.error('Error fetching user profile:', profileError);
-          setUser(null);
-          setIsAuthenticated(false);
-          return;
-        }
+        setIsLoading(true);
         
-        if (profileData) {
-          // Combine auth user data with profile data
-          const userWithRole: AuthUser = {
-            ...authUser,
-            role: profileData.role as UserRole,
-            name: profileData.name || undefined,
-            username: profileData.username
-          };
-          
-          setUser(userWithRole);
-          setIsAuthenticated(true);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
+        // Get current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        if (session?.user) {
+          const profile = await getUserProfile(session.user.id);
+          if (profile) {
+            setUser(profile);
+            setIsAuthenticated(true);
+          } else {
+            // Handle missing profile
+            toast({
+              variant: 'destructive',
+              title: 'Profile Error',
+              description: 'Unable to load user profile. Please try logging in again.',
+            });
+            await supabase.auth.signOut();
+            navigate('/login');
+          }
         }
       } catch (error) {
-        console.error('Error in getUserProfile:', error);
-        setUser(null);
-        setIsAuthenticated(false);
+        console.error('Auth initialization error:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Authentication Error',
+          description: 'Please try logging in again.',
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    getSession();
+    initAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
-          await getUserProfile(session.user);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session);
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        const profile = await getUserProfile(session.user.id);
+        if (profile) {
+          setUser(profile);
+          setIsAuthenticated(true);
         }
-        
-        setLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsAuthenticated(false);
       }
-    );
+    });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
-  return {
-    user,
-    session,
-    loading: loading,
-    isLoading: loading,
-    isAuthenticated
-  };
+  return { user, isAuthenticated, isLoading };
 }

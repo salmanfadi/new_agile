@@ -190,14 +190,6 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Reserve Stock">
-                <NavLink to="/admin/reserve-stock" className={getNavLinkClass}>
-                  <Clock className="h-4 w-4" />
-                  <span>Reserve Stock</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
         
@@ -222,9 +214,9 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Users">
-                <NavLink to="/admin/users" className={getNavLinkClass}>
+                <NavLink to="/admin/profiles" className={getNavLinkClass}>
                   <Users className="h-4 w-4" />
-                  <span>Users</span>
+                  <span>User Profiles</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -281,7 +273,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Stock Out">
-                <NavLink to="/manager/stock-out" className={getNavLinkClass}>
+                <NavLink to="/manager/stock-out-approval" className={getNavLinkClass}>
                   <PackageMinus className="h-4 w-4" />
                   <span>Stock Out Approval</span>
                 </NavLink>
@@ -339,7 +331,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
           <SidebarGroupLabel>Field Operations</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Stock In">
+              <SidebarMenuButton asChild tooltip="New Stock In">
                 <NavLink to="/operator/stock-in" className={getNavLinkClass}>
                   <PackagePlus className="h-4 w-4" />
                   <span>Stock In</span>
@@ -347,7 +339,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Stock Out">
+              <SidebarMenuButton asChild tooltip="New Stock Out">
                 <NavLink to="/operator/stock-out" className={getNavLinkClass}>
                   <PackageMinus className="h-4 w-4" />
                   <span>Stock Out</span>
@@ -364,7 +356,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Barcode Lookup">
-                <NavLink to="/operator/barcode" className={getNavLinkClass}>
+                <NavLink to="/operator/barcode-lookup" className={getNavLinkClass}>
                   <ScanLine className="h-4 w-4" />
                   <span>Barcode Lookup</span>
                 </NavLink>

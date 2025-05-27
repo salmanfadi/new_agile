@@ -1,175 +1,140 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/hooks/use-toast';
-import { useInventoryData } from '@/hooks/useInventoryData';
-import { InventoryTable } from '@/components/warehouse/InventoryTable';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useInventoryFilters } from '@/hooks/useInventoryFilters';
-import { InventoryFiltersPanel } from '@/components/warehouse/InventoryFiltersPanel';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { BoxesIcon } from 'lucide-react';
 import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
+import { Search, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const InventoryView: React.FC = () => {
-  const [highlightedBarcode, setHighlightedBarcode] = useState<string | null>(null);
-  const queryClient = useQueryClient();
-  const location = useLocation();
   const navigate = useNavigate();
-  
-  // Get filters 
+  // Use shared inventory filters for warehouse, status, etc.
   const {
     filters,
     setSearchTerm,
     setWarehouseFilter,
-    setBatchFilter,
     setStatusFilter,
-    resetFilters,
     warehouses,
-    batchIds,
-    availableStatuses,
-    isLoadingBatches,
-    isLoadingWarehouses
+    availableStatuses
   } = useInventoryFilters();
-  
-  // Check for navigation state that might indicate we came from batch processing
-  useEffect(() => {
-    if (location.state?.fromBatchProcessing) {
-      console.log("Detected navigation from batch processing, refreshing inventory data");
-      queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
-      
-      // If we have a batch ID, set it as a filter
-      if (location.state.batchId) {
-        console.log("Setting batch filter from navigation:", location.state.batchId);
-        setBatchFilter(location.state.batchId);
-      }
-      
-      toast({
-        title: 'Inventory Updated',
-        description: 'Showing latest inventory after batch processing',
-      });
-    }
-  }, [location, queryClient, setBatchFilter]);
-  
-  // Force a refresh when component mounts to ensure we have fresh data
-  useEffect(() => {
-    console.log("InventoryView mounted, refreshing data");
-    queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
-    queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
-  }, [queryClient]);
-  
-  // Use shared inventory hook with filters
-  const { 
-    data, 
-    isLoading, 
-    error, 
-    refetch 
-  } = useInventoryData(
-    filters.warehouseFilter, 
-    filters.batchFilter, 
-    filters.statusFilter, 
-    filters.searchTerm
-  );
-  
-  // Extract inventory items from the data
-  const inventoryItems = data?.data || [];
-  
-  // Handle barcode scanned
-  const handleBarcodeScanned = async (barcode: string) => {
-    setHighlightedBarcode(barcode);
-    
-    // Clear existing filters to ensure we see the item
-    resetFilters();
-    setSearchTerm(barcode);
-    
-    // Invalidate query to ensure we have the latest data
-    await queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
-    
-    // Find item matching barcode
-    const item = inventoryItems?.find(item => item.barcode === barcode);
-    
-    if (item) {
-      toast({
-        title: 'Item Found',
-        description: `Found ${item.productName} in ${item.warehouseName}`,
-      });
-    } else {
-      toast({
-        title: 'Item Not Found',
-        description: `No inventory item with barcode ${barcode} was found.`,
-        variant: 'destructive'
-      });
-      
-      // After a brief delay, refresh again to make sure we check database
-      setTimeout(() => {
-        refetch();
-      }, 1000);
-    }
-  };
-  
-  const handleRefresh = () => {
-    console.log("Refreshing inventory data...");
-    queryClient.invalidateQueries({ queryKey: ['batch-ids'] });
-    queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-    queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
-    toast({
-      title: 'Refreshing Inventory',
-      description: 'Getting the latest inventory data...'
-    });
+
+  // Advanced filters
+  const [sizeFilter, setSizeFilter] = useState('');
+  const [quantityPerBoxFilter, setQuantityPerBoxFilter] = useState('');
+  const [colorFilter, setColorFilter] = useState('');
+
+  // Handler for advanced search
+  const handleAdvancedSearch = () => {
+    // This will trigger a re-render and pass filters to InventoryTableContainer
   };
 
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title="Inventory" 
-        description="View inventory across all warehouses"
-      />
-      
-      <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate('/manager/inventory/batches')}
-          className="flex items-center gap-1"
-        >
-          <BoxesIcon className="h-4 w-4" />
-          View Batch Inventory
+      <div className="flex items-center gap-2 mb-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/manager/inventory/batches')}>
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Inventory
         </Button>
       </div>
-      
-      <InventoryFiltersPanel
-        onBarcodeScanned={handleBarcodeScanned}
-        onRefresh={handleRefresh}
-        searchTerm={filters.searchTerm}
-        setSearchTerm={setSearchTerm}
-        warehouseFilter={filters.warehouseFilter}
-        setWarehouseFilter={setWarehouseFilter}
-        batchFilter={filters.batchFilter}
-        setBatchFilter={setBatchFilter}
-        statusFilter={filters.statusFilter}
-        setStatusFilter={setStatusFilter}
-        warehouses={warehouses}
-        batchIds={batchIds}
-        availableStatuses={availableStatuses}
-        onResetFilters={resetFilters}
-        isLoadingBatches={isLoadingBatches}
-        isLoadingWarehouses={isLoadingWarehouses}
+      <PageHeader 
+        title="Search Inventory" 
+        description="Search and filter inventory by size, quantity per box, color, and more."
       />
-      
-      <InventoryTableContainer 
-        warehouseFilter={filters.warehouseFilter}
-        batchFilter={filters.batchFilter}
-        statusFilter={filters.statusFilter}
-        searchTerm={filters.searchTerm}
-        highlightedBarcode={highlightedBarcode}
-        title="Inventory"
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Advanced Inventory Search</CardTitle>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search products..."
+                value={filters.searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="w-full sm:w-1/4">
+              <Select
+                value={filters.warehouseFilter}
+                onValueChange={setWarehouseFilter}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by warehouse" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Warehouses</SelectItem>
+                  {warehouses?.map((warehouse) => (
+                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full sm:w-1/4">
+              <Select
+                value={filters.statusFilter}
+                onValueChange={setStatusFilter}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableStatuses.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <Input
+              placeholder="Filter by size..."
+              value={sizeFilter}
+              onChange={(e) => setSizeFilter(e.target.value)}
+              className="sm:w-1/4"
+            />
+            <Input
+              placeholder="Filter by quantity per box..."
+              value={quantityPerBoxFilter}
+              onChange={(e) => setQuantityPerBoxFilter(e.target.value)}
+              className="sm:w-1/4"
+              type="number"
+              min={1}
+            />
+            <Input
+              placeholder="Filter by color..."
+              value={colorFilter}
+              onChange={(e) => setColorFilter(e.target.value)}
+              className="sm:w-1/4"
+            />
+            <Button onClick={handleAdvancedSearch} variant="outline">
+              Search
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <InventoryTableContainer 
+            warehouseFilter={filters.warehouseFilter}
+            batchFilter={''}
+            statusFilter={filters.statusFilter}
+            searchTerm={filters.searchTerm}
+            highlightedBarcode={null}
+            title="Inventory"
+            sizeFilter={sizeFilter}
+            quantityPerBoxFilter={quantityPerBoxFilter}
+            colorFilter={colorFilter}
+            colorFilterType="ilike"
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
-export { InventoryView };
-
-export default InventoryView;
+export default InventoryView; 

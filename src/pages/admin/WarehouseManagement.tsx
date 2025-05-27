@@ -144,9 +144,37 @@ const WarehouseManagement = () => {
     },
   });
 
+  // Check for existing location
+  const checkExistingLocation = async (warehouseId: string, floor: number, zone: string) => {
+    const { data, error } = await supabase
+      .from('warehouse_locations')
+      .select('id')
+      .eq('warehouse_id', warehouseId)
+      .eq('floor', floor)
+      .eq('zone', zone)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 means no rows returned
+      throw error;
+    }
+
+    return !!data;
+  };
+
   // Create location mutation
   const createLocationMutation = useMutation({
-    mutationFn: async (newLocation: WarehouseLocationInsert) => {
+    mutationFn: async (newLocation: { warehouse_id: string, floor: number, zone: string }) => {
+      // Check for existing location first
+      const exists = await checkExistingLocation(
+        newLocation.warehouse_id,
+        newLocation.floor,
+        newLocation.zone
+      );
+
+      if (exists) {
+        throw new Error('A location with this floor and zone already exists in this warehouse');
+      }
+
       const { data, error } = await supabase
         .from('warehouse_locations')
         .insert([newLocation])
@@ -191,7 +219,7 @@ const WarehouseManagement = () => {
     createLocationMutation.mutate({
       warehouse_id: selectedWarehouseId!,
       zone: locationForm.zone,
-      floor: locationForm.floor,
+      floor: parseInt(locationForm.floor, 10),
     });
   };
 

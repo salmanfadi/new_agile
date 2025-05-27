@@ -34,6 +34,8 @@ import {
 } from '@/components/ui/dialog';
 import { useProducts } from '@/hooks/useProducts';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ProductFormData {
   name: string;
@@ -47,14 +49,17 @@ interface ProductFormData {
 
 const ProductManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { 
     products, 
-    isLoading, 
+    isLoading: productsLoading, 
     createProduct, 
     updateProduct, 
     deleteProduct, 
     uploadProductImage, 
-    categories: existingCategories 
+    categories: existingCategories,
+    error: productsError,
+    refetch 
   } = useProducts();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -72,10 +77,22 @@ const ProductManagement: React.FC = () => {
   });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [skuError, setSkuError] = useState<string | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
   useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    if (!authLoading && user?.role !== 'admin') {
+      navigate('/unauthorized');
+      return;
+    }
+  }, [authLoading, isAuthenticated, user, navigate]);
+
+  useEffect(() => {
     if (formData.sku) {
-      // Clear SKU error when the SKU is changed
       setSkuError(null);
     }
   }, [formData.sku]);
@@ -105,6 +122,22 @@ const ProductManagement: React.FC = () => {
     }
   };
   
+  const checkSkuAvailability = async (sku: string, productId?: string) => {
+    const query = supabase
+      .from('products')
+      .select('id')
+      .eq('sku', sku);
+      
+    if (productId) {
+      query.neq('id', productId); // Exclude current product when editing
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    return data.length === 0;
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -123,65 +156,39 @@ const ProductManagement: React.FC = () => {
     }
     
     try {
+      // Check SKU availability
+      const isSkuAvailable = await checkSkuAvailability(
+        formData.sku,
+        editingProduct?.id
+      );
+      
+      if (!isSkuAvailable) {
+        setSkuError('A product with this SKU already exists');
+        return;
+      }
+      
+      // Proceed with create/update
       if (editingProduct) {
         // Update existing product
-        const productData = {
-          name: formData.name,
-          description: formData.description || null,
-          sku: formData.sku,
-          specifications: formData.specifications || null,
-          category: formData.category || null,
-          is_active: formData.is_active
-        };
-
-        // Update the product metadata
         await updateProduct.mutateAsync({
           id: editingProduct.id,
-          data: productData
-        });
-        
-        // If there's a new image file, upload it
-        if (formData.image_file) {
-          const imageUrl = await uploadProductImage(formData.image_file, editingProduct.id);
-          
-          if (imageUrl) {
-            await updateProduct.mutateAsync({
-              id: editingProduct.id,
-              data: { image_url: imageUrl }
-            });
+          data: {
+            ...formData,
+            image_file: formData.image_file
           }
-        }
+        });
       } else {
         // Create new product
-        const newProduct = await createProduct.mutateAsync({
-          name: formData.name,
-          description: formData.description || null,
-          sku: formData.sku,
-          specifications: formData.specifications || null,
-          category: formData.category || null,
-          is_active: formData.is_active
+        await createProduct.mutateAsync({
+          ...formData,
+          image_file: formData.image_file
         });
-        
-        // If there's an image file and the product was created successfully, upload it
-        if (formData.image_file && newProduct && newProduct.id) {
-          const imageUrl = await uploadProductImage(formData.image_file, newProduct.id);
-          
-          if (imageUrl) {
-            await updateProduct.mutateAsync({
-              id: newProduct.id,
-              data: { image_url: imageUrl }
-            });
-          }
-        }
       }
       
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
-      if (error instanceof Error && error.message.includes('products_sku_unique')) {
-        setSkuError('A product with this SKU already exists');
-      }
-      // Other errors are handled by the mutation error handlers
+      // Error handling is done in the mutation callbacks
     }
   };
   
@@ -205,9 +212,15 @@ const ProductManagement: React.FC = () => {
     setIsDeleteDialogOpen(true);
   };
   
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (selectedProductId) {
-      deleteProduct.mutate(selectedProductId);
+      try {
+        await deleteProduct.mutateAsync(selectedProductId);
+        setIsDeleteDialogOpen(false);
+        setSelectedProductId(null);
+      } catch (error) {
+        console.error('Error deleting product:', error);
+      }
     }
   };
   
@@ -230,6 +243,25 @@ const ProductManagement: React.FC = () => {
     setPreviewUrl(null);
     setSkuError(null);
   };
+
+  // Add console logs for debugging
+  useEffect(() => {
+    console.log('ProductManagement mounted');
+    console.log('Products:', products);
+    console.log('Loading:', productsLoading);
+    console.log('User:', user);
+  }, [products, productsLoading, user]);
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="h-12 w-12 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-xl font-medium text-gray-700">Verifying access...</h2>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -264,13 +296,29 @@ const ProductManagement: React.FC = () => {
         </CardHeader>
         
         <CardContent>
-          {isLoading ? (
+          {productsLoading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
             </div>
+          ) : productsError ? (
+            <div className="text-center py-8 text-red-500">
+              <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+              <p>Error loading products: {productsError instanceof Error ? productsError.message : 'Unknown error'}</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => refetch()}
+              >
+                Try Again
+              </Button>
+            </div>
           ) : !products || products.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              No products found. Click "Add New Product" to create one.
+              <Package className="h-8 w-8 mx-auto mb-2" />
+              <p>No products found. Click "Add New Product" to create one.</p>
+              <p className="text-sm text-gray-400 mt-2">
+                {JSON.stringify({ productsLength: products?.length, isArray: Array.isArray(products) })}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -319,13 +367,12 @@ const ProductManagement: React.FC = () => {
                         >
                           <Edit className="h-4 w-4 mr-1" /> Edit
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="text-red-600"
+                        <Button
+                          variant="destructive"
+                          size="sm"
                           onClick={() => handleDelete(product.id)}
                         >
-                          <Trash2 className="h-4 w-4 mr-1" /> Delete
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -500,28 +547,17 @@ const ProductManagement: React.FC = () => {
       
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogTitle>Confirm Delete</DialogTitle>
           </DialogHeader>
-          
-          <div className="py-4">
-            <p>Are you sure you want to delete this product? This action cannot be undone.</p>
-          </div>
-          
+          <p>Are you sure you want to delete this product? This action cannot be undone.</p>
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={deleteProduct.isPending}
-            >
-              {deleteProduct.isPending ? 'Deleting...' : 'Delete Product'}
+            <Button variant="destructive" onClick={confirmDelete}>
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -17,6 +17,10 @@ export interface StockInBox {
       length?: number;
     };
     remarks?: string;
+    batch_id?: string;
+    batch_number?: number;
+    box_number?: number;
+    [key: string]: any; // Allow additional properties
   };
 }
 
