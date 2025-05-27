@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Card,
@@ -20,7 +21,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Barcode, Package, Boxes, Warehouse, Download, Printer } from 'lucide-react';
+import { FileText, Package, Boxes, Warehouse, Download, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import BarcodePreview from '../barcode/BarcodePreview';
 import { useBatchItems } from '@/hooks/useBatchItems';
@@ -176,7 +177,7 @@ export function BatchDetailView({ open, onOpenChange, batchId, onPrintBarcodes }
                   Items ({totalBoxes})
                 </TabsTrigger>
                 <TabsTrigger value="barcodes">
-                  <Barcode className="h-4 w-4 mr-1" />
+                  <FileText className="h-4 w-4 mr-1" />
                   Barcodes
                 </TabsTrigger>
               </TabsList>
@@ -337,11 +338,11 @@ export function BatchDetailView({ open, onOpenChange, batchId, onPrintBarcodes }
                     {batchItems.map(item => (
                       <Card key={item.id} className="p-4 flex flex-col items-center">
                         <BarcodePreview 
-                          value={item.barcode} 
+                          barcode={item.barcode} 
                           height={60}
-                          width={1}
-                          format="CODE128"
-                          displayValue={true}
+                          width={180}
+                          includeText={true}
+                          scale={2}
                         />
                         <div className="mt-2 text-center">
                           <p className="text-xs font-medium">{item.quantity} units</p>

@@ -3,14 +3,38 @@ import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DefaultValuesType } from './StockInWizard';
 
 interface StockInStepReviewProps {
   stockIn: StockInRequestData;
-  onContinue: () => void;
+  onContinue: () => Promise<void>;
   onCancel: () => void;
+  warehouseId: string;
+  setWarehouseId: React.Dispatch<React.SetStateAction<string>>;
+  locationId: string;
+  setLocationId: React.Dispatch<React.SetStateAction<string>>;
+  defaultValues: DefaultValuesType;
+  setDefaultValues: React.Dispatch<React.SetStateAction<DefaultValuesType>>;
+  confirmedBoxes: number;
+  setConfirmedBoxes: React.Dispatch<React.SetStateAction<number>>;
+  isLoading: boolean;
 }
 
-const StockInStepReview: React.FC<StockInStepReviewProps> = ({ stockIn, onContinue, onCancel }) => {
+const StockInStepReview: React.FC<StockInStepReviewProps> = ({
+  stockIn,
+  onContinue,
+  onCancel,
+  warehouseId,
+  setWarehouseId,
+  locationId,
+  setLocationId,
+  defaultValues,
+  setDefaultValues,
+  confirmedBoxes,
+  setConfirmedBoxes,
+  isLoading
+}) => {
+  // This step is read-only, no data fetching needed
   return (
     <div className="space-y-6">
       <Card>
@@ -43,9 +67,11 @@ const StockInStepReview: React.FC<StockInStepReviewProps> = ({ stockIn, onContin
           )}
         </CardContent>
       </Card>
+
+
       <div className="flex justify-end space-x-4">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={onContinue}>Continue</Button>
+        <Button onClick={onContinue}>Next</Button>
       </div>
     </div>
   );
