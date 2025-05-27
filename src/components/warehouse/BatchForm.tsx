@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { BatchFormData, ProcessedBatch } from '@/types/batchStockIn';
 import { generateBarcodeString } from '@/utils/barcodeUtils';
-import { Product, Warehouse, WarehouseLocation } from '@/types/database';
+import { Product, Warehouse } from '@/types/database';
+import { Database } from '@/types/supabase';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, Plus, Package, Save, X, InfoIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { StockInData } from '@/hooks/useStockInBoxes';
+
+type WarehouseLocationRow = {
+  id: string;
+  warehouse_id: string;
+  zone: string;
+  floor: string;
+};
 
 interface BatchFormProps {
   onAddBatch: (batchData: BatchFormData) => void;
@@ -95,20 +103,34 @@ export const BatchForm: React.FC<BatchFormProps> = ({
   console.log('Warehouses loaded:', warehouses, 'Error:', warehousesError);
 
   // Fetch locations based on selected warehouse
-  const { data: locations, isLoading: isLoadingLocations } = useQuery({
+  const { data: locations, isLoading: isLoadingLocations, error: locationsError } = useQuery({
     queryKey: ['locations', batchData.warehouse?.id],
     queryFn: async () => {
-      if (!batchData.warehouse?.id) return [];
+      if (!batchData.warehouse?.id) {
+        console.log('No warehouse selected');
+        return [];
+      }
       
-      const { data, error } = await supabase
-        .from('warehouse_locations')
-        .select('*')
-        .eq('warehouse_id', batchData.warehouse.id)
-        .order('floor')
-        .order('zone');
-      
-      if (error) throw error;
-      return data as WarehouseLocation[];
+      console.log('Fetching locations for warehouse:', batchData.warehouse.id);
+      try {
+        const { data, error } = await supabase
+          .from('warehouse_locations')
+          .select('id, warehouse_id, zone, floor')
+          .eq('warehouse_id', batchData.warehouse.id)
+          .order('zone')
+          .order('floor');
+        
+        if (error) {
+          console.error('Error fetching locations:', error);
+          throw error;
+        }
+        
+        console.log('Successfully fetched locations:', data);
+        return data as WarehouseLocationRow[];
+      } catch (error) {
+        console.error('Failed to fetch locations:', error);
+        throw error;
+      }
     },
     enabled: !!batchData.warehouse?.id
   });
@@ -321,7 +343,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({
               value={batchData.location?.id || ''}
             >
               <SelectTrigger id="location">
-                <SelectValue placeholder={batchData.warehouse ? "Select location" : "Select warehouse first"} />
+                <SelectValue placeholder={!batchData.warehouse ? "Select warehouse first" : "Select location"} />
               </SelectTrigger>
               <SelectContent>
                 {isLoadingLocations ? (
@@ -329,15 +351,33 @@ export const BatchForm: React.FC<BatchFormProps> = ({
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Loading locations...
                   </SelectItem>
-                ) : (
-                  locations?.map((location) => (
+                ) : locationsError ? (
+                  <SelectItem value="error" disabled>
+                    Error loading locations
+                  </SelectItem>
+                ) : locations && locations.length > 0 ? (
+                  locations.map((location) => (
                     <SelectItem key={location.id} value={location.id}>
-                      Floor {location.floor}, Zone {location.zone}
+                      {location.zone}, {location.floor}
                     </SelectItem>
                   ))
+                ) : (
+                  <SelectItem value="none" disabled>
+                    {batchData.warehouse ? "No locations found for this warehouse" : "Select a warehouse first"}
+                  </SelectItem>
                 )}
               </SelectContent>
             </Select>
+            {locationsError && (
+              <p className="text-sm text-red-500 mt-1">
+                Failed to load locations. Please try again.
+              </p>
+            )}
+            {batchData.warehouse && locations && locations.length === 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                No locations available for {batchData.warehouse.name}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

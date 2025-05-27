@@ -9,10 +9,9 @@ export interface Warehouse {
 export interface WarehouseLocation {
   id: string;
   warehouse_id: string;
-  floor: number;
-  zone: string;
+  name: string;
+  description: string | null;
   created_at: string;
-  updated_at: string;
 }
 
 export interface Product {

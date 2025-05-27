@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { useWarehouses } from '@/hooks/useWarehouses';
@@ -156,7 +155,7 @@ const StockInStepDetails: React.FC<StockInStepDetailsProps> = ({
             <SelectContent>
               {locations?.map((location) => (
                 <SelectItem key={location.id} value={location.id}>
-                  Floor {location.floor}, Zone {location.zone}
+                  Zone {location.zone}, Floor {location.floor}
                 </SelectItem>
               ))}
             </SelectContent>

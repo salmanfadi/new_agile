@@ -1,5 +1,7 @@
+import { Profile, Product, Warehouse } from '@/types/database';
+import { Database } from '@/types/supabase';
 
-import { Profile, Product, Warehouse, WarehouseLocation } from '@/types/database';
+type WarehouseLocationRow = Database['public']['Tables']['warehouse_locations']['Row'];
 
 export interface BatchData {
   id?: string;
@@ -17,8 +19,8 @@ export interface BatchData {
 export interface BatchFormData {
   product: Product | null;
   warehouse: Warehouse | null;
-  location: WarehouseLocation | null;
-  boxes_count: number;
+  location: WarehouseLocationRow | null;
+  boxes_count: number | undefined;
   quantity_per_box: number;
   color: string;
   size: string;
@@ -46,7 +48,7 @@ export interface ProcessedBatch {
   barcodes?: string[];
   product?: Product;
   warehouse?: Warehouse;
-  warehouseLocation?: WarehouseLocation;
+  warehouseLocation?: WarehouseLocationRow;
   submitter?: Profile;
   created_at?: string;
   boxes?: BoxMetadata[];

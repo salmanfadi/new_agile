@@ -255,7 +255,7 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
                     <SelectContent>
                       {locations?.map((location) => (
                         <SelectItem key={location.id} value={location.id}>
-                          Floor {location.floor}, Zone {location.zone}
+                          Zone {location.zone}, Floor {location.floor}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -373,7 +373,7 @@ const StockInStepBoxes: React.FC<StockInStepBoxesProps> = ({
                         <SelectContent>
                           {locations?.map((location) => (
                             <SelectItem key={location.id} value={location.id}>
-                              Floor {location.floor}, Zone {location.zone}
+                              Zone {location.zone}, Floor {location.floor}
                             </SelectItem>
                           ))}
                         </SelectContent>

@@ -13,6 +13,10 @@ interface InventoryTableContainerProps {
   searchTerm: string;
   highlightedBarcode: string | null;
   title?: string;
+  sizeFilter?: string;
+  quantityPerBoxFilter?: string;
+  colorFilter?: string;
+  colorFilterType?: 'eq' | 'ilike';
 }
 
 export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = ({
@@ -22,6 +26,10 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
   searchTerm,
   highlightedBarcode,
   title = 'Inventory Items',
+  sizeFilter = '',
+  quantityPerBoxFilter = '',
+  colorFilter = '',
+  colorFilterType = 'eq',
 }) => {
   const [sortField, setSortField] = useState<'lastUpdated' | 'quantity' | 'productName'>('lastUpdated');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -39,7 +47,11 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
     statusFilter,
     searchTerm,
     page,
-    pageSize
+    pageSize,
+    sizeFilter,
+    quantityPerBoxFilter,
+    colorFilter,
+    colorFilterType
   );
 
   // Sorting (client-side for current page)

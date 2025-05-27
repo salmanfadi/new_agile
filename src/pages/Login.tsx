@@ -50,7 +50,7 @@ const Login: React.FC = () => {
         targetRoute = '/admin';
       }
       else if (user.role === 'warehouse_manager') targetRoute = '/manager';
-      else if (user.role === 'field_operator') targetRoute = '/field';
+      else if (user.role === 'field_operator') targetRoute = '/operator';
       else if (user.role === 'sales_operator') targetRoute = '/sales';
       else if (user.role === 'customer') targetRoute = '/customer/portal';
       

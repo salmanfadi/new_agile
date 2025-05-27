@@ -1,150 +1,138 @@
-import React, { useState, useEffect } from 'react';
-import { BoxData } from '@/hooks/useStockInBoxes';
-import { generateBarcodeString } from '@/utils/barcodeUtils';
+import React, { useState } from 'react';
+import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useWarehouses } from '@/hooks/useWarehouses';
 import { useLocations } from '@/hooks/useLocations';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Plus } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 
 export interface BatchData {
-  id: string; // temp uuid before save
+  id: string;
   warehouse_id: string;
+  warehouse_name: string;
   location_id: string;
-  boxes: BoxData[];
+  location_name: string;
+  boxCount: number;
+  quantityPerBox: number;
+  color: string;
+  size: string;
+  boxes: any[];
 }
 
 interface StockInStepBatchesProps {
-  remainingBoxes: number;
-  onAddBatch: (batch: BatchData) => void;
-  onContinue: () => void;
   onBack: () => void;
-  productName?: string;
-  productSku?: string | null;
+  onContinue: () => void;
+  batches: BatchData[];
+  setBatches: React.Dispatch<React.SetStateAction<BatchData[]>>;
+  stockIn: StockInRequestData;
+  defaultValues: {
+    quantity: number;
+    color: string;
+    size: string;
+  };
 }
 
 const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
-  remainingBoxes,
-  onAddBatch,
-  onContinue,
   onBack,
-  productName = '',
-  productSku = null,
+  onContinue,
+  batches,
+  setBatches,
+  stockIn,
+  defaultValues
 }) => {
-  const { warehouses } = useWarehouses();
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
-  const { locations } = useLocations(selectedWarehouse);
   const [selectedLocation, setSelectedLocation] = useState<string>('');
-  const [boxesCount, setBoxesCount] = useState<number>(1);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [boxCount, setBoxCount] = useState<number>(1);
+  const [quantityPerBox, setQuantityPerBox] = useState<number>(defaultValues.quantity);
+  const [color, setColor] = useState<string>(defaultValues.color);
+  const [size, setSize] = useState<string>(defaultValues.size);
+  
+  const { warehouses } = useWarehouses();
+  const { locations, isLoading: isLoadingLocations } = useLocations(selectedWarehouse);
 
-  // Log component state
-  useEffect(() => {
-    console.log('StockInStepBatches state:', {
-      remainingBoxes,
-      selectedWarehouse,
-      selectedLocation,
-      boxesCount,
-      isGenerating
-    });
-  }, [remainingBoxes, selectedWarehouse, selectedLocation, boxesCount, isGenerating]);
-
-  const handleAddBatch = async () => {
-    console.log('Starting batch generation with:', {
-      productName,
-      productSku,
-      selectedWarehouse,
-      selectedLocation,
-      boxesCount,
-      remainingBoxes
-    });
-
-    if (!selectedWarehouse || !selectedLocation || boxesCount <= 0) {
-      console.error('Invalid batch data:', { 
-        hasWarehouse: !!selectedWarehouse, 
-        hasLocation: !!selectedLocation, 
-        boxesCount 
-      });
-      return;
-    }
-    
-    if (boxesCount > remainingBoxes) {
-      console.error('Too many boxes:', { boxesCount, remainingBoxes });
-      return;
-    }
-
-    if (!productName) {
-      console.error('Missing product name for barcode generation');
-      return;
-    }
-    
-    setIsGenerating(true);
-    try {
-      console.log('Starting barcode generation:', {
-        productPrefix: productName.substring(0, 3),
-        productSku,
-        boxesCount
-      });
-      
-      // Generate barcodes in parallel
-      const barcodePromises = Array.from({ length: boxesCount }, (_, i) => {
-        const prefix = productName.substring(0, 3).toUpperCase();
-        console.log(`Generating barcode ${i + 1}/${boxesCount} with prefix ${prefix}`);
-        return generateBarcodeString(prefix, productSku ?? undefined, i + 1);
-      });
-
-      const barcodes = await Promise.all(barcodePromises);
-      
-      console.log('Generated barcodes:', barcodes);
-      
-      const boxes: BoxData[] = barcodes.map((barcode, idx) => ({
-        id: `box-${Date.now()}-${idx}`,
-        barcode,
-        quantity: 1,
-        color: '',
-        size: '',
-        warehouse_id: selectedWarehouse,
-        location_id: selectedLocation,
-        warehouse: selectedWarehouse,
-        location: selectedLocation,
-      }));
-      
-      console.log('Created box data:', boxes);
-      
-      const newBatch: BatchData = {
-        id: `tmp-${Date.now()}`,
-        warehouse_id: selectedWarehouse,
-        location_id: selectedLocation,
-        boxes,
-      };
-
-      console.log('Adding new batch:', newBatch);
-      onAddBatch(newBatch);
-      
-      // reset for next batch
-      setSelectedLocation('');
-      setBoxesCount(1);
-      
-      console.log('Batch added successfully');
-    } catch (error) {
-      console.error('Error generating batch:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-    } finally {
-      setIsGenerating(false);
+  const handleBoxCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value) || 0;
+    // Only update if the value is within bounds
+    if (value >= 0 && value <= remainingBoxes) {
+      setBoxCount(value);
     }
   };
+
+  const handleWarehouseChange = (warehouseId: string) => {
+    setSelectedWarehouse(warehouseId);
+    setSelectedLocation(''); // Reset location when warehouse changes
+  };
+
+  const handleLocationChange = (locationId: string) => {
+    setSelectedLocation(locationId);
+  };
+
+  const handleAddBatch = () => {
+    if (!selectedWarehouse || !selectedLocation || boxCount <= 0 || quantityPerBox <= 0) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate box count
+    if (boxCount > remainingBoxes) {
+      toast({
+        title: "Invalid Box Count",
+        description: `Cannot add more than ${remainingBoxes} boxes`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const warehouse = warehouses?.find(w => w.id === selectedWarehouse);
+    const location = locations?.find(l => l.id === selectedLocation);
+
+    if (!warehouse || !location) {
+      toast({
+        title: "Invalid Selection",
+        description: "Please select valid warehouse and location",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newBatch: BatchData = {
+      id: `batch-${Date.now()}`,
+      warehouse_id: selectedWarehouse,
+      warehouse_name: warehouse.name,
+      location_id: selectedLocation,
+      location_name: `Zone ${location.zone}, Floor ${location.floor}`,
+      boxCount: boxCount, // Use the exact box count entered by user
+      quantityPerBox,
+      color,
+      size,
+      boxes: []
+    };
+
+    setBatches(prev => [...prev, newBatch]);
+
+    // Reset form
+    setSelectedLocation('');
+    setBoxCount(1);
+    setQuantityPerBox(defaultValues.quantity);
+    setColor(defaultValues.color);
+    setSize(defaultValues.size);
+    
+    toast({
+      title: "Batch Added",
+      description: `Added batch of ${boxCount} boxes to ${warehouse.name}`,
+    });
+  };
+
+  const totalBoxesInBatches = batches.reduce((sum, batch) => sum + batch.boxCount, 0);
+  const remainingBoxes = stockIn.boxes - totalBoxesInBatches;
 
   return (
     <div className="space-y-6">
@@ -155,12 +143,12 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Warehouse</Label>
-            <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
+            <Select value={selectedWarehouse} onValueChange={handleWarehouseChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select warehouse" />
               </SelectTrigger>
               <SelectContent>
-                {warehouses.map((warehouse) => (
+                {warehouses?.map((warehouse) => (
                   <SelectItem key={warehouse.id} value={warehouse.id}>
                     {warehouse.name}
                   </SelectItem>
@@ -168,63 +156,137 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="space-y-2">
             <Label>Location</Label>
             <Select 
               value={selectedLocation} 
-              onValueChange={setSelectedLocation}
-              disabled={!selectedWarehouse}
+              onValueChange={handleLocationChange}
+              disabled={!selectedWarehouse || isLoadingLocations}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select location" />
+                <SelectValue placeholder={!selectedWarehouse ? "Select warehouse first" : "Select location"} />
               </SelectTrigger>
               <SelectContent>
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.id}>
-                    Floor {location.floor} - Zone {location.zone}
+                {isLoadingLocations ? (
+                  <SelectItem value="loading" disabled>
+                    Loading locations...
                   </SelectItem>
-                ))}
+                ) : locations && locations.length > 0 ? (
+                  locations.map((location) => (
+                    <SelectItem key={location.id} value={location.id}>
+                      Zone {location.zone}, Floor {location.floor}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-locations" disabled>
+                    {selectedWarehouse ? "No locations found" : "Select a warehouse first"}
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
+            {selectedWarehouse && locations && locations.length === 0 && !isLoadingLocations && (
+              <p className="text-sm text-muted-foreground mt-1">
+                No locations available for this warehouse
+              </p>
+            )}
           </div>
-          
+
           <div className="space-y-2">
             <Label>Number of Boxes</Label>
             <Input
               type="number"
               min={1}
               max={remainingBoxes}
-              value={boxesCount}
-              onChange={(e) => setBoxesCount(Math.min(parseInt(e.target.value) || 1, remainingBoxes))}
+              value={boxCount}
+              onChange={handleBoxCountChange}
             />
             <p className="text-sm text-muted-foreground">
               {remainingBoxes} boxes remaining to allocate
             </p>
           </div>
-          
+
+          <div className="space-y-2">
+            <Label>Quantity per Box</Label>
+            <Input
+              type="number"
+              min={1}
+              value={quantityPerBox}
+              onChange={(e) => setQuantityPerBox(parseInt(e.target.value) || 1)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <Input
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Size</Label>
+              <Input
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+
           <Button
             onClick={handleAddBatch}
-            disabled={
-              !selectedWarehouse || 
-              !selectedLocation || 
-              boxesCount <= 0 || 
-              boxesCount > remainingBoxes ||
-              isGenerating
-            }
+            disabled={!selectedWarehouse || !selectedLocation || boxCount <= 0 || quantityPerBox <= 0}
+            className="w-full"
           >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Generating
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4 mr-2" /> Add Batch
-              </>
-            )}
+            <Plus className="h-4 w-4 mr-2" /> Add Batch
           </Button>
         </CardContent>
       </Card>
+
+      {batches.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="font-medium">Created Batches</h3>
+          {batches.map((batch, index) => (
+            <Card key={batch.id}>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Warehouse</Label>
+                    <p>{batch.warehouse_name}</p>
+                  </div>
+                  <div>
+                    <Label>Location</Label>
+                    <p>{batch.location_name}</p>
+                  </div>
+                  <div>
+                    <Label>Boxes</Label>
+                    <p>{batch.boxCount}</p>
+                  </div>
+                  <div>
+                    <Label>Quantity per Box</Label>
+                    <p>{batch.quantityPerBox}</p>
+                  </div>
+                  {batch.color && (
+                    <div>
+                      <Label>Color</Label>
+                      <p>{batch.color}</p>
+                    </div>
+                  )}
+                  {batch.size && (
+                    <div>
+                      <Label>Size</Label>
+                      <p>{batch.size}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onBack}>

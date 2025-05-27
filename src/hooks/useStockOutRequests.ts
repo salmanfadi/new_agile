@@ -7,14 +7,31 @@ export interface StockOutRequestData {
   product: { name: string; id: string };
   requester: { name: string; username: string; id: string } | null;
   approvedBy: { name: string; username: string; id: string } | null;
+  rejectedBy: { name: string; username: string; id: string } | null;
+  completedBy: { name: string; username: string; id: string } | null;
   quantity: number;
-  approvedQuantity: number;
-  status: "pending" | "approved" | "rejected" | "completed" | "processing";
+  approvedQuantity: number | null;
+  status: "pending" | "approved" | "rejected" | "processing" | "completed";
   destination: string;
   reason: string | null;
   created_at: string;
+  approved_at: string | null;
+  rejected_at: string | null;
+  completed_at: string | null;
   invoice_number: string | null;
   packing_slip_number: string | null;
+  reservation_id: string | null;
+  details: Array<{
+    id: string;
+    product_id: string;
+    quantity: number;
+    processed_quantity: number | null;
+    status: "pending" | "processing" | "completed";
+    barcode: string;
+    batch_id: string | null;
+    processed_by: { name: string; username: string; id: string } | null;
+    processed_at: string | null;
+  }>;
 }
 
 export const useStockOutRequests = (filters: Record<string, any> = {}, page: number = 1, pageSize: number = 20) => {
@@ -29,14 +46,31 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
             product_id,
             requested_by,
             approved_by,
+            rejected_by,
+            completed_by,
             quantity,
             approved_quantity,
             status,
             destination,
             reason,
             created_at,
+            approved_at,
+            rejected_at,
+            completed_at,
             invoice_number,
-            packing_slip_number
+            packing_slip_number,
+            reservation_id,
+            stock_out_details (
+              id,
+              product_id,
+              quantity,
+              processed_quantity,
+              status,
+              barcode,
+              batch_id,
+              processed_by,
+              processed_at
+            )
           `, { count: 'exact' });
 
         // Apply filters
@@ -54,6 +88,9 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
         }
         if (filters.requested_by) {
           query = query.eq('requested_by', filters.requested_by);
+        }
+        if (filters.reservation_id) {
+          query = query.eq('reservation_id', filters.reservation_id);
         }
 
         // Pagination
@@ -87,65 +124,69 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
             }
           }
 
-          // Get requester details
-          let requester = null;
-          if (item.requested_by) {
-            const { data: requesterData } = await supabase
+          // Get user details function
+          const getUserDetails = async (userId: string | null) => {
+            if (!userId) return null;
+            const { data: userData } = await supabase
               .from('profiles')
               .select('id, name, username')
-              .eq('id', item.requested_by)
+              .eq('id', userId)
               .maybeSingle();
-            if (requesterData) {
-              requester = {
-                id: requesterData.id,
-                name: requesterData.name || 'Unknown User',
-                username: requesterData.username
-              };
-            } else {
-              requester = {
-                id: item.requested_by,
-                name: 'Unknown User',
-                username: item.requested_by.substring(0, 8) + '...'
-              };
-            }
-          }
+            return userData ? {
+              id: userData.id,
+              name: userData.name || 'Unknown User',
+              username: userData.username
+            } : {
+              id: userId,
+              name: 'Unknown User',
+              username: userId.substring(0, 8) + '...'
+            };
+          };
 
-          // Get approver details if exists
-          let approvedBy = null;
-          if (item.approved_by) {
-            const { data: approverData } = await supabase
-              .from('profiles')
-              .select('id, name, username')
-              .eq('id', item.approved_by)
-              .maybeSingle();
-            if (approverData) {
-              approvedBy = {
-                id: approverData.id,
-                name: approverData.name || 'Unknown Approver',
-                username: approverData.username
-              };
-            } else {
-              approvedBy = {
-                id: item.approved_by,
-                name: 'Unknown Approver',
-                username: item.approved_by.substring(0, 8) + '...'
-              };
-            }
-          }
+          // Get all user details in parallel
+          const [requester, approvedBy, rejectedBy, completedBy] = await Promise.all([
+            getUserDetails(item.requested_by),
+            getUserDetails(item.approved_by),
+            getUserDetails(item.rejected_by),
+            getUserDetails(item.completed_by)
+          ]);
+
+          // Process details
+          const details = await Promise.all((item.stock_out_details || []).map(async (detail) => {
+            const processedBy = await getUserDetails(detail.processed_by);
+            return {
+              id: detail.id,
+              product_id: detail.product_id,
+              quantity: detail.quantity,
+              processed_quantity: detail.processed_quantity,
+              status: detail.status,
+              barcode: detail.barcode,
+              batch_id: detail.batch_id,
+              processed_by: processedBy,
+              processed_at: detail.processed_at
+            };
+          }));
 
           return {
             id: item.id,
             product,
             requester,
             approvedBy,
+            rejectedBy,
+            completedBy,
             quantity: item.quantity,
-            approvedQuantity: item.approved_quantity || 0,
+            approvedQuantity: item.approved_quantity,
             status: item.status,
             destination: item.destination,
             reason: item.reason,
             created_at: item.created_at,
+            approved_at: item.approved_at,
+            rejected_at: item.rejected_at,
+            completed_at: item.completed_at,
             invoice_number: item.invoice_number,
-            packing_slip_number: item.packing_slip_number
+            packing_slip_number: item.packing_slip_number,
+            reservation_id: item.reservation_id,
+            details
           } as StockOutRequestData;
         }));
 
