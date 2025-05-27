@@ -1,7 +1,7 @@
 export interface Warehouse {
   id: string;
   name: string;
-  location: string | null;
+  location: string;
   created_at: string;
   updated_at: string;
 }
@@ -45,18 +45,35 @@ export interface Inventory {
   location_id: string;
   barcode: string;
   quantity: number;
-  color: string | null;
-  size: string | null;
+  color?: string;
+  size?: string;
+  status: string;
+  batch_id?: string;
   created_at: string;
   updated_at: string;
-  status: InventoryStatus;
-  batch_id: string | null;
-  created_by?: string | null;
-  updated_by?: string | null;
-  // Join fields
-  product?: Product;
-  warehouse?: Warehouse;
-  warehouse_location?: WarehouseLocation;
+  products?: Product;
+  warehouses?: Warehouse;
+  warehouse_locations?: WarehouseLocation;
+}
+
+export interface InventoryItem {
+  id: string;
+  productId: string;
+  productName: string;
+  productSku?: string;
+  productCategory?: string;
+  productSpecifications?: string;
+  warehouseId: string;
+  warehouseName: string;
+  locationId: string;
+  locationDetails: string;
+  barcode: string;
+  quantity: number;
+  color?: string;
+  size?: string;
+  status: string;
+  batchId?: string;
+  lastUpdated: string;
 }
 
 export interface StockInRequest {

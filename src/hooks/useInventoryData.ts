@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
 
 // Define interface for related data returned from Supabase
 interface ProductData {
@@ -30,6 +29,8 @@ export interface InventoryItem {
   productId: string;
   productName: string;
   productSku?: string;
+  productCategory?: string | null;
+  productSpecifications?: string | null;
   warehouseId: string;
   warehouseName: string;
   locationId: string;
@@ -76,39 +77,23 @@ export const useInventoryData = (
 ) => {
   return useQuery({
     queryKey: ['inventory-data', warehouseFilter, batchFilter, statusFilter, searchTerm, page, pageSize],
-    queryFn: async (): Promise<{ data: InventoryItem[]; totalCount: number }> => {
-      console.log('Fetching inventory data with filters:', {
-        warehouseFilter,
-        batchFilter,
-        statusFilter,
-        searchTerm,
-        page,
-        pageSize
-      });
+    queryFn: async () => {
       try {
         let queryBuilder = supabase
           .from('inventory')
           .select(`
-            id,
-            product_id,
-            warehouse_id,
-            location_id,
-            barcode,
-            quantity,
-            color,
-            size,
-            status,
-            batch_id,
-            created_at,
-            updated_at,
-            products!fk_inventory_product (
+            *,
+            products!inventory_product_fkey (
               name,
-              sku
+              sku,
+              category,
+              specifications
             ),
-            warehouses!fk_inventory_warehouse (
-              name
+            warehouses!inventory_warehouse_fkey (
+              name,
+              location
             ),
-            warehouse_locations!fk_inventory_location (
+            warehouse_locations!inventory_location_fkey (
               floor,
               zone
             )
@@ -125,7 +110,7 @@ export const useInventoryData = (
           queryBuilder = queryBuilder.eq('status', statusFilter);
         }
         if (searchTerm) {
-          queryBuilder = queryBuilder.or(`barcode.ilike.%${searchTerm}%,products.name.ilike.%${searchTerm}%`);
+          queryBuilder = queryBuilder.or(`products.name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%`);
         }
 
         // Pagination
@@ -134,48 +119,35 @@ export const useInventoryData = (
         queryBuilder = queryBuilder.range(from, to);
 
         const { data, error, count } = await queryBuilder;
+        
         if (error) {
           console.error('Error fetching inventory:', error);
           throw new Error(`Failed to fetch inventory: ${error.message}`);
         }
-        
-        // Cast the data to our typed interface
-        const typedData = data as unknown as InventoryItemWithRelations[];
-        
-        // Transform the data to InventoryItem[]
-        const items: InventoryItem[] = (typedData ?? []).map((item: any) => {
-          const productData = item.products || {};
-          const productName = productData?.name || 'Unknown Product';
-          const productSku = productData?.sku || undefined;
-          const warehouseData = item.warehouses || {};
-          const warehouseName = warehouseData?.name || 'Unknown Warehouse';
-          const locationData = item.warehouse_locations || {};
-          let locationDetails = 'Unknown Location';
-          const floor = locationData?.floor;
-          const zone = locationData?.zone;
-          if (floor !== null && zone !== null) {
-            locationDetails = `Floor ${floor}, Zone ${zone}`;
-          }
-          
-          return {
-            id: item.id,
-            productId: item.product_id,
-            productName,
-            productSku,
-            warehouseId: item.warehouse_id,
-            warehouseName,
-            locationId: item.location_id,
-            locationDetails,
-            barcode: item.barcode,
-            quantity: item.quantity,
-            color: item.color || undefined,
-            size: item.size || undefined,
-            status: item.status,
-            batchId: item.batch_id || undefined,
-            lastUpdated: item.updated_at,
-            source: item.details?.source || null
-          } as InventoryItem;
-        });
+
+        // Transform the data
+        const items = (data ?? []).map(item => ({
+          id: item.id,
+          productId: item.product_id,
+          productName: item.products?.name || 'Unknown Product',
+          productSku: item.products?.sku,
+          productCategory: item.products?.category,
+          productSpecifications: item.products?.specifications,
+          warehouseId: item.warehouse_id,
+          warehouseName: item.warehouses?.name || 'Unknown Warehouse',
+          locationId: item.location_id,
+          locationDetails: item.warehouse_locations ? 
+            `Floor ${item.warehouse_locations.floor}, Zone ${item.warehouse_locations.zone}` : 
+            'Unknown Location',
+          barcode: item.barcode,
+          quantity: item.quantity,
+          color: item.color || undefined,
+          size: item.size || undefined,
+          status: item.status,
+          batchId: item.batch_id,
+          lastUpdated: item.updated_at
+        }));
+
         return { data: items, totalCount: count ?? 0 };
       } catch (error) {
         console.error('Failed to fetch inventory:', error);
