@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -26,7 +25,7 @@ const Unauthorized: React.FC = () => {
       case 'warehouse_manager':
         return '/manager';
       case 'field_operator':
-        return '/field';
+        return '/operator';
       case 'sales_operator':
         return '/sales';
       default:

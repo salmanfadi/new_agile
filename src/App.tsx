@@ -42,8 +42,12 @@ import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehou
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
 import BatchOverviewPage from './pages/warehouseManager/BatchOverviewPage';
 import BarcodeAssignmentPage from './pages/warehouseManager/BarcodeAssignmentPage';
+<<<<<<< HEAD
+import { default as ManagerReserveStock } from './pages/warehouseManager/ReserveStock';
+=======
 import EnhancedInventoryView from './pages/warehouseManager/EnhancedInventoryView';
 import ManagerInventoryView from './pages/warehouseManager/InventoryView';
+>>>>>>> origin/reserve-stock
 
 // Field operator pages
 import OperatorDashboard from './pages/fieldOperator/OperatorDashboard';
@@ -53,6 +57,7 @@ import Submissions from './pages/fieldOperator/Submissions';
 import FieldOperatorBarcodeLookup from './pages/fieldOperator/BarcodeLookup';
 import Transfers from './pages/fieldOperator/Transfers';
 import Settings from './pages/fieldOperator/Settings';
+import { default as OperatorReserveStock } from './pages/fieldOperator/ReserveStock';
 
 // Sales operator pages
 import SalesOperatorDashboard from './pages/salesOperator/SalesOperatorDashboard';
@@ -201,27 +206,27 @@ function App() {
                 <Route path="/manager/inventory" element={<EnhancedInventoryView />} />
                 <Route path="/manager/inventory/search" element={<ManagerInventoryView />} />
                 <Route path="/manager/transfers" element={<ManagerInventoryTransfers />} />
-                
-                {/* Warehouse Manager Enhanced Stock In Flow */}
                 <Route path="/manager/stock-in/batch/:stockInId" element={<ManagerBatchStockInPage />} />
                 <Route path="/manager/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />
                 <Route path="/manager/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
                 <Route path="/manager/stock-in/:stockInId/unified" element={<UnifiedBatchProcessingPage />} />
+                <Route path="/manager/reserve-stock" element={<ManagerReserveStock />} />
               </Route>
               
               {/* Field Operator Routes */}
               <Route element={
-                <RequireAuth allowedRoles={['field_operator', 'admin']}>
+                <RequireAuth allowedRoles={['field_operator']}>
                   <MainLayout />
                 </RequireAuth>
               }>
-                <Route path="/field" element={<OperatorDashboard />} />
-                <Route path="/field/stock-in" element={<StockInForm />} />
-                <Route path="/field/stock-out" element={<StockOutForm />} />
-                <Route path="/field/submissions" element={<Submissions />} />
-                <Route path="/field/barcode" element={<FieldOperatorBarcodeLookup />} />
-                <Route path="/field/transfers" element={<Transfers />} />
-                <Route path="/field/settings" element={<Settings />} />
+                <Route path="/operator" element={<OperatorDashboard />} />
+                <Route path="/operator/stock-in" element={<StockInForm />} />
+                <Route path="/operator/stock-out" element={<StockOutForm />} />
+                <Route path="/operator/submissions" element={<Submissions />} />
+                <Route path="/operator/barcode" element={<FieldOperatorBarcodeLookup />} />
+                <Route path="/operator/transfers" element={<Transfers />} />
+                <Route path="/operator/settings" element={<Settings />} />
+                <Route path="/operator/reserve-stock" element={<OperatorReserveStock />} />
               </Route>
               
               {/* Sales Operator Routes */}

@@ -1,41 +1,49 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Location {
+export interface Location {
   id: string;
   warehouse_id: string;
-  floor: number;
   zone: string;
+  floor: string;
   created_at: string;
-  updated_at: string;
 }
 
 export const useLocations = (warehouseId: string) => {
   const fetchLocations = async (): Promise<Location[]> => {
-    if (!warehouseId) return [];
+    if (!warehouseId) {
+      console.log('No warehouse ID provided to useLocations');
+      return [];
+    }
     
+    console.log('Fetching locations for warehouse:', warehouseId);
     const { data, error } = await supabase
       .from('warehouse_locations')
       .select('*')
       .eq('warehouse_id', warehouseId)
-      .order('floor', { ascending: true })
-      .order('zone', { ascending: true });
+      .order('zone')
+      .order('floor');
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching locations:', error);
+      throw error;
+    }
+    
+    console.log('Successfully fetched locations:', data);
     return data as Location[];
   };
   
-  const locationsQuery = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['locations', warehouseId],
     queryFn: fetchLocations,
-    enabled: !!warehouseId
+    enabled: !!warehouseId,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
   });
   
   return {
-    locations: locationsQuery.data || [],
-    isLoading: locationsQuery.isLoading,
-    error: locationsQuery.error,
-    refetch: locationsQuery.refetch
+    locations: data || [],
+    isLoading,
+    error
   };
 };

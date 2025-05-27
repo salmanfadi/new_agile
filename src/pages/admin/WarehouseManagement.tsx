@@ -21,11 +21,16 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Warehouse as WarehouseType } from '@/types/database';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Database } from '@/types/supabase';
+
+type WarehouseLocationRow = Database['public']['Tables']['warehouse_locations']['Row'];
+type WarehouseLocationInsert = Database['public']['Tables']['warehouse_locations']['Insert'];
 
 const WarehouseManagement = () => {
   const queryClient = useQueryClient();
@@ -40,8 +45,8 @@ const WarehouseManagement = () => {
   });
   
   const [locationForm, setLocationForm] = useState({
-    floor: 1,
     zone: '',
+    floor: '',
     warehouseId: '',
   });
 
@@ -63,12 +68,14 @@ const WarehouseManagement = () => {
   const { data: locations, isLoading: isLoadingLocations } = useQuery({
     queryKey: ['warehouseLocations', selectedWarehouseId],
     queryFn: async () => {
+      if (!selectedWarehouseId) return [];
+      
       const { data, error } = await supabase
         .from('warehouse_locations')
-        .select('*')
+        .select('id, warehouse_id, zone, floor')
         .eq('warehouse_id', selectedWarehouseId)
-        .order('floor')
-        .order('zone');
+        .order('zone')
+        .order('floor');
 
       if (error) throw error;
       return data;
@@ -156,6 +163,9 @@ const WarehouseManagement = () => {
 
   // Create location mutation
   const createLocationMutation = useMutation({
+<<<<<<< HEAD
+    mutationFn: async (newLocation: WarehouseLocationInsert) => {
+=======
     mutationFn: async (newLocation: { warehouse_id: string, floor: number, zone: string }) => {
       // Check for existing location first
       const exists = await checkExistingLocation(
@@ -168,6 +178,7 @@ const WarehouseManagement = () => {
         throw new Error('A location with this floor and zone already exists in this warehouse');
       }
 
+>>>>>>> origin/reserve-stock
       const { data, error } = await supabase
         .from('warehouse_locations')
         .insert([newLocation])
@@ -180,7 +191,7 @@ const WarehouseManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouseLocations', selectedWarehouseId] });
       setIsLocationDialogOpen(false);
-      setLocationForm({ floor: 1, zone: '', warehouseId: '' });
+      setLocationForm({ zone: '', floor: '', warehouseId: '' });
       toast({
         title: 'Location created',
         description: 'New warehouse location has been added successfully.',
@@ -211,8 +222,8 @@ const WarehouseManagement = () => {
     e.preventDefault();
     createLocationMutation.mutate({
       warehouse_id: selectedWarehouseId!,
-      floor: locationForm.floor,
       zone: locationForm.zone,
+      floor: locationForm.floor,
     });
   };
 
@@ -323,16 +334,16 @@ const WarehouseManagement = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Floor</TableHead>
                       <TableHead>Zone</TableHead>
+                      <TableHead>Floor</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {locations && locations.length > 0 ? (
                       locations.map((location) => (
                         <TableRow key={location.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
-                          <TableCell>{location.floor}</TableCell>
                           <TableCell>{location.zone}</TableCell>
+                          <TableCell>{location.floor}</TableCell>
                         </TableRow>
                       ))
                     ) : (
@@ -359,6 +370,11 @@ const WarehouseManagement = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}</DialogTitle>
+            <DialogDescription>
+              {editingWarehouse 
+                ? 'Update the warehouse details below.' 
+                : 'Enter the details for the new warehouse.'}
+            </DialogDescription>
           </DialogHeader>
           
           <form onSubmit={handleWarehouseSubmit}>
@@ -416,24 +432,23 @@ const WarehouseManagement = () => {
           <form onSubmit={handleLocationSubmit}>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="floor">Floor</Label>
-                <Input 
-                  id="floor" 
-                  type="number"
-                  min="1"
-                  value={locationForm.floor}
-                  onChange={(e) => setLocationForm(prev => ({ ...prev, floor: parseInt(e.target.value) }))}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
                 <Label htmlFor="zone">Zone</Label>
                 <Input 
                   id="zone" 
                   value={locationForm.zone}
                   onChange={(e) => setLocationForm(prev => ({ ...prev, zone: e.target.value }))}
-                  placeholder="A, B, C, etc."
+                  placeholder="Enter zone (e.g. A, B, C)"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="floor">Floor</Label>
+                <Input 
+                  id="floor" 
+                  value={locationForm.floor}
+                  onChange={(e) => setLocationForm(prev => ({ ...prev, floor: e.target.value }))}
+                  placeholder="Enter floor number"
                   required
                 />
               </div>

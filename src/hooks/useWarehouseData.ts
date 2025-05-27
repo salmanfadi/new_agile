@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -9,9 +8,10 @@ export interface Warehouse {
 
 export interface Location {
   id: string;
-  floor: number;
-  zone: string;
+  name: string;
+  description: string | null;
   warehouse_id: string;
+  created_at: string;
 }
 
 export const useWarehouseData = (selectedWarehouseId: string) => {
@@ -33,8 +33,7 @@ export const useWarehouseData = (selectedWarehouseId: string) => {
         .from('warehouse_locations')
         .select('*')
         .eq('warehouse_id', selectedWarehouseId)
-        .order('floor')
-        .order('zone');
+        .order('name');
         
       if (error) throw error;
       return data as Location[];

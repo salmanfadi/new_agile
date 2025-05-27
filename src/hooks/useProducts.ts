@@ -259,7 +259,8 @@ export function useProducts() {
       const { data, error } = await supabase
         .from('products')
         .select('category')
-        .not('category', 'is', null);
+        .filter('category', 'neq', null)
+        .filter('category', 'neq', '');
 
       if (error) throw error;
       

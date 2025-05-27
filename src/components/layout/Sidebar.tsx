@@ -117,6 +117,10 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                   <Package className="mr-3 h-5 w-5" />
                   <span>Stock Out</span>
                 </NavLink>
+                <NavLink to="/manager/reserve-stock" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Clock className="mr-3 h-5 w-5" />
+                  <span>Reserve Stock</span>
+                </NavLink>
                 <NavLink to="/manager/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Warehouse className="mr-3 h-5 w-5" />
                   <span>Transfers</span>
@@ -149,29 +153,29 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
             {/* Field Operator Navigation */}
             {user?.role === 'field_operator' && (
               <nav className="px-2 space-y-1">
-                <NavLink to="/field" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                <NavLink to="/operator" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <LayoutGrid className="mr-3 h-5 w-5" />
                   <span>Dashboard</span>
                 </NavLink>
-                <NavLink to="/field/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                <NavLink to="/operator/stock-in" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <PackageOpen className="mr-3 h-5 w-5" />
                   <span>Stock In</span>
                 </NavLink>
-                <NavLink to="/field/stock-out" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                <NavLink to="/operator/stock-out" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Package className="mr-3 h-5 w-5" />
                   <span>Stock Out</span>
                 </NavLink>
-                 <NavLink to="/field/submissions" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                <NavLink to="/operator/submissions" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Boxes className="mr-3 h-5 w-5" />
                   <span>Submissions</span>
                 </NavLink>
-                <NavLink to="/field/barcode-lookup" className={({ isActive }) =>
+                <NavLink to="/operator/barcode" className={({ isActive }) =>
                     cn("flex items-center px-2 py-2 rounded-md",
                         isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <ShoppingBag className="mr-3 h-5 w-5"/>
                   <span>Barcode Lookup</span>
                 </NavLink>
-                <NavLink to="/field/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                <NavLink to="/operator/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Warehouse className="mr-3 h-5 w-5" />
                   <span>Transfers</span>
                 </NavLink>

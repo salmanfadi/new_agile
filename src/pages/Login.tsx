@@ -32,7 +32,7 @@ const Login: React.FC = () => {
       let targetRoute = '/';
       if (user.role === 'admin') targetRoute = '/admin';
       else if (user.role === 'warehouse_manager') targetRoute = '/manager';
-      else if (user.role === 'field_operator') targetRoute = '/field';
+      else if (user.role === 'field_operator') targetRoute = '/operator';
       else if (user.role === 'sales_operator') targetRoute = '/sales';
       
       navigate(targetRoute, { replace: true });

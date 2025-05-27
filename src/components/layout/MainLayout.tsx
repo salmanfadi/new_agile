@@ -294,6 +294,14 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Reserve Stock">
+                <NavLink to="/manager/reserve-stock" className={getNavLinkClass}>
+                  <Clock className="h-4 w-4" />
+                  <span>Reserve Stock</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
       </>
@@ -322,18 +330,26 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
           <SidebarGroupLabel>Field Operations</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
+<<<<<<< HEAD
+              <SidebarMenuButton asChild tooltip="Stock In">
+=======
               <SidebarMenuButton asChild tooltip="New Stock In">
+>>>>>>> origin/reserve-stock
                 <NavLink to="/operator/stock-in" className={getNavLinkClass}>
                   <PackagePlus className="h-4 w-4" />
-                  <span>New Stock In</span>
+                  <span>Stock In</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
+<<<<<<< HEAD
+              <SidebarMenuButton asChild tooltip="Stock Out">
+=======
               <SidebarMenuButton asChild tooltip="New Stock Out">
+>>>>>>> origin/reserve-stock
                 <NavLink to="/operator/stock-out" className={getNavLinkClass}>
                   <PackageMinus className="h-4 w-4" />
-                  <span>New Stock Out</span>
+                  <span>Stock Out</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -347,9 +363,21 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Barcode Lookup">
+<<<<<<< HEAD
+                <NavLink to="/operator/barcode" className={getNavLinkClass}>
+=======
                 <NavLink to="/operator/barcode-lookup" className={getNavLinkClass}>
+>>>>>>> origin/reserve-stock
                   <ScanLine className="h-4 w-4" />
                   <span>Barcode Lookup</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Reserve Stock">
+                <NavLink to="/operator/reserve-stock" className={getNavLinkClass}>
+                  <Clock className="h-4 w-4" />
+                  <span>Reserve Stock</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -42,7 +41,7 @@ const Index = () => {
         
         if (user.role === 'admin') targetRoute = '/admin';
         else if (user.role === 'warehouse_manager') targetRoute = '/manager';
-        else if (user.role === 'field_operator') targetRoute = '/field';
+        else if (user.role === 'field_operator') targetRoute = '/operator';
         else if (user.role === 'sales_operator') targetRoute = '/sales';
         else if (user.role === 'customer') targetRoute = '/customer/portal';
         

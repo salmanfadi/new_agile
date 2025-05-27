@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { BoxData } from '@/hooks/useStockInBoxes';
@@ -50,7 +49,7 @@ const StockInStepPreview: React.FC<StockInStepPreviewProps> = ({
           const { locations } = useLocations(box.warehouse_id);
           const location = locations?.find(l => l.id === box.location_id);
           if (location) {
-            locationName = `Floor ${location.floor}, Zone ${location.zone}`;
+            locationName = `Zone ${location.zone}, Floor ${location.floor}`;
           }
         }
         

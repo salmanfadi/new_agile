@@ -60,7 +60,6 @@ const ReserveStock: React.FC = () => {
 
   // State for the list of reserved items (dummy data)
   const [reservedItems, setReservedItems] = useState<ReservedItem[]>([
-    // Initial dummy data
     {
       id: 'res-1',
       product: { id: 'prod-1', name: 'Laptop Pro X' },
@@ -105,10 +104,9 @@ const ReserveStock: React.FC = () => {
   const handleProductNameInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setProductNameInput(value);
-    setSelectedProduct(null); // Clear selected product when typing
-    setIsProductDropdownOpen(true); // Open dropdown when typing
-    // Update newReservation productId/name based on input if no product is selected
-     setNewReservation(prev => ({ ...prev, productId: '', name: value }));
+    setSelectedProduct(null);
+    setIsProductDropdownOpen(true);
+    setNewReservation(prev => ({ ...prev, productId: '', name: value }));
   };
 
   // Handle product selection from combobox
@@ -135,7 +133,7 @@ const ReserveStock: React.FC = () => {
       customer: newReservation.customer,
       startDate: newReservation.startDate,
       endDate: newReservation.endDate,
-      status: 'Active', // Default status
+      status: 'Active',
     };
 
     setReservedItems(prev => [...prev, newReservedItem]);
@@ -179,7 +177,6 @@ const ReserveStock: React.FC = () => {
   const handleCancelReservation = (id: string) => {
     setReservedItems(prev => prev.map(item => {
       if (item.id === id) {
-        // Return stock to inventory when cancelled
         return { ...item, status: 'Cancelled' };
       }
       return item;
@@ -209,7 +206,7 @@ const ReserveStock: React.FC = () => {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => navigate('/admin')}
+        onClick={() => navigate('/operator')}
         className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -252,7 +249,7 @@ const ReserveStock: React.FC = () => {
                 )}
               </div>
               {selectedProduct && (
-                 <p className="text-sm text-muted-foreground">Selected: {selectedProduct.name}</p>
+                <p className="text-sm text-muted-foreground">Selected: {selectedProduct.name}</p>
               )}
             </div>
 
@@ -281,30 +278,30 @@ const ReserveStock: React.FC = () => {
               />
             </div>
 
-             <div className="flex gap-4">
-                <div className="space-y-2 flex-1">
-                  <Label htmlFor="startDate">Start Date*</Label>
-                  <Input
-                    id="startDate"
-                    name="startDate"
-                    type="date"
-                    value={newReservation.startDate}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                 <div className="space-y-2 flex-1">
-                  <Label htmlFor="endDate">End Date*</Label>
-                  <Input
-                    id="endDate"
-                    name="endDate"
-                    type="date"
-                    value={newReservation.endDate}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-             </div>
+            <div className="flex gap-4">
+              <div className="space-y-2 flex-1">
+                <Label htmlFor="startDate">Start Date*</Label>
+                <Input
+                  id="startDate"
+                  name="startDate"
+                  type="date"
+                  value={newReservation.startDate}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2 flex-1">
+                <Label htmlFor="endDate">End Date*</Label>
+                <Input
+                  id="endDate"
+                  name="endDate"
+                  type="date"
+                  value={newReservation.endDate}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            </div>
 
             <Button type="submit">
               Create Reservation
@@ -348,24 +345,23 @@ const ReserveStock: React.FC = () => {
                       <TableCell>{item.customer}</TableCell>
                       <TableCell>{format(new Date(item.startDate), 'MMM d, yyyy')}</TableCell>
                       <TableCell>{format(new Date(item.endDate), 'MMM d, yyyy')}</TableCell>
-                       <TableCell>
-                        {/* Basic Status Display - Could use a Badge component */}
+                      <TableCell>
                         <span>{item.status}</span>
                       </TableCell>
                       <TableCell className="text-right space-x-2">
-                         {item.status === 'Active' && (
-                           <>
-                             <Button size="sm" variant="outline" onClick={() => handlePushToStockOut(item.id)}>
-                               Push to Stock Out
-                             </Button>
-                             <Button size="sm" variant="destructive" onClick={() => handleCancelReservation(item.id)}>
-                               Cancel
-                             </Button>
-                           </>
-                         )}
-                         {(item.status === 'Expired' || item.status === 'Cancelled') && (
-                           <span className="text-sm text-muted-foreground">No actions available</span>
-                         )}
+                        {item.status === 'Active' && (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => handlePushToStockOut(item.id)}>
+                              Push to Stock Out
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleCancelReservation(item.id)}>
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                        {(item.status === 'Expired' || item.status === 'Cancelled') && (
+                          <span className="text-sm text-muted-foreground">No actions available</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
