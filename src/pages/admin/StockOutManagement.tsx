@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Filter } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input';
 
 const AdminStockOutManagement: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState("all");
@@ -96,6 +97,46 @@ const AdminStockOutManagement: React.FC = () => {
       });
     }
   }, [dummyRequests.length]);
+
+  // Handle incoming reservation data
+  useEffect(() => {
+    const state = location.state as { stockOutRequest?: any; reservationId?: string } | null;
+    if (state?.stockOutRequest) {
+      // Create a new stock out request from the reservation
+      const newRequest = {
+        id: `req-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        product: state.stockOutRequest.product,
+        requester: { name: user?.name || 'Admin' },
+        quantity: state.stockOutRequest.quantity,
+        status: 'pending',
+        destination: state.stockOutRequest.customer,
+        approvedBy: null,
+        invoice_number: null,
+        packing_slip_number: null,
+        reservation_id: state.reservationId,
+        items: [{
+          id: `item-${Date.now()}`,
+          product_name: state.stockOutRequest.product.name,
+          barcode: `BOX-${Date.now()}`,
+          batch_id: `BATCH-${Date.now()}`,
+          requested_quantity: state.stockOutRequest.quantity,
+          available_quantity: state.stockOutRequest.quantity,
+        }],
+      };
+
+      setDummyRequests(prev => [newRequest, ...prev]);
+      
+      // Clear the location state to prevent duplicate requests
+      navigate(location.pathname, { replace: true });
+
+      // Show success toast
+      toast({
+        title: 'Stock Out Request Created',
+        description: `Created from reservation for ${state.stockOutRequest.customer}`,
+      });
+    }
+  }, [location.state, navigate, toast, user?.name]);
 
   const handleOpenProcessDialog = (request: any) => {
     setProcessingRequest(request);

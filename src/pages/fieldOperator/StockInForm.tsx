@@ -26,6 +26,16 @@ import { ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/types/database.types';
+
+type StockIn = Database['public']['Tables']['stock_in']['Insert'];
+
+interface StockInFormData {
+  productId: string;
+  numberOfBoxes: string | number;
+  source: string;
+  notes: string;
+}
 
 const StockInForm: React.FC = () => {
   const navigate = useNavigate();
@@ -46,9 +56,9 @@ const StockInForm: React.FC = () => {
     },
   });
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<StockInFormData>({
     productId: '',
-    numberOfBoxes: '' as string | number,
+    numberOfBoxes: '',
     source: '',
     notes: '',
   });
@@ -65,26 +75,34 @@ const StockInForm: React.FC = () => {
   const createStockInMutation = useMutation({
     mutationFn: async (data: { 
       product_id: string; 
-      boxes: number; 
+      number_of_boxes: number; 
       submitted_by: string;
       source: string;
       notes?: string;
     }) => {
       console.log("Submitting stock in request:", data);
+      
+      const stockInData = {
+        product_id: data.product_id,
+        number_of_boxes: data.number_of_boxes,
+        submitted_by: data.submitted_by,
+        source: data.source,
+        notes: data.notes,
+        status: 'pending'
+      };
+      
       const { data: result, error } = await supabase
         .from('stock_in')
-        .insert([{
-          ...data,
-          status: 'pending' // Add initial status
-        }])
-        .select();
+        .insert([stockInData])
+        .select('id')
+        .single();
         
       if (error) {
         console.error("Database error:", error);
         throw error;
       }
       
-      if (!result || result.length === 0) {
+      if (!result) {
         throw new Error('Failed to create stock in record');
       }
       
@@ -240,7 +258,7 @@ const StockInForm: React.FC = () => {
     console.log("Submitting with user ID:", user.id);
     createStockInMutation.mutate({
       product_id: formData.productId,
-      boxes: numBoxes,
+      number_of_boxes: numBoxes,
       submitted_by: user.id,
       source: formData.source.trim(),
       notes: formData.notes.trim() || undefined

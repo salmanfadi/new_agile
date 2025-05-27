@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { 
@@ -33,7 +32,8 @@ import {
   Settings,
   LayoutDashboard,
   LogOut,
-  Bell
+  Bell,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -187,6 +187,14 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
                 <NavLink to="/admin/stock-out" className={getNavLinkClass}>
                   <PackageMinus className="h-4 w-4" />
                   <span>Stock Out</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Reserve Stock">
+                <NavLink to="/admin/reserve-stock" className={getNavLinkClass}>
+                  <Clock className="h-4 w-4" />
+                  <span>Reserve Stock</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>

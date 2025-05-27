@@ -63,13 +63,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (profileError) {
         console.error('Error fetching user profile:', profileError);
         // If profile doesn't exist, create a default one
+        const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert([{
             id: authUser.id,
             username: authUser.email?.split('@')[0] || 'user',
             name: authUser.email?.split('@')[0] || 'User',
-            role: 'field_operator' as UserRole,
+            role: defaultRole as UserRole,
             active: true
           }])
           .select()
@@ -77,10 +78,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           
         if (createError) {
           console.error('Error creating profile:', createError);
-          // Fallback to default user
+          // Fallback to default user with proper role
           return {
             ...authUser,
-            role: 'field_operator' as UserRole,
+            role: defaultRole as UserRole,
             name: authUser.email?.split('@')[0] || 'User',
             username: authUser.email || '',
             active: true
@@ -97,29 +98,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
       
       if (profileData) {
+        // Ensure admin@gmail.com always has admin role
+        const role = authUser.email === 'admin@gmail.com' ? 'admin' : profileData.role;
         return {
           ...authUser,
-          role: profileData.role as UserRole,
+          role: role as UserRole,
           name: profileData.name || authUser.email?.split('@')[0] || 'User',
           username: profileData.username || authUser.email || '',
           active: profileData.active !== false
         } as User;
       }
       
-      // Fallback if no profile data
+      // Fallback if no profile data, with proper role for admin
+      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
       return {
         ...authUser,
-        role: 'field_operator' as UserRole,
+        role: defaultRole as UserRole,
         name: authUser.email?.split('@')[0] || 'User',
         username: authUser.email || '',
         active: true
       } as User;
     } catch (err) {
       console.error('Error processing user profile:', err);
-      // Return fallback user
+      // Return fallback user with proper role for admin
+      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
       return {
         ...authUser,
-        role: 'field_operator' as UserRole,
+        role: defaultRole as UserRole,
         name: authUser.email?.split('@')[0] || 'User',
         username: authUser.email || '',
         active: true
