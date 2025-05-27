@@ -17,7 +17,7 @@ import { useOrders } from '@/hooks/useOrders';
 
 const OrdersManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
-  const { orders, isLoading, error } = useOrders();
+  const { data: orders, isLoading, error } = useOrders();
 
   const filteredOrders = React.useMemo(() => {
     if (!orders) return [];
@@ -93,7 +93,7 @@ const OrdersManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>${order.total_amount.toFixed(2)}</TableCell>
                     <TableCell>
-                      <Badge variant={order.status === 'pending' ? 'warning' : 'success'}>
+                      <Badge variant={order.status === 'pending' ? 'secondary' : 'success'}>
                         {order.status}
                       </Badge>
                     </TableCell>
