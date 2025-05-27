@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Table,
@@ -18,8 +17,8 @@ export interface BatchItem {
   batch_id: string;
   barcode: string;
   quantity: number;
-  color?: string | null;
-  size?: string | null;
+  color?: string;
+  size?: string;
   warehouse_id: string;
   warehouseName?: string;
   location_id: string;

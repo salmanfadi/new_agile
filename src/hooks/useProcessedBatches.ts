@@ -71,22 +71,6 @@ interface ProcessedBatchesFilters {
   toDate?: Date;
 }
 
-const getProcessorName = async (processorId: string): Promise<string> => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('name')
-      .eq('id', processorId)
-      .single();
-
-    if (error) throw error;
-    return data?.name || 'Unknown';
-  } catch (error) {
-    console.error('Error fetching processor name:', error);
-    return 'Unknown';
-  }
-};
-
 const fetchProcessedBatches = async (
   page = 1,
   pageSize = 10,
@@ -115,14 +99,13 @@ const fetchProcessedBatches = async (
     const { count: totalCount, error: countError } = await countQuery;
     if (countError) throw countError;
 
-    // 2. Get the paginated data with joins - fix the foreign key hint
+    // 2. Get the paginated data with joins
     let dataQuery = supabase
       .from('processed_batches')
       .select(`
         id,
         product_id,
         processed_by,
-        submitted_by,
         total_boxes,
         status,
         source,
@@ -130,7 +113,7 @@ const fetchProcessedBatches = async (
         processed_at,
         total_quantity,
         warehouse_id,
-        products!fk_processed_batches_products (
+        products:product_id (
           name,
           sku
         )
@@ -155,14 +138,11 @@ const fetchProcessedBatches = async (
     const { data, error } = await dataQuery;
     if (error) throw error;
 
-    // Transform the data and fetch processor names
-    const processedData = await Promise.all(data ? data.map(async (item: any) => {
-      const processorName = await getProcessorName(item.processed_by);
-      
+    // Transform the data
+    const processedData = data ? data.map((item: any) => {
       return {
         id: item.id || '',
         product_id: item.product_id || '',
-        submitted_by: item.submitted_by || '',
         processed_by: item.processed_by || '',
         boxes: item.total_boxes || 0,
         status: item.status || 'completed',
@@ -172,12 +152,11 @@ const fetchProcessedBatches = async (
         completed_at: item.processed_at || null,
         product_name: item.products?.name || 'Unknown Product',
         product_sku: item.products?.sku || '',
-        submitter_name: item.submitted_by || '',
-        processor_name: processorName,
+        processor_name: item.processed_by || '',
         total_quantity: item.total_quantity || 0,
         warehouse_id: item.warehouse_id || '',
       };
-    }) : []);
+    }) : [];
 
     return {
       data: processedData,
@@ -206,11 +185,13 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
         processed_at,
         total_quantity,
         warehouse_id,
-        products!fk_processed_batches_products (
+        products:product_id (
           name,
           sku,
           description
-        )
+        ),
+        processor:processed_by (name),
+        warehouses:warehouse_id (name)
       `)
       .eq('id', batchId)
       .single();
@@ -221,7 +202,20 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
     // Get processor name if available
     let processorName = "Unknown";
     if (data.processed_by) {
-      processorName = await getProcessorName(data.processed_by);
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', data.processed_by)
+          .maybeSingle();
+        
+        if (profileData) {
+          processorName = profileData.name || "Unknown";
+        }
+      } catch (error) {
+        console.error("Error getting processor name:", error);
+        // Continue execution even if we can't get the processor name
+      }
     }
 
     // Get warehouse details if it exists

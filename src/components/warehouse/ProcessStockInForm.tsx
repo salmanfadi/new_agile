@@ -69,9 +69,17 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   const handleWizardComplete = (batchId: string) => {
     console.log("Wizard completed with batch ID:", batchId);
     onOpenChange(false);
-    // Navigate to batch details page
+    
+    // Navigate to inventory page instead of non-existent batch details page
     const baseRoute = adminMode ? '/admin' : '/manager';
-    navigate(`${baseRoute}/inventory/batch/${batchId}`);
+    navigate(`${baseRoute}/inventory`);
+    
+    // Show success toast with batch ID
+    toast({
+      title: "Stock-In Processed Successfully",
+      description: `Batch ID: ${batchId}`,
+      variant: "default"
+    });
   };
   
   return (
