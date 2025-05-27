@@ -8,36 +8,20 @@ interface RequireAuthProps {
   allowedRoles?: UserRole[];
 }
 
-export const RequireAuth = ({ children, allowedRoles }: RequireAuthProps) => {
+export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="text-center">
-          <div className="h-12 w-12 border-2 border-blue-600 dark:border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-medium text-gray-700 dark:text-gray-300">Loading...</h2>
-        </div>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If roles are specified, check if user has one of them
-  if (allowedRoles && user) {
-    // Admin has access to all routes
-    if (user.role === 'admin') {
-      return <>{children}</>;
-    }
-    
-    // For non-admin users, check if they have the required role
-    if (!allowedRoles.includes(user.role as UserRole)) {
-      return <Navigate to="/unauthorized" replace />;
-    }
+  if (!allowedRoles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
   }
 
   return <>{children}</>;

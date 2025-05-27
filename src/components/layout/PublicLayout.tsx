@@ -1,9 +1,14 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Package, Warehouse, Users } from 'lucide-react';
+import { ShoppingCart, Package, Warehouse, Users, LogIn, UserPlus } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface PublicLayoutProps {
   children: React.ReactNode;
@@ -32,14 +37,6 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
             </Link>
 
             <Link 
-              to="/customer" 
-              className="flex items-center text-gray-700 hover:text-blue-600 transition-colors"
-            >
-              <Users className="h-5 w-5 mr-1" />
-              <span>Customer Portal</span>
-            </Link>
-            
-            <Link 
               to="/cart" 
               className="flex items-center text-gray-700 hover:text-blue-600 transition-colors"
             >
@@ -54,11 +51,36 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
               <span>Cart</span>
             </Link>
             
-            <Link to="/login">
-              <Button variant="outline" size="sm">
-                Staff Login
-              </Button>
-            </Link>
+            <div className="flex items-center space-x-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center">
+                    <Users className="h-4 w-4 mr-1" />
+                    <span>Customer Access</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link to="/customer/login" className="flex items-center">
+                      <LogIn className="h-4 w-4 mr-2" />
+                      <span>Login</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/customer/register" className="flex items-center">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      <span>Sign Up</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Link to="/login">
+                <Button variant="outline" size="sm">
+                  Staff Login
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -84,14 +106,14 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
               <Link to="/products" className="hover:text-white transition-colors">
                 Products
               </Link>
-              <Link to="/customer" className="hover:text-white transition-colors">
-                Customer Portal
+              <Link to="/customer/login" className="hover:text-white transition-colors">
+                Customer Login
+              </Link>
+              <Link to="/customer/register" className="hover:text-white transition-colors">
+                Sign Up
               </Link>
               <Link to="/cart" className="hover:text-white transition-colors">
-                Request Pricing
-              </Link>
-              <Link to="/login" className="hover:text-white transition-colors">
-                Staff Portal
+                Cart
               </Link>
             </div>
           </div>

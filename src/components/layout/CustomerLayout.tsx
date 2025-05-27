@@ -1,14 +1,15 @@
-
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { ShoppingCart, Package, Warehouse, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-interface CustomerLayoutProps {
-  children: React.ReactNode;
-}
-
-export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
+export const CustomerLayout: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Header/Navigation */}
@@ -37,18 +38,28 @@ export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
             </Link>
             
             <div className="flex items-center space-x-2">
-              <Link to="/customer/login">
-                <Button variant="outline" size="sm" className="flex items-center">
-                  <LogIn className="h-4 w-4 mr-1" />
-                  <span>Login</span>
-                </Button>
-              </Link>
-              <Link to="/customer/register">
-                <Button variant="default" size="sm" className="flex items-center">
-                  <UserPlus className="h-4 w-4 mr-1" />
-                  <span>Register</span>
-                </Button>
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center">
+                    <LogIn className="h-4 w-4 mr-1" />
+                    <span>Account Access</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link to="/customer/login" className="flex items-center">
+                      <LogIn className="h-4 w-4 mr-2" />
+                      <span>Login</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/customer/register" className="flex items-center">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      <span>Sign Up</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -56,7 +67,7 @@ export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
       
       {/* Main Content */}
       <main className="flex-1">
-        {children}
+        <Outlet />
       </main>
       
       {/* Footer */}
@@ -79,10 +90,10 @@ export const CustomerLayout: React.FC<CustomerLayoutProps> = ({ children }) => {
                 Submit Inquiry
               </Link>
               <Link to="/customer/login" className="hover:text-white transition-colors">
-                Customer Portal
+                Login
               </Link>
               <Link to="/customer/register" className="hover:text-white transition-colors">
-                Register
+                Sign Up
               </Link>
             </div>
           </div>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CustomerLayout } from '@/components/layout/CustomerLayout';
@@ -6,9 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User, Warehouse } from 'lucide-react';
+import { Loader2, Mail, Lock, CheckCircle } from 'lucide-react';
 
 const CustomerLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -19,39 +19,18 @@ const CustomerLogin: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
-  // Helper function to clean up auth state
-  const cleanupAuthState = () => {
-    // Remove all Supabase auth keys from localStorage
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-        localStorage.removeItem(key);
-      }
-    });
-    
-    // Remove from sessionStorage if in use
-    Object.keys(sessionStorage || {}).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-        sessionStorage.removeItem(key);
-      }
-    });
-  };
+  // Signup states
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     
     try {
-      // First clean up any existing auth state
-      cleanupAuthState();
-
-      // Attempt global sign out to ensure clean state
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
-        console.log("Sign out before login failed:", err);
-      }
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -59,159 +38,234 @@ const CustomerLogin: React.FC = () => {
       
       if (error) throw error;
       
-      if (data.user) {
-        // Check if user is a customer and active
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role, active')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (profileError) throw profileError;
-        
-        if (profile.role === 'customer') {
-          if (!profile.active) {
-            await supabase.auth.signOut();
-            throw new Error("Your account has been disabled by the admin. For support, contact: admin@agilewms.com");
-          }
-          
-          toast({
-            title: "Login successful",
-            description: "Welcome to your customer portal",
-          });
-          navigate('/customer/portal');
-        } else {
-          // Not a customer, sign out and show error
-          await supabase.auth.signOut();
-          throw new Error("Access restricted to customers only.");
-        }
-      }
+      toast({
+        title: "Login successful",
+        description: "Welcome back!",
+      });
+      navigate('/customer/portal');
     } catch (error: any) {
-      console.error("Login error:", error);
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials. Please try again.",
+        description: error.message,
         variant: "destructive"
       });
     } finally {
       setIsLoggingIn(false);
     }
   };
-  
-  const handleForgotPassword = async () => {
-    if (!email) {
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Check if passwords match
+    if (signupPassword !== confirmPassword) {
       toast({
-        title: "Email Required",
-        description: "Please enter your email address to reset your password.",
+        title: "Password Mismatch",
+        description: "Passwords do not match",
         variant: "destructive"
       });
       return;
     }
     
+    setIsSigningUp(true);
+    
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/customer/reset-password`,
+      const { data, error } = await supabase.auth.signUp({
+        email: signupEmail,
+        password: signupPassword,
+        options: {
+          data: {
+            role: 'customer',
+          },
+          emailRedirectTo: `${window.location.origin}/customer/login`,
+        }
       });
       
       if (error) throw error;
       
+      setSignupSuccess(true);
       toast({
-        title: "Password Reset Email Sent",
-        description: "Check your email for a link to reset your password.",
+        title: "Registration Successful",
+        description: "Please check your email to confirm your account.",
       });
     } catch (error: any) {
       toast({
-        title: "Password Reset Failed",
-        description: error.message || "Failed to send password reset email.",
+        title: "Registration Failed",
+        description: error.message,
         variant: "destructive"
       });
+    } finally {
+      setIsSigningUp(false);
     }
   };
-  
+
   return (
-    <CustomerLayout>
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-md mx-auto">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-center mb-4">
-                <Warehouse className="h-8 w-8 text-blue-600" />
-              </div>
-              <CardTitle className="text-2xl text-center">Welcome to SCA Warehouse Management</CardTitle>
-              <CardDescription>
-                Sign in to your customer account to access your portal.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your.email@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="h-11"
-                  />
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white" 
-                  disabled={isLoggingIn}
-                >
-                  {isLoggingIn ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Logging in...
-                    </>
-                  ) : (
-                    'Login'
-                  )}
-                </Button>
-              </form>
-              
-              <div className="mt-4 text-center space-y-2">
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  Forgot your password?
-                </button>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-center border-t pt-4">
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">
-                  Don't have an account?
-                </p>
-                <Button variant="outline" asChild>
-                  <Link to="/customer/register" className="flex items-center">
-                    <User className="mr-2 h-4 w-4" />
-                    Register Now
-                  </Link>
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 p-4">
+      <div className="w-full max-w-md">
+        <Card className="w-full shadow-lg">
+          <CardHeader className="space-y-1">
+            <div className="flex justify-center mb-2">
+              <img 
+                src="/logo.png" 
+                alt="SCA Warehouse" 
+                className="h-12 w-auto"
+              />
+            </div>
+            <CardTitle className="text-2xl text-center">
+              Welcome to SCA Warehouse Management
+            </CardTitle>
+            <CardDescription className="text-center">
+              Sign in to your account or create a new one
+            </CardDescription>
+          </CardHeader>
+
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="login">
+              <CardContent className="pt-4">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isLoggingIn}
+                  >
+                    {isLoggingIn ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      'Sign In'
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </TabsContent>
+
+            <TabsContent value="signup">
+              <CardContent className="pt-4">
+                {signupSuccess ? (
+                  <div className="text-center py-6">
+                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Check Your Email</h3>
+                    <p className="text-gray-600 mb-4">
+                      We've sent you a confirmation email. Please click the link to activate your account.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setSignupSuccess(false)}
+                    >
+                      Register Another Account
+                    </Button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSignup} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signupEmail">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                        <Input
+                          id="signupEmail"
+                          type="email"
+                          placeholder="Enter your email"
+                          value={signupEmail}
+                          onChange={(e) => setSignupEmail(e.target.value)}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="signupPassword">Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                        <Input
+                          id="signupPassword"
+                          type="password"
+                          placeholder="Create a password"
+                          value={signupPassword}
+                          onChange={(e) => setSignupPassword(e.target.value)}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          placeholder="Confirm your password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isSigningUp}
+                    >
+                      {isSigningUp ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Account...
+                        </>
+                      ) : (
+                        'Create Account'
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </TabsContent>
+          </Tabs>
+        </Card>
       </div>
-    </CustomerLayout>
+    </div>
   );
 };
 

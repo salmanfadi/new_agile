@@ -32,8 +32,7 @@ import {
   Settings,
   LayoutDashboard,
   LogOut,
-  Bell,
-  Clock
+  Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -190,14 +189,6 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Reserve Stock">
-                <NavLink to="/admin/reserve-stock" className={getNavLinkClass}>
-                  <Clock className="h-4 w-4" />
-                  <span>Reserve Stock</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
         
@@ -222,9 +213,9 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Users">
-                <NavLink to="/admin/users" className={getNavLinkClass}>
+                <NavLink to="/admin/profiles" className={getNavLinkClass}>
                   <Users className="h-4 w-4" />
-                  <span>Users</span>
+                  <span>User Profiles</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -281,7 +272,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Stock Out">
-                <NavLink to="/manager/stock-out" className={getNavLinkClass}>
+                <NavLink to="/manager/stock-out-approval" className={getNavLinkClass}>
                   <PackageMinus className="h-4 w-4" />
                   <span>Stock Out Approval</span>
                 </NavLink>
@@ -318,7 +309,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Dashboard">
-                <NavLink to="/field" end className={getNavLinkClass}>
+                <NavLink to="/operator" end className={getNavLinkClass}>
                   <Home className="h-4 w-4" />
                   <span>Dashboard</span>
                 </NavLink>
@@ -332,7 +323,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="New Stock In">
-                <NavLink to="/field/stock-in" className={getNavLinkClass}>
+                <NavLink to="/operator/stock-in" className={getNavLinkClass}>
                   <PackagePlus className="h-4 w-4" />
                   <span>New Stock In</span>
                 </NavLink>
@@ -340,7 +331,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="New Stock Out">
-                <NavLink to="/field/stock-out" className={getNavLinkClass}>
+                <NavLink to="/operator/stock-out" className={getNavLinkClass}>
                   <PackageMinus className="h-4 w-4" />
                   <span>New Stock Out</span>
                 </NavLink>
@@ -348,7 +339,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="My Submissions">
-                <NavLink to="/field/submissions" className={getNavLinkClass}>
+                <NavLink to="/operator/submissions" className={getNavLinkClass}>
                   <LayoutDashboard className="h-4 w-4" />
                   <span>My Submissions</span>
                 </NavLink>
@@ -356,7 +347,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Barcode Lookup">
-                <NavLink to="/field/barcode" className={getNavLinkClass}>
+                <NavLink to="/operator/barcode-lookup" className={getNavLinkClass}>
                   <ScanLine className="h-4 w-4" />
                   <span>Barcode Lookup</span>
                 </NavLink>

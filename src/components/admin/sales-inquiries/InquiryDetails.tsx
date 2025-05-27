@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { ShoppingBag } from 'lucide-react';
 
 // Define a type for valid status values
 type InquiryStatus = 'new' | 'in_progress' | 'completed';
@@ -155,6 +156,13 @@ export const InquiryDetails: React.FC<InquiryDetailsProps> = ({
                 </TableBody>
               </Table>
             </div>
+            
+            {inquiry.converted_to_order && (
+              <div className="flex items-center gap-2 mt-2">
+                <ShoppingBag className="h-4 w-4 text-green-500" />
+                <Badge variant="success">Converted to Order</Badge>
+              </div>
+            )}
             
             <div className="flex justify-end">
               <Button 

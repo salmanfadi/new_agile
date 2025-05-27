@@ -4,7 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { 
   LayoutGrid, Boxes, PackageOpen, Package, 
   Users, ShoppingBag, BarChart3, Warehouse, PanelLeft,
-  BarChart, BarChart2, ChartBar, Clock
+  BarChart, BarChart2, ChartBar, MessageSquare, 
+  DollarSign, ClipboardList, Users2, Store
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,10 +55,6 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 <NavLink to="/admin/stock-out" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Package className="mr-3 h-5 w-5" />
                   <span>Stock Out</span>
-                </NavLink>
-                <NavLink to="/admin/reserve-stock" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <Clock className="mr-3 h-5 w-5" />
-                  <span>Reserve Stock</span>
                 </NavLink>
                 <NavLink to="/admin/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Warehouse className="mr-3 h-5 w-5" />
@@ -188,9 +185,63 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                   <LayoutGrid className="mr-3 h-5 w-5" />
                   <span>Dashboard</span>
                 </NavLink>
+                
+                {/* Products & Inventory */}
                 <NavLink to="/sales/inventory" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Boxes className="mr-3 h-5 w-5" />
-                  <span>Inventory</span>
+                  <span>Product Catalog</span>
+                </NavLink>
+                
+                {/* Customer Management */}
+                <NavLink to="/sales/customers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Users2 className="mr-3 h-5 w-5" />
+                  <span>Customers</span>
+                </NavLink>
+                
+                {/* Sales Inquiries */}
+                <NavLink to="/sales/inquiries" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <MessageSquare className="mr-3 h-5 w-5" />
+                  <span>Sales Inquiries</span>
+                </NavLink>
+                
+                {/* Orders */}
+                <NavLink to="/sales/orders" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ClipboardList className="mr-3 h-5 w-5" />
+                  <span>Orders</span>
+                </NavLink>
+                
+                {/* Quotations */}
+                <NavLink to="/sales/quotations" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <DollarSign className="mr-3 h-5 w-5" />
+                  <span>Quotations</span>
+                </NavLink>
+                
+                {/* Store Management */}
+                <NavLink to="/sales/stores" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <Store className="mr-3 h-5 w-5" />
+                  <span>Store Management</span>
+                </NavLink>
+                
+                {/* Reports Section */}
+                <div className="pt-4 pb-1">
+                  <div className="px-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    REPORTS
+                  </div>
+                </div>
+                
+                <NavLink to="/sales/reports" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <BarChart3 className="mr-3 h-5 w-5" />
+                  <span>Sales Reports</span>
+                </NavLink>
+                
+                <NavLink to="/sales/reports/customers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <BarChart className="mr-3 h-5 w-5" />
+                  <span>Customer Analytics</span>
+                </NavLink>
+                
+                <NavLink to="/sales/reports/performance" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ChartBar className="mr-3 h-5 w-5" />
+                  <span>Performance Metrics</span>
                 </NavLink>
               </nav>
             )}

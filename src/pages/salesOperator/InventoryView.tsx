@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,18 +16,19 @@ const InventoryView: React.FC = () => {
     setWarehouseFilter,
     setStatusFilter,
     warehouses,
-    availableStatuses
+    availableStatuses,
+    resetFilters
   } = useInventoryFilters();
   
   const handleRefresh = () => {
-    // Implementation of handleRefresh function
+    resetFilters();
   };
 
   return (
     <div className="space-y-6">
       <PageHeader 
         title="Product Inventory" 
-        description="View current inventory levels to assist customers with product inquiries"
+        description="View current inventory levels and stock information"
       />
       
       <Card>
@@ -37,7 +38,7 @@ const InventoryView: React.FC = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search products..."
+                placeholder="Search by product name, SKU, or barcode..."
                 value={filters.searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
@@ -82,7 +83,7 @@ const InventoryView: React.FC = () => {
             </div>
             
             <Button variant="outline" onClick={handleRefresh}>
-              Refresh
+              Reset Filters
             </Button>
           </div>
         </CardHeader>
@@ -93,7 +94,7 @@ const InventoryView: React.FC = () => {
             statusFilter={filters.statusFilter}
             searchTerm={filters.searchTerm}
             highlightedBarcode={null}
-            title="Inventory"
+            title="Current Inventory"
           />
         </CardContent>
       </Card>
