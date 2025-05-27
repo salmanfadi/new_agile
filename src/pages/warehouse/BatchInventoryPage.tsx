@@ -1,101 +1,167 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
-import { toast } from '@/hooks/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
+import { Printer, Download, Package, BarChart3, TrendingUp, AlertTriangle } from 'lucide-react';
+import { useProcessedBatchesWithItems } from '@/hooks/useProcessedBatchesWithItems';
 import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTable';
 import { BatchDetailsDialog } from '@/components/warehouse/BatchDetailsDialog';
-import { useProcessedBatches } from '@/hooks/useProcessedBatches';
 
 const BatchInventoryPage: React.FC = () => {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
-  const [showBatchDetails, setShowBatchDetails] = useState<boolean>(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [warehouseFilter, setWarehouseFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const { isLoading, error } = useProcessedBatches();
+  // Fetch processed batches data
+  const processedBatchesQuery = useProcessedBatchesWithItems({
+    limit: 10,
+    page: currentPage,
+    searchTerm: searchTerm || undefined,
+    status: statusFilter || undefined,
+    warehouseId: warehouseFilter || undefined
+  });
 
-  const handleRefresh = () => {
-    toast({
-      title: 'Refreshing data',
-      description: 'Getting the latest processed batches...'
-    });
-    queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
+  const batches = processedBatchesQuery.data?.batches || [];
+  const batchCount = processedBatchesQuery.data?.count || 0;
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusFilter = (status: string) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
+
+  const handleWarehouseFilter = (warehouseId: string) => {
+    setWarehouseFilter(warehouseId);
+    setCurrentPage(1);
   };
 
   const handleViewDetails = (batchId: string) => {
     setSelectedBatchId(batchId);
-    setShowBatchDetails(true);
+    setDetailsDialogOpen(true);
   };
 
-  const handlePrintBarcodes = (batchId: string) => {
-    navigate(`/manager/inventory/barcodes/${batchId}`);
+  const handleExportData = () => {
+    console.log('Exporting batch data...');
   };
+
+  // Calculate basic stats
+  const totalBatches = batchCount;
+  const completedBatches = batches.filter(b => b.status === 'completed').length;
+  const processingBatches = batches.filter(b => b.status === 'processing').length;
+  const totalItems = batches.reduce((sum, batch) => sum + batch.totalBoxes, 0);
 
   return (
-    <div className="space-y-6 p-6">
-      <PageHeader 
-        title="Batch Inventory Management" 
-        description="View all processed batches and their inventory items"
-      />
-      
+    <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex justify-between items-center">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/manager/inventory')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Inventory
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={handleRefresh}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Batch Inventory</h1>
+          <p className="text-gray-600">Monitor processed inventory batches</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={handleExportData} variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export Data
+          </Button>
+        </div>
       </div>
-      
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center">
+              <Package className="w-4 h-4 mr-2" />
+              Total Batches
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalBatches}</div>
+            <div className="text-xs text-gray-500">All processed batches</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Completed
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{completedBatches}</div>
+            <div className="text-xs text-gray-500">Successfully processed</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Processing
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{processingBatches}</div>
+            <div className="text-xs text-gray-500">Currently processing</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              Total Items
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalItems}</div>
+            <div className="text-xs text-gray-500">Items in batches</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content */}
       <Card>
         <CardHeader>
           <CardTitle>Processed Batches</CardTitle>
-          <CardDescription>View and manage all processed inventory batches</CardDescription>
+          <CardDescription>
+            View all processed inventory batches and their details
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {error ? (
-            <div className="p-4 text-red-500">
-              Error loading batch data. Please try again.
-            </div>
-          ) : (
-            <ProcessedBatchesTable 
-              filters={{}}
-              onViewDetails={handleViewDetails}
-              onPrintBarcodes={handlePrintBarcodes}
-            />
-          )}
+          <ProcessedBatchesTable
+            batches={batches}
+            isLoading={processedBatchesQuery.isLoading}
+            error={processedBatchesQuery.error}
+            currentPage={currentPage}
+            totalPages={Math.ceil(batchCount / 10)}
+            onPageChange={setCurrentPage}
+            searchTerm={searchTerm}
+            onSearchChange={handleSearch}
+            statusFilter={statusFilter}
+            onStatusChange={handleStatusFilter}
+            warehouseFilter={warehouseFilter}
+            onWarehouseChange={handleWarehouseFilter}
+            onViewDetails={handleViewDetails}
+          />
         </CardContent>
       </Card>
-      
-      <BatchDetailsDialog
-        open={showBatchDetails}
-        onOpenChange={setShowBatchDetails}
-        batchId={selectedBatchId}
-        onPrintBarcodes={() => selectedBatchId && handlePrintBarcodes(selectedBatchId)}
-      />
+
+      {/* Batch Details Dialog */}
+      {selectedBatchId && (
+        <BatchDetailsDialog
+          open={detailsDialogOpen}
+          onOpenChange={setDetailsDialogOpen}
+          batchId={selectedBatchId}
+        />
+      )}
     </div>
   );
 };
