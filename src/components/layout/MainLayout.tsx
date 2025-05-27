@@ -213,9 +213,9 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Users">
-                <NavLink to="/admin/profiles" className={getNavLinkClass}>
+                <NavLink to="/admin/users" className={getNavLinkClass}>
                   <Users className="h-4 w-4" />
-                  <span>User Profiles</span>
+                  <span>Users</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
