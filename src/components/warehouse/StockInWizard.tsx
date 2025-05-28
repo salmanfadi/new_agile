@@ -293,8 +293,11 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
               warehouse_name: b.warehouse_name,
               location_id: b.location_id,
               location_name: b.location_name,
-              boxCount: b.boxCount,
-              quantityPerBox: b.quantityPerBox,
+              // Ensure these are explicit numbers with Number() conversion
+              boxCount: Number(b.boxCount),
+              quantityPerBox: Number(b.quantityPerBox),
+              box_count: Number(b.boxCount), // Include snake_case version for compatibility
+              quantity_per_box: Number(b.quantityPerBox), // Include snake_case version for compatibility
               color: b.color || '',
               size: b.size || '',
               batchBarcode: b.batchBarcode || undefined, // Only include if available
@@ -317,40 +320,57 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
             _requesting_user_id: userData.user?.id
           };
           
+          // Ensure data is properly serialized
+          const requestBodyString = JSON.stringify(requestBody);
+          console.log('Serialized request body:', requestBodyString);
+          
           // Authentication is handled automatically by Supabase functions
           console.log('Sending request to Edge Function via Supabase client');
           
           console.log('Sending request to Edge Function with user ID:', userData.user?.id);
           
-          // Use the direct Supabase URL for the Edge Function
-          const functionUrl = `${supabaseUrl}/functions/v1/process-stock-in`;
+          console.log('Preparing to call Edge Function with payload:', JSON.stringify(payload, null, 2));
           
           let result;
           try {
-            // For the Edge Function, we need to use a different approach for auth
-            // Instead of directly calling the function URL, use the built-in Supabase Edge Function call
-            console.log('Calling Edge Function via Supabase client');
+            // Use the Supabase client to invoke the edge function
+            console.log('Calling Edge Function: stock-in-process');
             
-            const { data, error: functionError } = await supabase.functions.invoke(
-              'stock-in-process',
-              {
-                body: requestBody
+            const { data, error } = await supabase.functions.invoke('stock-in-process', {
+              body: {
+                run_id: payload.run_id,
+                stock_in_id: payload.stock_in_id,
+                user_id: payload.user_id,
+                product_id: payload.product_id,
+                batches: payload.batches.map(batch => ({
+                  warehouse_id: batch.warehouse_id,
+                  location_id: batch.location_id,
+                  boxCount: batch.boxCount,
+                  quantityPerBox: batch.quantityPerBox,
+                  color: batch.color || '',
+                  size: batch.size || ''
+                }))
               }
-            );
-            console.log('Edge Function response data:', data);
+            });
             
-            if (functionError) {
-              console.error('Edge function error:', functionError);
+            console.log('Edge Function response:', data);
+            
+            if (error) {
+              console.error('Edge function error:', error);
               
-              // If it's an auth error, don't retry
-              if (functionError.message?.includes('authentication') || 
-                  functionError.message?.includes('auth') || 
-                  functionError.message?.includes('401') || 
-                  functionError.message?.includes('403')) {
-                throw new Error(`Authentication failed for Edge Function: ${functionError.message}`);
+              // Handle different types of errors
+              if (error.message?.includes('authentication') || 
+                  error.message?.includes('auth') || 
+                  error.message?.includes('401') || 
+                  error.message?.includes('403')) {
+                throw new Error(`Authentication failed: ${error.message}`);
               }
               
-              throw new Error(`Edge Function error: ${functionError.message}`);
+              if (error.message?.includes('JSON') || error.message?.includes('parsing')) {
+                throw new Error(`Invalid data format: ${error.message}`);
+              }
+              
+              throw new Error(`Processing failed: ${error.message}`);
             }
             
             // Successfully processed via Edge Function
