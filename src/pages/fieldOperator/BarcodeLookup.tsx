@@ -29,7 +29,7 @@ const BarcodeLookup: React.FC = () => {
 
   const viewInInventory = () => {
     if (lastScan) {
-      navigate(`/field/submissions?search=${lastScan.box_id}`);
+      navigate(`/operator/submissions?search=${lastScan.box_id}`);
     }
   };
   

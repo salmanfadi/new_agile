@@ -42,12 +42,10 @@ import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehou
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
 import BatchOverviewPage from './pages/warehouseManager/BatchOverviewPage';
 import BarcodeAssignmentPage from './pages/warehouseManager/BarcodeAssignmentPage';
-<<<<<<< HEAD
 import { default as ManagerReserveStock } from './pages/warehouseManager/ReserveStock';
-=======
 import EnhancedInventoryView from './pages/warehouseManager/EnhancedInventoryView';
 import ManagerInventoryView from './pages/warehouseManager/InventoryView';
->>>>>>> origin/reserve-stock
+
 
 // Field operator pages
 import OperatorDashboard from './pages/fieldOperator/OperatorDashboard';
@@ -63,6 +61,8 @@ import { default as OperatorReserveStock } from './pages/fieldOperator/ReserveSt
 import SalesOperatorDashboard from './pages/salesOperator/SalesOperatorDashboard';
 import SalesInquiriesManagement from './pages/salesOperator/SalesInquiriesManagement';
 import SalesInventoryView from './pages/salesOperator/InventoryView';
+import ProductView from './pages/salesOperator/ProductView';
+import OrdersManagement from './pages/salesOperator/OrdersManagement';
 
 // Report pages
 import ReportsDashboard from './pages/reports/ReportsDashboard';
@@ -229,15 +229,17 @@ function App() {
                 <Route path="/operator/reserve-stock" element={<OperatorReserveStock />} />
               </Route>
               
-              {/* Sales Operator Routes */}
+              {/* Protected Sales Operator Routes */}
               <Route element={
-                <RequireAuth allowedRoles={['sales_operator', 'admin']}>
+                <RequireAuth allowedRoles={['sales_operator']}>
                   <MainLayout />
                 </RequireAuth>
               }>
                 <Route path="/sales" element={<SalesOperatorDashboard />} />
-                <Route path="/sales/inquiries" element={<SalesInquiriesManagement />} />
+                <Route path="/sales/products" element={<ProductView />} />
                 <Route path="/sales/inventory" element={<SalesInventoryView />} />
+                <Route path="/sales/inquiries" element={<SalesInquiriesManagement />} />
+                <Route path="/sales/orders" element={<OrdersManagement />} />
               </Route>
               
               {/* 404 */}

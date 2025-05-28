@@ -144,7 +144,7 @@ const OperatorDashboard = () => {
             </CardContent>
             <CardFooter>
               <Button variant="outline" size="sm" asChild className="w-full">
-                <Link to="/field/submissions">
+                <Link to="/operator/submissions">
                   View All Activity
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -160,21 +160,21 @@ const OperatorDashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <Button 
-                onClick={() => navigate('/field/stock-in')}
+                onClick={() => navigate('/operator/stock-in')}
                 className="w-full flex items-center justify-center gap-2"
               >
                 <LogIn className="h-4 w-4" />
                 New Stock In
               </Button>
               <Button 
-                onClick={() => navigate('/field/stock-out')}
+                onClick={() => navigate('/operator/stock-out')}
                 className="w-full flex items-center justify-center gap-2"
               >
                 <LogOut className="h-4 w-4" />
                 New Stock Out
               </Button>
               <Button 
-                onClick={() => navigate('/field/transfers')}
+                onClick={() => navigate('/operator/transfers')}
                 className="w-full flex items-center justify-center gap-2"
               >
                 <ArrowLeftRight className="h-4 w-4" />
@@ -182,7 +182,7 @@ const OperatorDashboard = () => {
               </Button>
               <Button 
                 variant="outline"
-                onClick={() => navigate('/field/barcode')}
+                onClick={() => navigate('/operator/barcode')}
                 className="w-full flex items-center justify-center gap-2"
               >
                 <BarcodeIcon className="h-4 w-4" />
@@ -190,7 +190,7 @@ const OperatorDashboard = () => {
               </Button>
               <Button 
                 variant="outline"
-                onClick={() => navigate('/field/submissions')}
+                onClick={() => navigate('/operator/submissions')}
                 className="w-full"
               >
                 View All Submissions

@@ -5,7 +5,7 @@ import {
   LayoutGrid, Boxes, PackageOpen, Package, 
   Users, ShoppingBag, BarChart3, Warehouse, PanelLeft,
   BarChart, BarChart2, ChartBar, MessageSquare, 
-  DollarSign, ClipboardList, Users2, Store
+  DollarSign, ClipboardList, Users2, Store, Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
