@@ -9,32 +9,25 @@ interface Product {
   sku?: string;
 }
 
-interface Profile {
-  id: string;
-  name: string;
-  username: string;
-}
-
 interface StockInRecord {
   id: string;
   product_id: string | null;
   submitted_by: string;
-  boxes: number | null;
-  status: "pending" | "approved" | "rejected" | "completed" | "processing" | null;
+  number_of_boxes: number | null;
+  status: "pending" | "processing" | "completed" | "rejected" | null;
   created_at: string | null;
   source: string;
   notes?: string | null;
   rejection_reason?: string | null;
   products: Product | null;
-  profiles: Profile | null;
 }
 
 export interface StockInRequestData {
   id: string;
   product: { name: string; id: string | null; sku?: string | null };
-  submitter: { name: string; username: string; id: string | null } | null;
-  boxes: number;
-  status: "pending" | "approved" | "rejected" | "completed" | "processing";
+  submitter: { id: string | null };
+  number_of_boxes: number;
+  status: "pending" | "processing" | "completed" | "rejected";
   created_at: string;
   source: string;
   notes?: string;
@@ -42,71 +35,28 @@ export interface StockInRequestData {
 }
 
 export const useStockInRequests = (filters: Record<string, any> = {}, page: number = 1, pageSize: number = 20) => {
-  const queryClient = useQueryClient();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const fetchStockInRequests = useCallback(async () => {
     console.log('Fetching stock in requests with filter:', filters, 'page:', page, 'pageSize:', pageSize);
-    try {
-      // First get the count separately for better performance
-      const countQuery = supabase
-        .from('stock_in')
-        .select('*', { count: 'exact', head: true });
-      
-      // Apply filters to count query
-      let filteredCountQuery = countQuery;
-      if (filters.status) {
-        filteredCountQuery = filteredCountQuery.eq('status', filters.status);
-      }
-      if (filters.source) {
-        filteredCountQuery = filteredCountQuery.ilike('source', `%${filters.source}%`);
-      }
-      if (filters.date_from) {
-        filteredCountQuery = filteredCountQuery.gte('created_at', filters.date_from);
-      }
-      if (filters.date_to) {
-        filteredCountQuery = filteredCountQuery.lte('created_at', filters.date_to);
-      }
-      if (filters.submitted_by) {
-        filteredCountQuery = filteredCountQuery.eq('submitted_by', filters.submitted_by);
-      }
-      
-      const { count, error: countError } = await filteredCountQuery;
-      if (countError) {
-        console.error('Error counting stock in requests:', countError);
-        throw countError;
-      }
-      
-      // If no records, return early
-      if (count === 0) {
-        return { data: [], totalCount: 0 };
-      }
 
-      // Then fetch the actual data with joins
+    try {
       let query = supabase
         .from('stock_in')
         .select(`
           id,
           product_id,
           submitted_by,
-          boxes,
+          number_of_boxes,
           status,
           created_at,
           source,
           notes,
           rejection_reason,
-          products!inner (
-            id,
-            name,
-            sku
-          ),
-          profiles!stock_in_submitted_by_fkey!inner (
-            id,
-            username,
-            name
-          )
-        `);
-      
+          products(id, name, sku)
+        `, { count: 'exact' });
+
       // Apply filters
       if (filters.status) {
         query = query.eq('status', filters.status);
@@ -148,39 +98,34 @@ export const useStockInRequests = (filters: Record<string, any> = {}, page: numb
           name: item.products?.name || 'Unknown Product',
           sku: item.products?.sku || null
         },
-        submitter: item.profiles ? {
-          id: item.profiles.id,
-          name: item.profiles.name || 'Unknown User',
-          username: item.profiles.username || 'unknown'
-        } : null,
-        boxes: item.boxes || 0,
+        submitter: {
+          id: item.submitted_by
+        },
+        number_of_boxes: typeof item.number_of_boxes === 'number' ? item.number_of_boxes : 1,
         status: item.status || 'pending',
         created_at: item.created_at || new Date().toISOString(),
         source: item.source || 'Unknown',
         notes: item.notes || undefined,
-        rejection_reason: item.rejection_reason || undefined
+        rejection_reason: item.rejection_reason
       }));
       
-return { data: processedData, totalCount: totalCount ?? 0 };
+      return { data: processedData, totalCount: totalCount ?? 0 };
     } catch (error) {
-      console.error('Failed to fetch stock in requests:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error fetching stock in requests:', error);
       toast({
+        title: 'Error',
+        description: 'Failed to fetch stock in requests. Please try again.',
         variant: 'destructive',
-        title: 'Failed to load stock requests',
-        description: errorMessage,
       });
-      return { data: [], totalCount: 0 };
+      throw error;
     }
   }, [filters, page, pageSize, toast]);
 
-  const queryResult = useQuery({
-    queryKey: ['stock-in-requests', filters, page, pageSize],
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['stockInRequests', filters, page, pageSize],
     queryFn: fetchStockInRequests,
-    staleTime: 1000 * 30, // Data is fresh for 30 seconds
-    refetchInterval: 1000 * 60, // Refetch every minute as a backup
-    retry: 2, // Retry failed requests twice before showing an error
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes
   });
 
   useEffect(() => {
@@ -200,5 +145,10 @@ return { data: processedData, totalCount: totalCount ?? 0 };
     };
   }, [queryClient]);
 
-  return queryResult;
+  return {
+    data,
+    isLoading,
+    error,
+    refetch
+  };
 };

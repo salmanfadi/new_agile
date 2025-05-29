@@ -23,6 +23,22 @@ import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 import { Inventory, Product } from '@/types/database';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Database } from '@/integrations/supabase/types';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
+
+type ProductRow = Database['public']['Tables']['products']['Row'];
+type StockOutInsert = Database['public']['Tables']['stock_out']['Insert'];
+type StockOutDetailsInsert = Database['public']['Tables']['stock_out_details']['Insert'];
 
 interface ScannedBox {
   barcode: string;
@@ -40,19 +56,35 @@ interface GroupedBoxes {
   [category: string]: ScannedBox[];
 }
 
+interface Product {
+  id: string;
+  name: string;
+  sku: string | null;
+  category: string | null;
+  is_active: boolean;
+}
+
+interface FormData {
+  product_id: string;
+  quantity: string;
+  destination: string;
+  reason?: string;
+}
+
 const StockOutForm: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   
   // State for mode selection
   const [isBarcodeDriven, setIsBarcodeDriven] = useState(false);
   
   // State for regular product-based selection
-  const [formData, setFormData] = useState({
-    productId: '',
-    quantity: '' as string | number,
+  const [formData, setFormData] = useState<FormData>({
+    product_id: '',
+    quantity: '',
     destination: '',
-    reason: '',
+    reason: ''
   });
 
   // State for barcode-driven selection
@@ -67,13 +99,29 @@ const StockOutForm: React.FC = () => {
     requestedQuantity: '',
   });
 
+  // Fetch products for the product-based selection
+  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, sku, category, is_active')
+        .eq('is_active', true)
+        .order('name');
+        
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch product categories for filtering
-  const { data: categories, isLoading: categoriesLoading } = useQuery({
+  const { data: categories, isLoading: categoriesLoading } = useQuery<string[]>({
     queryKey: ['product-categories'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
         .select('category')
+        .eq('is_active', true)
         .not('category', 'is', null)
         .order('category');
         
@@ -85,6 +133,25 @@ const StockOutForm: React.FC = () => {
         .sort() as string[];
       
       return uniqueCategories;
+    },
+  });
+  
+  // Fetch pending stock out requests
+  const { data: stockOutRequests, isLoading: stockOutRequestsLoading } = useQuery({
+    queryKey: ['stock-out-requests-operator'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_out')
+        .select(`
+          *,
+          product:products(*),
+          customer:customers(*)
+        `)
+        .eq('status', 'pending_operator')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
     },
   });
   
@@ -239,22 +306,8 @@ const StockOutForm: React.FC = () => {
     });
   };
   
-  // Fetch products for the product-based selection
-  const { data: products, isLoading: productsLoading } = useQuery({
-    queryKey: ['products'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, category')
-        .order('name');
-        
-      if (error) throw error;
-      return data;
-    },
-  });
-  
   const handleProductChange = (value: string) => {
-    setFormData({ ...formData, productId: value });
+    setFormData({ ...formData, product_id: value });
   };
 
   const handleCategoryChange = (value: string) => {
@@ -299,30 +352,54 @@ const StockOutForm: React.FC = () => {
     mutationFn: async (data: { 
       product_id: string; 
       quantity: number; 
-      requested_by: string;
       destination: string;
-      reason?: string;
+      notes?: string;
     }) => {
-      const { data: result, error } = await supabase
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      // First create the stock out header
+      const { data: stockOutHeader, error: headerError } = await supabase
         .from('stock_out')
-        .insert([data])
-        .select();
+        .insert([{
+          requester_id: user.id,
+          requester_name: user.name,
+          requester_username: user.username,
+          status: 'pending',
+          destination: data.destination,
+          notes: data.notes || null
+        } satisfies StockOutInsert])
+        .select()
+        .single();
         
-      if (error) throw error;
-      return result;
+      if (headerError) throw headerError;
+
+      // Then create the stock out details
+      const { error: detailsError } = await supabase
+        .from('stock_out_details')
+        .insert([{
+          stock_out_id: stockOutHeader.id,
+          product_id: data.product_id,
+          quantity: data.quantity
+        } satisfies StockOutDetailsInsert]);
+        
+      if (detailsError) throw detailsError;
+
+      return stockOutHeader;
     },
     onSuccess: () => {
       toast({
-        title: 'Stock Out request submitted!',
-        description: `${formData.quantity} units of the selected product have been requested for dispatch to ${formData.destination}.`,
+        title: 'Success',
+        description: 'Stock out request created successfully',
       });
-      navigate('/operator/submissions');
+      navigate('/operator/stock-out');
     },
     onError: (error) => {
       toast({
         variant: 'destructive',
-        title: 'Submission failed',
-        description: error instanceof Error ? error.message : 'Failed to submit stock out request',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to create stock out request',
       });
     },
   });
@@ -349,6 +426,8 @@ const StockOutForm: React.FC = () => {
       }, {} as Record<string, number>);
       const mainProductId = Object.entries(productGroups)
         .sort((a, b) => b[1] - a[1])[0][0];
+
+      // Create the stock out header
       const { data: stockOutRecord, error: stockOutError } = await supabase
         .from('stock_out')
         .insert([{
@@ -356,22 +435,30 @@ const StockOutForm: React.FC = () => {
           quantity: data.boxes.reduce((total, box) => total + box.quantity, 0),
           requested_by: data.requested_by,
           destination: data.destination,
-          reason: data.reason
+          status: 'pending',
+          reason: data.reason || null
         }])
-        .select('id');
+        .select('id')
+        .single();
+
       if (stockOutError) throw stockOutError;
-      if (!stockOutRecord || stockOutRecord.length === 0) {
+      if (!stockOutRecord) {
         throw new Error('Failed to create stock out record');
       }
-      const stockOutId = stockOutRecord[0].id;
+
+      // Create stock out details for each box
+      const stockOutId = stockOutRecord.id;
       const detailsPromises = data.boxes.map(box => 
         supabase.from('stock_out_details').insert([{
           stock_out_id: stockOutId,
-          inventory_id: box.inventory_id,
+          product_id: box.product_id,
           quantity: box.quantity,
+          status: 'pending',
           batch_id: box.batch_id,
+          barcode: box.inventory_id
         }])
       );
+
       await Promise.all(detailsPromises);
       return stockOutRecord;
     },
@@ -385,6 +472,7 @@ const StockOutForm: React.FC = () => {
       navigate('/operator/submissions');
     },
     onError: (error) => {
+      console.error('Barcode stock out error:', error);
       toast({
         variant: 'destructive',
         title: 'Submission failed',
@@ -397,7 +485,7 @@ const StockOutForm: React.FC = () => {
     e.preventDefault();
     
     // Validate form before submission
-    if (!formData.productId) {
+    if (!formData.product_id) {
       toast({
         variant: 'destructive',
         title: 'Validation Error',
@@ -406,7 +494,7 @@ const StockOutForm: React.FC = () => {
       return;
     }
     
-    const numQuantity = parseInt(formData.quantity as string);
+    const numQuantity = parseInt(formData.quantity);
     if (isNaN(numQuantity) || numQuantity < 1) {
       setFormErrors({ ...formErrors, quantity: 'Quantity must be at least 1' });
       return;
@@ -431,11 +519,10 @@ const StockOutForm: React.FC = () => {
     }
     
     createProductStockOutMutation.mutate({
-      product_id: formData.productId,
+      product_id: formData.product_id,
       quantity: numQuantity,
       destination: formData.destination,
-      reason: formData.reason || undefined,
-      requested_by: user.id
+      notes: formData.reason || undefined,
     });
   };
   
@@ -488,8 +575,8 @@ const StockOutForm: React.FC = () => {
   
   const isProductBasedValid = () => {
     return (
-      formData.productId && 
-      (typeof formData.quantity === 'number' ? formData.quantity > 0 : parseInt(formData.quantity as string) > 0) &&
+      formData.product_id && 
+      (typeof formData.quantity === 'number' ? parseInt(formData.quantity) > 0 : parseInt(formData.quantity) > 0) &&
       formData.destination.trim() !== '' &&
       !formErrors.quantity
     );
@@ -509,329 +596,156 @@ const StockOutForm: React.FC = () => {
 
   // Get the product associated with the selected product ID
   const getSelectedProduct = () => {
-    if (!formData.productId || !products) return null;
-    return products.find(product => product.id === formData.productId);
+    if (!formData.product_id || !products) return null;
+    return products.find(product => product.id === formData.product_id);
   };
 
   const selectedProduct = getSelectedProduct();
   const groupedBoxes = getGroupedBoxes();
   
+  const handleComplete = async (stockOut: any) => {
+    try {
+      // First check available inventory
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('quantity')
+        .eq('product_id', stockOut.product.id)
+        .eq('status', 'in_stock');
+
+      if (inventoryError) throw inventoryError;
+
+      const availableQuantity = inventoryData.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+      if (availableQuantity < stockOut.quantity) {
+        toast({
+          title: 'Error',
+          description: `Not enough inventory available. Only ${availableQuantity} units in stock.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Update stock out status
+      const { error: updateError } = await supabase
+        .from('stock_out')
+        .update({
+          status: 'completed',
+          completed_by: user?.id,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', stockOut.id);
+
+      if (updateError) throw updateError;
+
+      // Deduct from inventory
+      const { error: inventoryUpdateError } = await supabase
+        .from('inventory')
+        .update({
+          quantity: availableQuantity - stockOut.quantity,
+        })
+        .eq('product_id', stockOut.product.id)
+        .eq('status', 'in_stock');
+
+      if (inventoryUpdateError) throw inventoryUpdateError;
+
+      toast({
+        title: 'Success',
+        description: 'Stock out has been completed.',
+      });
+    } catch (error) {
+      console.error('Error completing stock out:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to complete stock out',
+        variant: 'destructive',
+      });
+    }
+  };
+  
   return (
-    <div className="space-y-6">
-      <PageHeader 
-        title="New Stock Out" 
-        description="Submit stock out request for dispatch"
-      />
-      
-      <div className="max-w-md mx-auto mb-6">
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Process Stock Out</h1>
+      </div>
+
         <Card>
           <CardHeader>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mb-2 -ml-2"
-              onClick={() => navigate('/field')}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
-            </Button>
-            <CardTitle>Stock Out Form</CardTitle>
-            <div className="flex items-center justify-between mt-4">
-              <span className="text-sm">Method: {isBarcodeDriven ? 'Barcode Scanning' : 'Product Selection'}</span>
-              <div className="flex items-center space-x-2">
-                <Switch 
-                  checked={isBarcodeDriven}
-                  onCheckedChange={setIsBarcodeDriven}
-                  id="scan-mode"
-                />
-                <Label htmlFor="scan-mode" className="cursor-pointer flex items-center">
-                  <ScanLine className="h-4 w-4 mr-1" />
-                  Scan Barcodes
-                </Label>
-              </div>
-            </div>
+          <CardTitle>Pending Stock Out Requests</CardTitle>
+          <CardDescription>
+            Process stock out requests from warehouse managers
+          </CardDescription>
           </CardHeader>
-          
-          {/* Product-Based Form */}
-          {!isBarcodeDriven && (
-            <form onSubmit={handleProductBasedSubmit}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="product">Product</Label>
-                  <Select 
-                    value={formData.productId} 
-                    onValueChange={handleProductChange}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a product" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {productsLoading ? (
-                        <SelectItem value="loading-products" disabled>Loading products...</SelectItem>
-                      ) : products && products.length > 0 ? (
-                        products.map(product => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name}
-                            {product.category && (
-                              <span className="ml-2 text-xs text-gray-500">
-                                {product.category}
-                              </span>
-                            )}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-products" disabled>No products available</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {selectedProduct?.category && (
-                    <div className="mt-2">
-                      <Badge variant="outline" className="text-xs">
-                        <Tag className="h-3 w-3 mr-1" />
-                        {selectedProduct.category}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Quantity</Label>
-                  <Input
-                    id="quantity"
-                    name="quantity"
-                    type="number"
-                    placeholder="Enter quantity"
-                    value={formData.quantity}
-                    onChange={handleInputChange}
-                    required
-                  />
-                  {formErrors.quantity && (
-                    <p className="text-sm text-red-500 mt-1">{formErrors.quantity}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="destination">Destination</Label>
-                  <Input
-                    id="destination"
-                    name="destination"
-                    value={formData.destination}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Customer ABC"
-                    required
-                    maxLength={100}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="reason">Reason (Optional)</Label>
-                  <Textarea
-                    id="reason"
-                    name="reason"
-                    value={formData.reason}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Urgent order for client"
-                    rows={3}
-                    maxLength={200}
-                  />
-                </div>
-              </CardContent>
-              
-              <CardFooter>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={!isProductBasedValid() || createProductStockOutMutation.isPending}
-                >
-                  {createProductStockOutMutation.isPending ? 'Submitting...' : 'Submit Request'}
-                </Button>
-              </CardFooter>
-            </form>
-          )}
-          
-          {/* Barcode-Driven Form */}
-          {isBarcodeDriven && (
-            <form onSubmit={handleBarcodeDrivenSubmit}>
-              <CardContent className="space-y-4">
-                {/* Category filter */}
-                <div className="space-y-2">
-                  <Label htmlFor="category">Filter by Category (Optional)</Label>
-                  <Select 
-                    value={selectedCategory} 
-                    onValueChange={handleCategoryChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All categories</SelectItem>
-                      {categoriesLoading ? (
-                        <SelectItem value="loading-categories" disabled>Loading categories...</SelectItem>
-                      ) : categories && categories.length > 0 ? (
-                        categories.map((category, index) => (
-                          <SelectItem key={index} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-categories" disabled>No categories available</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {selectedCategory && (
-                    <div className="flex items-center mt-1">
-                      <Badge variant="outline">
-                        <Tag className="h-3 w-3 mr-1" />
-                        {selectedCategory}
-                      </Badge>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setSelectedCategory('')}
-                        className="h-6 ml-2 text-xs"
-                      >
-                        Clear filter
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Scan Box Barcodes</Label>
-                  <div className="border rounded-md p-4">
-                    <BarcodeScanner 
-                      allowManualEntry={true}
-                      allowCameraScanning={true}
-                      onBarcodeScanned={handleBarcodeScanned}
-                      inputValue={currentScannedBarcode}
-                      onInputChange={(e) => setCurrentScannedBarcode(e.target.value)}
-                      scanButtonLabel="Add Box"
-                    />
-                  </div>
-                </div>
-                
-                {scannedBoxes.length > 0 && (
-                  <div className="space-y-4">
-                    <Label>Scanned Boxes ({scannedBoxes.length})</Label>
-                    <div className="border rounded-md">
-                      {/* Group boxes by category */}
-                      {Object.entries(groupedBoxes).map(([category, boxes]) => (
-                        <div key={category} className="border-b last:border-b-0">
-                          <div className="p-3 bg-muted/30">
-                            <div className="flex items-center justify-between">
-                              <Badge variant="outline" className="bg-background">
-                                <Tag className="h-3 w-3 mr-1" />
-                                {category}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {boxes.length} {boxes.length === 1 ? 'box' : 'boxes'}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="divide-y">
-                            {boxes.map((box, boxIndex) => {
-                              const index = scannedBoxes.findIndex(b => b.barcode === box.barcode);
-                              return (
-                                <div key={box.barcode} className="p-3">
-                                  <div className="flex justify-between mb-1">
-                                    <span className="font-medium">{box.product_name}</span>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      onClick={() => removeBox(index)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <Trash2 className="h-4 w-4 text-red-500" />
-                                    </Button>
-                                  </div>
-                                  <div className="text-sm text-gray-500 mb-1">
-                                    {box.sku ? `SKU: ${box.sku} • ` : ''}
-                                    Box ID: {box.barcode}
-                                    {box.batch_id && (
-                                      <>
-                                        {' • '}<span className="text-blue-600">Batch: {box.batch_id}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center mt-2">
-                                    <Label htmlFor={`box-qty-${index}`} className="mr-2 text-xs">
-                                      Quantity:
-                                    </Label>
-                                    <Input
-                                      id={`box-qty-${index}`}
-                                      type="number"
-                                      min="1"
-                                      max={box.quantity}
-                                      value={box.requestedQuantity}
-                                      onChange={(e) => updateBoxQuantity(index, parseInt(e.target.value))}
-                                      className="h-7 w-20 text-sm"
-                                    />
-                                    <span className="text-xs ml-2 text-gray-500">
-                                      / {box.quantity} available
-                                    </span>
-                                    {box.batch_id && box.quantity === box.requestedQuantity && (
-                                      <span className="ml-2 text-xs text-yellow-600 font-semibold">(Last box in batch!)</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+        <CardContent>
+          {stockOutRequestsLoading ? (
+            <div className="text-center py-4">Loading...</div>
+          ) : !stockOutRequests?.length ? (
+            <div className="text-center py-4">No pending stock out requests</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Destination</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead>Required Date</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stockOutRequests.map((request: any) => (
+                  <TableRow key={request.id}>
+                    <TableCell>
+                      {format(new Date(request.created_at), 'MMM d, yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      <div>{request.product?.name}</div>
+                      {request.product?.sku && (
+                        <div className="text-sm text-gray-500">
+                          SKU: {request.product.sku}
                         </div>
-                      ))}
+                      )}
+                    </TableCell>
+                    <TableCell>{request.quantity}</TableCell>
+                    <TableCell>{request.destination}</TableCell>
+                    <TableCell>
+                      <Badge variant={
+                        request.priority === 'urgent' ? 'destructive' :
+                        request.priority === 'high' ? 'default' :
+                        request.priority === 'normal' ? 'secondary' :
+                        'outline'
+                      }>
+                        {request.priority}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {request.required_date ? 
+                        format(new Date(request.required_date), 'MMM d, yyyy') :
+                        'Not specified'
+                      }
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-xs truncate">
+                        {request.notes || 'No notes'}
                     </div>
-                    {formErrors.requestedQuantity && (
-                      <p className="text-sm text-red-500 mt-1">{formErrors.requestedQuantity}</p>
-                    )}
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <div className="text-sm font-medium">Total Quantity: {getTotalScannedQuantity()} units</div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {Object.keys(groupedBoxes).length} {Object.keys(groupedBoxes).length === 1 ? 'category' : 'categories'} of products
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="space-y-2 pt-2">
-                  <Label htmlFor="barcodeDestination">Destination</Label>
-                  <Input
-                    id="barcodeDestination"
-                    value={barcodeDestination}
-                    onChange={(e) => setBarcodeDestination(e.target.value)}
-                    placeholder="e.g., Customer ABC"
-                    required
-                    maxLength={100}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="barcodeReason">Reason (Optional)</Label>
-                  <Textarea
-                    id="barcodeReason"
-                    value={barcodeReason}
-                    onChange={(e) => setBarcodeReason(e.target.value)}
-                    placeholder="e.g., Selected boxes for urgent delivery"
-                    rows={3}
-                    maxLength={200}
-                  />
-                </div>
-              </CardContent>
-              
-              <CardFooter>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={!isBarcodeDrivenValid() || createBarcodeStockOutMutation.isPending}
-                >
-                  {createBarcodeStockOutMutation.isPending ? 'Submitting...' : 'Submit Barcode Request'}
-                </Button>
-              </CardFooter>
-            </form>
+                    </TableCell>
+                    <TableCell>
+                      <Button 
+                        size="sm"
+                        onClick={() => handleComplete(request)}
+                      >
+                        Complete
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
+        </CardContent>
         </Card>
-      </div>
     </div>
   );
 };

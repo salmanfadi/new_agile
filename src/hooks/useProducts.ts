@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
-import { Product } from '@/types/database';
+import type { Product } from '@/types/database';
 import { useAuth } from '@/hooks/useAuth';
 
 // Define a type for the minimum required fields when creating a product
 interface CreateProductData {
-  name: string; // Name is required by the database schema
+  name: string;
   description?: string | null;
   specifications?: string | null;
-  sku: string; // Now required by the database schema
+  sku: string;
   category?: string | null;
   image_url?: string | null;
   is_active?: boolean;
@@ -23,52 +23,18 @@ export function useProducts() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<boolean | null>(null);
 
-  // Fetch products with detailed logging
-  const {
-    data: products,
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
-    queryKey: ['products'],  // Simplified query key for testing
+  const query = useQuery<Product[]>({
+    queryKey: ['products'],
     queryFn: async () => {
-      console.log('Starting to fetch products...'); // Debug log
-      
-      try {
         const { data, error } = await supabase
           .from('products')
-          .select('*');
-
-        console.log('Supabase response:', { data, error }); // Debug log
-
-        if (error) {
-          console.error('Supabase error:', error);
-          throw error;
-        }
-
-        if (!data) {
-          console.log('No data returned from Supabase');
-          return [];
-        }
-
-        console.log('Successfully fetched products:', data);
-        return data;
-      } catch (error) {
-        console.error('Error in queryFn:', error);
-        throw error;
-      }
+        .select('id, name, sku')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data as Product[];
     },
-    retry: 1,
-    staleTime: 0, // Disable caching for testing
-    refetchOnMount: true,
-    onError: (error) => {
-      console.error('Query error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error Loading Products',
-        description: error instanceof Error ? error.message : 'Failed to load products',
-      });
-    }
   });
 
   // Add validation for image files
@@ -95,19 +61,40 @@ export function useProducts() {
         validateImage(image_file);
       }
 
+      console.log('Creating product with data:', data);
+
+      // Convert empty strings to null
+      const cleanedData = {
+        ...data,
+        specifications: data.specifications?.trim() || null,
+        description: data.description?.trim() || null,
+        category: data.category?.trim() || null
+      };
+
       // Start a Supabase transaction
       const { data: insertResult, error: insertError } = await supabase
         .from('products')
         .insert({
-          ...data,
+          ...cleanedData,
           created_by: user?.id,
-          updated_by: user?.id
+          updated_by: user?.id,
+          is_active: data.is_active ?? true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .select();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Error creating product:', insertError);
+        throw new Error(`Failed to create product: ${insertError.message}`);
+      }
+
+      if (!insertResult || insertResult.length === 0) {
+        throw new Error('No product data returned after creation');
+      }
       
       const newProduct = insertResult[0];
+      console.log('Product created successfully:', newProduct);
 
       // If there's an image, upload it
       if (image_file && newProduct.id) {
@@ -119,9 +106,13 @@ export function useProducts() {
               .update({ image_url: imageUrl })
               .eq('id', newProduct.id);
 
-            if (updateError) throw updateError;
+            if (updateError) {
+              console.error('Error updating product image:', updateError);
+              throw updateError;
+            }
           }
         } catch (error) {
+          console.error('Error handling product image:', error);
           // If image upload fails, delete the product
           await supabase
             .from('products')
@@ -134,12 +125,20 @@ export function useProducts() {
       return newProduct;
     },
     onError: (error) => {
+      console.error('Product creation error:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to create product',
       });
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({
+        title: 'Success',
+        description: 'Product created successfully',
+      });
+    }
   });
 
   // Update the uploadProductImage function
@@ -172,15 +171,26 @@ export function useProducts() {
 
   // Update product
   const updateProduct = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Product> }) => {
-      const updateData = {
-        ...data,
-        updated_by: user?.id || null
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Product> & { image_file?: File | null } }) => {
+      const { image_file, ...updateData } = data;
+
+      // If there's an image file, upload it first
+      let imageUrl = null;
+      if (image_file) {
+        validateImage(image_file);
+        imageUrl = await uploadProductImage(image_file, id);
+      }
+
+      const finalUpdateData = {
+        ...updateData,
+        ...(imageUrl && { image_url: imageUrl }),
+        updated_by: user?.id || null,
+        updated_at: new Date().toISOString()
       };
 
       const { data: updatedData, error } = await supabase
         .from('products')
-        .update(updateData)
+        .update(finalUpdateData)
         .eq('id', id)
         .select();
 
@@ -198,11 +208,7 @@ export function useProducts() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error instanceof Error ? 
-          (error.message.includes('products_sku_unique') ? 
-            'A product with this SKU already exists' : 
-            error.message) : 
-          'Failed to update product',
+        description: error instanceof Error ? error.message : 'Failed to update product',
       });
     },
   });
@@ -271,10 +277,10 @@ export function useProducts() {
   });
 
   return {
-    products,
-    isLoading,
-    error,
-    refetch,
+    products: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
     createProduct,
     updateProduct,
     deleteProduct,

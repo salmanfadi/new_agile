@@ -386,16 +386,16 @@ const ProductManagement: React.FC = () => {
       
       {/* Add/Edit Product Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingProduct ? 'Edit Product' : 'Add New Product'}
             </DialogTitle>
           </DialogHeader>
           
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-1">
                 <Label htmlFor="name">Product Name*</Label>
                 <Input 
                   id="name"
@@ -407,10 +407,8 @@ const ProductManagement: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="sku">
-                  SKU (Stock Keeping Unit)*
-                </Label>
+              <div className="space-y-1">
+                <Label htmlFor="sku">SKU*</Label>
                 <Input 
                   id="sku"
                   name="sku"
@@ -425,12 +423,9 @@ const ProductManagement: React.FC = () => {
                     <AlertCircle className="h-4 w-4 mr-1" /> {skuError}
                   </div>
                 )}
-                <p className="text-xs text-gray-500">
-                  A unique identifier for the product. Required and must be unique.
-                </p>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="category">Category</Label>
                 <Input 
                   id="category"
@@ -447,7 +442,7 @@ const ProductManagement: React.FC = () => {
                 </datalist>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
@@ -455,11 +450,12 @@ const ProductManagement: React.FC = () => {
                   value={formData.description}
                   onChange={handleInputChange}
                   placeholder="Enter product description"
-                  rows={3}
+                  rows={2}
+                  className="resize-none"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="specifications">Specifications</Label>
                 <Textarea
                   id="specifications"
@@ -467,11 +463,11 @@ const ProductManagement: React.FC = () => {
                   value={formData.specifications}
                   onChange={handleInputChange}
                   placeholder="Enter product specifications"
-                  rows={3}
+                  rows={2}
+                  className="resize-none"
                 />
               </div>
 
-              <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox" 
@@ -482,16 +478,12 @@ const ProductManagement: React.FC = () => {
                     className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                   />
                   <Label htmlFor="is_active">Product is active</Label>
-                </div>
-                <p className="text-xs text-gray-500">
-                  Inactive products will not be visible to customers.
-                </p>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="image">Product Image</Label>
-                <div className="flex items-center space-x-4">
-                  <div className="h-24 w-24 bg-gray-100 rounded-md flex items-center justify-center">
+                <div className="flex items-center gap-3">
+                  <div className="h-16 w-16 bg-gray-100 rounded-md flex items-center justify-center flex-shrink-0">
                     {previewUrl ? (
                       <img 
                         src={previewUrl} 
@@ -499,25 +491,21 @@ const ProductManagement: React.FC = () => {
                         className="h-full w-full object-cover rounded-md"
                       />
                     ) : (
-                      <Image className="h-10 w-10 text-gray-400" />
+                      <Image className="h-8 w-8 text-gray-400" />
                     )}
                   </div>
-                  <div className="flex-1">
                     <Input 
                       id="image"
                       type="file"
                       accept="image/*"
                       onChange={handleFileChange}
+                    className="flex-1"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Upload a product image (JPEG, PNG, or GIF)
-                    </p>
-                  </div>
                 </div>
               </div>
             </div>
             
-            <DialogFooter>
+            <DialogFooter className="mt-4">
               <Button 
                 type="button" 
                 variant="outline" 

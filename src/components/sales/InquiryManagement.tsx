@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { SalesInquiry } from '@/types/database';
 import { InquiryList } from '@/components/admin/sales-inquiries/InquiryList';
@@ -54,14 +53,15 @@ export const InquiryManagement: React.FC<InquiryManagementProps> = ({
     const csvData = inquiries.map(inquiry => ({
       customer_name: inquiry.customer_name,
       customer_email: inquiry.customer_email,
-      company: inquiry.customer_company || '',
+      product_id: inquiry.product_id,
+      quantity: inquiry.quantity,
       status: inquiry.status,
       created_at: formatDate(inquiry.created_at),
-      items_count: inquiry.items?.length || 0
+      notes: inquiry.notes || ''
     }));
 
     // Convert to CSV
-    const headers = ['Customer Name', 'Customer Email', 'Company', 'Status', 'Created At', 'Items'];
+    const headers = ['Customer Name', 'Customer Email', 'Product ID', 'Quantity', 'Status', 'Created At', 'Notes'];
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => Object.values(row).join(','))
@@ -72,7 +72,7 @@ export const InquiryManagement: React.FC<InquiryManagementProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'sales_inquiries.csv';
+    link.download = 'customer_inquiries.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -80,7 +80,7 @@ export const InquiryManagement: React.FC<InquiryManagementProps> = ({
     
     toast({
       title: "Export complete",
-      description: "Sales inquiries exported to CSV"
+      description: "Customer inquiries exported to CSV"
     });
   };
 

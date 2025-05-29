@@ -39,39 +39,46 @@ const StockInStepReview: React.FC<StockInStepReviewProps> = ({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Stock-In Request Details</CardTitle>
+          <CardTitle>Review Stock In Request</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Product</p>
-            <p className="font-medium">{stockIn.product?.name}</p>
-            {stockIn.product?.sku && <p className="text-xs text-muted-foreground">SKU: {stockIn.product.sku}</p>}
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Status</p>
-            <Badge variant="outline">{stockIn.status}</Badge>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Submitted By</p>
-            <p>{stockIn.submitter?.name}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Boxes</p>
-            <p>{stockIn.boxes}</p>
-          </div>
-          {stockIn.notes && (
+        <CardContent>
+          <div className="grid gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Notes</p>
-              <p>{stockIn.notes}</p>
+              <h3 className="font-medium mb-2">Product</h3>
+              <p>{stockIn.product.name}</p>
+              {stockIn.product.sku && (
+                <p className="text-sm text-gray-500">SKU: {stockIn.product.sku}</p>
+              )}
             </div>
-          )}
+            <div>
+              <h3 className="font-medium mb-2">Number of Boxes</h3>
+              <p>{stockIn.number_of_boxes}</p>
+            </div>
+            <div>
+              <h3 className="font-medium mb-2">Source</h3>
+              <p>{stockIn.source}</p>
+            </div>
+            {stockIn.notes && (
+              <div>
+                <h3 className="font-medium mb-2">Notes</h3>
+                <p>{stockIn.notes}</p>
+              </div>
+            )}
+            <div>
+              <h3 className="font-medium mb-2">Status</h3>
+              <Badge>{stockIn.status}</Badge>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-
-      <div className="flex justify-end space-x-4">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={onContinue}>Next</Button>
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={onContinue} disabled={isLoading}>
+          Continue
+        </Button>
       </div>
     </div>
   );

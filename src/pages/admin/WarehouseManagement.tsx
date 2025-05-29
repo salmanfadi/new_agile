@@ -72,12 +72,19 @@ const WarehouseManagement = () => {
       
       const { data, error } = await supabase
         .from('warehouse_locations')
-        .select('id, warehouse_id, zone, floor')
+        .select('*')
         .eq('warehouse_id', selectedWarehouseId)
         .order('zone')
         .order('floor');
 
-      if (error) throw error;
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Error loading locations',
+          description: error.message,
+        });
+        return [];
+      }
       return data;
     },
     enabled: !!selectedWarehouseId,
@@ -145,7 +152,7 @@ const WarehouseManagement = () => {
   });
 
   // Check for existing location
-  const checkExistingLocation = async (warehouseId: string, floor: number, zone: string): Promise<boolean> => {
+  const checkExistingLocation = async (warehouseId: string, floor: number, zone: string) => {
     const { data, error } = await supabase
       .from('warehouse_locations')
       .select('id')
@@ -163,11 +170,12 @@ const WarehouseManagement = () => {
 
   // Create location mutation
   const createLocationMutation = useMutation({
-    mutationFn: async (newLocation: { warehouse_id: string, floor: number, zone: string }) => {
+    mutationFn: async (newLocation: WarehouseLocationInsert) => {
+      try {
       // Check for existing location first
       const exists = await checkExistingLocation(
         newLocation.warehouse_id,
-        newLocation.floor,
+          newLocation.floor,
         newLocation.zone
       );
 
@@ -183,6 +191,10 @@ const WarehouseManagement = () => {
 
       if (error) throw error;
       return data;
+      } catch (error) {
+        console.error('Error creating location:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouseLocations', selectedWarehouseId] });
@@ -216,10 +228,35 @@ const WarehouseManagement = () => {
 
   const handleLocationSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate floor is a number
+    const floorNumber = parseInt(locationForm.floor, 10);
+    if (isNaN(floorNumber)) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid floor number',
+        description: 'Please enter a valid number for the floor.',
+      });
+      return;
+    }
+
+    // Validate zone is not empty
+    if (!locationForm.zone.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid zone',
+        description: 'Please enter a valid zone.',
+      });
+      return;
+    }
+
     createLocationMutation.mutate({
       warehouse_id: selectedWarehouseId!,
-      zone: locationForm.zone,
-      floor: parseInt(locationForm.floor, 10),
+      zone: locationForm.zone.trim().toUpperCase(),
+      floor: floorNumber,
+      name: `Floor ${floorNumber} - Zone ${locationForm.zone.trim().toUpperCase()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     });
   };
 

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { SalesInquiry } from '@/types/database';
 import {
@@ -27,12 +26,14 @@ export const InquiryList: React.FC<InquiryListProps> = ({
 }) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'new':
-        return <Badge variant="default">New</Badge>;
+      case 'pending':
+        return <Badge variant="default">Pending</Badge>;
       case 'in_progress':
         return <Badge variant="secondary">In Progress</Badge>;
       case 'completed':
         return <Badge variant="outline" className="bg-green-50 text-green-700">Completed</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -61,10 +62,10 @@ export const InquiryList: React.FC<InquiryListProps> = ({
           <TableRow>
             <TableHead>Date</TableHead>
             <TableHead>Customer</TableHead>
-            <TableHead>Company</TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>Product</TableHead>
+            <TableHead>Quantity</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Items</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -73,10 +74,10 @@ export const InquiryList: React.FC<InquiryListProps> = ({
             <TableRow key={inquiry.id}>
               <TableCell>{formatDate(inquiry.created_at)}</TableCell>
               <TableCell className="font-medium">{inquiry.customer_name}</TableCell>
-              <TableCell>{inquiry.customer_company}</TableCell>
               <TableCell>{inquiry.customer_email}</TableCell>
+              <TableCell>{inquiry.product_id}</TableCell>
+              <TableCell>{inquiry.quantity}</TableCell>
               <TableCell>{getStatusBadge(inquiry.status)}</TableCell>
-              <TableCell>{inquiry.items?.length || 0}</TableCell>
               <TableCell className="text-right">
                 <Button 
                   size="sm" 

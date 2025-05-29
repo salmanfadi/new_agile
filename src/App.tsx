@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -30,13 +30,14 @@ import BatchStockInPage from './pages/admin/BatchStockInPage';
 import AdminEnhancedInventoryView from './pages/admin/EnhancedInventoryView';
 import BatchDetailsPage from './pages/admin/BatchDetailsPage';
 import ReserveStock from './pages/admin/ReserveStock';
+import CreateStockOutRequest from '@/pages/admin/CreateStockOutRequest';
 
 // Manager pages
 import ManagerDashboard from './pages/warehouseManager/ManagerDashboard';
 import StockInProcessing from './pages/warehouseManager/StockInProcessing';
 import StockInDetailsPage from './pages/warehouseManager/StockInDetailsPage';
 import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
-import StockOutApproval from './pages/warehouseManager/StockOutApproval';
+import StockOutPage from './pages/warehouseManager/StockOutPage';
 import BarcodeLookup from './pages/warehouseManager/BarcodeLookup';
 import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehouseManager/InventoryTransfers';
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
@@ -170,6 +171,7 @@ function App() {
                 <Route path="/admin/sales-inquiries" element={<SalesInquiries />} />
                 <Route path="/admin/stock-in" element={<StockInManagement />} />
                 <Route path="/admin/stock-out" element={<StockOutManagement />} />
+                <Route path="/admin/stock-out/create" element={<CreateStockOutRequest />} />
                 <Route path="/admin/transfers" element={<InventoryTransfers />} />
                 <Route path="/admin/reserve-stock" element={<ReserveStock />} />
                 
@@ -201,7 +203,7 @@ function App() {
                 <Route path="/manager/stock-in" element={<StockInProcessing />} />
                 <Route path="/manager/stock-in/:id" element={<StockInDetailsPage />} />
                 <Route path="/manager/stock-in/process/:id" element={<ProcessStockInPage />} />
-                <Route path="/manager/stock-out" element={<StockOutApproval />} />
+                <Route path="/manager/stock-out" element={<StockOutPage />} />
                 <Route path="/manager/barcode" element={<BarcodeLookup />} />
                 <Route path="/manager/inventory" element={<EnhancedInventoryView />} />
                 <Route path="/manager/inventory/search" element={<ManagerInventoryView />} />

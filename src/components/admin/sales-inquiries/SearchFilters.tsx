@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import {
@@ -44,9 +43,10 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="">All statuses</SelectItem>
-          <SelectItem value="new">New</SelectItem>
+          <SelectItem value="pending">Pending</SelectItem>
           <SelectItem value="in_progress">In Progress</SelectItem>
           <SelectItem value="completed">Completed</SelectItem>
+          <SelectItem value="cancelled">Cancelled</SelectItem>
         </SelectContent>
       </Select>
     </div>

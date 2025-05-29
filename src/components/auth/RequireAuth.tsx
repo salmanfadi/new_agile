@@ -20,7 +20,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
