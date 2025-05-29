@@ -30,13 +30,11 @@ interface StockIn {
     name: string;
     sku?: string;
   };
-  boxes: number;
+  number_of_boxes: number;
   submitter: {
-    name: string;
-    username: string;
-    id: string;
+    id: string | null;
   };
-  status: "pending" | "approved" | "rejected" | "completed" | "processing";
+  status: "pending" | "rejected" | "completed" | "processing";
   created_at: string;
   source: string;
   // Add other properties as needed
@@ -115,12 +113,16 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
   const [activeStep, setActiveStep] = useState<StepType>('review');
   const [boxesData, setBoxesData] = useState<BoxData[]>([]);
   const [batches, setBatches] = useState<BatchData[]>([]);
-  const [remainingBoxes, setRemainingBoxes] = useState<number>(stockIn.boxes || 0);
+  const [remainingBoxes, setRemainingBoxes] = useState<number>(
+    typeof stockIn.number_of_boxes === 'number' ? stockIn.number_of_boxes : 0
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [warehouseId, setWarehouseId] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
-  const [confirmedBoxes, setConfirmedBoxes] = useState<number>(stockIn.boxes || 0);
+  const [confirmedBoxes, setConfirmedBoxes] = useState<number>(
+    typeof stockIn.number_of_boxes === 'number' ? stockIn.number_of_boxes : 0
+  );
   // In-memory cache for barcodes to prevent duplicates during the same session
   const [usedBarcodes] = useState<Set<string>>(new Set());
   const [defaultValues, setDefaultValues] = useState<DefaultValuesType>({
@@ -293,8 +295,11 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
               warehouse_name: b.warehouse_name,
               location_id: b.location_id,
               location_name: b.location_name,
-              boxCount: b.boxCount,
-              quantityPerBox: b.quantityPerBox,
+              // Ensure these are explicit numbers with Number() conversion
+              boxCount: Number(b.boxCount),
+              quantityPerBox: Number(b.quantityPerBox),
+              box_count: Number(b.boxCount), // Include snake_case version for compatibility
+              quantity_per_box: Number(b.quantityPerBox), // Include snake_case version for compatibility
               color: b.color || '',
               size: b.size || '',
               batchBarcode: b.batchBarcode || undefined, // Only include if available
@@ -317,40 +322,57 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
             _requesting_user_id: userData.user?.id
           };
           
+          // Ensure data is properly serialized
+          const requestBodyString = JSON.stringify(requestBody);
+          console.log('Serialized request body:', requestBodyString);
+          
           // Authentication is handled automatically by Supabase functions
           console.log('Sending request to Edge Function via Supabase client');
           
           console.log('Sending request to Edge Function with user ID:', userData.user?.id);
           
-          // Use the direct Supabase URL for the Edge Function
-          const functionUrl = `${supabaseUrl}/functions/v1/process-stock-in`;
+          console.log('Preparing to call Edge Function with payload:', JSON.stringify(payload, null, 2));
           
           let result;
           try {
-            // For the Edge Function, we need to use a different approach for auth
-            // Instead of directly calling the function URL, use the built-in Supabase Edge Function call
-            console.log('Calling Edge Function via Supabase client');
+            // Use the Supabase client to invoke the edge function
+            console.log('Calling Edge Function: stock-in-process');
             
-            const { data, error: functionError } = await supabase.functions.invoke(
-              'stock-in-process',
-              {
-                body: requestBody
+            const { data, error } = await supabase.functions.invoke('stock-in-process', {
+              body: {
+                run_id: payload.run_id,
+                stock_in_id: payload.stock_in_id,
+                user_id: payload.user_id,
+                product_id: payload.product_id,
+                batches: payload.batches.map(batch => ({
+                  warehouse_id: batch.warehouse_id,
+                  location_id: batch.location_id,
+                  boxCount: batch.boxCount,
+                  quantityPerBox: batch.quantityPerBox,
+                  color: batch.color || '',
+                  size: batch.size || ''
+                }))
               }
-            );
-            console.log('Edge Function response data:', data);
+            });
             
-            if (functionError) {
-              console.error('Edge function error:', functionError);
+            console.log('Edge Function response:', data);
+            
+            if (error) {
+              console.error('Edge function error:', error);
               
-              // If it's an auth error, don't retry
-              if (functionError.message?.includes('authentication') || 
-                  functionError.message?.includes('auth') || 
-                  functionError.message?.includes('401') || 
-                  functionError.message?.includes('403')) {
-                throw new Error(`Authentication failed for Edge Function: ${functionError.message}`);
+              // Handle different types of errors
+              if (error.message?.includes('authentication') || 
+                  error.message?.includes('auth') || 
+                  error.message?.includes('401') || 
+                  error.message?.includes('403')) {
+                throw new Error(`Authentication failed: ${error.message}`);
               }
               
-              throw new Error(`Edge Function error: ${functionError.message}`);
+              if (error.message?.includes('JSON') || error.message?.includes('parsing')) {
+                throw new Error(`Invalid data format: ${error.message}`);
+              }
+              
+              throw new Error(`Processing failed: ${error.message}`);
             }
             
             // Successfully processed via Edge Function
@@ -466,10 +488,13 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
             status: 'completed',
             total_boxes: boxCount,
             total_quantity: boxCount * quantityPerBox,
+            quantity_per_box: quantityPerBox,
             quantity_processed: boxCount * quantityPerBox,
             product_id: stockIn.product?.id,
             warehouse_id: warehouse_id,
             location_id: location_id,
+            color: color || '',
+            size: size || '',
             processed_at: new Date().toISOString(),
           })
           .select()
@@ -534,7 +559,6 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
           }
         };
         
-        // Helper function to generate a unique batch barcode base
         // Helper function to generate a unique batch barcode base
         const generateUniqueBatchBarcodeBase = async (): Promise<string> => {
           const maxAttempts = 5;
@@ -642,6 +666,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
                 warehouse_id: batch.warehouse_id,
                 location_id: batch.location_id,
                 quantity: batch.quantityPerBox,
+                total_quantity: batch.quantityPerBox,
                 status: 'in_stock',
                 color: batch.color || '',
                 size: batch.size || '',
@@ -672,6 +697,7 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
                     warehouse_id: batch.warehouse_id,
                     location_id: batch.location_id,
                     quantity: batch.quantityPerBox,
+                    total_quantity: batch.quantityPerBox,
                     status: 'in_stock',
                     color: batch.color || '',
                     size: batch.size || '',
@@ -694,10 +720,11 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
                     product_id: stockIn.product?.id,
                     barcode: newBoxBarcode,
                     quantity: batch.quantityPerBox,
+                    total_quantity: batch.quantityPerBox,
                     color: batch.color || '',
                     size: batch.size || '',
-                    status: 'completed', // Using valid enum value: pending, processing, completed, failed
-                    batch_number: batch_number, // Use the batch_number from the processed_batches table
+                    status: 'completed',
+                    batch_number: batch_number,
                     warehouse_id: batch.warehouse_id,
                     location_id: batch.location_id,
                     processed_at: new Date().toISOString()
@@ -724,10 +751,11 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
                   product_id: stockIn.product?.id,
                   barcode: boxBarcode,
                   quantity: batch.quantityPerBox,
+                  total_quantity: batch.quantityPerBox,
                   color: batch.color || '',
                   size: batch.size || '',
-                  status: 'completed', // Using valid enum value: pending, processing, completed, failed
-                  batch_number: batch_number, // Use the batch_number from the processed_batches table
+                  status: 'completed',
+                  batch_number: batch_number,
                   warehouse_id: batch.warehouse_id,
                   location_id: batch.location_id,
                   processed_at: new Date().toISOString()
@@ -872,20 +900,46 @@ const StockInWizard: React.FC<StockInWizard2Props> = ({
 
   // When user adds a batch in Step 2
   const handleAddBatch = useCallback((batch: BatchData): void => {
+    console.log('Adding batch:', batch);
+    console.log('Current remaining boxes:', remainingBoxes);
+    console.log('Batch box count:', batch.boxCount);
+    
     setBatches((prev) => [...prev, batch]);
     setBoxesData((prev) => [...prev, ...batch.boxes]);
-    setRemainingBoxes((prev) => prev - batch.boxes.length);
-  }, []);
+    setRemainingBoxes((prev) => {
+      const newRemaining = prev - batch.boxCount;
+      console.log('New remaining boxes:', newRemaining);
+      return newRemaining;
+    });
+  }, [remainingBoxes]);
 
   // Add function to delete a batch
   const handleDeleteBatch = useCallback((batchIndex: number): void => {
     setBatches(prev => {
       const newBatches = [...prev];
       const deletedBatch = newBatches.splice(batchIndex, 1)[0];
-      setRemainingBoxes(prevRemaining => prevRemaining + (deletedBatch?.boxes.length || 0));
+      if (deletedBatch) {
+        console.log('Deleting batch with box count:', deletedBatch.boxCount);
+        setRemainingBoxes(prevRemaining => {
+          const newRemaining = prevRemaining + deletedBatch.boxCount;
+          console.log('New remaining boxes after deletion:', newRemaining);
+          return newRemaining;
+        });
+      }
       return newBatches;
     });
   }, []);
+
+  // Add useEffect to log state changes
+  useEffect(() => {
+    console.log('Stock In Details:', {
+      totalBoxes: stockIn.number_of_boxes,
+      remainingBoxes,
+      confirmedBoxes,
+      batchesCount: batches.length,
+      totalBoxesInBatches: batches.reduce((sum, batch) => sum + batch.boxCount, 0)
+    });
+  }, [stockIn.number_of_boxes, remainingBoxes, confirmedBoxes, batches]);
 
   return (
     <div className="space-y-6">

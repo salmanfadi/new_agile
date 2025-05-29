@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_inventory_warehouse_id ON inventory(warehouse_id)
 CREATE INDEX IF NOT EXISTS idx_inventory_location_id ON inventory(location_id);
 
 -- Add a temporary column with the correct case
-ALTER TABLE products ADD COLUMN category_new text;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS category text;
 
 -- Copy data from the old column to the new one
 UPDATE products SET category_new = "Category";

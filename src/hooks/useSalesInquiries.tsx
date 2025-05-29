@@ -15,10 +15,10 @@ export const useSalesInquiries = () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('sales_inquiries')
+        .from('customer_inquiries')
         .select(`
           *,
-          items:sales_inquiry_items(
+          items:customer_inquiry_items(
             *,
             product:product_id(*)
           )
@@ -43,10 +43,10 @@ export const useSalesInquiries = () => {
     
     // Set up real-time subscription
     const channel = supabase
-      .channel('sales_inquiries_changes')
+      .channel('customer_inquiries_changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'sales_inquiries' },
+        { event: '*', schema: 'public', table: 'customer_inquiries' },
         (payload) => {
           // Refresh the list when there's a change
           fetchInquiries();
@@ -97,7 +97,7 @@ export const useSalesInquiries = () => {
 
       // Update the inquiry to mark it as converted
       const { error: updateError } = await supabase
-        .from('sales_inquiries')
+        .from('customer_inquiries')
         .update({
           status: 'completed',
           converted_to_order: true,
@@ -139,7 +139,7 @@ export const useSalesInquiries = () => {
       }
 
       const { error } = await supabase
-        .from('sales_inquiries')
+        .from('customer_inquiries')
         .update({ status })
         .eq('id', id);
 

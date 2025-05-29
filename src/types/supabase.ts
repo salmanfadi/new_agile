@@ -909,6 +909,7 @@ export type Database = {
           warehouse_id: string
           floor: number
           zone: string
+          name: string
           created_at: string | null
           updated_at: string | null
         }
@@ -917,6 +918,7 @@ export type Database = {
           warehouse_id: string
           floor: number
           zone: string
+          name: string
           created_at?: string | null
           updated_at?: string | null
         }
@@ -925,6 +927,7 @@ export type Database = {
           warehouse_id?: string
           floor?: number
           zone?: string
+          name?: string
           created_at?: string | null
           updated_at?: string | null
         }

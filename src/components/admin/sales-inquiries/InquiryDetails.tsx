@@ -27,7 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { ShoppingBag } from 'lucide-react';
 
 // Define a type for valid status values
-type InquiryStatus = 'new' | 'in_progress' | 'completed';
+type InquiryStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 
 interface InquiryDetailsProps {
   inquiry: SalesInquiry | null;
@@ -46,12 +46,14 @@ export const InquiryDetails: React.FC<InquiryDetailsProps> = ({
 }) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'new':
-        return <Badge variant="default">New</Badge>;
+      case 'pending':
+        return <Badge variant="default">Pending</Badge>;
       case 'in_progress':
         return <Badge variant="secondary">In Progress</Badge>;
       case 'completed':
         return <Badge variant="outline" className="bg-green-50 text-green-700">Completed</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -78,19 +80,9 @@ export const InquiryDetails: React.FC<InquiryDetailsProps> = ({
                     <span className="col-span-2">{inquiry.customer_name}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <span className="text-gray-500 text-sm">Company:</span>
-                    <span className="col-span-2">{inquiry.customer_company}</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
                     <span className="text-gray-500 text-sm">Email:</span>
                     <span className="col-span-2">{inquiry.customer_email}</span>
                   </div>
-                  {inquiry.customer_phone && (
-                    <div className="grid grid-cols-3 gap-2">
-                      <span className="text-gray-500 text-sm">Phone:</span>
-                      <span className="col-span-2">{inquiry.customer_phone}</span>
-                    </div>
-                  )}
                 </div>
               </div>
               
@@ -105,9 +97,10 @@ export const InquiryDetails: React.FC<InquiryDetailsProps> = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="in_progress">In Progress</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
                   {getStatusBadge(inquiry.status)}
@@ -115,54 +108,32 @@ export const InquiryDetails: React.FC<InquiryDetailsProps> = ({
               </div>
             </div>
             
-            {inquiry.message && (
+            {inquiry.notes && (
               <div>
-                <h3 className="font-semibold text-sm mb-2">Additional Message</h3>
+                <h3 className="font-semibold text-sm mb-2">Notes</h3>
                 <p className="bg-gray-50 p-3 rounded-md text-gray-700">
-                  {inquiry.message}
+                  {inquiry.notes}
                 </p>
               </div>
             )}
             
             <div>
-              <h3 className="font-semibold text-sm mb-2">Requested Items</h3>
+              <h3 className="font-semibold text-sm mb-2">Product Details</h3>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product</TableHead>
+                    <TableHead>Product ID</TableHead>
                     <TableHead>Quantity</TableHead>
-                    <TableHead>Requirements</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inquiry.items && inquiry.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{item.product?.name}</div>
-                          <div className="text-sm text-gray-500 line-clamp-1">
-                            {item.product?.description}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>
-                        {item.specific_requirements || 
-                          <span className="text-gray-400 italic">None specified</span>
-                        }
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  <TableRow>
+                    <TableCell>{inquiry.product_id}</TableCell>
+                    <TableCell>{inquiry.quantity}</TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
-            
-            {inquiry.converted_to_order && (
-              <div className="flex items-center gap-2 mt-2">
-                <ShoppingBag className="h-4 w-4 text-green-500" />
-                <Badge variant="success">Converted to Order</Badge>
-              </div>
-            )}
             
             <div className="flex justify-end">
               <Button 

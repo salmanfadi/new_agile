@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,7 +93,7 @@ const ManagerDashboard: React.FC = () => {
           </CardContent>
           <CardFooter>
             <Button asChild variant="default" className="w-full">
-              <Link to="/manager/stock-out-approval">
+              <Link to="/manager/stock-out">
                 <Truck className="mr-2 h-4 w-4" />
                 Approve Stock Out
               </Link>
