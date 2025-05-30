@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,23 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
+import { Textarea } from '@/components/ui/textarea';
 import { StockStatus, StockOutRequest, BatchItem, Inventory, ProcessedBatch, InventoryProduct } from '@/types/database';
+import { Loader2, CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Database } from '@/integrations/supabase/types';
+import { useStockOutRequests } from '@/hooks/useStockOutRequests';
+
+interface CustomerDetails {
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  address: string;
+  reference_number: string;
+}
 
 interface StockOutPageProps {}
 
@@ -32,15 +48,72 @@ interface StockOutDetails {
   status: string;
 }
 
-interface CustomerDetails {
-  name: string;
-  email?: string;
-  phone?: string;
-  company?: string;
+interface StockOutInsert {
+  requester_id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  product_id: string;
+  quantity: number;
+  destination: string;
+  notes: string | null;
+  type: 'batch' | 'box' | 'item';
+  batch_id: string | null;
+  box_ids: string[] | null;
+  customer_name: string;
+  customer_company: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  customer_address: string | null;
+  reference_number: string | null;
+  shipping_method: string | null;
+  required_date: string | null;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  processed_by: string | null;
 }
+
+interface StockOutMutationVariables {
+  type: 'batch' | 'box' | 'item';
+  batchId?: string;
+  boxIds?: string[];
+  itemQuantities?: Record<string, number>;
+  destination: string;
+  notes?: string;
+  customerDetails: CustomerDetails;
+  shippingMethod: string;
+  requiredDate?: Date;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+}
+
+interface StockOutRow {
+  id: string;
+  created_at: string;
+  status: string;
+  product_id: string;
+  quantity: number;
+  destination: string;
+  requested_by: string;
+}
+
+interface StockOutWithProduct extends StockOutRow {
+  product?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+type InventoryWithProduct = Database['public']['Tables']['inventory']['Row'] & {
+  product: Pick<Database['public']['Tables']['products']['Row'], 'id' | 'name'> | null;
+};
+
+type StockOut = Database['public']['Tables']['stock_out']['Row'] & {
+  products?: {
+    id: string;
+    name: string;
+  } | null;
+};
 
 const StockOutPage: React.FC<StockOutPageProps> = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedStockOutType, setSelectedStockOutType] = useState<'batch' | 'box' | 'item'>('batch');
   const [selectedBatchId, setSelectedBatchId] = useState('');
   const [selectedBoxIds, setSelectedBoxIds] = useState<string[]>([]);
@@ -51,63 +124,47 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
   const [statusFilter, setStatusFilter] = useState<StockStatus | ''>('');
   const [destination, setDestination] = useState('');
   const [notes, setNotes] = useState('');
+  const [requiredDate, setRequiredDate] = useState<Date>();
+  const [priority, setPriority] = useState<'low' | 'normal' | 'high' | 'urgent'>('normal');
+  const [shippingMethod, setShippingMethod] = useState('');
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
     name: '',
     email: '',
     phone: '',
     company: '',
+    address: '',
+    reference_number: ''
   });
   const [processingQuantity, setProcessingQuantity] = useState<number>(0);
   const [selectedStockOutId, setSelectedStockOutId] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Check if user is admin or warehouse manager
   const isAdminOrManager = user?.role === 'admin' || user?.role === 'warehouse_manager';
   const isFieldOperator = user?.role === 'field_operator';
 
   // Fetch stock out requests
-  const { data: stockOutRequests, isLoading: requestsLoading } = useQuery({
-    queryKey: ['stock-out-requests', dateRange, statusFilter],
-    queryFn: async () => {
-      let query = supabase
-        .from('stock_out')
-        .select(`
-          *,
-          product:products(*),
-          requester:profiles!requested_by(*),
-          approver:profiles!approved_by(*)
-        `);
-
-      if (dateRange?.from) {
-        query = query.gte('created_at', format(dateRange.from, 'yyyy-MM-dd'));
-      }
-      if (dateRange?.to) {
-        query = query.lte('created_at', format(dateRange.to, 'yyyy-MM-dd'));
-      }
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
-      if (error) throw error;
-
-      return (data as any[]).map((item): StockOutRequest => ({
-        id: item.id,
-        created_at: item.created_at,
-        requested_by: item.requested_by,
-        approved_by: item.approved_by,
-        status: item.status as StockStatus,
-        destination: item.destination,
-        notes: item.notes,
-        type: item.type,
-        batch_id: item.batch_id,
-        box_ids: item.box_ids,
-        product: item.product,
-        quantity: item.quantity,
-        requester: item.requester,
-        approver: item.approver,
-      }));
+  const { data: stockOutResult, isLoading: requestsLoading, error: stockOutError } = useStockOutRequests(
+    {
+      status: statusFilter || undefined,
+      date_from: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
+      date_to: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined,
     },
-  });
+    1, // page
+    100 // pageSize
+  );
+
+  const stockOutRequests = stockOutResult?.data || [];
+
+  useEffect(() => {
+    if (stockOutError) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Error loading stock out requests. Please try again.',
+      });
+    }
+  }, [stockOutError]);
 
   // Fetch batches for batch-wise stock out
   const { data: batches } = useQuery({
@@ -138,75 +195,90 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
   });
 
   // Fetch boxes for box-wise stock out
-  const { data: boxes } = useQuery({
+  const { data: boxes } = useQuery<InventoryWithProduct[]>({
     queryKey: ['boxes', selectedBatchId],
     queryFn: async () => {
-      const { data: rawData, error } = await supabase
-        .from('inventory')
-        .select('*, product:products(*)')
-        .eq('batch_id', selectedBatchId)
-        .not('box_id', 'is', null);
-      if (error) throw error;
+      if (!selectedBatchId) return [];
 
-      return (rawData || []).map((item: any) => ({
-        id: item.id,
-        barcode: item.barcode,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        box_id: item.box_id,
-        batch_id: item.batch_id,
-        product: item.product,
-        location_id: item.location_id,
-        warehouse_id: item.warehouse_id,
-        warehouse_location_id: item.warehouse_location_id,
-        status: item.status,
-        created_at: item.created_at,
-      })) as Inventory[];
+      const { data, error } = await supabase
+        .from('inventory')
+        .select(`
+          id,
+          barcode,
+          product_id,
+          quantity,
+          status,
+          warehouse_id,
+          location_id,
+          product:products (
+            id,
+            name
+          )
+        `)
+        .eq('batch_id', selectedBatchId);
+
+      if (error) throw error;
+      return (data || []) as InventoryWithProduct[];
     },
     enabled: isAdminOrManager && selectedBatchId !== '',
   });
 
   // Fetch items for item-wise stock out
-  const { data: items } = useQuery({
+  const { data: items } = useQuery<InventoryWithProduct[]>({
     queryKey: ['items', selectedBoxId],
     queryFn: async () => {
-      const { data: rawData, error } = await supabase
-        .from('inventory')
-        .select('*, product:products(*)')
-        .eq('box_id', selectedBoxId);
-      if (error) throw error;
+      if (!selectedBoxId) return [];
 
-      return (rawData || []).map((item: any) => ({
-        id: item.id,
-        barcode: item.barcode,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        box_id: item.box_id,
-        batch_id: item.batch_id,
-        product: item.product,
-        location_id: item.location_id,
-        warehouse_id: item.warehouse_id,
-        warehouse_location_id: item.warehouse_location_id,
-        status: item.status,
-        created_at: item.created_at,
-      })) as Inventory[];
+      const { data, error } = await supabase
+        .from('inventory')
+        .select(`
+          id,
+          barcode,
+          product_id,
+          quantity,
+          status,
+          warehouse_id,
+          location_id,
+          product:products (
+            id,
+            name
+          )
+        `)
+        .eq('barcode', selectedBoxId);
+
+      if (error) throw error;
+      return (data || []) as InventoryWithProduct[];
     },
     enabled: isAdminOrManager && selectedBoxId !== '',
   });
 
   // Mutation for processing stock out items
+  interface ProcessStockOutParams {
+    p_stock_out_id: string;
+    p_barcode: string;
+    p_quantity: number;
+    p_user_id: string;
+  }
+
   const processStockOutMutation = useMutation({
     mutationFn: async (data: {
       stockOutId: string;
       barcode: string;
       quantity: number;
     }) => {
-      const { data: result, error } = await supabase.rpc('process_stock_out_item', {
+      if (!user?.id) throw new Error('User not authenticated');
+
+      const params: ProcessStockOutParams = {
         p_stock_out_id: data.stockOutId,
         p_barcode: data.barcode,
         p_quantity: data.quantity,
-        p_user_id: user?.id
-      });
+        p_user_id: user.id
+      };
+
+      const { data: result, error } = await supabase.rpc(
+        'process_stock_out_item' as any,
+        params
+      );
 
       if (error) throw error;
       return result;
@@ -221,32 +293,21 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
     onError: (error) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
       });
     },
   });
 
   // Mutation for creating stock out request
-  const createStockOutMutation = useMutation({
-    mutationFn: async (data: {
-      type: 'batch' | 'box' | 'item';
-      batchId?: string;
-      boxIds?: string[];
-      itemQuantities?: Record<string, number>;
-      destination: string;
-      notes?: string;
-      customerDetails: CustomerDetails;
-    }) => {
-      // Validate required fields
-      if (!data.destination) {
-        throw new Error('Destination is required');
-      }
+  const createStockOutMutation = useMutation<any, Error, StockOutMutationVariables>({
+    mutationFn: async (data) => {
+      if (!user?.id) throw new Error('User not authenticated');
 
+      // Get product ID and quantity based on type
       let productId: string | undefined;
       let totalQuantity = 0;
 
-      // Calculate quantity and get product ID based on type
       if (data.type === 'batch' && data.batchId) {
         const { data: batchData } = await supabase
           .from('processed_batches')
@@ -265,7 +326,7 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
           .in('box_id', data.boxIds);
         
         if (!boxData?.length) throw new Error('Boxes not found');
-        productId = boxData[0].product_id; // All boxes should have same product
+        productId = boxData[0].product_id;
         totalQuantity = boxData.reduce((sum, box) => sum + (box.quantity || 0), 0);
       }
       else if (data.type === 'item' && data.itemQuantities) {
@@ -287,26 +348,31 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
         throw new Error('Invalid product or quantity');
       }
 
-      // Create stock out request with customer details
-      const { data: stockOut, error } = await supabase
-        .from('stock_out')
-        .insert([
-          {
-            requested_by: user?.id,
+      const stockOutData: StockOutInsert = {
+        requester_id: user.id,
             status: 'pending',
-            destination: data.destination,
-            notes: data.notes,
             product_id: productId,
             quantity: totalQuantity,
+        destination: data.destination,
+        notes: data.notes || null,
             type: data.type,
-            batch_id: data.type === 'batch' ? data.batchId : null,
-            box_ids: data.type === 'box' ? data.boxIds : null,
+        batch_id: data.type === 'batch' ? data.batchId || null : null,
+        box_ids: data.type === 'box' ? data.boxIds || null : null,
             customer_name: data.customerDetails.name,
-            customer_email: data.customerDetails.email,
-            customer_phone: data.customerDetails.phone,
-            customer_company: data.customerDetails.company,
-          },
-        ])
+        customer_company: data.customerDetails.company || null,
+        customer_email: data.customerDetails.email || null,
+        customer_phone: data.customerDetails.phone || null,
+        customer_address: data.customerDetails.address || null,
+        reference_number: data.customerDetails.reference_number || null,
+        shipping_method: data.shippingMethod || null,
+        required_date: data.requiredDate?.toISOString() || null,
+        priority: data.priority,
+        processed_by: null
+      };
+
+      const { data: stockOut, error } = await supabase
+        .from('stock_out')
+        .insert([stockOutData])
         .select()
         .single();
 
@@ -317,10 +383,9 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
         const details = Object.entries(data.itemQuantities).map(([itemId, quantity]) => ({
           stock_out_id: stockOut.id,
           inventory_id: itemId,
-          requested_quantity: quantity,
-          quantity: quantity, // Match Supabase schema requirement
+          quantity: quantity,
           status: 'pending'
-        } as StockOutDetails));
+        }));
 
         const { error: detailsError } = await supabase
           .from('stock_out_details')
@@ -331,11 +396,19 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
 
       return stockOut;
     },
+    onMutate: () => {
+      setIsSubmitting(true);
+    },
+    onSettled: () => {
+      setIsSubmitting(false);
+    },
     onSuccess: () => {
       toast({
         title: 'Success',
         description: 'Stock out request created successfully',
       });
+      queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
+      
       // Reset form
       setSelectedBatchId('');
       setSelectedBoxIds([]);
@@ -343,12 +416,24 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
       setItemQuantities({});
       setDestination('');
       setNotes('');
+      setCustomerDetails({
+        name: '',
+        email: '',
+        phone: '',
+        company: '',
+        address: '',
+        reference_number: ''
+      });
+      setShippingMethod('');
+      setRequiredDate(undefined);
+      setPriority('normal');
     },
     onError: (error) => {
+      console.error('Error creating stock out request:', error);
       toast({
-        title: 'Error',
-        description: error.message,
         variant: 'destructive',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to create stock out request',
       });
     },
   });
@@ -380,10 +465,6 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
       header: 'Destination',
     },
     {
-      accessorKey: 'requester.name',
-      header: 'Requested By',
-    },
-    {
       accessorKey: 'customer_name',
       header: 'Customer',
     },
@@ -392,16 +473,20 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
       header: 'Company',
     },
     {
-      accessorKey: 'processed_by',
-      header: 'Processed By',
-      cell: ({ row }) => {
-        const processedBy = row.original.processed_by;
-        return processedBy ? (
-          <span>{row.original.processor?.name || 'Unknown'}</span>
-        ) : (
-          <span className="text-gray-400">Not processed</span>
-        );
-      },
+      accessorKey: 'shipping_method',
+      header: 'Shipping Method',
+    },
+    {
+      accessorKey: 'priority',
+      header: 'Priority',
+      cell: ({ row }) => (
+        <Badge variant={getPriorityVariant(row.original.priority)}>{row.original.priority}</Badge>
+      ),
+    },
+    {
+      accessorKey: 'required_date',
+      header: 'Required Date',
+      cell: ({ row }) => row.original.required_date ? format(new Date(row.original.required_date), 'yyyy-MM-dd') : '-',
     },
   ];
 
@@ -420,45 +505,73 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
     }
   };
 
+  const getPriorityVariant = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return 'destructive';
+      case 'high':
+        return 'default';
+      case 'normal':
+        return 'secondary';
+      case 'low':
+        return 'outline';
+      default:
+        return 'secondary';
+    }
+  };
+
   // Handle stock out request creation
-  const handleCreateStockOut = async (destination: string, notes?: string, customerDetails: CustomerDetails = { name: '', email: '', phone: '', company: '' }) => {
+  const handleCreateStockOut = async () => {
     try {
+      if (!destination || !customerDetails.name) {
+        toast({
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Please fill in all required fields',
+        });
+        return;
+      }
+
+      const baseData = {
+        destination,
+        notes,
+        customerDetails,
+        shippingMethod,
+        requiredDate,
+        priority,
+      };
+
       if (selectedStockOutType === 'batch' && selectedBatchId) {
         await createStockOutMutation.mutateAsync({
+          ...baseData,
           type: 'batch',
           batchId: selectedBatchId,
-          destination,
-          notes,
-          customerDetails,
         });
       } else if (selectedStockOutType === 'box' && selectedBoxIds.length > 0) {
         await createStockOutMutation.mutateAsync({
+          ...baseData,
           type: 'box',
           boxIds: selectedBoxIds,
-          destination,
-          notes,
-          customerDetails,
         });
       } else if (selectedStockOutType === 'item' && Object.keys(itemQuantities).length > 0) {
         await createStockOutMutation.mutateAsync({
+          ...baseData,
           type: 'item',
           itemQuantities,
-          destination,
-          notes,
-          customerDetails,
         });
-      }
-
+      } else {
       toast({
-        title: 'Success',
-        description: 'Stock out request created successfully',
+          variant: 'destructive',
+          title: 'Validation Error',
+          description: 'Please select items to stock out',
       });
+      }
     } catch (error) {
       console.error('Error creating stock out request:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to create stock out request',
+        description: error instanceof Error ? error.message : 'Failed to create stock out request',
       });
     }
   };
@@ -508,27 +621,187 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
             </CardHeader>
             <CardContent>
               {isAdminOrManager ? (
+                <div className="space-y-6">
+                  {/* Stock Out Type Selection */}
                 <div className="space-y-4">
-                  <div>
                     <Label>Stock Out Type</Label>
-                    <Select
-                      value={selectedStockOutType}
-                      onValueChange={(value: 'batch' | 'box' | 'item') =>
-                        setSelectedStockOutType(value)
-                      }
-                    >
+                    <div className="flex space-x-4">
+                      <Button
+                        variant={selectedStockOutType === 'batch' ? 'default' : 'outline'}
+                        onClick={() => setSelectedStockOutType('batch')}
+                      >
+                        Batch
+                      </Button>
+                      <Button
+                        variant={selectedStockOutType === 'box' ? 'default' : 'outline'}
+                        onClick={() => setSelectedStockOutType('box')}
+                      >
+                        Box
+                      </Button>
+                      <Button
+                        variant={selectedStockOutType === 'item' ? 'default' : 'outline'}
+                        onClick={() => setSelectedStockOutType('item')}
+                      >
+                        Item
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Customer Details Section */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Customer Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label>Customer Name *</Label>
+                          <Input
+                            value={customerDetails.name}
+                            onChange={(e) =>
+                              setCustomerDetails({ ...customerDetails, name: e.target.value })
+                            }
+                            placeholder="Enter customer name"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label>Company</Label>
+                          <Input
+                            value={customerDetails.company}
+                            onChange={(e) =>
+                              setCustomerDetails({ ...customerDetails, company: e.target.value })
+                            }
+                            placeholder="Enter company name"
+                          />
+                        </div>
+                        <div>
+                          <Label>Email</Label>
+                          <Input
+                            type="email"
+                            value={customerDetails.email}
+                            onChange={(e) =>
+                              setCustomerDetails({ ...customerDetails, email: e.target.value })
+                            }
+                            placeholder="Enter email"
+                          />
+                        </div>
+                        <div>
+                          <Label>Phone</Label>
+                          <Input
+                            value={customerDetails.phone}
+                            onChange={(e) =>
+                              setCustomerDetails({ ...customerDetails, phone: e.target.value })
+                            }
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label>Shipping Address</Label>
+                          <Textarea
+                            value={customerDetails.address}
+                            onChange={(e) =>
+                              setCustomerDetails({ ...customerDetails, address: e.target.value })
+                            }
+                            placeholder="Enter shipping address"
+                          />
+                        </div>
+                        <div>
+                          <Label>Reference Number</Label>
+                          <Input
+                            value={customerDetails.reference_number}
+                            onChange={(e) =>
+                              setCustomerDetails({ ...customerDetails, reference_number: e.target.value })
+                            }
+                            placeholder="Enter PO/reference number"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Shipping Details Section */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Shipping Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label>Destination *</Label>
+                          <Input
+                            placeholder="Enter destination"
+                            value={destination}
+                            onChange={(e) => setDestination(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label>Shipping Method</Label>
+                          <Select value={shippingMethod} onValueChange={setShippingMethod}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select shipping method" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="standard">Standard Shipping</SelectItem>
+                              <SelectItem value="express">Express Shipping</SelectItem>
+                              <SelectItem value="pickup">Customer Pickup</SelectItem>
+                              <SelectItem value="courier">Courier Service</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Required Date</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !requiredDate && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {requiredDate ? format(requiredDate, "PPP") : "Pick a date"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <Calendar
+                                mode="single"
+                                selected={requiredDate}
+                                onSelect={setRequiredDate}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <div>
+                          <Label>Priority</Label>
+                          <Select value={priority} onValueChange={(value: 'low' | 'normal' | 'high' | 'urgent') => setPriority(value)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
+                              <SelectValue placeholder="Select priority" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="batch">Batch-wise</SelectItem>
-                        <SelectItem value="box">Box-wise</SelectItem>
-                        <SelectItem value="item">Item-wise</SelectItem>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="normal">Normal</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                              <SelectItem value="urgent">Urgent</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+                        <div className="md:col-span-2">
+                          <Label>Notes</Label>
+                          <Textarea
+                            placeholder="Enter any special instructions or additional notes"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                  {/* Batch selection */}
+                  {/* Product Selection Section */}
                   {selectedStockOutType === 'batch' && (
                     <div>
                       <Label>Select Batch</Label>
@@ -547,7 +820,6 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
                     </div>
                   )}
 
-                  {/* Box selection */}
                   {selectedStockOutType === 'box' && boxes && (
                     <div>
                       <Label>Select Boxes</Label>
@@ -566,7 +838,7 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
                               }}
                             />
                             <span>
-                              Box {box.box_id} - {box.product?.name} ({box.quantity} items)
+                              Box {box.barcode} - {box.product?.name} ({box.quantity} items)
                             </span>
                           </div>
                         ))}
@@ -574,7 +846,6 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
                     </div>
                   )}
 
-                  {/* Item selection */}
                   {selectedStockOutType === 'item' && (
                     <div>
                       <Label>Select Box</Label>
@@ -584,8 +855,8 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
                         </SelectTrigger>
                         <SelectContent>
                           {boxes?.map((box) => (
-                            <SelectItem key={box.id} value={box.id}>
-                              Box {box.box_id} - {box.product?.name}
+                            <SelectItem key={box.id} value={box.barcode}>
+                              Box {box.barcode} - {box.product?.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -621,84 +892,24 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
                     </div>
                   )}
 
-                  {/* Customer Details Section */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold">Customer Details</h3>
-                    <div>
-                      <Label>Customer Name *</Label>
-                      <Input
-                        value={customerDetails.name}
-                        onChange={(e) =>
-                          setCustomerDetails({ ...customerDetails, name: e.target.value })
-                        }
-                        placeholder="Enter customer name"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label>Company</Label>
-                      <Input
-                        value={customerDetails.company}
-                        onChange={(e) =>
-                          setCustomerDetails({ ...customerDetails, company: e.target.value })
-                        }
-                        placeholder="Enter company name"
-                      />
-                    </div>
-                    <div>
-                      <Label>Email</Label>
-                      <Input
-                        type="email"
-                        value={customerDetails.email}
-                        onChange={(e) =>
-                          setCustomerDetails({ ...customerDetails, email: e.target.value })
-                        }
-                        placeholder="Enter email"
-                      />
-                    </div>
-                    <div>
-                      <Label>Phone</Label>
-                      <Input
-                        value={customerDetails.phone}
-                        onChange={(e) =>
-                          setCustomerDetails({ ...customerDetails, phone: e.target.value })
-                        }
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Destination</Label>
-                    <Input
-                      placeholder="Enter destination"
-                      onChange={(e) => setDestination(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Notes (Optional)</Label>
-                    <Input
-                      placeholder="Enter notes"
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
-                  </div>
-
+                  <div className="flex justify-end space-x-4">
+                    <Button variant="outline" onClick={() => {/* handle cancel */}}>
+                      Cancel
+                    </Button>
                   <Button
-                    onClick={() =>
-                      handleCreateStockOut(destination, notes, customerDetails)
-                    }
-                    disabled={
-                      !destination ||
-                      !customerDetails.name ||
-                      (selectedStockOutType === 'batch' && !selectedBatchId) ||
-                      (selectedStockOutType === 'box' && selectedBoxIds.length === 0) ||
-                      (selectedStockOutType === 'item' &&
-                        Object.values(itemQuantities).every((q) => q === 0))
-                    }
-                  >
-                    Generate Stock Out Request
+                      onClick={handleCreateStockOut}
+                      disabled={!destination || !customerDetails.name}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Stock Out Request...
+                        </>
+                      ) : (
+                        'Create Stock Out Request'
+                      )}
                   </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -717,7 +928,7 @@ const StockOutPage: React.FC<StockOutPageProps> = () => {
                           ?.filter((req) => req.status === 'pending')
                           .map((req) => (
                             <SelectItem key={req.id} value={req.id}>
-                              {req.customer_name} - {req.product?.name}
+                              {req.destination} - {req.product?.name || 'Unknown Product'}
                             </SelectItem>
                           ))}
                       </SelectContent>

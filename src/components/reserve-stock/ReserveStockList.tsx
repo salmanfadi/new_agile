@@ -57,7 +57,7 @@ export const ReserveStockList: React.FC<ReserveStockListProps> = ({ onView }) =>
             reserveStocks?.map((stock) => (
               <TableRow key={stock.id}>
                 <TableCell>{stock.product.name}</TableCell>
-                <TableCell>{stock.customer.name}</TableCell>
+                <TableCell>{stock.customer_name}</TableCell>
                 <TableCell>{stock.quantity}</TableCell>
                 <TableCell>{format(new Date(stock.start_date), 'MMM d, yyyy')}</TableCell>
                 <TableCell>{format(new Date(stock.end_date), 'MMM d, yyyy')}</TableCell>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { toast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
 
 interface ReserveStockDetailProps {
   id: string;
@@ -13,6 +14,7 @@ interface ReserveStockDetailProps {
 
 export const ReserveStockDetail: React.FC<ReserveStockDetailProps> = ({ id, onClose }) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: stock, isLoading, error } = useQuery({
     queryKey: ['reserve-stocks', id],
@@ -53,6 +55,19 @@ export const ReserveStockDetail: React.FC<ReserveStockDetailProps> = ({ id, onCl
     }
   };
 
+  const handleStockOut = () => {
+    navigate('/stock-out/new', {
+      state: {
+        reserveStock: {
+          id: stock.id,
+          product: stock.product,
+          quantity: stock.quantity,
+          customer_name: stock.customer_name
+        }
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
@@ -63,7 +78,7 @@ export const ReserveStockDetail: React.FC<ReserveStockDetailProps> = ({ id, onCl
         </div>
         <div>
           <h4 className="font-medium text-sm">Customer</h4>
-          <p>{stock.customer.name}</p>
+          <p>{stock.customer_name}</p>
         </div>
         <div>
           <h4 className="font-medium text-sm">Quantity</h4>
@@ -95,13 +110,21 @@ export const ReserveStockDetail: React.FC<ReserveStockDetailProps> = ({ id, onCl
 
       <div className="flex justify-end gap-2">
         {stock.status === 'pending' && (
-          <Button
-            variant="destructive"
-            onClick={handleCancel}
-            disabled={cancelMutation.isPending}
-          >
-            Cancel Reservation
-          </Button>
+          <>
+            <Button
+              variant="default"
+              onClick={handleStockOut}
+            >
+              Push to Stock Out
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancel}
+              disabled={cancelMutation.isPending}
+            >
+              Cancel Reservation
+            </Button>
+          </>
         )}
         <Button variant="outline" onClick={onClose}>
           Close

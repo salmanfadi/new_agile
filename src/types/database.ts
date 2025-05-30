@@ -116,21 +116,54 @@ export interface BatchItem {
   product?: Product;
 }
 
+export interface CustomerDetails {
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  address: string;
+  reference_number: string;
+}
+
 export interface StockOutRequest {
   id: string;
   created_at: string;
-  requested_by: string;
-  approved_by?: string;
+  requester_id: string;
   status: StockStatus;
-  destination: string;
-  notes?: string;
-  type: 'batch' | 'box' | 'item';
-  batch_id?: string;
-  box_ids?: string[];
-  product?: Product;
+  product_id: string;
   quantity: number;
-  requester?: Profile;
-  approver?: Profile;
+  destination: string;
+  notes: string | null;
+  type: 'batch' | 'box' | 'item';
+  batch_id: string | null;
+  box_ids: string[] | null;
+  customer_name: string;
+  customer_company: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  customer_address: string | null;
+  reference_number: string | null;
+  shipping_method: string | null;
+  required_date: string | null;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  processed_by: string | null;
+  product?: {
+    id: string;
+    name: string;
+  };
+  requester?: {
+    id: string;
+    name: string;
+  };
+  processor?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface StockOutInsert extends Omit<StockOutRequest, 'id' | 'created_at' | 'product' | 'requester' | 'processor'> {
+  id?: string;
+  created_at?: string;
 }
 
 export interface StockOutItem {
@@ -178,25 +211,29 @@ export interface InventoryTransfer {
   approver?: Profile;
 }
 
-export interface SalesInquiry {
+export interface CustomerInquiry {
   id: string;
   customer_name: string;
   customer_email: string;
+  customer_company: string;
+  customer_phone: string;
   notes: string;
-  product_id: string;
-  quantity: number;
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'new' | 'in_progress' | 'completed';
   created_at: string;
   updated_at: string;
   user_id: string;
-  items?: SalesInquiryItem[];
+  converted_to_order: boolean;
+  order_id?: string;
+  items?: CustomerInquiryItem[];
 }
 
-export interface SalesInquiryItem {
+export interface CustomerInquiryItem {
   id: string;
   inquiry_id: string;
   product_id: string;
   quantity: number;
+  specific_requirements?: string;
+  price?: number;
   created_at: string;
   product?: Product;
 }

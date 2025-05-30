@@ -68,9 +68,9 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                   <Users className="mr-3 h-5 w-5" />
                   <span>Users</span>
                 </NavLink>
-                <NavLink to="/admin/sales-inquiries" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <ShoppingBag className="mr-3 h-5 w-5" />
-                  <span>Sales Inquiries</span>
+                <NavLink to="/admin/customer-inquiries" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <MessageSquare className="mr-3 h-5 w-5" />
+                  <span>Customer Inquiries</span>
                 </NavLink>
                 
                 {/* Reports Section */}
@@ -187,7 +187,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 {/* Sales Inquiries */}
                 <NavLink to="/sales/inquiries" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <MessageSquare className="mr-3 h-5 w-5" />
-                  <span>Sales Inquiries</span>
+                  <span>Customer Inquiries</span>
                 </NavLink>
                 
                 {/* Orders */}

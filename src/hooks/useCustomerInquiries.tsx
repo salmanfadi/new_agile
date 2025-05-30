@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { CustomerInquiry } from '@/types/database';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/use-toast';
 
 export const useCustomerInquiries = () => {
   const [inquiries, setInquiries] = useState<CustomerInquiry[]>([]);
@@ -10,10 +12,18 @@ export const useCustomerInquiries = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [selectedInquiry, setSelectedInquiry] = useState<CustomerInquiry | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchInquiries = async () => {
     setIsLoading(true);
+    setError(null);
+    
     try {
+      // First verify Supabase connection
+      if (!supabase) {
+        throw new Error('Supabase client is not initialized');
+      }
+
       const { data, error } = await supabase
         .from('customer_inquiries')
         .select(`
@@ -29,10 +39,21 @@ export const useCustomerInquiries = () => {
         throw error;
       }
 
+      if (!data) {
+        throw new Error('No data received from Supabase');
+      }
+
       // Make sure we're setting data as CustomerInquiry[]
       setInquiries(data as CustomerInquiry[] || []);
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error.message || 'Failed to fetch inquiries';
       console.error('Error fetching inquiries:', error);
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error Loading Inquiries",
+        description: errorMessage
+      });
     } finally {
       setIsLoading(false);
     }
@@ -175,6 +196,7 @@ export const useCustomerInquiries = () => {
   return {
     inquiries,
     isLoading,
+    error,
     searchTerm,
     setSearchTerm,
     statusFilter,
@@ -184,5 +206,69 @@ export const useCustomerInquiries = () => {
     updateInquiryStatus,
     formatDate,
     refreshInquiries
+  };
+};
+
+interface StockOutSubmission {
+  productId: string;
+  quantity: number;
+  destination: string;
+  notes?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  requiredDate?: string;
+}
+
+export const useStockOutSubmission = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const submitStockOut = useMutation({
+    mutationFn: async (data: StockOutSubmission) => {
+      setIsLoading(true);
+      try {
+        // Create the stock out request
+        const { data: stockOut, error } = await supabase
+          .from('stock_out')
+          .insert({
+            product_id: data.productId,
+            quantity: data.quantity,
+            destination: data.destination,
+            notes: data.notes,
+            priority: data.priority || 'normal',
+            required_date: data.requiredDate,
+            status: 'pending', // Initial status for warehouse manager review
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Invalidate queries to refresh the lists
+        queryClient.invalidateQueries({ queryKey: ['stock-out-requests'] });
+        
+        return stockOut;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Stock out request has been submitted for approval',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit stock out request',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  return {
+    submitStockOut,
+    isLoading,
   };
 };

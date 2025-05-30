@@ -60,11 +60,38 @@ const AdminStockOutManagement: React.FC = () => {
       let query = supabase
         .from('stock_out')
         .select(`
-          *,
-          requester:profiles!requester_id(*),
-          approver:profiles!approved_by(*),
-          processor:profiles!processed_by(*),
-          warehouse:warehouses(*)
+          id,
+          created_at,
+          status,
+          customer_name,
+          customer_company,
+          customer_email,
+          destination,
+          shipping_method,
+          required_date,
+          priority,
+          notes,
+          reference_number,
+          requested_by,
+          stock_out_details!inner (
+            id,
+            quantity,
+            product_id,
+            barcode,
+            products (
+              id,
+              name
+            )
+          ),
+          requester:requested_by (
+            id,
+            name,
+            email
+          ),
+          warehouses (
+            id,
+            name
+          )
         `, { count: 'exact' });
 
       // Apply date range filter
@@ -97,10 +124,23 @@ const AdminStockOutManagement: React.FC = () => {
         .order('created_at', { ascending: false })
         .range(from, to);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw error;
+      }
 
       return {
-        data,
+        data: data?.map(item => ({
+          ...item,
+          customer_name: item.customer_name || 'Unknown',
+          customer_company: item.customer_company || null,
+          destination: item.destination || '',
+          status: item.status || 'pending',
+          quantity: item.stock_out_details?.reduce((sum, detail) => sum + (detail.quantity || 0), 0) || 0,
+          requester: item.requester || null,
+          product: item.stock_out_details?.[0]?.products || null,
+          warehouse: item.warehouses || null
+        })) || [],
         totalCount: count || 0
       };
     },
@@ -297,20 +337,52 @@ const AdminStockOutManagement: React.FC = () => {
       ),
     },
     {
-      accessorKey: 'warehouse.name',
-      header: 'Warehouse',
+      accessorKey: 'product',
+      header: 'Product Details',
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div className="font-medium">{row.original.product?.name}</div>
+          <div className="text-sm text-muted-foreground">Qty: {row.original.quantity}</div>
+          {row.original.type && (
+            <div className="text-xs text-muted-foreground">
+              Type: {row.original.type}
+              {row.original.batch_id && ` (Batch: ${row.original.batch_id})`}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
-      accessorKey: 'destination',
-      header: 'Destination',
+      accessorKey: 'customer',
+      header: 'Customer Information',
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div className="font-medium">{row.original.customer_name}</div>
+          {row.original.customer_company && (
+            <div className="text-sm">{row.original.customer_company}</div>
+          )}
+          {row.original.customer_email && (
+            <div className="text-xs text-muted-foreground">{row.original.customer_email}</div>
+          )}
+        </div>
+      ),
     },
     {
-      accessorKey: 'customer_name',
-      header: 'Customer',
-    },
-    {
-      accessorKey: 'customer_company',
-      header: 'Company',
+      accessorKey: 'shipping',
+      header: 'Shipping Details',
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div className="font-medium">{row.original.destination}</div>
+          {row.original.shipping_method && (
+            <div className="text-sm">{row.original.shipping_method}</div>
+          )}
+          {row.original.required_date && (
+            <div className="text-xs text-muted-foreground">
+              Required: {format(new Date(row.original.required_date), 'MMM d, yyyy')}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       accessorKey: 'priority',
@@ -320,32 +392,69 @@ const AdminStockOutManagement: React.FC = () => {
       ),
     },
     {
-      accessorKey: 'requester.name',
-      header: 'Requested By',
+      accessorKey: 'requestInfo',
+      header: 'Request Information',
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div className="text-sm">
+            By: {row.original.requester?.name || 'Unknown'}
+          </div>
+          {row.original.reference_number && (
+            <div className="text-xs">Ref: {row.original.reference_number}</div>
+          )}
+          {row.original.notes && (
+            <div className="text-xs text-muted-foreground truncate max-w-[200px]" title={row.original.notes}>
+              Note: {row.original.notes}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
-      accessorKey: 'processor.name',
-      header: 'Processed By',
-      cell: ({ row }) => {
-        const processedBy = row.original.processed_by;
-        return processedBy ? (
-          <span>{row.original.processor?.name || 'Unknown'}</span>
-        ) : (
-          <span className="text-gray-400">Not processed</span>
-        );
-      },
+      accessorKey: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <div className="flex gap-2">
+          {row.original.status === 'pending' && (
+            <>
+              <Button
+                size="sm"
+                onClick={() => handleProcess(row.original)}
+              >
+                Process
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleReject(row.original)}
+              >
+                Reject
+              </Button>
+            </>
+          )}
+          {row.original.status === 'processing' && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleProcess(row.original)}
+            >
+              Continue Processing
+            </Button>
+          )}
+        </div>
+      ),
     },
   ];
 
   const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'pending_operator':
+    switch (status.toLowerCase()) {
+      case 'pending':
         return 'default';
       case 'processing':
         return 'secondary';
       case 'completed':
         return 'success';
-      case 'cancelled':
+      case 'rejected':
         return 'destructive';
       default:
         return 'default';
@@ -421,22 +530,15 @@ const AdminStockOutManagement: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Warehouse</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Destination</TableHead>
-                    <TableHead>Documents</TableHead>
-                    <TableHead>Actions</TableHead>
+                    {columns.map((column) => (
+                      <TableHead key={column.accessorKey}>{column.header}</TableHead>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="h-24 text-center">
+                      <TableCell colSpan={columns.length} className="h-24 text-center">
                         <div className="flex justify-center items-center h-full">
                           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
@@ -444,66 +546,18 @@ const AdminStockOutManagement: React.FC = () => {
                     </TableRow>
                   ) : stockOutRequests.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
                         No stock out requests found
                       </TableCell>
                     </TableRow>
                   ) : (
                     stockOutRequests.map((request) => (
                       <TableRow key={request.id}>
-                        <TableCell>{format(new Date(request.created_at), 'MMM d, yyyy')}</TableCell>
-                        <TableCell>{request.customer_name}</TableCell>
-                        <TableCell>{request.customer_company || '—'}</TableCell>
-                        <TableCell>{request.product?.name}</TableCell>
-                        <TableCell>{request.quantity}</TableCell>
-                        <TableCell>{request.warehouse?.name}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              request.status === 'pending_operator'
-                                ? 'default'
-                                : request.status === 'approved'
-                                ? 'success'
-                                : 'destructive'
-                            }
-                          >
-                            {request.status.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{request.destination}</TableCell>
-                        <TableCell>
-                          {request.invoice_number || request.packing_slip_number ? (
-                            <div className="space-y-1">
-                              {request.invoice_number && (
-                                <div className="text-sm">Invoice: {request.invoice_number}</div>
-                              )}
-                              {request.packing_slip_number && (
-                                <div className="text-sm">Packing: {request.packing_slip_number}</div>
-                              )}
-                            </div>
-                          ) : (
-                            '—'
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {request.status === 'pending_operator' && (
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => handleProcess(request)}
-                              >
-                                Process
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleReject(request)}
-                              >
-                                Reject
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
+                        {columns.map((column) => (
+                          <TableCell key={column.accessorKey}>
+                            {column.cell({ row: { original: request } })}
+                          </TableCell>
+                        ))}
                       </TableRow>
                     ))
                   )}

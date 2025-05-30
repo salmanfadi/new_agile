@@ -3,31 +3,36 @@ import { ReserveStock, ReserveStockWithDetails, CreateReserveStockDTO } from '@/
 
 export const reserveStockService = {
   async create(data: CreateReserveStockDTO): Promise<ReserveStock> {
-    // Start a transaction
-    const { error: beginError } = await supabase.rpc('begin_transaction');
-    if (beginError) throw beginError;
-
     try {
       // Check if there's enough inventory
-      const { data: inventory, error: inventoryError } = await supabase
+      const { data: inventoryItems, error: inventoryError } = await supabase
         .from('inventory')
-        .select('id, quantity')
+        .select('id, quantity, warehouse_id')
         .eq('product_id', data.product_id)
-        .single();
+        .gt('quantity', 0);
 
       if (inventoryError) throw inventoryError;
-      if (!inventory || inventory.quantity < data.quantity) {
-        throw new Error('Not enough inventory available');
+      
+      // Calculate total available quantity
+      const totalAvailable = inventoryItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+      
+      if (!inventoryItems?.length || totalAvailable < data.quantity) {
+        throw new Error(`Not enough inventory available. Requested: ${data.quantity}, Available: ${totalAvailable}`);
       }
+
+      // Find the inventory item with enough quantity
+      const targetInventory = inventoryItems.find(item => item.quantity >= data.quantity) || inventoryItems[0];
 
       // Create the reservation
       const { data: reserveStock, error: reserveError } = await supabase
         .from('reserve_stocks')
         .insert([{
-          ...data,
-          status: 'pending',
-          warehouse_id: inventory.warehouse_id,
-          location_id: inventory.location_id
+          product_id: data.product_id,
+          customer_name: data.customer_name,
+          quantity: data.quantity,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          status: 'pending'
         }])
         .select()
         .single();
@@ -37,8 +42,8 @@ export const reserveStockService = {
       // Update inventory quantity
       const { error: updateError } = await supabase
         .from('inventory')
-        .update({ quantity: inventory.quantity - data.quantity })
-        .eq('id', inventory.id);
+        .update({ quantity: targetInventory.quantity - data.quantity })
+        .eq('id', targetInventory.id);
 
       if (updateError) throw updateError;
 
@@ -46,22 +51,20 @@ export const reserveStockService = {
       const { error: auditError } = await supabase
         .from('stock_movement_audit')
         .insert([{
-          inventory_id: inventory.id,
-          action: 'reserve',
+          product_id: data.product_id,
+          warehouse_id: targetInventory.warehouse_id,
           quantity: data.quantity,
-          performed_by: (await supabase.auth.getUser()).data.user?.id
+          movement_type: 'reserve',
+          reference_id: reserveStock.id,
+          reference_type: 'reserve_stock',
+          created_by: (await supabase.auth.getUser()).data.user?.id
         }]);
 
       if (auditError) throw auditError;
 
-      // Commit the transaction
-      const { error: commitError } = await supabase.rpc('commit_transaction');
-      if (commitError) throw commitError;
-
       return reserveStock;
     } catch (error) {
-      // Rollback on any error
-      await supabase.rpc('rollback_transaction');
+      console.error('Error creating reserve stock:', error);
       throw error;
     }
   },
@@ -71,8 +74,7 @@ export const reserveStockService = {
       .from('reserve_stocks')
       .select(`
         *,
-        product:products(id, name, sku),
-        customer:customers(id, name)
+        product:products(id, name, sku)
       `)
       .order('created_at', { ascending: false });
 
@@ -85,8 +87,7 @@ export const reserveStockService = {
       .from('reserve_stocks')
       .select(`
         *,
-        product:products(id, name, sku),
-        customer:customers(id, name)
+        product:products(id, name, sku)
       `)
       .eq('id', id)
       .single();
@@ -126,7 +127,7 @@ export const reserveStockService = {
           // Get the inventory record
           const { data: inventory, error: inventoryError } = await supabase
             .from('inventory')
-            .select('id, quantity')
+            .select('id, quantity, warehouse_id')
             .eq('product_id', currentReservation.product_id)
             .single();
 
@@ -144,10 +145,13 @@ export const reserveStockService = {
           const { error: auditError } = await supabase
             .from('stock_movement_audit')
             .insert([{
-              inventory_id: inventory.id,
-              action: 'unreserve',
+              product_id: currentReservation.product_id,
+              warehouse_id: inventory.warehouse_id,
               quantity: currentReservation.quantity,
-              performed_by: (await supabase.auth.getUser()).data.user?.id
+              movement_type: 'unreserve',
+              reference_id: id,
+              reference_type: 'reserve_stock',
+              created_by: (await supabase.auth.getUser()).data.user?.id
             }]);
 
           if (auditError) throw auditError;

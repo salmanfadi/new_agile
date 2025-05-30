@@ -20,33 +20,32 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
   searchTerm,
   setSearchTerm,
   statusFilter,
-  setStatusFilter
+  setStatusFilter,
 }) => {
   return (
-    <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-      <div className="relative w-full sm:w-auto">
+    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+      <div className="relative flex-1 sm:max-w-xs">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
         <Input
           placeholder="Search inquiries..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 w-full sm:w-64"
+          className="pl-9 w-full"
         />
-        <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
       </div>
       
       <Select
         value={statusFilter}
-        onValueChange={setStatusFilter}
+        onValueChange={(value) => setStatusFilter(value || undefined)}
       >
-        <SelectTrigger className="w-full sm:w-40">
-          <SelectValue placeholder="All statuses" />
+        <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectValue placeholder="Filter by status" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">All statuses</SelectItem>
-          <SelectItem value="pending">Pending</SelectItem>
+          <SelectItem value="">All Status</SelectItem>
+          <SelectItem value="new">New</SelectItem>
           <SelectItem value="in_progress">In Progress</SelectItem>
           <SelectItem value="completed">Completed</SelectItem>
-          <SelectItem value="cancelled">Cancelled</SelectItem>
         </SelectContent>
       </Select>
     </div>

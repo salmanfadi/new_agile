@@ -4,7 +4,7 @@ export interface ReserveStock {
   id: string;
   product_id: string;
   quantity: number;
-  customer_id: string;
+  customer_name: string;
   start_date: string;
   end_date: string;
   status: 'pending' | 'active' | 'completed' | 'cancelled';
@@ -18,16 +18,12 @@ export interface ReserveStockWithDetails extends ReserveStock {
     name: string;
     sku: string;
   };
-  customer: {
-    id: string;
-    name: string;
-  };
 }
 
 export interface CreateReserveStockDTO {
   product_id: string;
   quantity: number;
-  customer_id: string;
+  customer_name: string;
   start_date: string;
   end_date: string;
 }

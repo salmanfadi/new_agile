@@ -29,7 +29,7 @@ interface ReserveStockFormProps {
 
 const formSchema = z.object({
   product_id: z.string().min(1, 'Product is required'),
-  customer_id: z.string().min(1, 'Customer name/ID is required'),
+  customer_name: z.string().min(1, 'Customer name is required'),
   quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().min(1, 'End date is required'),
@@ -41,6 +41,8 @@ export const ReserveStockForm: React.FC<ReserveStockFormProps> = ({ onSubmit }) 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      product_id: '',
+      customer_name: '',
       quantity: 1,
       start_date: new Date().toISOString().split('T')[0],
       end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -62,7 +64,7 @@ export const ReserveStockForm: React.FC<ReserveStockFormProps> = ({ onSubmit }) 
   const handleSubmit = (values: FormValues) => {
     onSubmit({
       product_id: values.product_id,
-      customer_id: values.customer_id,
+      customer_name: values.customer_name,
       quantity: Number(values.quantity),
       start_date: values.start_date,
       end_date: values.end_date,
@@ -103,14 +105,14 @@ export const ReserveStockForm: React.FC<ReserveStockFormProps> = ({ onSubmit }) 
 
         <FormField
           control={form.control}
-          name="customer_id"
+          name="customer_name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Customer Name/ID</FormLabel>
+              <FormLabel>Customer Name</FormLabel>
               <FormControl>
                 <Input
                   {...field}
-                  placeholder="Enter customer name or ID"
+                  placeholder="Enter customer name"
                 />
               </FormControl>
               <FormMessage />

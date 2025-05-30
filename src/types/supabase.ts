@@ -968,6 +968,104 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_inquiries: {
+        Row: {
+          id: string
+          customer_name: string
+          customer_email: string
+          customer_company: string
+          customer_phone: string | null
+          message: string | null
+          status: 'new' | 'in_progress' | 'completed'
+          created_at: string
+          updated_at: string
+          converted_to_order: boolean
+          order_id: string | null
+          notes: string | null
+        }
+        Insert: {
+          id?: string
+          customer_name: string
+          customer_email: string
+          customer_company: string
+          customer_phone?: string | null
+          message?: string | null
+          status?: 'new' | 'in_progress' | 'completed'
+          created_at?: string
+          updated_at?: string
+          converted_to_order?: boolean
+          order_id?: string | null
+          notes?: string | null
+        }
+        Update: {
+          id?: string
+          customer_name?: string
+          customer_email?: string
+          customer_company?: string
+          customer_phone?: string | null
+          message?: string | null
+          status?: 'new' | 'in_progress' | 'completed'
+          created_at?: string
+          updated_at?: string
+          converted_to_order?: boolean
+          order_id?: string | null
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_inquiries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      customer_inquiry_items: {
+        Row: {
+          id: string
+          inquiry_id: string
+          product_id: string
+          quantity: number
+          price: number | null
+          specific_requirements: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          inquiry_id: string
+          product_id: string
+          quantity: number
+          price?: number | null
+          specific_requirements?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          inquiry_id?: string
+          product_id?: string
+          quantity?: number
+          price?: number | null
+          specific_requirements?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_inquiry_items_inquiry_id_fkey"
+            columns: ["inquiry_id"]
+            isOneToOne: false
+            referencedRelation: "customer_inquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_inquiry_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
