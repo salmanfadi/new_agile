@@ -30,3 +30,6 @@ dist-ssr
 
 # MCP Configuration
 .cursor/
+
+# Local Netlify folder
+.netlify

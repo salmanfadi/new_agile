@@ -20,7 +20,6 @@ import WarehouseManagement from './pages/admin/WarehouseManagement';
 import UsersManagement from './pages/admin/UsersManagement';
 import AdminInventoryView from './pages/admin/InventoryView';
 import CustomerInquiries from './pages/admin/CustomerInquiries';
-import SalesInquiries from './pages/admin/SalesInquiries';
 import BatchInventoryPage from './pages/admin/BatchInventoryPage';
 import BarcodeManagement from './pages/admin/BarcodeManagement';
 import StockInManagement from './pages/admin/StockInManagement';
@@ -48,7 +47,6 @@ import { default as ManagerReserveStock } from './pages/warehouseManager/Reserve
 import EnhancedInventoryView from './pages/warehouseManager/EnhancedInventoryView';
 import ManagerInventoryView from './pages/warehouseManager/InventoryView';
 
-
 // Field operator pages
 import OperatorDashboard from './pages/fieldOperator/OperatorDashboard';
 import StockInForm from './pages/fieldOperator/StockInForm';
@@ -65,17 +63,6 @@ import CustomerInquiriesManagement from './pages/salesOperator/CustomerInquiries
 import SalesInventoryView from './pages/salesOperator/InventoryView';
 import ProductView from './pages/salesOperator/ProductView';
 import OrdersManagement from './pages/salesOperator/OrdersManagement';
-
-// Report pages
-import ReportsDashboard from './pages/reports/ReportsDashboard';
-import BatchTrackingReport from './pages/reports/inventory/BatchTrackingReport';
-import InventoryMovementReport from './pages/reports/inventory/InventoryMovementReport';
-import InventoryStatusReport from './pages/reports/inventory/InventoryStatusReport';
-import StockProcessingReport from './pages/reports/operational/StockProcessingReport';
-import TransferMovementReport from './pages/reports/operational/TransferMovementReport';
-import WarehouseUtilizationReport from './pages/reports/operational/WarehouseUtilizationReport';
-import AuditComplianceReport from './pages/reports/management/AuditComplianceReport';
-import ExecutiveDashboard from './pages/reports/management/ExecutiveDashboard';
 
 // Customer pages
 import CustomerPortal from './pages/customer/CustomerPortal';
@@ -181,17 +168,6 @@ function App() {
                 <Route path="/admin/stock-in/:stockInId/barcode-assignment" element={<BarcodeAssignmentPage />} />
                 <Route path="/admin/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
                 <Route path="/admin/stock-in/:stockInId/unified" element={<AdminUnifiedBatchProcessingPage />} />
-                
-                {/* Report Routes */}
-                <Route path="/admin/reports" element={<ReportsDashboard />} />
-                <Route path="/admin/reports/batch-tracking" element={<BatchTrackingReport />} />
-                <Route path="/admin/reports/inventory-movement" element={<InventoryMovementReport />} />
-                <Route path="/admin/reports/inventory-status" element={<InventoryStatusReport />} />
-                <Route path="/admin/reports/stock-processing" element={<StockProcessingReport />} />
-                <Route path="/admin/reports/transfer-movement" element={<TransferMovementReport />} />
-                <Route path="/admin/reports/warehouse-utilization" element={<WarehouseUtilizationReport />} />
-                <Route path="/admin/reports/audit-compliance" element={<AuditComplianceReport />} />
-                <Route path="/admin/reports/executive" element={<ExecutiveDashboard />} />
               </Route>
               
               {/* Warehouse Manager Routes */}

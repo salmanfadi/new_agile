@@ -11,4 +11,10 @@
   status = 200
 
 [functions]
-  directory = "netlify/functions" 
+  directory = "netlify/functions"
+
+# Add cache headers for better performance
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable" 
