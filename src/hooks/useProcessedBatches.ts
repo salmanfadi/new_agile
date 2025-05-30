@@ -25,11 +25,18 @@ export type BatchItemType = {
   id: string;
   barcode: string;
   quantity: number;
-  color?: string | null;
-  size?: string | null;
+  color: string | null;
+  size: string | null;
   status: string;
+  created_at?: string;
+  warehouse_id?: string | null;
+  location_id?: string | null;
   warehouses?: {
+    id: string;
     name: string;
+    zone: string | null;
+    floor: number | null;
+    position: string | null;
   };
   locations?: {
     floor: number;
@@ -37,13 +44,13 @@ export type BatchItemType = {
   };
 };
 
-export type ProcessedBatchType = {
+export interface ProcessedBatchType {
   id: string;
   product_id: string;
   submitted_by: string;
   processed_by: string;
   boxes: number;
-  status: 'completed' | 'rejected';
+  status: 'completed' | 'rejected' | string;
   source: string | null;
   notes: string | null;
   created_at: string;
@@ -56,12 +63,13 @@ export type ProcessedBatchType = {
   warehouse_id?: string;
   location_id?: string;
   warehouse_name?: string;
+  items?: BatchItemType[];
   location_details?: {
     floor?: number;
     zone?: string;
     position?: string;
   };
-};
+}
 
 interface ProcessedBatchesFilters {
   searchTerm?: string;
@@ -139,24 +147,44 @@ const fetchProcessedBatches = async (
     if (error) throw error;
 
     // Transform the data
-    const processedData = data ? data.map((item: any) => {
+    const processedData = data ? await Promise.all(data.map(async (item: any) => {
+      // Get processor name if available
+      let processorName = "Unknown";
+      if (item.processed_by) {
+        try {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', item.processed_by)
+            .maybeSingle();
+          
+          if (profileData) {
+            processorName = profileData.name || "Unknown";
+          }
+        } catch (error) {
+          console.error("Error getting processor name:", error);
+        }
+      }
+
       return {
         id: item.id || '',
         product_id: item.product_id || '',
+        submitted_by: item.processed_by || '', // Using processed_by as submitted_by
         processed_by: item.processed_by || '',
         boxes: item.total_boxes || 0,
         status: item.status || 'completed',
         source: item.source || '',
         notes: item.notes || '',
         created_at: item.processed_at || new Date().toISOString(),
-        completed_at: item.processed_at || null,
+        completed_at: item.status === 'completed' ? item.processed_at : null,
         product_name: item.products?.name || 'Unknown Product',
         product_sku: item.products?.sku || '',
-        processor_name: item.processed_by || '',
+        submitter_name: processorName,
+        processor_name: processorName,
         total_quantity: item.total_quantity || 0,
-        warehouse_id: item.warehouse_id || '',
+        warehouse_id: item.warehouse_id || undefined,
       };
-    }) : [];
+    })) : [];
 
     return {
       data: processedData,
@@ -168,7 +196,7 @@ const fetchProcessedBatches = async (
   }
 };
 
-export const fetchBatchDetails = async (batchId: string | null): Promise<any> => {
+export const fetchBatchDetails = async (batchId: string | null): Promise<ProcessedBatchType | null> => {
   if (!batchId) return null;
   
   try {
@@ -191,7 +219,18 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
           description
         ),
         processor:processed_by (name),
-        warehouses:warehouse_id (name)
+        warehouses:warehouse_id (name),
+        batch_items (
+          id,
+          barcode,
+          quantity,
+          color,
+          size,
+          status,
+          created_at,
+          warehouse_id,
+          location_id
+        )
       `)
       .eq('id', batchId)
       .single();
@@ -241,19 +280,33 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
 
     return {
       id: data.id,
-      product: {
-        id: data.product_id,
-        name: data.products?.name || 'Unknown Product',
-        sku: data.products?.sku || ''
-      },
-      processed_by: processorName,
-      total_boxes: data.total_boxes || 0,
+      product_id: data.product_id,
+      submitted_by: data.processed_by, // Using processed_by as submitted_by if not available
+      processed_by: data.processed_by,
+      boxes: data.total_boxes || 0,
       status: data.status,
       source: data.source,
       notes: data.notes,
-      processed_at: data.processed_at,
-      total_quantity: data.total_quantity,
+      created_at: data.processed_at,
+      completed_at: data.status === 'completed' ? data.processed_at : null,
+      product_name: data.products?.name || 'Unknown Product',
+      product_sku: data.products?.sku || '',
+      submitter_name: processorName,
+      processor_name: processorName,
+      total_quantity: data.total_quantity || 0,
+      warehouse_id: data.warehouse_id || undefined,
       warehouse_name: warehouseName,
+      items: data.batch_items?.map((item: any) => ({
+        id: item.id,
+        barcode: item.barcode || `BATCH-${data.id}-${item.id}`,
+        quantity: item.quantity || 0,
+        color: item.color || null,
+        size: item.size || null,
+        status: item.status || 'available',
+        created_at: item.created_at || new Date().toISOString(),
+        warehouse_id: item.warehouse_id || null,
+        location_id: item.location_id || null,
+      })) || [],
     };
   } catch (error) {
     console.error('Error fetching batch details:', error);
@@ -261,32 +314,51 @@ export const fetchBatchDetails = async (batchId: string | null): Promise<any> =>
   }
 };
 
+interface BatchItemRow {
+  id?: string;
+  quantity?: number | null;
+  color?: string | null;
+  size?: string | null;
+  warehouse_id?: string | null;
+  location_id?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+}
+
 const fetchBatchItems = async (batchId: string): Promise<BatchItemType[]> => {
   try {
+    // Query the database for batch items
     const { data, error } = await supabase
       .from('batch_items')
-      .select(`
-        id,
-        barcode,
-        quantity,
-        color,
-        size,
-        warehouse_id,
-        location_id,
-        status,
-        warehouses:warehouse_id (
-          name
-        ),
-        locations:location_id (
-          floor,
-          zone
-        )
-      `)
+      .select('*')
       .eq('batch_id', batchId);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching batch items:', error);
+      return [];
+    }
 
-    return data as BatchItemType[];
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    // Transform the data to match BatchItemType
+    return data.map((item: BatchItemRow) => {
+      // Generate a unique ID if not present
+      const itemId = item.id || `item-${Math.random().toString(36).substr(2, 9)}`;
+      
+      return {
+        id: itemId,
+        barcode: `BATCH-${batchId}-${itemId}`,
+        quantity: item.quantity ? Number(item.quantity) : 0,
+        color: item.color || null,
+        size: item.size || null,
+        status: item.status?.toString() || 'available',
+        created_at: item.created_at || new Date().toISOString(),
+        warehouse_id: item.warehouse_id?.toString() || null,
+        location_id: item.location_id?.toString() || null,
+      };
+    });
   } catch (error) {
     console.error('Error fetching batch items:', error);
     return [];

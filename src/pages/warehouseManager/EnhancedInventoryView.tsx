@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,89 @@ import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTa
 import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabaseClient';
+import EnhancedBatchDetailsDialog from '@/components/warehouse/EnhancedBatchDetailsDialog';
+
+// Define types for Supabase responses
+interface BarcodeData {
+  item_id: string;
+  barcode: string;
+}
+
+interface WarehouseData {
+  id: string;
+  name: string;
+}
+
+interface LocationData {
+  id: string;
+  floor?: string | number;
+  zone?: string;
+}
+
+interface BatchItemData {
+  id: string;
+  quantity?: number;
+  status?: string;
+  color?: string;
+  size?: string;
+  warehouse_id?: string;
+  location_id?: string;
+}
+
+interface ProcessedBatchData {
+  id: string;
+  status?: string;
+  total_boxes?: number;
+  total_quantity?: number;
+  warehouse_id?: string;
+  location_id?: string;
+  processed_at?: string;
+  batch_items?: BatchItemData[];
+  products?: {
+    id: string;
+    name: string;
+  };
+  processor?: {
+    id: string;
+    name: string;
+  };
+}
+
+// Define the types for batch items
+interface BatchItem {
+  id: string;
+  barcode: string;
+  productName?: string;
+  quantity: number;
+  status: string;
+  warehouseName?: string;
+  locationDetails?: string;
+  color?: string;
+  size?: string;
+  warehouse_id?: string;
+  warehouse_locations?: {
+    floor?: string | number;
+    zone?: string;
+  };
+}
+
+// Define the type for a batch
+interface Batch {
+  id: string;
+  status: string;
+  items: BatchItem[];
+  name?: string;
+  totalBoxes?: number;
+  totalQuantity?: number;
+  warehouseName?: string;
+  locationDetails?: string;
+  processorName?: string;
+  processedAt?: string;
+  product?: {
+    name: string;
+  };
+}
 
 const EnhancedInventoryView: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -24,8 +107,9 @@ const EnhancedInventoryView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedBatch, setSelectedBatch] = useState(null);
+  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const barcodeContainerRef = useRef<HTMLDivElement>(null);
 
   const navigate = useNavigate();
 
@@ -60,10 +144,139 @@ const EnhancedInventoryView: React.FC = () => {
     console.log('Exporting data...');
   };
 
-  const handleViewDetails = (batchId) => {
-    const batch = batches.find(b => b.id === batchId);
-    setSelectedBatch(batch);
-    setShowDetails(true);
+  const handleViewDetails = async (batchId: string) => {
+    try {
+      // First try to find the batch in the already loaded batches
+      const existingBatch = batches.find(b => b.id === batchId);
+      
+      if (existingBatch && existingBatch.items?.length > 0) {
+        // If we already have the batch with items, use it
+        setSelectedBatch(existingBatch);
+        setShowDetails(true);
+        return;
+      }
+      
+      // Otherwise, fetch the batch details from the database
+      const { data: batch, error } = await supabase
+        .from('processed_batches')
+        .select(`
+          *,
+          batch_items (id, quantity, status, color, size, warehouse_id, location_id),
+          products:product_id (id, name),
+          processor:profiles (id, name)
+        `)
+        .eq('id', batchId)
+        .single<ProcessedBatchData>();
+      
+      if (error) {
+        console.error('Error fetching batch details:', error);
+        return;
+      }
+      
+      if (batch) {
+        // Fetch barcodes for each batch item
+        const batchItemIds = batch.batch_items?.map(item => item.id) || [];
+        const barcodes: Record<string, string> = {};
+        
+        if (batchItemIds.length > 0) {
+          // Generate barcodes for items if they don't exist
+          // Since we don't have a direct barcodes table, we'll generate them based on item ID
+          batchItemIds.forEach(itemId => {
+            if (itemId) {
+              barcodes[itemId] = `BATCH-${itemId.substring(0, 8)}`;
+            }
+          });
+        }
+        
+        // Fetch warehouse and location details
+        const warehouseIds = [...new Set(batch.batch_items?.map(item => item.warehouse_id).filter(Boolean) || [])];
+        const locationIds = [...new Set(batch.batch_items?.map(item => item.location_id).filter(Boolean) || [])];
+        
+        const warehouses: Record<string, string> = {};
+        const locations: Record<string, { floor?: string; zone?: string }> = {};
+        
+        if (warehouseIds.length > 0) {
+          const { data: warehouseData } = await supabase
+            .from('warehouses')
+            .select('id, name')
+            .in('id', warehouseIds);
+            
+          if (warehouseData) {
+            (warehouseData as unknown as WarehouseData[]).forEach(item => {
+              if (item && item.id && item.name) {
+                warehouses[item.id] = item.name;
+              }
+            });
+          }
+        }
+        
+        if (locationIds.length > 0) {
+          const { data: locationData } = await supabase
+            .from('warehouse_locations')
+            .select('id, floor, zone')
+            .in('id', locationIds);
+            
+          if (locationData) {
+            (locationData as unknown as LocationData[]).forEach(item => {
+              if (item && item.id) {
+                locations[item.id] = { 
+                  floor: item.floor !== undefined ? String(item.floor) : undefined, 
+                  zone: item.zone || undefined 
+                };
+              }
+            });
+          }
+        }
+        
+        // Transform the batch data to match the Batch type
+        const batchWithItems: Batch = {
+          id: batch.id,
+          status: batch.status || 'unknown',
+          totalBoxes: batch.total_boxes || 0,
+          totalQuantity: batch.total_quantity || 0,
+          warehouseName: batch.warehouse_id ? (warehouses[batch.warehouse_id] || String(batch.warehouse_id)) : undefined,
+          locationDetails: batch.location_id ? `Location ID: ${batch.location_id}` : undefined,
+          processorName: batch.processor?.name,
+          processedAt: batch.processed_at,
+          product: batch.products ? { name: batch.products.name } : undefined,
+          items: (batch.batch_items || []).map(item => {
+            // Ensure we have a valid item
+            if (!item || !item.id) {
+              return {
+                id: `unknown-${Math.random().toString(36).substring(2, 9)}`,
+                barcode: 'UNKNOWN',
+                quantity: 0,
+                status: 'unknown'
+              };
+            }
+            
+            // Get location details if available
+            const locationDetail = item.location_id && locations[item.location_id] 
+              ? `Floor: ${String(locations[item.location_id].floor || 'N/A')}, Zone: ${locations[item.location_id].zone || 'N/A'}`
+              : 'No location details';
+              
+            return {
+              id: item.id,
+              barcode: (item.id && barcodes[item.id]) || `BATCH-${item.id.substring(0, 8)}`,
+              productName: batch.products?.name,
+              quantity: item.quantity || 0,
+              status: item.status || 'unknown',
+              warehouseName: item.warehouse_id ? (warehouses[item.warehouse_id] || String(item.warehouse_id)) : undefined,
+              locationDetails: locationDetail,
+              color: item.color,
+              size: item.size,
+              warehouse_id: item.warehouse_id,
+              warehouse_locations: item.location_id ? locations[item.location_id] : undefined
+            };
+          })
+        };
+        
+        setSelectedBatch(batchWithItems);
+        setShowDetails(true);
+      }
+    } catch (err) {
+      console.error('Error fetching batch details:', err);
+    }
   };
 
   // Show loading state while data is being fetched
@@ -230,59 +443,12 @@ const EnhancedInventoryView: React.FC = () => {
                 onPageChange={setCurrentPage}
                 onViewDetails={handleViewDetails}
               />
-              <Dialog open={showDetails} onOpenChange={setShowDetails}>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Batch Details</DialogTitle>
-                    <DialogDescription>
-                      {selectedBatch && (
-                        <div>
-                          <div className="mb-2">
-                            <strong>Product:</strong> {selectedBatch.product?.name || 'Unknown'}<br />
-                            <strong>Status:</strong> {selectedBatch.status}<br />
-                            <strong>Total Boxes:</strong> {selectedBatch.totalBoxes}<br />
-                            <strong>Total Quantity:</strong> {selectedBatch.totalQuantity}<br />
-                            <strong>Warehouse:</strong> {selectedBatch.warehouseName || 'N/A'}<br />
-                            <strong>Location:</strong> {selectedBatch.locationDetails || 'N/A'}<br />
-                            <strong>Processed By:</strong> {selectedBatch.processorName || 'N/A'}<br />
-                          </div>
-                          <strong>Items in Batch:</strong>
-                        </div>
-                      )}
-                    </DialogDescription>
-                  </DialogHeader>
-                  {selectedBatch && (
-                    <div>
-                      <table className="min-w-full text-xs mt-2 border">
-                        <thead>
-                          <tr>
-                            <th className="border px-2 py-1">Barcode</th>
-                            <th className="border px-2 py-1">Quantity</th>
-                            <th className="border px-2 py-1">Color</th>
-                            <th className="border px-2 py-1">Size</th>
-                            <th className="border px-2 py-1">Status</th>
-                            <th className="border px-2 py-1">Warehouse</th>
-                            <th className="border px-2 py-1">Location</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedBatch.items.map((item) => (
-                            <tr key={item.id}>
-                              <td className="border px-2 py-1">{item.barcode}</td>
-                              <td className="border px-2 py-1">{item.quantity}</td>
-                              <td className="border px-2 py-1">{item.color || '-'}</td>
-                              <td className="border px-2 py-1">{item.size || '-'}</td>
-                              <td className="border px-2 py-1">{item.status}</td>
-                              <td className="border px-2 py-1">{item.warehouseName || '-'}</td>
-                              <td className="border px-2 py-1">{item.locationDetails || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </DialogContent>
-              </Dialog>
+              <EnhancedBatchDetailsDialog 
+                open={showDetails} 
+                onOpenChange={setShowDetails} 
+                batchId={selectedBatch?.id || null}
+                selectedBatch={selectedBatch}
+              />
             </CardContent>
           </Card>
         </TabsContent>

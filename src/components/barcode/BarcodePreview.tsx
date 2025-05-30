@@ -8,15 +8,18 @@ interface BarcodePreviewProps {
   height?: number;
   includeText?: boolean;
   scale?: number;
+  className?: string;
 }
 
-const BarcodePreview: React.FC<BarcodePreviewProps> = ({ 
-  barcode, 
-  width = 150, 
-  height = 50,
-  includeText = true,
-  scale = 2
-}) => {
+const BarcodePreview: React.FC<BarcodePreviewProps> = (props) => {
+  const { 
+    barcode, 
+    width = 200, 
+    height = 80,
+    includeText = true,
+    scale = 2,
+    className = ''
+  } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -40,15 +43,21 @@ const BarcodePreview: React.FC<BarcodePreviewProps> = ({
   // If no barcode is provided, display a placeholder
   if (!barcode || barcode.trim() === '') {
     return (
-      <div className="barcode-preview flex items-center justify-center h-[50px] bg-gray-100 text-gray-500 rounded border border-dashed border-gray-300">
-        No barcode
+      <div className={`barcode-preview flex items-center justify-center h-[${height}px] bg-muted/20 text-muted-foreground rounded-md border border-dashed ${className}`}>
+        <span className="text-sm">No barcode available</span>
       </div>
     );
   }
 
   return (
-    <div className="barcode-preview">
-      <canvas ref={canvasRef} width={width} height={height} />
+    <div className={`barcode-preview ${className}`}>
+      <canvas 
+        ref={canvasRef} 
+        width={width} 
+        height={height}
+        aria-label={`Barcode: ${barcode}`}
+        className="max-w-full h-auto"
+      />
     </div>
   );
 };

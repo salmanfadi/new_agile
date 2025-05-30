@@ -93,6 +93,7 @@ import Cart from './pages/public/Cart';
 // Import the new UnifiedBatchProcessingPage components
 import UnifiedBatchProcessingPage from '@/pages/warehouseManager/UnifiedBatchProcessingPage';
 import AdminUnifiedBatchProcessingPage from '@/pages/admin/UnifiedBatchProcessingPage';
+import BatchBarcodesPage from '@/pages/warehouseManager/BatchBarcodesPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -211,6 +212,16 @@ function App() {
                 <Route path="/manager/stock-in/batches/:stockInId" element={<BatchOverviewPage />} />
                 <Route path="/manager/stock-in/:stockInId/unified" element={<UnifiedBatchProcessingPage />} />
                 <Route path="/manager/reserve-stock" element={<ManagerReserveStock />} />
+              </Route>
+              
+              {/* Shared Protected Routes */}
+              <Route element={
+                <RequireAuth allowedRoles={['admin', 'warehouse_manager', 'field_operator', 'sales_operator']}>
+                  <MainLayout />
+                </RequireAuth>
+              }>
+                <Route path="/inventory/batches/:batchId/barcodes" element={<BatchBarcodesPage />} />
+                <Route path="/inventory/batches/barcodes" element={<BatchBarcodesPage />} />
               </Route>
               
               {/* Field Operator Routes */}
