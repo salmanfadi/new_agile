@@ -15,8 +15,7 @@ import { Badge } from '@/components/ui/badge';
 
 interface UserProfile {
   id: string;
-  username: string;
-  name: string;
+  full_name: string;
   email: string;
   role: string;
   active: boolean;
@@ -30,7 +29,7 @@ const UsersManagement: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, email, role, active, created_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -66,7 +65,6 @@ const UsersManagement: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Username</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
@@ -78,8 +76,7 @@ const UsersManagement: React.FC = () => {
               {users && users.length > 0 ? (
                 users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.username || '-'}</TableCell>
-                    <TableCell>{user.name || '-'}</TableCell>
+                    <TableCell>{user.full_name || '-'}</TableCell>
                     <TableCell>{user.email || '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
@@ -98,7 +95,7 @@ const UsersManagement: React.FC = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                     No users found
                   </TableCell>
                 </TableRow>
