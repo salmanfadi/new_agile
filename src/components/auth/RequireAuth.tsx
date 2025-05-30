@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types/auth";
@@ -9,18 +9,42 @@ interface RequireAuthProps {
 }
 
 export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, session } = useAuth();
   const location = useLocation();
 
+  // Add debug logging
+  useEffect(() => {
+    console.log('RequireAuth state:', {
+      isLoading,
+      isAuthenticated,
+      user,
+      session,
+      currentPath: location.pathname
+    });
+  }, [isLoading, isAuthenticated, user, session, location]);
+
+  // Show loading state while checking auth
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
-  if (!isAuthenticated || !user) {
+  // Only redirect if we're sure the user is not authenticated
+  if (!isLoading && (!isAuthenticated || !user)) {
+    console.log('Redirecting to login from:', location.pathname);
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  // Check role access
+  if (!isLoading && allowedRoles && !allowedRoles.includes(user.role)) {
+    console.log('Unauthorized access attempt:', {
+      userRole: user.role,
+      allowedRoles,
+      path: location.pathname
+    });
     return <Navigate to="/unauthorized" replace />;
   }
 
