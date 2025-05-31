@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { useSalesInquiries } from '@/hooks/useSalesInquiries';
+import { useCustomerInquiries } from '@/hooks/useCustomerInquiries';
 import { InquiryManagement } from '@/components/sales/InquiryManagement';
 
-const SalesInquiries: React.FC = () => {
+const CustomerInquiriesManagement: React.FC = () => {
   const {
     inquiries,
     isLoading,
@@ -15,12 +14,12 @@ const SalesInquiries: React.FC = () => {
     updateInquiryStatus,
     formatDate,
     refreshInquiries
-  } = useSalesInquiries();
+  } = useCustomerInquiries();
 
   return (
     <div className="space-y-6">
       <PageHeader 
-        title="Sales Inquiries" 
+        title="Customer Inquiries" 
         description="View and manage customer pricing inquiries"
       />
       
@@ -39,4 +38,4 @@ const SalesInquiries: React.FC = () => {
   );
 };
 
-export default SalesInquiries;
+export default CustomerInquiriesManagement;

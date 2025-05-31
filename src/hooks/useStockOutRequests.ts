@@ -25,7 +25,6 @@ export interface StockOutRequestData {
     id: string;
     product_id: string;
     quantity: number;
-    processed_quantity: number | null;
     status: "pending" | "processing" | "completed";
     barcode: string;
     batch_id: string | null;
@@ -64,7 +63,6 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
               id,
               product_id,
               quantity,
-              processed_quantity,
               status,
               barcode,
               batch_id,
@@ -158,7 +156,6 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
               id: detail.id,
               product_id: detail.product_id,
               quantity: detail.quantity,
-              processed_quantity: detail.processed_quantity,
               status: detail.status,
               barcode: detail.barcode,
               batch_id: detail.batch_id,

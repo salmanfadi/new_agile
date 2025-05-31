@@ -1,3 +1,5 @@
+import { DateRange } from 'react-day-picker';
+
 export interface Warehouse {
   id: string;
   name: string;
@@ -17,45 +19,37 @@ export interface WarehouseLocation {
 export interface Product {
   id: string;
   name: string;
-  description: string | null;
+  sku: string;
+  category: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
-  image_url?: string | null;
-  sku?: string | null;
-  specifications?: string | null;
-  is_active?: boolean;
-  in_stock_quantity?: number;
-  is_out_of_stock?: boolean;
-  category?: string | null;
+  created_by: string;
+  updated_by: string;
+  description: string;
 }
 
 // Updated enums to match PostgreSQL types
 export type InventoryStatus = 'available' | 'reserved' | 'sold' | 'damaged';
 export type BatchStatus = 'completed' | 'processing' | 'failed' | 'cancelled';
-export type StockStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing' | 'failed';
+export type StockStatus = 'pending' | 'approved' | 'rejected' | 'completed';
 export type TransferStatus = 'pending' | 'approved' | 'rejected' | 'in_transit' | 'completed' | 'cancelled';
 export type MovementType = 'in' | 'out' | 'transfer' | 'adjustment' | 'reserve' | 'release'; 
 export type MovementStatus = 'pending' | 'approved' | 'rejected' | 'in_transit';
 
 export interface Inventory {
   id: string;
-  product_id: string;
-  warehouse_id: string;
-  location_id: string;
   barcode: string;
+  product_id: string;
   quantity: number;
-  color: string | null;
-  size: string | null;
-  created_at: string;
-  updated_at: string;
-  status: InventoryStatus;
-  batch_id: string | null;
-  created_by?: string | null;
-  updated_by?: string | null;
-  // Join fields
+  box_id?: string;
+  batch_id?: string;
   product?: Product;
-  warehouse?: Warehouse;
-  warehouse_location?: WarehouseLocation;
+  location_id: string;
+  warehouse_id: string;
+  warehouse_location_id: string;
+  status: string;
+  created_at: string;
 }
 
 export interface StockInRequest {
@@ -99,68 +93,77 @@ export interface StockInItem {
 // Interface for processed batches
 export interface ProcessedBatch {
   id: string;
-  stock_in_id: string;
-  processed_by: string;
+  created_at: string;
   processed_at: string;
+  processed_by: string;
+  submitted_by: string;
   product_id: string;
   total_quantity: number;
   total_boxes: number;
-  warehouse_id: string;
   status: string;
-  notes?: string;
-  source?: string;
-  created_at: string;
-  // Additional properties for UI display
-  productName?: string;
-  productSku?: string;
-  warehouseName?: string;
-  processorName?: string;
-  formattedProcessedAt?: string;
-  formattedCreatedAt?: string;
+  notes: string;
+  warehouse_id: string;
+  source: string;
+  product_name: string;
 }
 
 // Interface for batch items
 export interface BatchItem {
   id: string;
   batch_id: string;
-  barcode: string;
+  product_id: string;
   quantity: number;
-  color: string | null;
-  size: string | null;
-  warehouse_id: string;
-  location_id: string;
-  status: InventoryStatus;
-  created_at: string;
-  updated_at?: string;
-  created_by?: string | null;
-  updated_by?: string | null;
-  // Join fields
-  warehouse?: Warehouse;
-  location?: WarehouseLocation;
+  product?: Product;
+}
+
+export interface CustomerDetails {
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  address: string;
+  reference_number: string;
 }
 
 export interface StockOutRequest {
   id: string;
-  product_id: string;
-  requested_by: string;
-  approved_by: string | null;
-  quantity: number;
-  approved_quantity: number | null;
-  destination: string;
-  reason: string | null;
-  status: StockStatus;
-  invoice_number: string | null;
-  packing_slip_number: string | null;
-  verified_by: string | null;
   created_at: string;
-  updated_at: string;
-  created_by?: string | null;
-  updated_by?: string | null;
-  // Join fields
-  product?: Product;
-  requester?: Profile;
-  approver?: Profile;
-  details?: StockOutItem[];
+  requester_id: string;
+  status: StockStatus;
+  product_id: string;
+  quantity: number;
+  destination: string;
+  notes: string | null;
+  type: 'batch' | 'box' | 'item';
+  batch_id: string | null;
+  box_ids: string[] | null;
+  customer_name: string;
+  customer_company: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  customer_address: string | null;
+  reference_number: string | null;
+  shipping_method: string | null;
+  required_date: string | null;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  processed_by: string | null;
+  product?: {
+    id: string;
+    name: string;
+  };
+  requester?: {
+    id: string;
+    name: string;
+  };
+  processor?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface StockOutInsert extends Omit<StockOutRequest, 'id' | 'created_at' | 'product' | 'requester' | 'processor'> {
+  id?: string;
+  created_at?: string;
 }
 
 export interface StockOutItem {
@@ -176,18 +179,9 @@ export interface StockOutItem {
 
 export interface Profile {
   id: string;
-  username: string;
-  role: 'admin' | 'warehouse_manager' | 'field_operator' | 'sales_operator' | 'customer';
-  name: string | null;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-  company_name?: string | null;
-  gstin?: string | null;
-  phone?: string | null;
-  business_type?: string | null;
-  address?: string | null;
-  business_reg_number?: string | null;
+  name: string;
+  email: string;
+  role: 'admin' | 'warehouse_manager' | 'field_operator';
 }
 
 export interface InventoryTransfer {
@@ -217,27 +211,30 @@ export interface InventoryTransfer {
   approver?: Profile;
 }
 
-export interface SalesInquiry {
+export interface CustomerInquiry {
   id: string;
   customer_name: string;
   customer_email: string;
   customer_company: string;
-  customer_phone: string | null;
-  message: string | null;
-  status: string;
+  customer_phone: string;
+  notes: string;
+  status: 'new' | 'in_progress' | 'completed';
   created_at: string;
   updated_at: string;
-  items?: SalesInquiryItem[];
+  user_id: string;
+  converted_to_order: boolean;
+  order_id?: string;
+  items?: CustomerInquiryItem[];
 }
 
-export interface SalesInquiryItem {
+export interface CustomerInquiryItem {
   id: string;
   inquiry_id: string;
   product_id: string;
   quantity: number;
-  specific_requirements: string | null;
+  specific_requirements?: string;
+  price?: number;
   created_at: string;
-  updated_at: string;
   product?: Product;
 }
 
@@ -292,4 +289,34 @@ export interface InventoryMovement {
     name: string;
     username: string;
   };
+}
+
+// Interface for batch items with barcodes view
+export interface BatchItemWithBarcode {
+  id: string;
+  batch_id: string;
+  product_id: string;
+  warehouse_id: string;
+  location_id: string;
+  barcode_id: string;
+  barcode: string;
+  color: string | null;
+  size: string | null;
+  quantity: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryProduct {
+  id: string;
+  name: string;
+  sku: string;
+  category: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  updated_by: string;
+  description: string;
 }

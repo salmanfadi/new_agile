@@ -1248,25 +1248,43 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          inventory_id: string
-          quantity: number
           stock_out_id: string
+          product_id: string
+          quantity: number
+          processed_quantity: number
+          status: string
+          barcode: string | null
+          batch_id: string | null
+          processed_by: string | null
+          processed_at: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
-          inventory_id: string
-          quantity: number
           stock_out_id: string
+          product_id: string
+          quantity: number
+          processed_quantity?: number
+          status?: string
+          barcode?: string | null
+          batch_id?: string | null
+          processed_by?: string | null
+          processed_at?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
-          inventory_id?: string
-          quantity?: number
           stock_out_id?: string
+          product_id?: string
+          quantity?: number
+          processed_quantity?: number
+          status?: string
+          barcode?: string | null
+          batch_id?: string | null
+          processed_by?: string | null
+          processed_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1277,6 +1295,20 @@ export type Database = {
             referencedRelation: "stock_out"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_out_details_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_out_details_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          }
         ]
       }
       warehouse_locations: {

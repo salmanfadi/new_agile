@@ -154,57 +154,55 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
             <TableRow>
               <TableHead>Product</TableHead>
               <TableHead>Boxes</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead>Source</TableHead>
-              <TableHead>Submitted By</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>Created At</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Notes</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {stockInRequests.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.product?.name}</TableCell>
-                <TableCell>{item.boxes}</TableCell>
-                <TableCell><StatusBadge status={item.status} /></TableCell>
-                <TableCell>{item.source}</TableCell>
-                <TableCell>{item.submitter?.name || 'Unknown'}</TableCell>
-                <TableCell>{format(new Date(item.created_at), 'MMM d, yyyy')}</TableCell>
-                <TableCell>{item.notes || '-'}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    {item.status === 'pending' && (
-                      <Button 
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleProcess(item)}
-                      >
-                        <Box className="mr-1 h-4 w-4" />
-                        Process
-                      </Button>
-                    )}
-                    
-                    {item.status === 'processing' && (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleContinueProcessing(item)}
-                      >
-                        Continue Processing
-                      </Button>
-                    )}
-                    
-                    {item.status === 'pending' && onReject && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleReject(item)}
-                      >
-                        Reject
-                      </Button>
+            {stockInRequests.map((stockIn) => (
+              <TableRow key={stockIn.id}>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Box className="h-4 w-4" />
+                    {stockIn.product.name}
+                    {stockIn.product.sku && (
+                      <span className="text-xs text-gray-500">
+                        (SKU: {stockIn.product.sku})
+                      </span>
                     )}
                   </div>
+                </TableCell>
+                <TableCell>{stockIn.number_of_boxes}</TableCell>
+                <TableCell>{stockIn.source}</TableCell>
+                <TableCell>{format(new Date(stockIn.created_at), 'PPp')}</TableCell>
+                <TableCell>
+                  <StatusBadge status={stockIn.status} />
+                </TableCell>
+                <TableCell>
+                  {stockIn.notes && (
+                    <span className="text-sm text-gray-500">{stockIn.notes}</span>
+                    )}
+                </TableCell>
+                <TableCell>
+                  {stockIn.status === 'pending' && (
+                      <Button
+                      variant="outline"
+                        size="sm"
+                      onClick={() => handleProcess(stockIn)}
+                      disabled={!userId}
+                      >
+                      Process
+                      </Button>
+                    )}
+                  {stockIn.status === 'rejected' && stockIn.rejection_reason && (
+                    <div className="flex items-center text-red-500">
+                      <AlertTriangle className="h-4 w-4 mr-1" />
+                      {stockIn.rejection_reason}
+                  </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

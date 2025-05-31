@@ -1,5 +1,6 @@
 import { useQuery, type QueryObserverResult } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import type { Views } from "@/lib/supabase";
 
 export interface ProcessedBatchItemType {
   id: string;
@@ -119,15 +120,15 @@ export function useProcessedBatchesWithItems({
           throw new Error(`Error fetching batches: ${batchesError.message}`);
         }
 
-        // For each batch, get its items from batch_items
+        // For each batch, get its items from batch_items_with_barcodes
         const batchesWithItems = await Promise.all(
           (batchesData || []).map(async (batch) => {
             // Use processed_at as created_at since that's what we have
             const createdAt = batch.processed_at || new Date().toISOString();
             
-            // Get batch items
+            // Get batch items using the view
             const { data: itemsData, error: itemsError } = await supabase
-              .from('batch_items')
+              .from('batch_items_with_barcodes')
               .select(`
                 id,
                 barcode,
@@ -138,7 +139,10 @@ export function useProcessedBatchesWithItems({
                 warehouse_id,
                 location_id
               `)
-              .eq('batch_id', batch.id);
+              .eq('batch_id', batch.id) as { 
+                data: ProcessedBatchItemType[] | null; 
+                error: any;
+              };
 
             if (itemsError) {
               console.error('Error fetching batch items:', itemsError);
@@ -231,9 +235,9 @@ export function useProcessedBatchesWithItems({
                 status: batch.status
               },
               product: batch.products ? {
-                id: batch.products.id,
-                name: batch.products.name,
-                sku: batch.products.sku
+                id: batch.products.id || '',
+                name: batch.products.name || '',
+                sku: batch.products.sku || ''
               } : undefined,
               items: processedItems
             } as ProcessedBatchWithItems;

@@ -1,14 +1,13 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertTriangle, Boxes } from 'lucide-react';
-import { StockInData } from '@/hooks/useStockInData';
+import { StockInRequestData } from '@/hooks/useStockInRequests';
 
 interface StockInRequestDetailsProps {
-  stockInData: StockInData | null;
+  stockInData: StockInRequestData | null;
   source: string;
   setSource: (value: string) => void;
   notes: string;
@@ -56,7 +55,7 @@ export const StockInRequestDetails: React.FC<StockInRequestDetailsProps> = ({
               <div className="space-y-2">
                 <Label>Total Boxes</Label>
                 <div className="p-2 bg-muted rounded-lg flex justify-between items-center">
-                  <span>{stockInData.boxes || 0}</span>
+                  <span>{typeof stockInData.number_of_boxes === 'number' ? stockInData.number_of_boxes : 'Not specified'}</span>
                   <span className={`text-sm font-medium ${remainingBoxes < 0 ? 'text-red-500' : remainingBoxes === 0 ? 'text-green-500' : 'text-yellow-500'}`}>
                     {remainingBoxes < 0 ? `Exceeded by ${Math.abs(remainingBoxes)}` : 
                      remainingBoxes === 0 ? 'All boxes allocated' : 

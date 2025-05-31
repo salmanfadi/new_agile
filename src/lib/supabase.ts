@@ -1,6 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
+export type Tables = Database['public']['Tables'];
+export type Views = {
+  batch_items_with_barcodes: {
+    Row: {
+      id: string;
+      batch_id: string;
+      product_id: string;
+      warehouse_id: string;
+      location_id: string;
+      barcode_id: string;
+      barcode: string;
+      color: string | null;
+      size: string | null;
+      quantity: number;
+      status: string;
+      created_at: string;
+      updated_at: string;
+    };
+  };
+};
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const dbUrl = import.meta.env.VITE_SUPABASE_DB_URL;
@@ -9,19 +30,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
-  },
-  global: {
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': supabaseAnonKey
-    }
-  }
-});
+export const supabase = createClient<Database & { public: { Views: Views } }>(
+  supabaseUrl,
+  supabaseAnonKey
+);
 
 // Configure direct database connection
 const dbConfig = {
@@ -122,6 +134,3 @@ export const testSupabaseConnection = async () => {
 
 // Call this when the app starts
 testSupabaseConnection();
-
-localStorage.clear();
-sessionStorage.clear();

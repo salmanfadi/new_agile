@@ -1,5 +1,4 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 import { StockInRequestData } from '@/hooks/useStockInRequests';
 import {
   Dialog,
@@ -10,15 +9,14 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Box } from 'lucide-react';
+
 import StockInWizard from './StockInWizard';
-import { useToast } from '@/hooks/use-toast';
 
 interface ProcessStockInFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   stockIn: StockInRequestData | null;
   userId?: string;
-  adminMode?: boolean;
 }
 
 const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
@@ -26,8 +24,8 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   onOpenChange,
   stockIn,
   userId,
-  adminMode = false,
 }) => {
+
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -99,36 +97,23 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1200px] h-[90vh] overflow-hidden flex flex-col">
-        {stockIn && userId ? (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Box className="h-5 w-5" />
-                Process Stock In - {stockIn.product?.name || 'Unknown Product'} - ID: {stockIn.id.substring(0, 8)}
-              </DialogTitle>
-              <DialogDescription>
-                Complete the following steps to process this stock in request
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="flex-1 overflow-y-auto py-4">
-            <StockInWizard 
-              stockIn={stockIn}
-              userId={userId}
-              onComplete={handleWizardComplete}
-              onCancel={() => onOpenChange(false)}
-            />
-            </div>
-          </>
-        ) : (
-          <div className="py-8 text-center">
-            <p className="text-red-500">
-              {!stockIn ? "Stock in request data is missing." : ""}
-              {!userId ? "User ID is missing. Please log in again." : ""}
-            </p>
-          </div>
-        )}
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="space-y-1">
+          <DialogTitle>Process Stock In Request</DialogTitle>
+          <DialogDescription className="text-sm">
+            {stockIn.product.name}
+            {stockIn.product.sku && ` (SKU: ${stockIn.product.sku})`} - 
+            {stockIn.number_of_boxes} boxes
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="mt-4">
+          <StockInWizard
+            stockIn={stockIn}
+            userId={userId}
+            onComplete={() => onOpenChange(false)}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

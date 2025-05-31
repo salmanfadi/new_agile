@@ -91,7 +91,7 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
   
   // Track total boxes across all batches
   const totalBoxesInBatches = batches.reduce((sum, batch) => sum + batch.boxCount, 0);
-  const remainingBoxes = Math.max(0, (stockIn?.boxes || 0) - totalBoxesInBatches);
+  const remainingBoxes = Math.max(0, stockIn.number_of_boxes - totalBoxesInBatches);
   
   // Get selected warehouse name
   const getWarehouseName = (id: string) => {
@@ -213,7 +213,7 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
         <CardHeader>
           <CardTitle>Create Batch</CardTitle>
           <CardDescription>
-            Group boxes into batches by warehouse, location and properties. Total boxes: {stockIn?.boxes || 0}, Remaining: {remainingBoxes}
+            Group boxes into batches by warehouse, location and properties. Total boxes: {stockIn.number_of_boxes}, Remaining: {remainingBoxes}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -316,12 +316,12 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
         </CardFooter>
       </Card>
 
-      {remainingBoxes !== (stockIn?.boxes || 0) && (
+      {remainingBoxes !== stockIn.number_of_boxes && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Batch Status</AlertTitle>
           <AlertDescription>
-            You have created batches for {totalBoxesInBatches} out of {stockIn?.boxes || 0} boxes.
+            You have created batches for {totalBoxesInBatches} out of {stockIn.number_of_boxes} boxes.
             {remainingBoxes > 0 ? ` You still need to allocate ${remainingBoxes} more boxes.` : ' All boxes have been allocated.'}
           </AlertDescription>
         </Alert>
