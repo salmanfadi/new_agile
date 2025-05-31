@@ -11,7 +11,8 @@ interface InventoryTableContainerProps {
   batchFilter: string;
   statusFilter: string;
   searchTerm: string;
-  highlightedBarcode: string | null;
+  highlightedBarcode?: string | null;
+  highlightedItemIds?: string[];
   title?: string;
   sizeFilter?: string;
   quantityPerBoxFilter?: string;
@@ -24,7 +25,8 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
   batchFilter,
   statusFilter,
   searchTerm,
-  highlightedBarcode,
+  highlightedBarcode = null,
+  highlightedItemIds = [],
   title = 'Inventory Items',
   sizeFilter = '',
   quantityPerBoxFilter = '',
@@ -41,17 +43,14 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
     setPage(1);
   }, [warehouseFilter, batchFilter, statusFilter, searchTerm]);
 
+  // Only pass the parameters that useInventoryData expects
   const { data, isLoading, error } = useInventoryData(
     warehouseFilter,
     batchFilter,
     statusFilter,
     searchTerm,
     page,
-    pageSize,
-    sizeFilter,
-    quantityPerBoxFilter,
-    colorFilter,
-    colorFilterType
+    pageSize
   );
 
   // Sorting (client-side for current page)
@@ -96,7 +95,6 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
         'Status',
         'Color',
         'Size',
-        'Source',
         'Last Updated',
       ],
       ...sortedItems.map((item) => [
@@ -108,7 +106,6 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
         item.status,
         item.color ?? '',
         item.size ?? '',
-        item.source ?? '',
         item.lastUpdated,
       ]),
     ];
@@ -139,16 +136,19 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
         )}
       </CardHeader>
       <CardContent>
+        {/* Always render the table, even when loading */}
         <InventoryTable
           inventoryItems={sortedItems}
           isLoading={isLoading}
           error={error as Error | null}
           highlightedBarcode={highlightedBarcode}
+          highlightedItemIds={highlightedItemIds}
           onSort={handleSort}
           sortField={sortField}
           sortDirection={sortDirection}
         />
-        {(data?.totalCount ?? 0) > 0 && (
+        {/* Show pagination when we have data or when loading */}
+        {(isLoading || (data?.totalCount ?? 0) > 0) && (
           <InventoryPagination
             currentPage={page}
             pageSize={pageSize}

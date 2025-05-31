@@ -87,18 +87,23 @@ const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
   };
   
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Barcode Generator</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="product">Select Product</Label>
-          <Select onValueChange={handleProductSelect}>
-            <SelectTrigger id="product" className="w-full">
-              <SelectValue placeholder="Select a product" />
-            </SelectTrigger>
-            <SelectContent>
+    <div className="h-full flex flex-col">
+      <Card className="flex flex-col h-full">
+        <CardHeader className="border-b flex-shrink-0">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Tag className="h-5 w-5" />
+            Barcode Generator
+          </CardTitle>
+        </CardHeader>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="product">Select Product</Label>
+            <Select onValueChange={handleProductSelect}>
+              <SelectTrigger id="product" className="w-full">
+                <SelectValue placeholder="Select a product" />
+              </SelectTrigger>
+              <SelectContent>
               {isLoading ? (
                 <SelectItem value="loading" disabled>Loading products...</SelectItem>
               ) : products.length > 0 ? (
@@ -138,27 +143,33 @@ const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
         </div>
         
         {barcode && (
-          <div className="pt-4">
+          <div className="space-y-2">
             <Label>Generated Barcode</Label>
-            <div className="p-3 border rounded-md mt-2">
-              <div className="flex justify-center mb-2">
-                <BarcodePreview barcode={barcode} width={200} height={60} />
+            <div className="p-4 border rounded-md bg-muted/20">
+              <div className="text-center mb-2">
+                <BarcodePreview barcode={barcode} />
               </div>
-              <p className="text-center text-sm mt-2">{barcode}</p>
+              <div className="text-center font-mono text-sm break-all">
+                {barcode}
+              </div>
             </div>
           </div>
         )}
-      </CardContent>
-      <CardFooter>
-        <Button 
-          onClick={handleGenerate} 
-          className="w-full"
-          disabled={!selectedProduct}
-        >
-          Generate Barcode
-        </Button>
-      </CardFooter>
-    </Card>
+          </div>
+        </div>
+        <div className="border-t p-4 bg-muted/10 flex-shrink-0">
+          <div className="flex justify-end gap-2">
+            <Button 
+              onClick={handleGenerate} 
+              disabled={!selectedProduct || isLoading}
+              className="min-w-[150px]"
+            >
+              {isLoading ? 'Generating...' : 'Generate Barcode'}
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 };
 

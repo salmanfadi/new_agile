@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DefaultValuesType } from './StockInWizard';
+import { BoxData } from '@/types/shared';
 
 interface StockInStepReviewProps {
   stockIn: StockInRequestData;
@@ -15,8 +16,8 @@ interface StockInStepReviewProps {
   setLocationId: React.Dispatch<React.SetStateAction<string>>;
   defaultValues: DefaultValuesType;
   setDefaultValues: React.Dispatch<React.SetStateAction<DefaultValuesType>>;
-  confirmedBoxes: number;
-  setConfirmedBoxes: React.Dispatch<React.SetStateAction<number>>;
+  confirmedBoxes: BoxData[];
+  onBoxesConfirmed: (boxes: BoxData[]) => void;
   isLoading: boolean;
 }
 
@@ -31,7 +32,7 @@ const StockInStepReview: React.FC<StockInStepReviewProps> = ({
   defaultValues,
   setDefaultValues,
   confirmedBoxes,
-  setConfirmedBoxes,
+  onBoxesConfirmed,
   isLoading
 }) => {
   // This step is read-only, no data fetching needed
