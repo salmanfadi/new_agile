@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Box } from 'lucide-react';
 import StockInWizard from './StockInWizard';
 import { useToast } from '@/hooks/use-toast';
@@ -70,15 +71,29 @@ const ProcessStockInForm: React.FC<ProcessStockInFormProps> = ({
     console.log("Wizard completed with batch ID:", batchId);
     onOpenChange(false);
     
-    // Navigate to inventory page instead of non-existent batch details page
-    const baseRoute = adminMode ? '/admin' : '/manager';
-    navigate(`${baseRoute}/inventory`);
+    // Store the newly added batch ID in localStorage for highlighting in the batches tab
+    localStorage.setItem('recentlyAddedBatchId', batchId);
+    localStorage.setItem('recentlyAddedTimestamp', Date.now().toString());
     
-    // Show success toast with batch ID
+    // Set tab parameter to ensure we land on the batches tab in EnhancedInventoryView
+    const baseRoute = adminMode ? '/admin' : '/manager';
+    const redirectUrl = `${baseRoute}/inventory?tab=batches&highlight=${batchId}`;
+    
+    // Show success toast with batch ID and clickable action
     toast({
       title: "Stock-In Processed Successfully",
-      description: `Batch ID: ${batchId}`,
-      variant: "default"
+      description: `Batch #${batchId.slice(0, 8)} has been processed and items are now in inventory. View the batch details for more information.`,
+      variant: "default",
+      action: (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => navigate(redirectUrl)}
+        >
+          View Processed Batch
+        </Button>
+      ),
+      duration: 10000, // Longer duration to give user time to click
     });
   };
   
