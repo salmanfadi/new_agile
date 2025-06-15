@@ -375,8 +375,8 @@ serve(async (req) => {
               INSERT INTO processed_batches (
                 id, batch_number, product_id, quantity_processed, processed_at, 
                 processed_by, status, total_boxes, total_quantity, warehouse_id, 
-                created_at, updated_at, location_id, stock_in_id, notes, 
-                source, total_items
+                created_at, updated_at, location_id, stock_in_id, notes, source, 
+                total_items
               ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
               ) RETURNING id, status, total_quantity, total_boxes
@@ -441,7 +441,9 @@ serve(async (req) => {
             location_id: batch.location_id || null,
             // Removed product_id as it's not in the schema
             created_at: now,
-            updated_at: now
+            updated_at: now,
+            color: batch.color || null,
+            size: batch.size || null
           };
           boxInserts.push(boxData);
 
@@ -456,27 +458,26 @@ serve(async (req) => {
             quantity: batch.quantityPerBox || batch.quantity_per_box,
             status: 'available',
             created_at: now,
-            updated_at: now
+            updated_at: now,
+            color: batch.color || null,
+            size: batch.size || null
           };
           inventoryInserts.push(inventoryData);
 
           // Data for barcodes table
           const barcodeData = {
             barcode: boxBarcode,
-            batch_id: batchId,  // Using batch_id as the foreign key
             box_id: boxId,
             product_id: payload.product_id,
             warehouse_id: batch.warehouse_id,
             location_id: batch.location_id || null,
+            batch_id: batchId,
             quantity: batch.quantityPerBox || batch.quantity_per_box,
             status: 'active',
-            created_by: payload.user_id,
             created_at: now,
             updated_at: now
           };
           barcodeInserts.push(barcodeData);
-
-          boxBarcodes.push(boxBarcode);
           
           console.log(`[${requestId}] Prepared box ${boxNumber}/${batch.boxCount || batch.box_count}:`, JSON.stringify(boxData, null, 2));
         }
@@ -593,9 +594,9 @@ serve(async (req) => {
         console.error(`[${requestId}] Error during cleanup:`, cleanupError);
       }
 
-      // Update stock_in with error details
+      // Update stock_in status back to 'pending' so it can be processed again
       const errorUpdate = await safeUpdateStockIn(supabaseClient, payload.stock_in_id, {
-        status: 'failed',
+        status: 'pending',
         error_message: errorMessage
       });
 

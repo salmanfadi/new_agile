@@ -56,10 +56,6 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                   <Package className="mr-3 h-5 w-5" />
                   <span>Stock Out</span>
                 </NavLink>
-                <NavLink to="/admin/reserve-stock" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <Clock className="mr-3 h-5 w-5" />
-                  <span>Reserve Stock</span>
-                </NavLink>
                 <NavLink to="/admin/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Warehouse className="mr-3 h-5 w-5" />
                   <span>Transfers</span>
@@ -68,9 +64,9 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                   <Users className="mr-3 h-5 w-5" />
                   <span>Users</span>
                 </NavLink>
-                <NavLink to="/admin/customer-inquiries" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
-                  <MessageSquare className="mr-3 h-5 w-5" />
-                  <span>Customer Inquiries</span>
+                <NavLink to="/admin/sales-inquiries" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ShoppingBag className="mr-3 h-5 w-5" />
+                  <span>Sales Inquiries</span>
                 </NavLink>
                 
                 {/* Reports Section */}
@@ -128,6 +124,28 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 <NavLink to="/manager/transfers" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <Warehouse className="mr-3 h-5 w-5" />
                   <span>Transfers</span>
+                </NavLink>
+                
+                {/* Reports Section */}
+                <div className="pt-4 pb-1">
+                  <div className="px-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    REPORTS
+                  </div>
+                </div>
+                
+                <NavLink to="/reports" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <BarChart3 className="mr-3 h-5 w-5" />
+                  <span>Reports Dashboard</span>
+                </NavLink>
+                
+                <NavLink to="/reports/inventory/status" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <BarChart className="mr-3 h-5 w-5" />
+                  <span>Inventory Status</span>
+                </NavLink>
+                
+                <NavLink to="/reports/inventory/movement" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md pl-8", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
+                  <ChartBar className="mr-3 h-5 w-5" />
+                  <span>Movement Analysis</span>
                 </NavLink>
               </nav>
             )}
@@ -187,7 +205,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (op
                 {/* Sales Inquiries */}
                 <NavLink to="/sales/inquiries" className={({ isActive }) => cn("flex items-center px-2 py-2 rounded-md", isActive ? "bg-blue-100 text-blue-700" : "hover:bg-slate-200")}>
                   <MessageSquare className="mr-3 h-5 w-5" />
-                  <span>Customer Inquiries</span>
+                  <span>Sales Inquiries</span>
                 </NavLink>
                 
                 {/* Orders */}

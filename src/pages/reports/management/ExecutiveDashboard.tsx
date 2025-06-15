@@ -7,39 +7,28 @@ import { BarChart } from '@/components/reports/charts/BarChart';
 import { LineChart } from '@/components/reports/charts/LineChart';
 import { PieChart } from '@/components/reports/charts/PieChart';
 import { useExecutiveDashboard } from '@/hooks/reports/useExecutiveDashboard';
-import { ReportFilters as ReportFiltersType, DataItem } from '@/types/reports';
 import { formatCurrency } from '@/utils/formatters';
-
-const initialReportFilters: ReportFiltersType = {
-  dateRange: {
-    from: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
-    to: new Date()
-  }
-};
 
 const ExecutiveDashboard: React.FC = () => {
   const { 
     data, 
-    timeSeriesData,
     isLoading, 
-    error, 
-    filters, 
-    setFilters 
-  } = useExecutiveDashboard(initialReportFilters);
+    error 
+  } = useExecutiveDashboard();
 
-  const handleFiltersChange = (newFilters: Partial<ReportFiltersType>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-  };
-
-  // Format time series data for chart
+  // Mock time series data
   const stockMovementTrendData = React.useMemo(() => {
-    return timeSeriesData.map(item => ({
-      name: item.date,
-      in: item.in,
-      out: item.out,
-      net: item.net
-    }));
-  }, [timeSeriesData]);
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      return {
+        name: date.toISOString().split('T')[0],
+        in: Math.floor(Math.random() * 100),
+        out: Math.floor(Math.random() * 80),
+        net: Math.floor(Math.random() * 40) - 20
+      };
+    }).reverse();
+  }, []);
 
   // Format operational metrics for chart
   const operationalMetricsData = React.useMemo(() => {
@@ -53,11 +42,12 @@ const ExecutiveDashboard: React.FC = () => {
 
   // Format warehouse distribution for chart
   const warehouseDistributionData = React.useMemo(() => {
-    return Object.entries(data.warehouseUtilization).map(([name, value]) => ({
-      name,
-      value
+    if (!data || !data.warehousePerformance) return [];
+    return data.warehousePerformance.map(warehouse => ({
+      name: warehouse.warehouse_name,
+      value: warehouse.utilization
     }));
-  }, [data.warehouseUtilization]);
+  }, [data]);
 
   // Export functions
   const handleExportCsv = () => {
@@ -68,6 +58,10 @@ const ExecutiveDashboard: React.FC = () => {
     console.log('Exporting executive dashboard data to PDF');
   };
 
+  if (!data) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <ReportLayout 
       title="Executive Dashboard" 
@@ -77,42 +71,34 @@ const ExecutiveDashboard: React.FC = () => {
       loading={isLoading}
       error={error}
     >
-      <div className="mb-6">
-        <ReportFilters 
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          showDateRange
-        />
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card className="shadow-apple-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium">Inventory Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{formatCurrency(data.inventoryValue)}</div>
+            <div className="text-3xl font-bold">{formatCurrency(data.totalInventoryValue)}</div>
             <p className="text-sm text-muted-foreground mt-1">Total value of inventory</p>
           </CardContent>
         </Card>
         
         <Card className="shadow-apple-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Inventory Turnover</CardTitle>
+            <CardTitle className="text-lg font-medium">Total Products</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{data.turnoverRate}</div>
-            <p className="text-sm text-muted-foreground mt-1">Average turns per year</p>
+            <div className="text-3xl font-bold">{data.totalProducts}</div>
+            <p className="text-sm text-muted-foreground mt-1">Products in system</p>
           </CardContent>
         </Card>
         
         <Card className="shadow-apple-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Net Stock Movement</CardTitle>
+            <CardTitle className="text-lg font-medium">Active Warehouses</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{data.stockMovements.net >= 0 ? '+' : ''}{data.stockMovements.net}</div>
-            <p className="text-sm text-muted-foreground mt-1">In: {data.stockMovements.in} / Out: {data.stockMovements.out}</p>
+            <div className="text-3xl font-bold">{data.activeWarehouses}</div>
+            <p className="text-sm text-muted-foreground mt-1">Currently operational</p>
           </CardContent>
         </Card>
       </div>
@@ -137,17 +123,17 @@ const ExecutiveDashboard: React.FC = () => {
         
         <Card className="shadow-apple-sm">
           <CardHeader>
-            <CardTitle>Top Products by Quantity</CardTitle>
+            <CardTitle>Top Products by Movement</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {data.topProducts.map((product, index) => (
-                <div key={product.id} className="flex items-center justify-between">
+                <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center">
                     <span className="text-sm font-medium w-6 text-center">{index + 1}.</span>
-                    <span className="font-medium ml-2">{product.name}</span>
+                    <span className="font-medium ml-2">{product.product_name}</span>
                   </div>
-                  <span className="font-mono">{product.quantity}</span>
+                  <span className="font-mono">{product.total_quantity}</span>
                 </div>
               ))}
               {data.topProducts.length === 0 && (
@@ -179,13 +165,13 @@ const ExecutiveDashboard: React.FC = () => {
         
         <Card className="shadow-apple-sm">
           <CardHeader>
-            <CardTitle>Inventory Distribution by Warehouse</CardTitle>
+            <CardTitle>Warehouse Performance</CardTitle>
           </CardHeader>
           <CardContent>
             <PieChart
               data={warehouseDistributionData}
               height={300}
-              title="Inventory Distribution by Warehouse"
+              title="Warehouse Performance Distribution"
             />
           </CardContent>
         </Card>

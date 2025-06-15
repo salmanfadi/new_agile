@@ -1,14 +1,15 @@
+
 import React, { useState } from 'react';
-import { CustomerInquiry } from '@/types/database';
-import { InquiryList } from '@/components/admin/customer-inquiries/InquiryList';
-import { InquiryDetails } from '@/components/admin/customer-inquiries/InquiryDetails';
-import { SearchFilters } from '@/components/admin/customer-inquiries/SearchFilters';
+import { SalesInquiry } from '@/types/database';
+import { InquiryList } from '@/components/admin/sales-inquiries/InquiryList';
+import { InquiryDetails } from '@/components/admin/sales-inquiries/InquiryDetails';
+import { SearchFilters } from '@/components/admin/sales-inquiries/SearchFilters';
 import { Button } from '@/components/ui/button';
 import { Download, RefreshCw } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 interface InquiryManagementProps {
-  inquiries: CustomerInquiry[];
+  inquiries: SalesInquiry[];
   isLoading: boolean;
   searchTerm: string;
   statusFilter: string | undefined;
@@ -31,11 +32,11 @@ export const InquiryManagement: React.FC<InquiryManagementProps> = ({
   refreshInquiries
 }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedInquiry, setSelectedInquiry] = useState<CustomerInquiry | null>(null);
+  const [selectedInquiry, setSelectedInquiry] = useState<SalesInquiry | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const handleViewDetails = (inquiry: CustomerInquiry) => {
+  const handleViewDetails = (inquiry: SalesInquiry) => {
     setSelectedInquiry(inquiry);
     setIsDetailsOpen(true);
   };
@@ -53,15 +54,14 @@ export const InquiryManagement: React.FC<InquiryManagementProps> = ({
     const csvData = inquiries.map(inquiry => ({
       customer_name: inquiry.customer_name,
       customer_email: inquiry.customer_email,
-      product_id: inquiry.product_id,
-      quantity: inquiry.quantity,
+      company: inquiry.customer_company || '',
       status: inquiry.status,
       created_at: formatDate(inquiry.created_at),
-      notes: inquiry.notes || ''
+      items_count: inquiry.items?.length || 0
     }));
 
     // Convert to CSV
-    const headers = ['Customer Name', 'Customer Email', 'Product ID', 'Quantity', 'Status', 'Created At', 'Notes'];
+    const headers = ['Customer Name', 'Customer Email', 'Company', 'Status', 'Created At', 'Items'];
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => Object.values(row).join(','))
@@ -72,7 +72,7 @@ export const InquiryManagement: React.FC<InquiryManagementProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'customer_inquiries.csv';
+    link.download = 'sales_inquiries.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -80,7 +80,7 @@ export const InquiryManagement: React.FC<InquiryManagementProps> = ({
     
     toast({
       title: "Export complete",
-      description: "Customer inquiries exported to CSV"
+      description: "Sales inquiries exported to CSV"
     });
   };
 
@@ -105,86 +105,65 @@ export const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
   return (
     <>
-      <div className="space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-          <div className="flex-1">
-            <SearchFilters
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-            />
-          </div>
-          
-          <div className="flex flex-row gap-2 justify-end">
-            <Button onClick={handleRefresh} variant="outline" size="sm" className="flex-1 sm:flex-none">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-            <Button onClick={handleExportCSV} variant="outline" size="sm" className="flex-1 sm:flex-none">
-              <Download className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Export CSV</span>
-            </Button>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:justify-between gap-4 mb-6">
+        <SearchFilters
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+        />
+        
+        <div className="flex gap-2">
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button onClick={handleExportCSV} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
         </div>
-        
-        <InquiryList
-          inquiries={paginatedInquiries}
-          isLoading={isLoading}
-          onViewDetails={handleViewDetails}
-          formatDate={formatDate}
-        />
-        
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <Button
-                  key={page}
-                  variant={currentPage === page ? "default" : "outline"}
-                  size="sm"
-                  className="hidden sm:inline-flex w-8 h-8"
-                  onClick={() => setCurrentPage(page)}
-                >
-                  {page}
-                </Button>
-              ))}
-              <span className="sm:hidden text-sm">
-                Page {currentPage} of {totalPages}
-              </span>
-            </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        )}
       </div>
-
-      {selectedInquiry && (
-        <InquiryDetails
-          inquiry={selectedInquiry}
-          open={isDetailsOpen}
-          onOpenChange={setIsDetailsOpen}
-          onStatusChange={updateInquiryStatus}
-          formatDate={formatDate}
-        />
+      
+      <InquiryList
+        inquiries={paginatedInquiries}
+        isLoading={isLoading}
+        onViewDetails={handleViewDetails}
+        formatDate={formatDate}
+      />
+      
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
       )}
+      
+      <InquiryDetails
+        inquiry={selectedInquiry}
+        open={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+        onStatusChange={updateInquiryStatus}
+        formatDate={formatDate}
+      />
     </>
   );
 };

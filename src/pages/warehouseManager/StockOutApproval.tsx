@@ -21,7 +21,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
-import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Scan } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -124,10 +124,20 @@ const StockOutApproval: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title="Stock Out Approval" 
-        description="Review and approve stock out requests"
-      />
+      <div className="flex justify-between items-center">
+        <PageHeader 
+          title="Stock Out Approval" 
+          description="Review and approve stock out requests"
+        />
+        <Button
+          variant="outline"
+          className="flex items-center gap-2"
+          onClick={() => navigate('/manager/stock-out/barcode-scanner')}
+        >
+          <Scan className="h-4 w-4" />
+          Scan Barcode
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Pending Stock Out Requests</CardTitle>

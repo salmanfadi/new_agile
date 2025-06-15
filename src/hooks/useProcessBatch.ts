@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { createInventoryMovement } from './useInventoryMovements';
+import { useCreateInventoryMovement } from './useInventoryMovements';
 
 interface BatchFormData {
   product_id: string;
@@ -31,6 +31,7 @@ interface ProcessedBatch {
 export const useProcessBatch = () => {
   const [batches, setBatches] = useState<ProcessedBatch[]>([]);
   const [isPending, setIsPending] = useState(false);
+  const createMovement = useCreateInventoryMovement();
 
   const processBatch = async (batchData: BatchFormData) => {
     try {
@@ -134,23 +135,22 @@ export const useProcessBatch = () => {
 
         if (inventoryError) throw inventoryError;
 
-        // Create inventory movement record
-        await createInventoryMovement(
-          batchData.product_id,
-          batchData.warehouse_id,
-          batchData.location_id,
-          batchData.quantity_per_box,
-          'in',
-          'approved',
-          'stock_in',
-          stockIn.id,
-          currentUser || '',
-          {
+        // Create inventory movement record using the hook
+        await createMovement.mutateAsync({
+          productId: batchData.product_id,
+          warehouseId: batchData.warehouse_id,
+          locationId: batchData.location_id,
+          quantity: batchData.quantity_per_box,
+          movementType: 'in',
+          referenceTable: 'stock_in',
+          referenceId: stockIn.id,
+          performedBy: currentUser || '',
+          details: {
             barcode,
             batch_id: processedBatch.id,
             stock_in_detail_id: detail.id
           }
-        );
+        });
       }
 
       // 4. Update stock_in status to completed

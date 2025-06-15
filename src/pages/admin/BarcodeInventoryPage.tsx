@@ -1,163 +1,200 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, Printer, Search } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useBatchItems, useProcessedBatchDetails } from '@/hooks/useProcessedBatches';
-import BarcodePrinter from '@/components/barcode/BarcodePrinter';
+import { Button } from '@/components/ui/button';
+import { Search, Filter, Download } from 'lucide-react';
 import BarcodeInventoryTable from '@/components/barcode/BarcodeInventoryTable';
-import { toast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-const AdminBarcodeInventoryPage: React.FC = () => {
-  const navigate = useNavigate();
-  const { batchId } = useParams<{ batchId: string }>();
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedBarcodes, setSelectedBarcodes] = useState<string[]>([]);
-  const [showPrinter, setShowPrinter] = useState<boolean>(false);
-  
-  const { 
-    data: batchDetails, 
-    isLoading: isLoadingDetails 
-  } = useProcessedBatchDetails(batchId || null);
-  
-  const { 
-    data: batchItems, 
-    isLoading: isLoadingItems 
-  } = useBatchItems(batchId || undefined);
+interface ProcessedBatchType {
+  id: string;
+  batch_number: string;
+  product_id: string;
+  processed_by: string;
+  total_quantity: number;
+  total_boxes: number;
+  status: string;
+  processed_at: string;
+  warehouse_id: string;
+  location_id: string;
+  notes: string;
+  products: {
+    name: string;
+    sku: string;
+    hsn_code?: string | null;
+    gst_rate?: number | null;
+  } | null;
+  warehouses: {
+    name: string;
+  } | null;
+  warehouse_locations: {
+    zone: string;
+    floor?: string | null;
+  } | null;
+}
 
-  // Reset selected barcodes when batch changes
-  useEffect(() => {
-    setSelectedBarcodes([]);
-  }, [batchId]);
+const BarcodeInventoryPage: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  const filteredBatchItems = batchItems?.filter(item => 
-    item.barcode.includes(searchTerm) || 
-    (item.color && item.color.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (item.size && item.size.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const { data: processedBatches = [], isLoading } = useQuery({
+    queryKey: ['processed-batches-barcode'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processed_batches')
+        .select(`
+          *,
+          products (
+            name,
+            sku,
+            hsn_code,
+            gst_rate
+          ),
+          warehouses (
+            name
+          ),
+          warehouse_locations (
+            zone,
+            floor
+          )
+        `)
+        .order('processed_at', { ascending: false });
 
-  const handleSelectBarcode = (barcode: string) => {
-    setSelectedBarcodes(prev => 
-      prev.includes(barcode) 
-        ? prev.filter(b => b !== barcode) 
-        : [...prev, barcode]
-    );
-  };
+      if (error) throw error;
+      
+      // Transform the data to match our interface, handling potential errors
+      return (data || []).map(batch => ({
+        ...batch,
+        products: batch.products || { name: 'Unknown', sku: 'Unknown', hsn_code: null, gst_rate: null },
+        warehouses: batch.warehouses || { name: 'Unknown' },
+        warehouse_locations: batch.warehouse_locations || { zone: 'Unknown', floor: null }
+      })) as ProcessedBatchType[];
+    },
+  });
 
-  const handleSelectAll = () => {
-    if (batchItems && batchItems.length > 0) {
-      if (selectedBarcodes.length === batchItems.length) {
-        setSelectedBarcodes([]);
-      } else {
-        setSelectedBarcodes(batchItems.map(item => item.barcode));
-      }
-    }
-  };
-
-  const handlePrintSelected = () => {
-    if (selectedBarcodes.length === 0) {
-      toast({
-        title: "No barcodes selected",
-        description: "Please select at least one barcode to print.",
-        variant: "destructive"
-      });
-      return;
-    }
-    setShowPrinter(true);
-  };
+  const filteredBatches = processedBatches.filter(batch => {
+    const matchesSearch = !searchTerm || 
+      batch.batch_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      batch.products?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      batch.products?.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      batch.products?.hsn_code?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || batch.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader 
-        title={`Batch Barcodes: ${batchDetails?.product?.name || 'Loading...'}`}
-        description={`View and print barcodes for batch ${batchId?.slice(0, 8) || ''}`}
+        title="Barcode Inventory" 
+        description="View and manage barcode-based inventory with HSN and GST information"
       />
       
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/admin/inventory/batches')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Batches
-        </Button>
-        
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input 
-              placeholder="Search barcodes, colors, sizes..." 
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search by batch, product, SKU, or HSN..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
+              className="pl-10 w-80"
             />
           </div>
           
-          <Button 
-            variant="outline"
-            onClick={handleSelectAll}
-          >
-            {selectedBarcodes.length === (batchItems?.length || 0) ? 'Unselect All' : 'Select All'}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button variant="outline">
+            <Filter className="h-4 w-4 mr-2" />
+            Filters
           </Button>
-          
-          <Button 
-            onClick={handlePrintSelected}
-            disabled={selectedBarcodes.length === 0}
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Print Selected ({selectedBarcodes.length})
+          <Button variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export
           </Button>
         </div>
       </div>
-      
+
       <Card>
         <CardHeader>
-          <CardTitle>Batch Details</CardTitle>
-          <CardDescription>
-            {isLoadingDetails ? 'Loading batch details...' : (
-              <>
-                {batchDetails?.total_boxes} boxes, {batchDetails?.total_quantity} items, 
-                processed on {new Date(batchDetails?.processed_at || '').toLocaleDateString()}
-              </>
-            )}
-          </CardDescription>
+          <CardTitle>Processed Batches with HSN Information</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoadingItems ? (
-            <div className="w-full py-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-sm text-gray-500">Loading barcode inventory...</p>
-            </div>
-          ) : (
-            <BarcodeInventoryTable 
-              batchItems={filteredBatchItems || []}
-              onSelectBarcode={handleSelectBarcode}
-              selectedBarcodes={selectedBarcodes}
-            />
-          )}
+          <div className="space-y-4">
+            {filteredBatches.map((batch) => (
+              <div key={batch.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-lg">{batch.products?.name || 'Unknown Product'}</h4>
+                    <p className="text-sm text-gray-600">SKU: {batch.products?.sku || 'N/A'}</p>
+                    <p className="text-sm text-gray-600">Batch: {batch.batch_number || batch.id}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">HSN Code:</span> {batch.products?.hsn_code || 'Not Set'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">GST Rate:</span> {batch.products?.gst_rate ? `${batch.products.gst_rate}%` : 'Not Set'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Quantity:</span> {batch.total_quantity} units ({batch.total_boxes} boxes)
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Warehouse:</span> {batch.warehouses?.name || 'Unknown'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Location:</span> {batch.warehouse_locations?.zone || 'Unknown'} 
+                      {batch.warehouse_locations?.floor && `, Floor ${batch.warehouse_locations.floor}`}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Status:</span> 
+                      <span className={`ml-1 px-2 py-1 rounded text-xs ${
+                        batch.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {batch.status}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {filteredBatches.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No inventory items found matching your search criteria.</p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
-
-      {batchItems && (
-        <BarcodePrinter
-          open={showPrinter}
-          onOpenChange={setShowPrinter}
-          barcodes={selectedBarcodes}
-          batchItems={batchItems}
-        />
-      )}
     </div>
   );
 };
 
-export default AdminBarcodeInventoryPage;
+export default BarcodeInventoryPage;

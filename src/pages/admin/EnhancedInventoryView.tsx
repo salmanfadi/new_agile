@@ -12,14 +12,18 @@ import {
   Eye,
   BarChart3,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Grid3X3,
+  BoxesIcon
 } from 'lucide-react';
 import { useProcessedBatchesWithItems } from '@/hooks/useProcessedBatchesWithItems';
 import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTable';
 import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
 
+import { ProductView } from '@/components/warehouse/ProductView';
+
 const EnhancedInventoryView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('batches');
+  const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [warehouseFilter, setWarehouseFilter] = useState('');
@@ -133,56 +137,50 @@ const EnhancedInventoryView: React.FC = () => {
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="products">
+            <div className="flex items-center">
+              <Package className="w-4 h-4 mr-2" />
+              Product View
+            </div>
+          </TabsTrigger>
           <TabsTrigger value="batches">Processed Batches</TabsTrigger>
-          <TabsTrigger value="inventory">Live Inventory</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="products" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl">Product Inventory</CardTitle>
+              <CardDescription>View all products with detailed batch information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProductView />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="batches" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Processed Batches</CardTitle>
-              <CardDescription>
-                View and manage all processed inventory batches
-              </CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl">Processed Batches</CardTitle>
+              <CardDescription>View and manage all processed inventory batches</CardDescription>
             </CardHeader>
             <CardContent>
-              <ProcessedBatchesTable
-                batches={batches}
-                isLoading={processedBatchesQuery.isLoading}
-                error={processedBatchesQuery.error}
-                currentPage={currentPage}
-                totalPages={Math.ceil(batchCount / 10)}
+              <ProcessedBatchesTable 
+                filters={{
+                  searchTerm: searchTerm,
+                  status: statusFilter,
+                  warehouseId: warehouseFilter
+                }}
+                page={currentPage}
+                pageSize={10}
                 onPageChange={setCurrentPage}
-                searchTerm={searchTerm}
-                onSearchChange={handleSearch}
-                statusFilter={statusFilter}
-                onStatusChange={handleStatusFilter}
-                warehouseFilter={warehouseFilter}
-                onWarehouseChange={handleWarehouseFilter}
+                highlightBatchId={null}
               />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="inventory" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Live Inventory</CardTitle>
-              <CardDescription>
-                Real-time view of current inventory levels
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InventoryTableContainer 
-                warehouseFilter=""
-                batchFilter=""
-                statusFilter=""
-                searchTerm=""
-                highlightedBarcode=""
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+
       </Tabs>
     </div>
   );

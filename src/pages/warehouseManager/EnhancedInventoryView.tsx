@@ -11,13 +11,16 @@ import {
   BarChart3,
   TrendingUp,
   AlertTriangle,
-  Users
+  Users,
+  Boxes
 } from 'lucide-react';
 import { LoadingState } from '@/components/warehouse/LoadingState';
 import { useProcessedBatchesWithItems } from '@/hooks/useProcessedBatchesWithItems';
 import { useInventoryMetrics } from '@/hooks/useInventoryMetrics';
 import { ProcessedBatchesTable } from '@/components/warehouse/ProcessedBatchesTable';
 import { InventoryTableContainer } from '@/components/warehouse/InventoryTableContainer';
+import { ProductView } from '@/components/warehouse/ProductView';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
@@ -131,7 +134,7 @@ const EnhancedInventoryView: React.FC = () => {
     const highlightParam = searchParams.get('highlight');
     
     // If tab parameter exists, set the active tab
-    if (tabParam && ['inventory', 'batches', 'dashboard'].includes(tabParam)) {
+    if (tabParam && ['products', 'inventory', 'batches', 'dashboard'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
     
@@ -275,20 +278,35 @@ const EnhancedInventoryView: React.FC = () => {
         return;
       }
       
-      // Otherwise, fetch the batch details from the database
-      const { data: batch, error } = await supabase
-        .from('processed_batches')
-        .select(`
-          *,
-          batch_items (id, quantity, status, color, size, warehouse_id, location_id),
-          products:product_id (id, name),
-          processor:profiles (id, name)
-        `)
-        .eq('id', batchId)
-        .single<ProcessedBatchData>();
+      // Fetch batch data and related data in parallel
+      const [
+        { data: batch, error: batchError },
+        { data: batchItems, error: itemsError },
+        { data: product, error: productError }
+      ] = await Promise.all([
+        supabase
+          .from('processed_batches')
+          .select('*')
+          .eq('id', batchId)
+          .single<ProcessedBatchData>(),
+        supabase
+          .from('batch_items')
+          .select('*')
+          .eq('batch_id', batchId),
+        supabase
+          .from('products')
+          .select('*')
+          .eq('id', batchId)
+          .maybeSingle()
+      ]);
       
-      if (error) {
-        console.error('Error fetching batch details:', error);
+      if (batchError || itemsError || productError) {
+        console.error('Error fetching batch details:', { batchError, itemsError, productError });
+        return;
+      }
+      
+      if (!batch) {
+        console.error('Batch not found');
         return;
       }
       
@@ -523,9 +541,18 @@ const EnhancedInventoryView: React.FC = () => {
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="batches">Batch View</TabsTrigger>
-          <TabsTrigger value="inventory">Live Inventory</TabsTrigger>
+          <TabsTrigger value="overview">
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="batches">
+            <Package className="w-4 h-4 mr-2" />
+            Batch View
+          </TabsTrigger>
+          <TabsTrigger value="products">
+            <Boxes className="w-4 h-4 mr-2" />
+            Products
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -605,34 +632,9 @@ const EnhancedInventoryView: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="inventory" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <CardTitle>Live Inventory Status</CardTitle>
-                <CardDescription>
-                  Real-time view of current inventory levels across all locations
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {recentlyAddedBatchId && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-green-800 flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    <span>Recently added items are highlighted below</span>
-                  </p>
-                </div>
-              )}
-              <InventoryTableContainer 
-                warehouseFilter=""
-                batchFilter={recentlyAddedBatchId || ""}
-                statusFilter=""
-                searchTerm=""
-                highlightedItemIds={highlightedItems}
-              />
-            </CardContent>
-          </Card>
+
+        <TabsContent value="products" className="space-y-4">
+          <ProductView />
         </TabsContent>
       </Tabs>
     </div>

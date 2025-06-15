@@ -3,27 +3,26 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { TransferStatus } from '@/types/database';
 
 // Define interface for TransferForm.tsx
 export interface TransferFormData {
   // Database column names
-  product_id: string;
   source_warehouse_id: string;
-  source_location_id: string;
   destination_warehouse_id: string;
-  destination_location_id: string;
   quantity: number;
-  transfer_reason?: string;
   notes?: string;
   
   // Form field names that match what's used in TransferForm.tsx
   productId?: string;
+  product_id?: string;
   fromWarehouseId?: string;
   fromLocationId?: string;
+  source_location_id?: string;
   toWarehouseId?: string;
   toLocationId?: string;
+  destination_location_id?: string;
   transferReason?: string;
+  transfer_reason?: string;
 }
 
 export const useTransfers = () => {
@@ -39,25 +38,12 @@ export const useTransfers = () => {
           .from('inventory_transfers')
           .select(`
             id,
-            product_id,
-            quantity,
             source_warehouse_id,
-            source_location_id,
             destination_warehouse_id,
-            destination_location_id,
             status,
-            transfer_reason,
-            notes,
-            initiated_by,
-            approved_by,
             created_at,
             updated_at,
-            products(id, name, sku),
-            source_warehouse:warehouses!source_warehouse_id(id, name, location),
-            source_location:warehouse_locations!source_location_id(id, floor, zone),
-            destination_warehouse:warehouses!destination_warehouse_id(id, name, location),
-            destination_location:warehouse_locations!destination_location_id(id, floor, zone),
-            initiator:profiles!initiated_by(id, name, username)
+            initiated_by
           `)
           .order('created_at', { ascending: false });
         
@@ -65,9 +51,6 @@ export const useTransfers = () => {
         if (filters) {
           if (filters.status) {
             query = query.eq('status', filters.status);
-          }
-          if (filters.productId) {
-            query = query.eq('product_id', filters.productId);
           }
           if (filters.sourceWarehouseId) {
             query = query.eq('source_warehouse_id', filters.sourceWarehouseId);
@@ -102,7 +85,7 @@ export const useTransfers = () => {
     });
   };
 
-  // Get pending transfers for approval with proper relationship aliases
+  // Get pending transfers for approval
   const getPendingTransfers = () => {
     return useQuery({
       queryKey: ['transfers-pending'],
@@ -111,23 +94,11 @@ export const useTransfers = () => {
           .from('inventory_transfers')
           .select(`
             id,
-            product_id,
-            quantity,
             source_warehouse_id,
-            source_location_id,
             destination_warehouse_id,
-            destination_location_id,
             status,
-            transfer_reason,
-            notes,
-            initiated_by,
             created_at,
-            products(id, name, sku),
-            source_warehouse:warehouses!source_warehouse_id(id, name, location),
-            source_location:warehouse_locations!source_location_id(id, floor, zone),
-            destination_warehouse:warehouses!destination_warehouse_id(id, name, location),
-            destination_location:warehouse_locations!destination_location_id(id, floor, zone),
-            initiator:profiles!initiated_by(id, name, username)
+            initiated_by
           `)
           .eq('status', 'pending')
           .order('created_at', { ascending: true });
@@ -149,16 +120,11 @@ export const useTransfers = () => {
       
       // Map the form field names to the database column names
       const transferPayload = {
-        product_id: transferData.product_id || transferData.productId,
         source_warehouse_id: transferData.source_warehouse_id || transferData.fromWarehouseId,
-        source_location_id: transferData.source_location_id || transferData.fromLocationId,
         destination_warehouse_id: transferData.destination_warehouse_id || transferData.toWarehouseId,
-        destination_location_id: transferData.destination_location_id || transferData.toLocationId,
-        quantity: transferData.quantity,
-        transfer_reason: transferData.transfer_reason || transferData.transferReason,
         notes: transferData.notes,
         initiated_by: user.id,
-        status: 'pending' as TransferStatus
+        status: 'pending' as const
       };
       
       const { data, error } = await supabase
@@ -171,7 +137,6 @@ export const useTransfers = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transfers-history'] });
-      queryClient.invalidateQueries({ queryKey: ['user-stock-activity'] });
       
       toast({
         title: 'Transfer Created',
@@ -196,8 +161,7 @@ export const useTransfers = () => {
       const { data, error } = await supabase
         .from('inventory_transfers')
         .update({
-          status: 'approved' as TransferStatus,
-          approved_by: user.id
+          status: 'completed' as const
         })
         .eq('id', transferId)
         .select();
@@ -231,9 +195,7 @@ export const useTransfers = () => {
       const { data, error } = await supabase
         .from('inventory_transfers')
         .update({
-          status: 'rejected' as TransferStatus,
-          approved_by: user.id,
-          notes: reason // Store rejection reason in notes field
+          status: 'cancelled' as const
         })
         .eq('id', transferId)
         .select();
@@ -267,7 +229,7 @@ export const useTransfers = () => {
       const { data, error } = await supabase
         .from('inventory_transfers')
         .update({
-          status: 'completed' as TransferStatus
+          status: 'completed' as const
         })
         .eq('id', transferId)
         .select();

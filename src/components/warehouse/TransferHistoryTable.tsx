@@ -1,134 +1,130 @@
 
-import React from 'react';
-import { useTransfers } from '@/hooks/useTransfers';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TransferStatus } from '@/types/database';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
-const TransferHistoryTable: React.FC = () => {
-  const { getTransferHistory } = useTransfers();
-  const { data: transfers, isLoading, error } = getTransferHistory();
-  
+interface Transfer {
+  id: string;
+  source_warehouse_id: string;
+  destination_warehouse_id: string;
+  status: 'pending' | 'completed' | 'in_transit' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+  initiated_by: string;
+}
+
+export const TransferHistoryTable: React.FC = () => {
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetchTransferHistory();
+  }, []);
+
+  const fetchTransferHistory = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase
+        .from('inventory_transfers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching transfer history:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to fetch transfer history',
+        });
+        return;
+      }
+
+      setTransfers(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to fetch transfer history',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Transfer History</CardTitle>
-          <CardDescription>Loading transfer history...</CardDescription>
-        </CardHeader>
+        <CardContent className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </CardContent>
       </Card>
     );
   }
-  
-  if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Transfer History</CardTitle>
-          <CardDescription className="text-red-500">
-            Error loading transfer history. Please try again.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-  
-  if (!transfers || transfers.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Transfer History</CardTitle>
-          <CardDescription>No transfer history found</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-  
-  const getStatusVariant = (status: TransferStatus) => {
-    switch (status) {
-      case 'approved':
-        return 'success';
-      case 'rejected':
-        return 'destructive';
-      case 'pending':
-        return 'outline';
-      case 'completed':
-        return 'success';
-      case 'in_transit':
-        return 'secondary'; 
-      case 'cancelled':
-        return 'secondary';
-      default:
-        return 'secondary';
-    }
-  };
-  
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Transfer History</CardTitle>
-            <CardDescription>View past inventory transfers</CardDescription>
-          </div>
-        </div>
+        <CardTitle>Transfer History</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>From</TableHead>
-              <TableHead>To</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {transfers && transfers.map((transfer) => (
-              <TableRow key={transfer.id}>
-                <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
-                <TableCell>
-                  {transfer.products?.name || 'Unknown Product'} 
-                  {transfer.products?.sku && <span className="text-xs text-gray-500 block">{transfer.products.sku}</span>}
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{transfer.source_warehouse?.name || 'Unknown'}</div>
-                  <div className="text-xs text-gray-500">
-                    Floor {transfer.source_location?.floor || '?'}, Zone {transfer.source_location?.zone || '?'}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{transfer.destination_warehouse?.name || 'Unknown'}</div>
-                  <div className="text-xs text-gray-500">
-                    Floor {transfer.destination_location?.floor || '?'}, Zone {transfer.destination_location?.zone || '?'}
-                  </div>
-                </TableCell>
-                <TableCell>{transfer.quantity}</TableCell>
-                <TableCell>
-                  <Badge variant={getStatusVariant(transfer.status as TransferStatus)}>
-                    {transfer.status ? (transfer.status.charAt(0).toUpperCase() + transfer.status.slice(1)) : 'Unknown'}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        {transfers.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No transfer history found</p>
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Transfer ID</TableHead>
+                  <TableHead>From Warehouse</TableHead>
+                  <TableHead>To Warehouse</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Initiated By</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transfers.map((transfer) => (
+                  <TableRow key={transfer.id}>
+                    <TableCell className="font-mono text-sm">
+                      {transfer.id.substring(0, 8)}...
+                    </TableCell>
+                    <TableCell>
+                      {transfer.source_warehouse_id}
+                    </TableCell>
+                    <TableCell>
+                      {transfer.destination_warehouse_id}
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        className={
+                          transfer.status === 'completed' ? 'bg-green-500' :
+                          transfer.status === 'in_transit' ? 'bg-blue-500' :
+                          transfer.status === 'pending' ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        }
+                      >
+                        {transfer.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(transfer.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {transfer.initiated_by}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
