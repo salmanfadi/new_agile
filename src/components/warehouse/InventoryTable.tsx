@@ -1,5 +1,4 @@
-
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -9,54 +8,122 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { InventoryItem } from '@/hooks/useInventoryData';
-import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Package, Search, Info, ExternalLink, History, Truck, ArrowDown, ArrowUp } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { InventoryItem } from '@/hooks/useInventoryData';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
-import { InventoryMovement } from '@/types/inventory';
+import { AlertTriangle, Package, ArrowUp, ArrowDown, MapPin } from 'lucide-react';
+
+// Updated to remove warehouseName as it will now be part of the location details
+type SortableField = 'barcode' | 'productName' | 'locationDetails' | 'quantity' | 'status';
 
 interface InventoryTableProps {
   inventoryItems: InventoryItem[];
   isLoading: boolean;
   error: Error | null;
   highlightedBarcode: string | null;
-  onSort?: (field: keyof InventoryItem) => void;
-  sortField?: keyof InventoryItem;
+  highlightedItemIds?: string[];
+  onSort?: (field: SortableField) => void;
+  sortField?: SortableField;
   sortDirection?: 'asc' | 'desc';
+  onViewLocations?: (item: InventoryItem) => void;
+  showBatchDetails?: boolean;
+  expandedProducts?: Record<string, boolean>;
+  batchData?: Record<string, any[]>;
+  onToggleExpand?: (productId: string) => void;
 }
 
-export const InventoryTable: React.FC<InventoryTableProps> = ({
-  inventoryItems,
-  isLoading,
-  error,
-  highlightedBarcode,
+interface LocationDetail {
+  warehouseId: string;
+  warehouseName: string;
+  locationId: string;
+  zone: string;
+  floor: string;
+  quantity: number;
+}
+
+interface SelectedLocationState {
+  isOpen: boolean;
+  details: LocationDetail[];
+  productName: string;
+  productSku: string;
+}
+
+const InventoryTable: React.FC<InventoryTableProps> = ({
+  inventoryItems = [],
+  isLoading = false,
+  error = null,
+  highlightedBarcode = null,
+  highlightedItemIds = [],
   onSort,
-  sortField,
-  sortDirection,
+  sortField = 'productName',
+  sortDirection = 'asc',
+  onViewLocations,
+  showBatchDetails = false,
+  expandedProducts = {},
+  batchData = {},
+  onToggleExpand,
 }) => {
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
-  const navigate = useNavigate();
-  const [showBatchDetails, setShowBatchDetails] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState<any>(null);
-  const [isBatchLoading, setIsBatchLoading] = useState(false);
-  const [showItemHistory, setShowItemHistory] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<string | null>(null);
-  const [itemHistory, setItemHistory] = useState<InventoryMovement[]>([]);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  
+  const [selectedLocationDetails, setSelectedLocationDetails] = useState<SelectedLocationState>({
+    isOpen: false,
+    details: [],
+    productName: '',
+    productSku: ''
+  });
+
+  const handleViewLocations = useCallback((item: InventoryItem) => {
+    // Always show the modal, even if there are no location details
+    let locationDetails: LocationDetail[] = [];
+    
+    // Process location details if they exist
+    if (item.allLocationDetails && Array.isArray(item.allLocationDetails)) {
+      // Filter out any null or undefined entries and ensure all fields have valid values
+      locationDetails = item.allLocationDetails
+        .filter(loc => loc !== null && loc !== undefined)
+        .map(loc => ({
+          warehouseId: loc.warehouseId || '',
+          warehouseName: loc.warehouseName || 'Unknown',
+          locationId: loc.locationId || 'N/A',
+          zone: loc.zone || 'N/A',
+          floor: loc.floor || 'N/A',
+          quantity: typeof loc.quantity === 'number' ? loc.quantity : 0
+        }));
+    }
+    
+    // If we still have no location details, create a default one to ensure the modal shows something
+    if (locationDetails.length === 0) {
+      locationDetails = [{
+        warehouseId: '',
+        warehouseName: 'Default Warehouse',
+        locationId: 'Default Location',
+        zone: 'N/A',
+        floor: 'N/A',
+        quantity: 0
+      }];
+    }
+    
+    console.log('Opening location modal with details:', locationDetails);
+    console.log('Item data:', item);
+    console.log('Item allLocationDetails:', item.allLocationDetails);
+    
+    // Set the state to open the modal
+    setSelectedLocationDetails({
+      isOpen: true,
+      details: locationDetails,
+      productName: item.productName || 'Unknown Product',
+      productSku: item.productSku || 'N/A'
+    });
+  }, []);
+
+  const closeLocationModal = useCallback(() => {
+    setSelectedLocationDetails(prev => ({
+      ...prev,
+      isOpen: false
+    }));
+  }, []);
 
   useEffect(() => {
-    // Scroll to highlighted row when it changes
     if (highlightedRowRef.current) {
       highlightedRowRef.current.scrollIntoView({
         behavior: 'smooth',
@@ -65,414 +132,237 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     }
   }, [highlightedBarcode]);
 
-  const fetchBatchDetails = async (batchId: string) => {
-    setIsBatchLoading(true);
-    try {
-      // Fetch the stock-in record with related data
-      const { data: stockInData, error: stockInError } = await supabase
-        .from('stock_in')
-        .select(`
-          id,
-          product_id,
-          submitted_by,
-          processed_by,
-          boxes,
-          status,
-          created_at,
-          source,
-          notes,
-          products:product_id(name),
-          submitter:submitted_by(name, username),
-          processor:processed_by(name, username)
-        `)
-        .eq('id', batchId)
-        .single();
-
-      if (stockInError) throw stockInError;
-
-      // Fetch all inventory items in this batch
-      const { data: batchItems, error: batchItemsError } = await supabase
-        .from('inventory')
-        .select('*')
-        .eq('batch_id', batchId);
-
-      if (batchItemsError) throw batchItemsError;
-
-      setSelectedBatch({
-        ...stockInData,
-        inventoryItems: batchItems,
-        itemCount: batchItems?.length || 0,
-      });
-    } catch (error) {
-      console.error('Error fetching batch details:', error);
-    } finally {
-      setIsBatchLoading(false);
-    }
-  };
-
-  const fetchItemHistory = async (itemId: string) => {
-    setIsHistoryLoading(true);
-    try {
-      // Get the inventory item first to get the barcode
-      const { data: inventoryItem } = await supabase
-        .from('inventory')
-        .select('barcode')
-        .eq('id', itemId)
-        .single();
-
-      if (!inventoryItem) throw new Error("Item not found");
-
-      // Use inventory_movements with details containing barcode
-      const { data: movements, error: movementsError } = await supabase
-        .from('inventory_movements')
-        .select('*')
-        .contains('details', { barcode: inventoryItem.barcode })
-        .order('created_at', { ascending: false });
-
-      if (movementsError) throw movementsError;
-
-      // Convert the data to match the InventoryMovement type
-      const typedMovements: InventoryMovement[] = movements?.map(item => {
-        // Parse details if it's a string
-        let parsedDetails: any = {};
-        if (typeof item.details === 'string') {
-          try {
-            parsedDetails = JSON.parse(item.details);
-          } catch (err) {
-            parsedDetails = {};
-          }
-        } else {
-          parsedDetails = item.details || {};
-        }
-        
-        return {
-          ...item,
-          details: parsedDetails
-        } as InventoryMovement;
-      }) || [];
-
-      setItemHistory(typedMovements);
-    } catch (error) {
-      console.error('Error fetching item history:', error);
-      setItemHistory([]);
-    } finally {
-      setIsHistoryLoading(false);
-    }
-  };
-
-  const viewBatchDetails = (batchId: string | null) => {
-    if (batchId) {
-      setShowBatchDetails(true);
-      fetchBatchDetails(batchId);
-    }
-  };
-
-  const viewItemHistory = (itemId: string) => {
-    setSelectedItem(itemId);
-    setShowItemHistory(true);
-    fetchItemHistory(itemId);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-        <div className="ml-2">Loading inventory data...</div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="text-center py-8 text-red-500">
         <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
         <p>Error loading inventory data: {error.message}</p>
-        <p className="text-sm mt-2 text-slate-500">Please try refreshing the page or contact support if the issue persists.</p>
       </div>
     );
   }
 
-  if (inventoryItems.length === 0) {
+  if (!isLoading && (!inventoryItems || inventoryItems.length === 0)) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <Package className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-        <p className="mb-2">No inventory items found</p>
-        <p className="text-sm text-slate-400">Try adjusting your filters or search criteria</p>
+      <div className="text-center py-8 text-muted-foreground">
+        <Package className="h-8 w-8 mx-auto mb-2" />
+        <p>No inventory items found</p>
       </div>
     );
   }
+
+  const renderSortIndicator = (field: SortableField) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? 
+      <ArrowUp className="h-3 w-3 ml-1 inline" /> : 
+      <ArrowDown className="h-3 w-3 ml-1 inline" />;
+  };
+
+  const renderSkeletonRows = () => {
+    return Array(5).fill(0).map((_, index) => (
+      <TableRow key={`skeleton-${index}`} className="animate-pulse">
+        <TableCell><div className="h-4 bg-muted rounded w-3/4"></div></TableCell>
+        <TableCell><div className="h-4 bg-muted rounded"></div></TableCell>
+        <TableCell><div className="h-4 bg-muted rounded w-1/2"></div></TableCell>
+        <TableCell><div className="h-4 bg-muted rounded w-1/4"></div></TableCell>
+        <TableCell><div className="h-4 bg-muted rounded w-1/2"></div></TableCell>
+      </TableRow>
+    ));
+  };
 
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>
-              {onSort ? (
-                <div 
-                  className="flex items-center cursor-pointer" 
-                  onClick={() => onSort('productName')}
-                >
-                  Product
-                  {sortField === 'productName' && (
-                    sortDirection === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
-                  )}
-                </div>
-              ) : (
-                "Product"
-              )}
+            <TableHead 
+              className="cursor-pointer"
+              onClick={() => onSort?.('barcode')}
+            >
+              Barcode {renderSortIndicator('barcode')}
             </TableHead>
-            <TableHead>Barcode</TableHead>
-            <TableHead>
-              {onSort ? (
-                <div 
-                  className="flex items-center cursor-pointer" 
-                  onClick={() => onSort('quantity')}
-                >
-                  Quantity
-                  {sortField === 'quantity' && (
-                    sortDirection === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
-                  )}
-                </div>
-              ) : (
-                "Quantity"
-              )}
+            <TableHead 
+              className="cursor-pointer"
+              onClick={() => onSort?.('productName')}
+            >
+              Product {renderSortIndicator('productName')}
             </TableHead>
-            <TableHead>Warehouse</TableHead>
-            <TableHead>Location</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Color</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Actions</TableHead>
-            <TableHead className="text-right">
-              {onSort ? (
-                <div 
-                  className="flex items-center cursor-pointer justify-end" 
-                  onClick={() => onSort('lastUpdated')}
-                >
-                  Last Updated
-                  {sortField === 'lastUpdated' && (
-                    sortDirection === 'asc' ? <ArrowUp className="ml-1 h-4 w-4" /> : <ArrowDown className="ml-1 h-4 w-4" />
-                  )}
-                </div>
-              ) : (
-                "Last Updated"
-              )}
+            <TableHead 
+              className="cursor-pointer"
+              onClick={() => onSort?.('locationDetails')}
+            >
+              Location {renderSortIndicator('locationDetails')}
+            </TableHead>
+            <TableHead 
+              className="cursor-pointer text-right"
+              onClick={() => onSort?.('quantity')}
+            >
+              Qty {renderSortIndicator('quantity')}
+            </TableHead>
+            <TableHead 
+              className="cursor-pointer"
+              onClick={() => onSort?.('status')}
+            >
+              Status {renderSortIndicator('status')}
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {inventoryItems.map((item) => (
-            <TableRow 
-              key={item.id}
-              ref={item.barcode === highlightedBarcode ? highlightedRowRef : null}
-              className={item.barcode === highlightedBarcode ? "bg-blue-50 dark:bg-blue-900/20" : ""}
-            >
-              <TableCell className="font-medium">{item.productName}</TableCell>
-              <TableCell>
-                {item.barcode === highlightedBarcode ? (
-                  <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
+          {isLoading ? (
+            renderSkeletonRows()
+          ) : (
+            inventoryItems.map((item) => (
+              <React.Fragment key={item.id}>
+                <TableRow
+                  data-item-id={item.id}
+                  className={`${highlightedBarcode === item.barcode || highlightedItemIds.includes(item.id) ? 'bg-primary/10' : ''} ${showBatchDetails ? 'cursor-pointer' : ''}`}
+                  onClick={showBatchDetails && onToggleExpand ? () => onToggleExpand(item.id) : undefined}
+                >
+                  <TableCell className="font-mono text-xs">
                     {item.barcode}
-                  </Badge>
-                ) : (
-                  item.barcode
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{item.productName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.productSku && <span>SKU: {item.productSku}</span>}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Button 
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => handleViewLocations(item)}
+                    >
+                      <MapPin className="h-3.5 w-3.5 mr-1" />
+                      View Locations
+                    </Button>
+                    {item.allLocationDetails && item.allLocationDetails.length > 0 && (
+                      <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                        {item.allLocationDetails.length}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">{item.quantity}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={item.status} />
+                  </TableCell>
+                </TableRow>
+                
+                {/* Batch Details Row - Only shown when expanded */}
+                {showBatchDetails && expandedProducts && expandedProducts[item.id] && (
+                  <TableRow className="bg-muted/50">
+                    <TableCell colSpan={7} className="p-0">
+                      <div className="p-4">
+                        <h4 className="text-sm font-medium mb-2">Batch Details for {item.productName}</h4>
+                        <div className="rounded-md border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-1/6">Batch ID</TableHead>
+                                <TableHead className="w-1/6">Quantity</TableHead>
+                                <TableHead className="w-1/4">Warehouse</TableHead>
+                                <TableHead className="w-1/4">Location</TableHead>
+                                <TableHead className="w-1/6">Created Date</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {batchData && batchData[item.id] ? (
+                                batchData[item.id].length > 0 ? (
+                                  batchData[item.id].map((batch) => (
+                                    <TableRow key={batch.id}>
+                                      <TableCell className="font-mono text-xs">
+                                        {batch.batch_id ? batch.batch_id.substring(0, 8) + '...' : 'N/A'}
+                                      </TableCell>
+                                      <TableCell>{batch.quantity || 0}</TableCell>
+                                      <TableCell>{batch.warehouses?.name || 'Unknown'}</TableCell>
+                                      <TableCell>
+                                        {batch.warehouse_locations?.name || 'Unknown'}
+                                        {batch.warehouse_locations ? (
+                                          <span className="text-xs text-muted-foreground ml-1">
+                                            (Floor {batch.warehouse_locations.floor}, Zone {batch.warehouse_locations.zone})
+                                          </span>
+                                        ) : null}
+                                      </TableCell>
+                                      <TableCell>
+                                        {batch.processed_batches?.created_at 
+                                          ? new Date(batch.processed_batches.created_at).toLocaleDateString() 
+                                          : 'N/A'}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                ) : (
+                                  <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                                      No batch data available for this product
+                                    </TableCell>
+                                  </TableRow>
+                                )
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="text-center py-4">
+                                    <div className="flex items-center justify-center space-x-2">
+                                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                                      <span>Loading batch data...</span>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </TableCell>
-              <TableCell>{item.quantity}</TableCell>
-              <TableCell>{item.warehouseName}</TableCell>
-              <TableCell>{item.locationDetails}</TableCell>
-              <TableCell><StatusBadge status={item.status} /></TableCell>
-              <TableCell>{item.color || '-'}</TableCell>
-              <TableCell>{item.size || '-'}</TableCell>
-              <TableCell>
-                {/* Modified to handle potentially missing source property */}
-                {item.source ? (
-                  <Badge variant="outline" className="text-xs">
-                    <Truck className="h-3 w-3 mr-1" />
-                    {item.source}
-                  </Badge>
-                ) : '-'}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  {item.batchId && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => viewBatchDetails(item.batchId)}
-                            className="h-7 w-7 p-0"
-                          >
-                            <Info className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          <p>View batch details</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                  
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => viewItemHistory(item.id)}
-                          className="h-7 w-7 p-0"
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p>View item history</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </TableCell>
-              <TableCell className="text-right text-sm text-muted-foreground">
-                {item.lastUpdated}
-              </TableCell>
-            </TableRow>
-          ))}
+              </React.Fragment>
+            ))
+          )}
         </TableBody>
       </Table>
 
-      {/* Batch Details Dialog */}
-      <Dialog open={showBatchDetails} onOpenChange={setShowBatchDetails}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Batch Details</DialogTitle>
-            <DialogDescription>
-              Information about this inventory batch
-            </DialogDescription>
-          </DialogHeader>
-          
-          {isBatchLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-              <div className="ml-2">Loading batch details...</div>
+      {selectedLocationDetails.isOpen && (
+        <Dialog open={true} onOpenChange={(open) => {
+          if (!open) closeLocationModal();
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{selectedLocationDetails.productName} ({selectedLocationDetails.productSku}) Locations</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Warehouse</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Floor</TableHead>
+                    <TableHead>Zone</TableHead>
+                    <TableHead className="text-right">Quantity</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedLocationDetails.details.length > 0 ? (
+                    selectedLocationDetails.details.map((location, index) => (
+                      <TableRow key={`${location.locationId}-${index}`}>
+                        <TableCell>{location.warehouseName}</TableCell>
+                        <TableCell>{location.locationId}</TableCell>
+                        <TableCell>{location.floor}</TableCell>
+                        <TableCell>{location.zone}</TableCell>
+                        <TableCell className="text-right">{location.quantity}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center">No location details available</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
-          ) : selectedBatch ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="text-sm font-medium">Batch ID:</div>
-                <div className="text-sm text-slate-600 font-mono">{selectedBatch.id}</div>
-                
-                <div className="text-sm font-medium">Product:</div>
-                <div className="text-sm text-slate-600">{selectedBatch.products?.name || 'Unknown'}</div>
-                
-                <div className="text-sm font-medium">Created:</div>
-                <div className="text-sm text-slate-600">{new Date(selectedBatch.created_at).toLocaleString()}</div>
-                
-                <div className="text-sm font-medium">Status:</div>
-                <div className="text-sm">
-                  <StatusBadge status={selectedBatch.status} />
-                </div>
-                
-                <div className="text-sm font-medium">Source:</div>
-                <div className="text-sm text-slate-600">{selectedBatch.source}</div>
-                
-                <div className="text-sm font-medium">Submitted By:</div>
-                <div className="text-sm text-slate-600">
-                  {selectedBatch.submitter?.name || 'Unknown'}
-                </div>
-                
-                <div className="text-sm font-medium">Processed By:</div>
-                <div className="text-sm text-slate-600">
-                  {selectedBatch.processor?.name || 'Not processed yet'}
-                </div>
-                
-                <div className="text-sm font-medium">Total Items:</div>
-                <div className="text-sm text-slate-600">{selectedBatch.itemCount}</div>
-              </div>
-              
-              {selectedBatch.notes && (
-                <div className="mt-4">
-                  <div className="text-sm font-medium">Notes:</div>
-                  <div className="text-sm text-slate-600 mt-1 p-2 bg-slate-50 rounded-md">
-                    {selectedBatch.notes}
-                  </div>
-                </div>
-              )}
-              
-              <div className="pt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowBatchDetails(false)}
-                  className="w-full"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-4">No batch information available</div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Item History Dialog */}
-      <Dialog open={showItemHistory} onOpenChange={setShowItemHistory}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Item History</DialogTitle>
-            <DialogDescription>
-              Activity history for this inventory item
-            </DialogDescription>
-          </DialogHeader>
-          
-          {isHistoryLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-              <div className="ml-2">Loading item history...</div>
-            </div>
-          ) : itemHistory.length > 0 ? (
-            <div className="space-y-4">
-              <div className="max-h-[400px] overflow-y-auto pr-2">
-                {itemHistory.map((movement, index) => (
-                  <div key={index} className="mb-3 border-b pb-3 last:border-b-0">
-                    <div className="flex justify-between items-start">
-                      <div className="font-medium">
-                        {movement.movement_type.replace(/_/g, ' ')}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(movement.created_at), 'MMM d, yyyy h:mm a')}
-                      </div>
-                    </div>
-                    {movement.details && (
-                      <div className="mt-1 text-sm text-slate-600">
-                        <pre className="font-mono text-xs bg-slate-50 p-2 rounded overflow-x-auto">
-                          {JSON.stringify(movement.details, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              
-              <div className="pt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowItemHistory(false)}
-                  className="w-full"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-4">No history records found for this item</div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
+
+export default InventoryTable;

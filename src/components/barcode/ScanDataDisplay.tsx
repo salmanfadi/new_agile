@@ -3,6 +3,7 @@ import React from 'react';
 import { ScanResponse } from '@/types/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 
 interface ScanDataDisplayProps {
   scanData: ScanResponse['data'];
@@ -23,6 +24,12 @@ const ScanDataDisplay: React.FC<ScanDataDisplayProps> = ({ scanData }) => {
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  // Type-safe access to product properties
+  const product = scanData.product as any;
+  const hasCategory = product && 'category' in product;
+  const hasHsnCode = product && 'hsn_code' in product;
+  const hasGstRate = product && 'gst_rate' in product;
 
   return (
     <Card>
@@ -46,8 +53,36 @@ const ScanDataDisplay: React.FC<ScanDataDisplayProps> = ({ scanData }) => {
               {scanData.product?.sku && (
                 <p className="text-sm text-muted-foreground">SKU: {scanData.product.sku}</p>
               )}
+              {hasCategory && (
+                <p className="text-sm text-muted-foreground">Category: {product.category}</p>
+              )}
             </div>
           </div>
+
+          {/* HSN and GST Information */}
+          {(hasHsnCode || hasGstRate) && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Tax Information</h3>
+              <div className="mt-1 grid grid-cols-2 gap-x-4">
+                {hasHsnCode && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">HSN Code</Label>
+                    <div className="font-mono text-sm bg-gray-100 px-2 py-1 rounded mt-1">
+                      {product.hsn_code}
+                    </div>
+                  </div>
+                )}
+                {hasGstRate && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">GST Rate</Label>
+                    <div className="font-mono text-sm bg-gray-100 px-2 py-1 rounded mt-1">
+                      {product.gst_rate}%
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div>
             <h3 className="text-sm font-medium text-muted-foreground">Box Details</h3>

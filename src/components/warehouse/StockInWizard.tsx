@@ -1,1033 +1,285 @@
-// StockInWizard2.tsx - handles both Edge Function and local processing
-import React, { FC, useState, useCallback, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { v4 as generateUUID } from 'uuid';
-import { Loader2 } from 'lucide-react';
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/components/ui/use-toast";
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-// Import step components
-import StockInStepReview from './StockInStepReview';
-import StockInStepBatches from './StockInStepBatches';
-import StockInStepFinalize from './StockInStepFinalize';
-
-// Import Supabase client
-import { supabase } from '../../lib/supabase';
-
-// Get Supabase URL from environment
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-// Define types
-// Use type from imported StockInRequestData if available
-interface StockIn {
-  id: string;
-  product: {
-    id: string;
-    name: string;
-    sku?: string;
-  };
-  number_of_boxes: number;
-  submitter: {
-    id: string | null;
-  };
-  status: "pending" | "rejected" | "completed" | "processing";
-  created_at: string;
-  source: string;
-  // Add other properties as needed
-}
-
-interface BoxData {
-  id: string;
-  barcode: string;
-  warehouse_id: string;
-  warehouse: string; // Adding the warehouse property
-  warehouse_name?: string;
-  location_id: string;
-  location: string; // Adding the location property
-  location_name?: string;
-  quantity: number;
-  color: string;
-  size: string;
+interface StockInWizardProps {
+  stockInId: string;
+  onComplete?: () => void;
+  onCancel?: () => void;
 }
 
 interface BatchData {
   id: string;
-  warehouse_id: string;
+  batch_number: string;
+  product_name: string;
   warehouse_name: string;
-  location_id: string;
   location_name: string;
-  boxCount: number;
-  quantityPerBox: number;
-  color: string;
-  size: string;
-  boxes: BoxData[];
-  batchBarcode?: string;
-  boxBarcodes?: string[];
+  total_boxes: number;
+  total_quantity: number;
+  status: string;
 }
 
-// Helper function to generate UUID if uuid package is not available
-const generateUUIDFallback = () => {
-  let dt = new Date().getTime();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (dt + Math.random() * 16) % 16 | 0;
-    dt = Math.floor(dt / 16);
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-  });
-};
-
-interface StockInWizard2Props {
-  stockIn: StockIn;
-  userId: string;
-  onComplete?: (batchId: string) => void;
-  onCancel?: () => void;
-}
-
-type StepType = 'review' | 'batches' | 'finalize';
-
-const LOCATION_SEPARATOR = '||';
-
-export interface DefaultValuesType {
-  quantity: number;
-  color: string;
-  size: string;
-}
-
-interface ProcessingStatusType {
-  inProgress: boolean;
-  currentBatch: number;
-  totalBatches: number;
-  message: string;
-}
-
-const StockInWizard: React.FC<StockInWizard2Props> = ({
-  stockIn,
-  userId,
+const StockInWizard: React.FC<StockInWizardProps> = ({
+  stockInId,
   onComplete,
-  onCancel,
+  onCancel
 }) => {
-  // State initialization
-  const [activeStep, setActiveStep] = useState<StepType>('review');
-  const [boxesData, setBoxesData] = useState<BoxData[]>([]);
+  const [currentStep, setCurrentStep] = useState(0);
   const [batches, setBatches] = useState<BatchData[]>([]);
-  const [remainingBoxes, setRemainingBoxes] = useState<number>(
-    typeof stockIn.number_of_boxes === 'number' ? stockIn.number_of_boxes : 0
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [warehouseId, setWarehouseId] = useState<string>('');
-  const [locationId, setLocationId] = useState<string>('');
-  const [confirmedBoxes, setConfirmedBoxes] = useState<number>(
-    typeof stockIn.number_of_boxes === 'number' ? stockIn.number_of_boxes : 0
-  );
-  // In-memory cache for barcodes to prevent duplicates during the same session
-  const [usedBarcodes] = useState<Set<string>>(new Set());
-  const [defaultValues, setDefaultValues] = useState<DefaultValuesType>({
-    quantity: 1,
-    color: '',
-    size: '',
-  });
-  const [processingStatus, setProcessingStatus] = useState<ProcessingStatusType>({
-    inProgress: false,
-    currentBatch: 0,
-    totalBatches: 0,
-    message: '',
-  });
-  const [runId] = useState(() => generateUUID());
-  const [useEdgeFunction, setUseEdgeFunction] = useState(true);
-  const [processingMode, setProcessingMode] = useState<'edge' | 'local'>('edge');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Hooks
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const steps = [
+    'Review Batches',
+    'Process Items',
+    'Finalize'
+  ];
 
   useEffect(() => {
-    // Log the current state to help with debugging
-    console.log("Current step:", activeStep);
-    console.log("Boxes data:", boxesData);
-  }, [activeStep, boxesData]);
+    fetchBatches();
+  }, [stockInId]);
 
-  // Memoize the navigation function to prevent unnecessary rerenders
-  const navigateToStep = useCallback((step: StepType) => {
-    console.log(`Navigating to step: ${step} from ${activeStep}`);
-    setActiveStep(step);
-  }, [activeStep]);
-  
-  // Handle warehouse and location selection
-  const handleWarehouseLocationChange = useCallback((warehouseId: string, locationId: string) => {
-    setWarehouseId(warehouseId);
-    setLocationId(locationId);
-    
-    // Clear existing boxes when location changes
-    setBoxesData([]);
-  }, []);
-
-  // Simple navigation to next step without initializing boxes
-  const proceedToBoxDetails = async (): Promise<void> => {
+  const fetchBatches = async () => {
     try {
-      // Just navigate to the batches step without creating boxes upfront
-      navigateToStep('batches');
+      setIsLoading(true);
+      const { data: batchData, error } = await supabase
+        .from('processed_batches')
+        .select(`
+          *,
+          product:products(name)
+        `)
+        .eq('stock_in_id', stockInId);
+
+      if (error) throw error;
+
+      // Get warehouse and location data separately to avoid query conflicts
+      const enrichedBatches = await Promise.all(
+        (batchData || []).map(async (batch) => {
+          // Get warehouse data
+          const { data: warehouse } = await supabase
+            .from('warehouses')
+            .select('name')
+            .eq('id', batch.warehouse_id)
+            .single();
+
+          // Get location data
+          const { data: location } = await supabase
+            .from('warehouse_locations')
+            .select('zone, floor')
+            .eq('id', batch.location_id)
+            .single();
+
+          return {
+            ...batch,
+            product_name: batch.product?.name || 'Unknown Product',
+            warehouse_name: warehouse?.name || 'Unknown Warehouse',
+            location_name: location ? `Floor ${location.floor} - Zone ${location.zone}` : 'Unknown Location'
+          };
+        })
+      );
+
+      setBatches(enrichedBatches);
     } catch (error) {
-      console.error("Error proceeding to box details:", error);
+      console.error('Error fetching batches:', error);
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to fetch batch data',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Update an individual box
-  const updateBox = useCallback((index: number, field: keyof BoxData, value: string | number): void => {
-    const updatedBoxes = [...boxesData];
-    updatedBoxes[index] = {
-      ...updatedBoxes[index],
-      [field]: value,
-    };
-    setBoxesData(updatedBoxes);
-  }, [boxesData]);
-
-  // Update box location (warehouse and location)
-  const updateBoxLocation = useCallback((index: number, warehouseId: string, locationId: string): void => {
-    console.log(`Updating box ${index} location to warehouse: ${warehouseId}, location: ${locationId}`);
-    const updatedBoxes = [...boxesData];
-    updatedBoxes[index] = {
-      ...updatedBoxes[index],
-      warehouse_id: warehouseId,
-      location_id: locationId
-    };
-    setBoxesData(updatedBoxes);
-  }, [boxesData]);
-
-  // Apply default values to all boxes
-  const applyToAllBoxes = useCallback((): void => {
-    const updatedBoxes = boxesData.map(box => ({
-      ...box,
-      quantity: defaultValues.quantity,
-      color: defaultValues.color,
-      size: defaultValues.size,
-    }));
-    setBoxesData(updatedBoxes);
-
-    toast({
-      title: "Applied to All",
-      description: "Default values have been applied to all boxes",
-    });
-  }, [boxesData, defaultValues.quantity, defaultValues.color, defaultValues.size, toast]);
-
-  // Group boxes by warehouse/location to create batches
-  const getBoxesByLocation = useCallback((): Record<string, BoxData[]> => {
-    const boxesByLocation: Record<string, BoxData[]> = {};
-
-    boxesData.forEach((box) => {
-      if (box.warehouse_id && box.location_id) {
-        const key = `${box.warehouse_id}${LOCATION_SEPARATOR}${box.location_id}`;
-        if (!boxesByLocation[key]) {
-          boxesByLocation[key] = [];
-        }
-        boxesByLocation[key].push(box);
-      }
-    });
-
-    return boxesByLocation;
-  }, [boxesData]);
-
-  // Submit the processed stock in via Edge Function
-  const handleSubmit = async (): Promise<void> => {
-    if (!stockIn.id || !userId) {
-      toast({
-        title: "Error",
-        description: "Missing stock in information or user ID",
-        variant: "destructive",
-      });
-      return;
+  const handleNext = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
     }
+  };
 
-    if (batches.length === 0) {
-      toast({
-        title: "No Batches",
-        description: "Please create at least one batch before submitting",
-        variant: "destructive",
-      });
-      return;
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
     }
+  };
 
-    // Validate all batches have required data
-    const invalidBatches = batches.filter(batch => 
-      !batch.warehouse_id || !batch.location_id || batch.boxCount <= 0 || batch.quantityPerBox <= 0
-    );
-
-    if (invalidBatches.length > 0) {
-      toast({
-        title: "Invalid Data",
-        description: `${invalidBatches.length} batches have missing or invalid data`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    // Try Edge Function first
-    if (useEdgeFunction) {
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      while (retryCount < maxRetries) {
-        try {
-          console.log(`Attempt ${retryCount + 1} to process via Edge Function...`);
-          setProcessingMode('edge');
-
-          // Authentication is handled automatically by the supabase.functions.invoke method
-
-          // Format payload using the new batch structure
-          const payload = {
-            run_id: runId,
-            stock_in_id: stockIn.id,
-            user_id: userId,
-            product_id: stockIn.product?.id,
-            batches: batches.map((b) => ({
-              warehouse_id: b.warehouse_id,
-              warehouse_name: b.warehouse_name,
-              location_id: b.location_id,
-              location_name: b.location_name,
-              // Ensure these are explicit numbers with Number() conversion
-              boxCount: Number(b.boxCount),
-              quantityPerBox: Number(b.quantityPerBox),
-              box_count: Number(b.boxCount), // Include snake_case version for compatibility
-              quantity_per_box: Number(b.quantityPerBox), // Include snake_case version for compatibility
-              color: b.color || '',
-              size: b.size || '',
-              batchBarcode: b.batchBarcode || undefined, // Only include if available
-              boxBarcodes: b.boxBarcodes || undefined,  // Only include if available
-            })),
-          };
-
-          console.log('Sending payload to Edge Function:', payload);
-
-          // Get user information from the Supabase client
-          const { data: userData, error: userError } = await supabase.auth.getUser();
-          if (userError) {
-            console.error('Error getting user:', userError);
-            throw new Error('Failed to get user information');
-          }
-
-          // Add the requesting user ID to the payload
-          const requestBody = {
-            ...payload,
-            _requesting_user_id: userData.user?.id
-          };
-          
-          // Ensure data is properly serialized
-          const requestBodyString = JSON.stringify(requestBody);
-          console.log('Serialized request body:', requestBodyString);
-          
-          // Authentication is handled automatically by Supabase functions
-          console.log('Sending request to Edge Function via Supabase client');
-          
-          console.log('Sending request to Edge Function with user ID:', userData.user?.id);
-          
-          console.log('Preparing to call Edge Function with payload:', JSON.stringify(payload, null, 2));
-          
-          let result;
-          try {
-            // Use the Supabase client to invoke the edge function
-            console.log('Calling Edge Function: stock-in-process');
-            
-            const { data, error } = await supabase.functions.invoke('stock-in-process', {
-              body: {
-                run_id: payload.run_id,
-                stock_in_id: payload.stock_in_id,
-                user_id: payload.user_id,
-                product_id: payload.product_id,
-                batches: payload.batches.map(batch => ({
-                  warehouse_id: batch.warehouse_id,
-                  location_id: batch.location_id,
-                  boxCount: batch.boxCount,
-                  quantityPerBox: batch.quantityPerBox,
-                  color: batch.color || '',
-                  size: batch.size || ''
-                }))
-              }
-            });
-            
-            console.log('Edge Function response:', data);
-            
-            if (error) {
-              console.error('Edge function error:', error);
-              
-              // Handle different types of errors
-              if (error.message?.includes('authentication') || 
-                  error.message?.includes('auth') || 
-                  error.message?.includes('401') || 
-                  error.message?.includes('403')) {
-                throw new Error(`Authentication failed: ${error.message}`);
-              }
-              
-              if (error.message?.includes('JSON') || error.message?.includes('parsing')) {
-                throw new Error(`Invalid data format: ${error.message}`);
-              }
-              
-              throw new Error(`Processing failed: ${error.message}`);
-            }
-            
-            // Successfully processed via Edge Function
-            console.log('Edge Function response:', data);
-            
-            // Set the result to the data from the function
-            const responseData = data;
-
-            console.log("Edge function response:", responseData);
-            result = responseData;
-          } catch (error) {
-            console.error('Error calling Edge Function:', error);
-            throw error;
-          }
-
-          if (!result.batch_ids?.length) {
-            console.error('Edge function returned no batch IDs:', result);
-            throw new Error('No batch IDs returned from edge function');
-          }
-
-          // Success! Invalidate queries and notify
-          queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
-          queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-          queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
-
-          toast({ 
-            title: 'Success', 
-            description: 'Stock-In processed successfully via Edge Function' 
-          });
-
-          if (onComplete && result.batch_ids?.length) {
-            onComplete(result.batch_ids[0]);
-          }
-          
-          setIsSubmitting(false);
-          return;
-          
-        } catch (error) {
-          console.warn(`Edge Function attempt ${retryCount + 1} failed:`, error);
-          retryCount++;
-          
-          // If we have more retries, wait before trying again
-          if (retryCount < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-            continue;
-          }
-          
-          // If we're out of retries, fall back to local processing
-          console.warn("Edge Function failed after retries, falling back to local processing:", error);
-          setUseEdgeFunction(false);
-          setProcessingMode('local');
-          toast({
-            title: "Notice",
-            description: "Using local processing mode after Edge Function failed",
-            variant: "default"
-          });
-          break;
-        }
-      }
-    }
-
-    // Local processing fallback
+  const handleComplete = async () => {
     try {
-      console.log("Starting local stock-in processing...");
-      setProcessingMode('local');
+      setIsProcessing(true);
       
-      console.log(`Processing ${batches.length} batches locally`);
-      setProcessingStatus({
-        inProgress: true,
-        currentBatch: 0,
-        totalBatches: batches.length,
-        message: 'Initializing local processing...'
-      });
-
-      // Update stock in status
-      // Only include columns that definitely exist in the schema
-      const { error: updateError } = await supabase
-        .from('stock_in')
-        .update({
-          status: 'processing', // Use allowed status value
-          updated_at: new Date().toISOString()
-          // No other columns, to avoid schema errors
-        })
-        .eq('id', stockIn.id);
-      
-      if (updateError) throw updateError;
-
-      let lastBatchId = '';
-      let totalProcessedBoxes = 0;
-
-      // Process each batch sequentially
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        const { warehouse_id, location_id, boxCount, quantityPerBox, color, size, batchBarcode } = batch;
-        
-        setProcessingStatus({
-          inProgress: true,
-          currentBatch: batchIndex + 1,
-          totalBatches: batches.length,
-          message: `Processing batch ${batchIndex + 1}/${batches.length} (${boxCount} boxes)`
-        });
-
-        // Generate batch number if not available
-        const batch_number = batchBarcode || generateUUID();
-        
-        // Create processed batch
-        const { data: batchData, error: batchError } = await supabase
-          .from('processed_batches')
-          .insert({
-            batch_number: batch_number,
-            stock_in_id: stockIn.id,
-            processed_by: userId,
-            status: 'completed',
-            total_boxes: boxCount,
-            total_quantity: boxCount * quantityPerBox,
-            quantity_per_box: quantityPerBox,
-            quantity_processed: boxCount * quantityPerBox,
-            product_id: stockIn.product?.id,
-            warehouse_id: warehouse_id,
-            location_id: location_id,
-            color: color || '',
-            size: size || '',
-            processed_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-        
-        if (batchError) throw batchError;
-        
-        const batchId = batchData.id;
-        lastBatchId = batchId;
-        
-        // Create a Set to track used barcodes in memory for this processing session
-        const usedBarcodes = new Set<string>();
-        
-        // Helper function to check if a barcode already exists in the database
-        const checkBarcodeExists = async (barcode: string): Promise<boolean> => {
-          try {
-            // First check our in-memory cache
-            if (usedBarcodes.has(barcode)) {
-              console.log(`Barcode ${barcode} found in local cache`);
-              return true;
-            }
-            
-            // Check inventory table
-            const { data: inventoryItems, error: inventoryError } = await supabase
-              .from('inventory')
-              .select('id, barcode')
-              .eq('barcode', barcode);
-              
-            if (inventoryError) {
-              console.error('Error checking inventory for barcode:', inventoryError);
-              throw inventoryError;
-            }
-            
-            if (inventoryItems && inventoryItems.length > 0) {
-              console.log(`Barcode ${barcode} found in inventory table`);
-              usedBarcodes.add(barcode); // Add to cache
-              return true;
-            }
-            
-            // Also check stock_in_details table
-            const { data: detailsItems, error: detailsError } = await supabase
-              .from('stock_in_details')
-              .select('id, barcode')
-              .eq('barcode', barcode);
-              
-            if (detailsError) {
-              console.error('Error checking stock_in_details for barcode:', detailsError);
-              throw detailsError;
-            }
-            
-            if (detailsItems && detailsItems.length > 0) {
-              console.log(`Barcode ${barcode} found in stock_in_details table`);
-              usedBarcodes.add(barcode); // Add to cache
-              return true;
-            }
-            
-            console.log(`Barcode ${barcode} is unique and available`);
-            return false;
-          } catch (error) {
-            console.error('Error checking barcode existence:', error);
-            return false; // Default to false on error to allow generation of a new barcode
-          }
-        };
-        
-        // Helper function to generate a unique batch barcode base
-        const generateUniqueBatchBarcodeBase = async (): Promise<string> => {
-          const maxAttempts = 5;
-          
-          for (let i = 0; i < maxAttempts; i++) {
-            // Generate a unique batch identifier
-            const batchUuid = generateUUID();
-            const barcodeBase = `${batchUuid}`;
-            
-            // Check if any barcode with this base already exists in inventory
-            const { data: inventoryData, error: invError } = await supabase
-              .from('inventory')
-              .select('id')
-              .like('barcode', `${barcodeBase}-%`)
-              .limit(1);
-              
-            if (invError) {
-              console.error('Error checking batch barcode base in inventory:', invError);
-              throw invError;
-            }
-            
-            // Also check stock_in_details table
-            const { data: detailsData, error: detError } = await supabase
-              .from('stock_in_details')
-              .select('id')
-              .like('barcode', `${barcodeBase}-%`)
-              .limit(1);
-              
-            if (detError) {
-              console.error('Error checking batch barcode base in stock_in_details:', detError);
-              throw detError;
-            }
-            
-            // If barcode base doesn't exist in either table, it's unique
-            if ((!inventoryData || inventoryData.length === 0) && 
-                (!detailsData || detailsData.length === 0)) {
-              console.log(`Generated unique batch barcode base: ${barcodeBase}`);
-              return barcodeBase;
-            }
-            
-            console.log(`Batch barcode base ${barcodeBase} already exists, trying again`);
-          }
-          
-          // If all attempts fail, use timestamp to ensure uniqueness
-          const timestamp = Date.now();
-          const fallbackBase = `${generateUUID()}-${timestamp}`;
-          console.log(`Using fallback batch barcode base: ${fallbackBase}`);
-          return fallbackBase;
-        };
-
-        // Helper function to generate a unique barcode for a box within a batch
-        const generateUniqueBoxBarcode = async (batchBase: string, boxNumber: number): Promise<string> => {
-          const boxNumberStr = boxNumber.toString().padStart(3, '0'); // Format as 001, 002, etc.
-          const boxBarcode = `${batchBase}-${boxNumberStr}`;
-          
-          // Check if this specific barcode already exists
-          const exists = await checkBarcodeExists(boxBarcode);
-          
-          if (!exists) {
-            console.log(`Generated unique box barcode: ${boxBarcode}`);
-            usedBarcodes.add(boxBarcode); // Add to cache
-            return boxBarcode;
-          }
-          
-          // If it exists, add a timestamp to make it unique while preserving the batch-box relationship
-          const timestamp = Date.now();
-          const newBarcode = `${batchBase}-${timestamp}-${boxNumberStr}`;
-          
-          // Double-check the new barcode
-          const newExists = await checkBarcodeExists(newBarcode);
-          if (newExists) {
-            // Very unlikely, but just in case, add random component
-            const random = Math.random().toString(36).substring(2, 8);
-            const finalBarcode = `${batchBase}-${timestamp}-${random}-${boxNumberStr}`;
-            console.log(`Generated fallback box barcode with random component: ${finalBarcode}`);
-            usedBarcodes.add(finalBarcode); // Add to cache
-            return finalBarcode;
-          }
-          
-          console.log(`Generated alternative box barcode with timestamp: ${newBarcode}`);
-          usedBarcodes.add(newBarcode); // Add to cache
-          return newBarcode;
-        };
-          
-        // Generate a unique batch barcode base for all boxes in this batch
-        const batchBarcodeBase = await generateUniqueBatchBarcodeBase();
-        console.log(`Using batch barcode base ${batchBarcodeBase} for batch ${batchIndex + 1}`);
-        
-        for (let i = 0; i < batch.boxCount; i++) {
-          totalProcessedBoxes++;
-          
-          // Generate a unique box barcode using the batch base and box number
-          const boxNumber = i + 1;
-          const boxBarcode = await generateUniqueBoxBarcode(batchBarcodeBase, boxNumber);
-          
-          console.log(`Processing box ${boxNumber} with barcode ${boxBarcode}`);
-          
-          try {
-            // Create inventory item first
-            const { data: inventoryItem, error: inventoryError } = await supabase
-              .from('inventory')
-              .insert({
-                barcode: boxBarcode,
-                product_id: stockIn.product?.id,
-                warehouse_id: batch.warehouse_id,
-                location_id: batch.location_id,
-                quantity: batch.quantityPerBox,
-                total_quantity: batch.quantityPerBox,
-                status: 'in_stock',
-                color: batch.color || '',
-                size: batch.size || '',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              })
-              .select()
-              .single();
-              
-            if (inventoryError) {
-              // If it's a unique constraint violation, try with a different barcode
-              if (inventoryError.code === '23505') {
-                console.warn(`Duplicate barcode detected for ${boxBarcode}. Generating a new one...`);
-                
-                // Generate a completely unique barcode while preserving batch structure
-                const timestamp = Date.now();
-                const random = Math.random().toString(36).substring(2, 15);
-                const newBoxBarcode = `${batchBarcodeBase}-${timestamp}-${random}-${boxNumber}`;
-                
-                console.log(`Retrying with new barcode: ${newBoxBarcode}`);
-                
-                // Try again with the new barcode
-                const { data: retryItem, error: retryError } = await supabase
-                  .from('inventory')
-                  .insert({
-                    barcode: newBoxBarcode,
-                    product_id: stockIn.product?.id,
-                    warehouse_id: batch.warehouse_id,
-                    location_id: batch.location_id,
-                    quantity: batch.quantityPerBox,
-                    total_quantity: batch.quantityPerBox,
-                    status: 'in_stock',
-                    color: batch.color || '',
-                    size: batch.size || '',
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  })
-                  .select()
-                  .single();
-                  
-                if (retryError) {
-                  console.error('Error retrying inventory insert with new barcode:', retryError);
-                  throw retryError;
-                }
-                
-                // Create stock_in_detail with the new barcode
-                const { data: retryDetail, error: retryDetailError } = await supabase
-                  .from('stock_in_details')
-                  .insert({
-                    stock_in_id: stockIn.id,
-                    product_id: stockIn.product?.id,
-                    barcode: newBoxBarcode,
-                    quantity: batch.quantityPerBox,
-                    total_quantity: batch.quantityPerBox,
-                    color: batch.color || '',
-                    size: batch.size || '',
-                    status: 'completed',
-                    batch_number: batch_number,
-                    warehouse_id: batch.warehouse_id,
-                    location_id: batch.location_id,
-                    processed_at: new Date().toISOString()
-                  })
-                  .select()
-                  .single();
-                  
-                if (retryDetailError) {
-                  console.error('Error creating stock_in_detail with new barcode:', retryDetailError);
-                  throw retryDetailError;
-                }
-                
-                console.log(`Successfully processed box ${boxNumber} with regenerated barcode ${newBoxBarcode}`);
-              } else {
-                console.error(`Error creating inventory item for box ${boxNumber}:`, inventoryError);
-                throw inventoryError;
-              }
-            } else {
-              // Create stock_in_detail
-              const { data: stockInDetail, error: detailError } = await supabase
-                .from('stock_in_details')
-                .insert({
-                  stock_in_id: stockIn.id,
-                  product_id: stockIn.product?.id,
-                  barcode: boxBarcode,
-                  quantity: batch.quantityPerBox,
-                  total_quantity: batch.quantityPerBox,
-                  color: batch.color || '',
-                  size: batch.size || '',
-                  status: 'completed',
-                  batch_number: batch_number,
-                  warehouse_id: batch.warehouse_id,
-                  location_id: batch.location_id,
-                  processed_at: new Date().toISOString()
-                })
-                .select()
-                .single();
-              
-              if (detailError) {
-                console.error(`Error creating stock_in_detail for box ${boxNumber}:`, detailError);
-                throw detailError;
-              }
-              
-              console.log(`Successfully processed box ${boxNumber} with barcode ${boxBarcode}`);
-            }
-          } catch (err) {
-            console.error(`Error processing box ${boxNumber}:`, err);
-            throw err;
-          }
-        }
-      }
-      
-      console.log(`Local processing completed: processed ${batches.length} batches with ${totalProcessedBoxes} boxes`);
-
-      // Mark stock_in as completed
-      // Only include columns that definitely exist in the schema
-      const { error: completeError } = await supabase
+      // Update stock in status to completed
+      const { error } = await supabase
         .from('stock_in')
         .update({ 
           status: 'completed',
-          updated_at: new Date().toISOString()
-          // No additional columns to prevent schema errors
+          processing_completed_at: new Date().toISOString()
         })
-        .eq('id', stockIn.id);
-      
-      if (completeError) throw completeError;
+        .eq('id', stockInId);
 
-      // Success!
-      queryClient.invalidateQueries({ queryKey: ['processed-batches'] });
-      queryClient.invalidateQueries({ queryKey: ['stock-in-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory-data'] });
+      if (error) throw error;
 
       toast({
         title: 'Success',
-        description: `Processed ${totalProcessedBoxes} boxes across ${batches.length} batches`
+        description: 'Stock in process completed successfully',
       });
 
-      // Pass the batch info to the onComplete callback if available
-      const finalBatchId = batches.length > 0 ? batches[batches.length - 1].id : null;
-      if (onComplete && finalBatchId) {
-        onComplete(finalBatchId);
+      if (onComplete) {
+        onComplete();
       }
-
-      setIsSubmitting(false);
-      return;
     } catch (error) {
-      console.error('Error processing stock in:', error);
-      
-      // Better error handling for constraint violations
-      let errorMessage = "An unknown error occurred";
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null) {
-        // Handle PostgreSQL constraint violation errors
-        if ('code' in error && error.code === '23505') {
-          errorMessage = "Duplicate barcode detected. Please try again with unique barcodes.";
-          if ('message' in error) {
-            errorMessage += " Details: " + error.message;
-          }
-        } else if ('message' in error) {
-          errorMessage = error.message as string;
-        }
-      }
-      
+      console.error('Error completing stock in:', error);
       toast({
-        title: "Processing Failed",
-        description: errorMessage,
-        variant: "destructive",
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to complete stock in process',
       });
-      
-      // Try to update stock_in to rejected status
-      try {
-        await supabase
-          .from('stock_in')
-          .update({ 
-            status: 'rejected',
-            rejection_reason: error instanceof Error ? error.message : "Processing failed"
-          })
-          .eq('id', stockIn.id);
-      } catch (updateError) {
-        console.error("Failed to update status after error:", updateError);
-      }
-      
     } finally {
-      setIsSubmitting(false);
-      setProcessingStatus({
-        inProgress: false,
-        currentBatch: 0,
-        totalBatches: 0,
-        message: ''
-      });
+      setIsProcessing(false);
     }
   };
 
-  const handleCancel = useCallback((): void => {
-    if (onCancel) {
-      onCancel();
-    } else {
-      navigate('/manager/stock-in');
-    }
-  }, [navigate, onCancel]);
-
-  const renderProcessingStatus = useCallback((): JSX.Element | null => {
-    if (!processingStatus.inProgress) return null;
-    
-    const progress = processingStatus.totalBatches > 0 
-      ? Math.round((processingStatus.currentBatch / processingStatus.totalBatches) * 100) 
-      : 0;
-    
+  if (isLoading) {
     return (
-      <div className="py-4 px-6 bg-blue-50 rounded-lg border border-blue-100 mb-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-          <h3 className="font-medium text-blue-900">
-            Processing {processingStatus.currentBatch} of {processingStatus.totalBatches} batches
-          </h3>
-        </div>
-        
-        <div className="w-full bg-blue-200 rounded-full h-2.5">
-          <div 
-            className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
-            style={{width: `${progress}%`}}
-          />
-        </div>
-        
-        {processingStatus.message && (
-          <p className="mt-2 text-sm text-blue-700">{processingStatus.message}</p>
-        )}
-      </div>
+      <Card>
+        <CardContent className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </CardContent>
+      </Card>
     );
-  }, [processingStatus]);
-
-  // When user adds a batch in Step 2
-  const handleAddBatch = useCallback((batch: BatchData): void => {
-    console.log('Adding batch:', batch);
-    console.log('Current remaining boxes:', remainingBoxes);
-    console.log('Batch box count:', batch.boxCount);
-    
-    setBatches((prev) => [...prev, batch]);
-    setBoxesData((prev) => [...prev, ...batch.boxes]);
-    setRemainingBoxes((prev) => {
-      const newRemaining = prev - batch.boxCount;
-      console.log('New remaining boxes:', newRemaining);
-      return newRemaining;
-    });
-  }, [remainingBoxes]);
-
-  // Add function to delete a batch
-  const handleDeleteBatch = useCallback((batchIndex: number): void => {
-    setBatches(prev => {
-      const newBatches = [...prev];
-      const deletedBatch = newBatches.splice(batchIndex, 1)[0];
-      if (deletedBatch) {
-        console.log('Deleting batch with box count:', deletedBatch.boxCount);
-        setRemainingBoxes(prevRemaining => {
-          const newRemaining = prevRemaining + deletedBatch.boxCount;
-          console.log('New remaining boxes after deletion:', newRemaining);
-          return newRemaining;
-        });
-      }
-      return newBatches;
-    });
-  }, []);
-
-  // Add useEffect to log state changes
-  useEffect(() => {
-    console.log('Stock In Details:', {
-      totalBoxes: stockIn.number_of_boxes,
-      remainingBoxes,
-      confirmedBoxes,
-      batchesCount: batches.length,
-      totalBoxesInBatches: batches.reduce((sum, batch) => sum + batch.boxCount, 0)
-    });
-  }, [stockIn.number_of_boxes, remainingBoxes, confirmedBoxes, batches]);
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Stock In Wizard</h2>
-      
-      <Tabs value={activeStep} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger 
-            value="review" 
-            onClick={() => navigateToStep('review')}
-            className="py-3 data-[state=active]:text-primary data-[state=active]:font-medium"
-          >
-            <div className="flex flex-col items-center gap-1">
-              <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">
-                1
-              </span>
-              <span>Verify Details</span>
+      {/* Progress Steps */}
+      <div className="flex items-center justify-between">
+        {steps.map((step, index) => (
+          <div key={index} className="flex items-center">
+            <div className={`
+              w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+              ${index <= currentStep 
+                ? 'bg-primary text-primary-foreground' 
+                : 'bg-muted text-muted-foreground'
+              }
+            `}>
+              {index < currentStep ? <Check className="h-4 w-4" /> : index + 1}
             </div>
-          </TabsTrigger>
-          <TabsTrigger
-            value="batches"
-            onClick={() => navigateToStep('batches')}
-            disabled={activeStep === 'review'}
-            className="py-3 data-[state=active]:text-primary data-[state=active]:font-medium"
-          >
-            <div className="flex flex-col items-center gap-1">
-              <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">
-                2
-              </span>
-              <span>Box Details</span>
+            <span className={`ml-2 text-sm ${index <= currentStep ? 'font-medium' : 'text-muted-foreground'}`}>
+              {step}
+            </span>
+            {index < steps.length - 1 && (
+              <div className={`ml-4 w-8 h-px ${index < currentStep ? 'bg-primary' : 'bg-muted'}`} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Step Content */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{steps[currentStep]}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {currentStep === 0 && (
+            <div className="space-y-4">
+              <p className="text-muted-foreground">Review the batches to be processed:</p>
+              {batches.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">No batches found</p>
+              ) : (
+                <div className="space-y-3">
+                  {batches.map((batch) => (
+                    <div key={batch.id} className="flex items-center justify-between p-3 border rounded-md">
+                      <div>
+                        <p className="font-medium">{batch.product_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Batch #{batch.batch_number} • {batch.warehouse_name} • {batch.location_name}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{batch.total_boxes} boxes</p>
+                        <Badge variant="outline">{batch.status}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </TabsTrigger>
-          <TabsTrigger
-            value="finalize"
-            onClick={() => navigateToStep('finalize')}
-            disabled={activeStep === 'review' || batches.length === 0}
-            className="py-3 data-[state=active]:text-primary data-[state=active]:font-medium"
-          >
-            <div className="flex flex-col items-center gap-1">
-              <span className="rounded-full bg-muted w-6 h-6 flex items-center justify-center text-xs font-medium">
-                3
-              </span>
-              <span>Preview & Submit</span>
+          )}
+
+          {currentStep === 1 && (
+            <div className="space-y-4">
+              <p className="text-muted-foreground">Processing inventory items...</p>
+              <div className="space-y-2">
+                {batches.map((batch) => (
+                  <div key={batch.id} className="flex items-center justify-between p-3 border rounded-md">
+                    <span>{batch.product_name} - {batch.total_boxes} boxes</span>
+                    <Badge className="bg-green-500">Processed</Badge>
+                  </div>
+                ))}
+              </div>
             </div>
-          </TabsTrigger>
-        </TabsList>
+          )}
 
-        <TabsContent value="review" className="mt-6">
-          <StockInStepReview
-            stockIn={stockIn}
-            onContinue={proceedToBoxDetails}
-            onCancel={handleCancel}
-            warehouseId={warehouseId}
-            setWarehouseId={setWarehouseId}
-            locationId={locationId}
-            setLocationId={setLocationId}
-            defaultValues={defaultValues}
-            setDefaultValues={setDefaultValues}
-            confirmedBoxes={confirmedBoxes}
-            setConfirmedBoxes={setConfirmedBoxes}
-            isLoading={isLoading}
-          />
-        </TabsContent>
+          {currentStep === 2 && (
+            <div className="space-y-4">
+              <p className="text-muted-foreground">Ready to finalize the stock in process.</p>
+              <div className="bg-muted p-4 rounded-md">
+                <h4 className="font-medium mb-2">Summary:</h4>
+                <ul className="space-y-1 text-sm">
+                  <li>Total Batches: {batches.length}</li>
+                  <li>Total Boxes: {batches.reduce((sum, batch) => sum + batch.total_boxes, 0)}</li>
+                  <li>Total Items: {batches.reduce((sum, batch) => sum + batch.total_quantity, 0)}</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <TabsContent value="batches" className="mt-6">
-          <StockInStepBatches
-            onBack={() => navigateToStep('review')}
-            onContinue={() => navigateToStep('finalize')}
-            batches={batches}
-            setBatches={setBatches}
-            stockIn={stockIn}
-            defaultValues={defaultValues}
-          />
-        </TabsContent>
-
-        <TabsContent value="finalize" className="mt-6">
-          <StockInStepFinalize
-            batches={batches}
-            stockIn={stockIn}
-            onSubmit={handleSubmit}
-            onBack={() => navigateToStep('batches')}
-            isSubmitting={isSubmitting}
-            processingStatus={processingStatus}
-          />
-        </TabsContent>
-      </Tabs>
-      
-      {renderProcessingStatus()}
+      {/* Navigation */}
+      <div className="flex justify-between">
+        <Button 
+          variant="outline" 
+          onClick={onCancel}
+          disabled={isProcessing}
+        >
+          Cancel
+        </Button>
+        
+        <div className="flex gap-2">
+          {currentStep > 0 && (
+            <Button 
+              variant="outline" 
+              onClick={handlePrevious}
+              disabled={isProcessing}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Previous
+            </Button>
+          )}
+          
+          {currentStep < steps.length - 1 ? (
+            <Button 
+              onClick={handleNext}
+              disabled={isProcessing}
+            >
+              Next
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleComplete}
+              disabled={isProcessing}
+            >
+              {isProcessing ? 'Completing...' : 'Complete Process'}
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

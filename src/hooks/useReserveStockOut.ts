@@ -1,3 +1,4 @@
+
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -25,41 +26,43 @@ export const useReserveStockOut = (onStatusUpdate?: (id: string) => void) => {
         throw new Error('User not authenticated');
       }
 
-      // Create the stock out request
-      const { data: stockOutHeader, error: headerError } = await supabase
-        .from('stock_out')
-        .insert([{
-          product_id,
-          quantity,
-          destination,
-          requested_by: user.id,
-          status: 'pending',
-          reservation_id
-        }])
-        .select()
-        .single();
+      try {
+        // First create the stock out header
+        const { data: stockOutHeader, error: headerError } = await supabase
+          .from('stock_out')
+          .insert([{
+            requested_by: user.id,
+            status: 'pending',
+            created_by: user.id,
+            destination,
+            notes: `Reservation ID: ${reservation_id}`
+          }])
+          .select()
+          .single();
 
-      if (headerError) throw headerError;
+        if (headerError) throw headerError;
 
-      // Create the stock out details
-      const { data: stockOutDetails, error: detailsError } = await supabase
-        .from('stock_out_details')
-        .insert([{
-          stock_out_id: stockOutHeader.id,
-          product_id,
-          quantity,
-          status: 'pending'
-        }])
-        .select();
+        // Then create the stock out details
+        const { data: stockOutDetails, error: detailsError } = await supabase
+          .from('stock_out_details')
+          .insert([{
+            stock_out_id: stockOutHeader.id,
+            product_id,
+            quantity
+          }])
+          .select();
 
-      if (detailsError) throw detailsError;
+        if (detailsError) throw detailsError;
 
-      // If we successfully created both records, update the reservation status
-      if (onStatusUpdate) {
-        onStatusUpdate(reservation_id);
+        // If we successfully created both records, update the reservation status
+        if (onStatusUpdate) {
+          onStatusUpdate(reservation_id);
+        }
+
+        return { header: stockOutHeader, details: stockOutDetails };
+      } catch (error) {
+        throw error;
       }
-
-      return { header: stockOutHeader, details: stockOutDetails };
     },
     onSuccess: (_, variables) => {
       toast({

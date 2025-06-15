@@ -1,22 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { InventoryTable } from '@/components/warehouse/InventoryTable';
-import InventoryPagination from './InventoryPagination';
-import { useInventoryData } from '@/hooks/useInventoryData';
-import { Button } from '@/components/ui/button';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Download, RefreshCw } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { useSimpleInventory } from '@/hooks/useSimpleInventory';
+import { toast } from '@/hooks/use-toast';
 
 interface InventoryTableContainerProps {
-  warehouseFilter: string;
-  batchFilter: string;
-  statusFilter: string;
-  searchTerm: string;
-  highlightedBarcode: string | null;
+  warehouseFilter?: string;
+  batchFilter?: string;
+  statusFilter?: string;
+  searchTerm?: string;
+  highlightedBarcode?: string | null;
   title?: string;
   sizeFilter?: string;
   quantityPerBoxFilter?: string;
   colorFilter?: string;
-  colorFilterType?: 'eq' | 'ilike';
+  colorFilterType?: string;
 }
 
 export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = ({
@@ -25,137 +27,220 @@ export const InventoryTableContainer: React.FC<InventoryTableContainerProps> = (
   statusFilter,
   searchTerm,
   highlightedBarcode,
-  title = 'Inventory Items',
-  sizeFilter = '',
-  quantityPerBoxFilter = '',
-  colorFilter = '',
-  colorFilterType = 'eq',
+  title = "Inventory Overview",
+  sizeFilter,
+  quantityPerBoxFilter,
+  colorFilter,
+  colorFilterType
 }) => {
-  const [sortField, setSortField] = useState<'lastUpdated' | 'quantity' | 'productName'>('lastUpdated');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const { data: inventoryItems, isLoading, error, refetch } = useSimpleInventory();
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [warehouseFilter, batchFilter, statusFilter, searchTerm]);
+  // Apply filters to the data
+  const filteredItems = React.useMemo(() => {
+    if (!inventoryItems) return [];
+    
+    return inventoryItems.filter(item => {
+      // Warehouse filter
+      if (warehouseFilter && item.warehouse_id !== warehouseFilter) return false;
+      
+      // Status filter
+      if (statusFilter && statusFilter !== '' && item.status !== statusFilter) return false;
+      
+      // Search term filter
+      if (searchTerm && searchTerm.trim() !== '') {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = 
+          item.product_name?.toLowerCase().includes(searchLower) ||
+          item.product_sku?.toLowerCase().includes(searchLower) ||
+          item.barcode?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+      
+      // Size filter
+      if (sizeFilter && sizeFilter.trim() !== '') {
+        if (!item.size?.toLowerCase().includes(sizeFilter.toLowerCase())) return false;
+      }
+      
+      // Color filter
+      if (colorFilter && colorFilter.trim() !== '') {
+        if (!item.color?.toLowerCase().includes(colorFilter.toLowerCase())) return false;
+      }
+      
+      // Quantity per box filter
+      if (quantityPerBoxFilter && quantityPerBoxFilter.trim() !== '') {
+        const filterValue = parseInt(quantityPerBoxFilter);
+        if (!isNaN(filterValue) && item.quantity !== filterValue) return false;
+      }
+      
+      return true;
+    });
+  }, [inventoryItems, warehouseFilter, statusFilter, searchTerm, sizeFilter, colorFilter, quantityPerBoxFilter]);
 
-  const { data, isLoading, error } = useInventoryData(
-    warehouseFilter,
-    batchFilter,
-    statusFilter,
-    searchTerm,
-    page,
-    pageSize,
-    sizeFilter,
-    quantityPerBoxFilter,
-    colorFilter,
-    colorFilterType
-  );
-
-  // Sorting (client-side for current page)
-  const sortedItems = (data?.data ?? []).sort((a, b) => {
-    if (sortField === 'quantity') {
-      return sortDirection === 'asc' 
-        ? a.quantity - b.quantity 
-        : b.quantity - a.quantity;
+  const handleExport = async () => {
+    if (!filteredItems || filteredItems.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'No Data',
+        description: 'No inventory data to export',
+      });
+      return;
     }
-    if (sortField === 'lastUpdated') {
-      return sortDirection === 'asc'
-        ? new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime()
-        : new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
-    }
-    if (sortField === 'productName') {
-      return sortDirection === 'asc'
-        ? a.productName.localeCompare(b.productName)
-        : b.productName.localeCompare(a.productName);
-    }
-    return 0;
-  });
 
-  const handleSort = (field: 'lastUpdated' | 'quantity' | 'productName') => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
+    setIsExporting(true);
+    try {
+      // Create CSV content
+      const headers = ['Product', 'SKU', 'Warehouse', 'Location', 'Quantity', 'Status', 'Color', 'Size', 'Batch ID'];
+      const csvContent = [
+        headers.join(','),
+        ...filteredItems.map(item => [
+          `"${item.product_name || ''}"`,
+          `"${item.product_sku || ''}"`,
+          `"${item.warehouse_name || ''}"`,
+          `"${item.location_details || ''}"`,
+          item.quantity,
+          `"${item.status || ''}"`,
+          `"${item.color || ''}"`,
+          `"${item.size || ''}"`,
+          `"${item.batch_id || ''}"`
+        ].join(','))
+      ].join('\n');
+
+      // Download CSV
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `inventory-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: 'Export Successful',
+        description: 'Inventory data has been exported to CSV',
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Export Failed',
+        description: 'Failed to export inventory data',
+      });
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const exportToCSV = () => {
-    // Export only the current page
-    if (!sortedItems.length) return;
-    const csvRows = [
-      [
-        'Product',
-        'Barcode',
-        'Quantity',
-        'Warehouse',
-        'Location',
-        'Status',
-        'Color',
-        'Size',
-        'Source',
-        'Last Updated',
-      ],
-      ...sortedItems.map((item) => [
-        item.productName,
-        item.barcode,
-        item.quantity,
-        item.warehouseName,
-        item.locationDetails,
-        item.status,
-        item.color ?? '',
-        item.size ?? '',
-        item.source ?? '',
-        item.lastUpdated,
-      ]),
-    ];
-    const csvContent = csvRows.map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'inventory_page.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <p className="text-destructive mb-4">Error loading inventory data</p>
+            <Button onClick={() => refetch()} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>{title}</CardTitle>
-        {sortedItems.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportToCSV}
-            className="flex items-center gap-1"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-        )}
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle>{title}</CardTitle>
+          <div className="flex gap-2">
+            <Button onClick={() => refetch()} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              onClick={handleExport} 
+              disabled={isExporting || !filteredItems || filteredItems.length === 0}
+              size="sm"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {isExporting ? 'Exporting...' : 'Export CSV'}
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <InventoryTable
-          inventoryItems={sortedItems}
-          isLoading={isLoading}
-          error={error as Error | null}
-          highlightedBarcode={highlightedBarcode}
-          onSort={handleSort}
-          sortField={sortField}
-          sortDirection={sortDirection}
-        />
-        {(data?.totalCount ?? 0) > 0 && (
-          <InventoryPagination
-            currentPage={page}
-            pageSize={pageSize}
-            totalItems={data?.totalCount ?? 0}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-          />
+        {!filteredItems || filteredItems.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No inventory items found</p>
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Warehouse</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Attributes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.map((item) => (
+                  <TableRow 
+                    key={item.id}
+                    className={highlightedBarcode && item.barcode === highlightedBarcode ? 'bg-yellow-100' : ''}
+                  >
+                    <TableCell className="font-medium">
+                      {item.product_name}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.product_sku}
+                    </TableCell>
+                    <TableCell>{item.warehouse_name}</TableCell>
+                    <TableCell className="text-sm">
+                      {item.location_details}
+                    </TableCell>
+                    <TableCell className="text-center font-semibold">
+                      {item.quantity}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={
+                        item.status === 'available' ? 'bg-green-500' :
+                        item.status === 'reserved' ? 'bg-blue-500' :
+                        item.status === 'sold' ? 'bg-purple-500' :
+                        item.status === 'damaged' ? 'bg-red-500' : ''
+                      }>
+                        {item.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {(item.color || item.size) ? (
+                        <div className="flex flex-wrap gap-1">
+                          {item.color && <Badge variant="outline" className="text-xs">{item.color}</Badge>}
+                          {item.size && <Badge variant="outline" className="text-xs">{item.size}</Badge>}
+                        </div>
+                      ) : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>

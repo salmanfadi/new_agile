@@ -24,6 +24,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles
   }, [isLoading, isAuthenticated, user, session, location]);
 
   // Show loading state while checking auth
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -45,6 +46,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles
       allowedRoles,
       path: location.pathname
     });
+
     return <Navigate to="/unauthorized" replace />;
   }
 

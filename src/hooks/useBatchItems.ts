@@ -1,76 +1,82 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { BatchItem } from '@/components/warehouse/BatchItemsTable';
-
-// Define the shape of the joined data from Supabase
-interface BatchItemWithRelations extends Omit<BatchItem, 'warehouseName' | 'locationDetails'> {
-  warehouses?: { name: string } | null;
-  warehouse_locations?: { floor: number | null; zone: string | null } | null;
-}
+import { BatchItemDisplay } from '@/components/warehouse/BatchItemsTable';
 
 export const useBatchItems = (batchId?: string) => {
   return useQuery({
     queryKey: ['batch-items', batchId],
-    queryFn: async (): Promise<BatchItem[]> => {
+    queryFn: async (): Promise<BatchItemDisplay[]> => {
       if (!batchId) return [];
-
-      try {
-        const { data, error } = await supabase
-          .from('batch_items')
-          .select(`
-            *,
-            warehouses (
-              name
-            ),
-            warehouse_locations!batch_items_location_id_fkey (
-              floor,
-              zone
-            )
-          `)
-          .eq('batch_id', batchId);
-
-        if (error) {
-          console.error('Error fetching batch items:', error);
-          throw new Error(error.message);
-        }
-
-        // Cast the data to our typed interface
-        const typedData = data as unknown as BatchItemWithRelations[];
-
-        return (typedData || []).map(item => {
-          // Extract warehouse name safely
-          const warehouseName = item.warehouses?.name || 'Unknown Warehouse';
-          
-          // Extract location details safely
-          let locationDetails = 'Unknown Location';
-          if (item.warehouse_locations) {
-            const floor = item.warehouse_locations.floor;
-            const zone = item.warehouse_locations.zone;
-            if (floor !== null && zone !== null) {
-              locationDetails = `Floor ${floor}, Zone ${zone}`;
-            }
-          }
-          
-          return {
-            id: item.id,
-            batch_id: item.batch_id || '',
-            barcode: item.barcode,
-            quantity: item.quantity,
-            color: item.color || undefined,
-            size: item.size || undefined,
-            warehouse_id: item.warehouse_id || '',
-            warehouseName,
-            location_id: item.location_id || '',
-            locationDetails,
-            status: item.status || 'available',
-            created_at: item.created_at || new Date().toISOString()
-          };
-        });
-      } catch (err) {
-        console.error('Error in useBatchItems:', err);
-        throw err;
+      
+      console.log('Fetching batch items for batch:', batchId);
+      
+      // First get the batch items
+      const { data: items, error: itemsError } = await supabase
+        .from('batch_items')
+        .select('*')
+        .eq('batch_id', batchId);
+      
+      if (itemsError) {
+        console.error('Error fetching batch items:', itemsError);
+        throw itemsError;
       }
+      
+      if (!items || items.length === 0) {
+        return [];
+      }
+      
+      // Get unique warehouse IDs
+      const warehouseIds = [...new Set(items.map(item => item.warehouse_id).filter(Boolean))];
+      const locationIds = [...new Set(items.map(item => item.location_id).filter(Boolean))];
+      
+      // Fetch warehouses separately
+      let warehouses: any[] = [];
+      if (warehouseIds.length > 0) {
+        const { data: warehouseData, error: warehouseError } = await supabase
+          .from('warehouses')
+          .select('id, name')
+          .in('id', warehouseIds);
+        
+        if (warehouseError) {
+          console.error('Error fetching warehouses:', warehouseError);
+        } else {
+          warehouses = warehouseData || [];
+        }
+      }
+      
+      // Fetch locations separately
+      let locations: any[] = [];
+      if (locationIds.length > 0) {
+        const { data: locationData, error: locationError } = await supabase
+          .from('warehouse_locations')
+          .select('id, zone, floor')
+          .in('id', locationIds);
+        
+        if (locationError) {
+          console.error('Error fetching locations:', locationError);
+        } else {
+          locations = locationData || [];
+        }
+      }
+      
+      // Create lookup maps
+      const warehouseMap = new Map(warehouses.map(w => [w.id, w]));
+      const locationMap = new Map(locations.map(l => [l.id, l]));
+      
+      // Combine the data
+      return items.map(item => {
+        const warehouse = warehouseMap.get(item.warehouse_id);
+        const location = locationMap.get(item.location_id);
+        
+        return {
+          ...item,
+          warehouse,
+          location,
+          warehouseName: warehouse?.name || 'Unknown Warehouse',
+          locationDetails: location ? `Floor ${location.floor} - Zone ${location.zone}` : 'Unknown Location'
+        } as BatchItemDisplay;
+      });
     },
     enabled: !!batchId
   });

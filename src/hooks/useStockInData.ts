@@ -1,8 +1,8 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/components/ui/use-toast';
 import { Product } from '@/types/database';
 
 export interface StockInData {
@@ -28,6 +28,7 @@ export interface StockInData {
 
 export const useStockInData = (stockInId: string | undefined) => {
   const [stockInData, setStockInData] = useState<StockInData | null>(null);
+  const { toast } = useToast();
 
   const { isLoading, error } = useQuery({
     queryKey: ['stock-in', stockInId],
@@ -40,17 +41,7 @@ export const useStockInData = (stockInId: string | undefined) => {
         // First, get the stock in record
         const { data, error } = await supabase
           .from('stock_in')
-          .select(`
-            id,
-            product_id,
-            submitted_by,
-            boxes,
-            status,
-            created_at,
-            source,
-            notes,
-            rejection_reason
-          `)
+          .select('id, product_id, submitted_by, boxes, status, created_at, source, notes, rejection_reason')
           .eq('id', stockInId)
           .single();
 
@@ -67,7 +58,7 @@ export const useStockInData = (stockInId: string | undefined) => {
         console.log('Stock in data retrieved:', data);
         
         // Fetch product information
-        let product = undefined;
+        let product: StockInData['product'] = undefined;
         if (data.product_id) {
           const { data: productData, error: productError } = await supabase
             .from('products')
@@ -76,11 +67,12 @@ export const useStockInData = (stockInId: string | undefined) => {
             .single();
             
           if (!productError && productData) {
+            // Ensure all fields are properly typed according to StockInData interface
             product = {
-              id: productData.id,
-              name: productData.name,
-              sku: productData.sku,
-              category: productData.category
+              id: typeof productData.id === 'string' ? productData.id : String(productData.id || ''),
+              name: typeof productData.name === 'string' ? productData.name : '',
+              sku: productData.sku ? String(productData.sku) : undefined,
+              category: productData.category ? String(productData.category) : undefined
             };
             console.log('Product data retrieved:', product);
           } else {
@@ -133,8 +125,9 @@ export const useStockInData = (stockInId: string | undefined) => {
           id: data.id,
           product,
           submitter: submitter,
-          boxes: data.boxes,
-          status: data.status,
+          boxes: typeof data.boxes === 'string' ? parseInt(data.boxes, 10) : 
+                 typeof data.boxes === 'number' ? data.boxes : 0,
+          status: data.status as 'pending' | 'approved' | 'rejected' | 'completed' | 'processing',
           created_at: data.created_at,
           source: data.source || 'Unknown Source',
           notes: data.notes,

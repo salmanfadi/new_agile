@@ -1,302 +1,165 @@
 
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
 import { useCart } from '@/hooks/useCart';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { 
-  Card, 
-  CardContent, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  ShoppingCart, 
-  Trash2, 
-  ChevronLeft, 
-  Package,
-  Loader2
-} from 'lucide-react';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-
-// Form schema
-const inquiryFormSchema = z.object({
-  customerName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
-  customerEmail: z.string().email({ message: 'Please enter a valid email address' }),
-  customerCompany: z.string().optional(),
-  message: z.string().optional()
-});
-
-type InquiryFormValues = z.infer<typeof inquiryFormSchema>;
+import { Minus, Plus, Trash2, Package } from 'lucide-react';
 
 const Cart: React.FC = () => {
-  const { cartItems, updateCartItem, removeFromCart, clearCart } = useCart();
-  const [submitting, setSubmitting] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  
-  const form = useForm<InquiryFormValues>({
-    resolver: zodResolver(inquiryFormSchema),
-    defaultValues: {
-      customerName: '',
-      customerEmail: '',
-      customerCompany: '',
-      message: ''
-    }
-  });
-  
-  const onSubmit = async (values: InquiryFormValues) => {
-    if (cartItems.length === 0) {
-      toast({
-        title: "Cart is empty",
-        description: "Please add products to your cart before submitting an inquiry.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setSubmitting(true);
-    
-    try {
-      const { error } = await supabase.functions.invoke('submit-inquiry', {
-        body: {
-          customer_name: values.customerName,
-          customer_email: values.customerEmail,
-          customer_company: values.customerCompany,
-          message: values.message,
-          products: cartItems.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            requirements: item.requirements
-          }))
-        }
-      });
-      
-      if (error) throw new Error(error.message);
-      
-      toast({
-        title: "Inquiry submitted",
-        description: "We'll get back to you soon with pricing information!"
-      });
-      
-      clearCart();
-      navigate('/products', { replace: true });
-      
-    } catch (error) {
-      console.error('Error submitting inquiry:', error);
-      toast({
-        title: "Submission failed",
-        description: "There was a problem submitting your inquiry. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setSubmitting(false);
+  const { 
+    items, 
+    updateQuantity, 
+    updateRequirements, 
+    removeFromCart, 
+    clearCart, 
+    getTotalItems, 
+    getTotalPrice 
+  } = useCart();
+
+  const handleQuantityChange = (productId: string, newQuantity: number) => {
+    if (newQuantity < 1) {
+      removeFromCart(productId);
+    } else {
+      updateQuantity(productId, newQuantity);
     }
   };
-  
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  
+
+  const handleRequirementsChange = (productId: string, requirements: string) => {
+    updateRequirements(productId, requirements);
+  };
+
+  if (items.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+        <div className="text-center py-12">
+          <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</h3>
+          <p className="text-gray-500">Add some products to your cart to get started.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center mb-8">
-        <Link to="/products">
-          <Button variant="ghost" className="flex items-center">
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Back to Products
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold ml-4">Your Cart</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Shopping Cart</h1>
+        <Button variant="outline" onClick={clearCart}>
+          Clear Cart
+        </Button>
       </div>
-      
-      {cartItems.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2 space-y-4">
-            {cartItems.map((item) => (
-              <Card key={item.productId} className="overflow-hidden">
-                <div className="flex flex-col sm:flex-row">
-                  <div className="bg-gray-100 w-full sm:w-32 h-32 flex items-center justify-center shrink-0">
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-4">
+          {items.map((item) => (
+            <Card key={item.product_id}>
+              <CardContent className="p-6">
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-md flex items-center justify-center">
                     {item.product.image_url ? (
-                      <img 
-                        src={item.product.image_url} 
-                        alt={item.product.name} 
-                        className="object-cover w-full h-full" 
+                      <img
+                        src={item.product.image_url}
+                        alt={item.product.name}
+                        className="w-full h-full object-cover rounded-md"
                       />
                     ) : (
-                      <Package className="h-12 w-12 text-gray-400" />
+                      <Package className="h-8 w-8 text-gray-400" />
                     )}
                   </div>
-                  <div className="flex flex-col flex-grow p-4">
-                    <h3 className="font-medium text-lg">{item.product.name}</h3>
-                    <p className="text-sm text-gray-500 mb-2">SKU: {item.product.sku || 'N/A'}</p>
+                  
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {item.product.name}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      SKU: {item.product.sku}
+                    </p>
                     
-                    <div className="mt-auto flex flex-wrap gap-4 items-end justify-between">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Quantity</label>
-                        <Input 
-                          type="number" 
-                          min={1} 
-                          value={item.quantity} 
-                          onChange={(e) => updateCartItem(item.productId, Number(e.target.value))}
-                          className="w-20" 
-                        />
-                      </div>
-                      
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-red-500 hover:text-red-700"
-                        onClick={() => removeFromCart(item.productId)}
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Special Requirements
+                      </label>
+                      <Textarea
+                        value={item.requirements || ''}
+                        onChange={(e) => handleRequirementsChange(item.product_id, e.target.value)}
+                        placeholder="Any special requirements or notes..."
+                        rows={2}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col items-end space-y-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFromCart(item.product_id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuantityChange(item.product_id, item.quantity - 1)}
+                        disabled={item.quantity <= 1}
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Remove
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => handleQuantityChange(item.product_id, parseInt(e.target.value) || 1)}
+                        className="w-16 text-center"
+                      />
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuantityChange(item.product_id, item.quantity + 1)}
+                      >
+                        <Plus className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 </div>
-                <div className="px-4 pb-4">
-                  <label className="text-sm font-medium">Specific Requirements (Optional)</label>
-                  <Textarea 
-                    value={item.requirements || ''} 
-                    onChange={(e) => updateCartItem(item.productId, item.quantity, e.target.value)}
-                    placeholder="Add any specific requirements for this product"
-                    className="mt-2"
-                  />
-                </div>
-              </Card>
-            ))}
-            
-            <div className="flex justify-between items-center">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={clearCart}
-              >
-                Clear Cart
-              </Button>
-              
-              <div className="text-right">
-                <p className="text-lg font-medium">Total Items: {totalItems}</p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Inquiry Form */}
-          <Card className="lg:col-span-1">
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="lg:col-span-1">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5" />
-                Request Pricing
-              </CardTitle>
+              <CardTitle>Order Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="customerName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Your full name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="customerEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="your@email.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="customerCompany"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Company (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Your company name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="message"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Additional Message (Optional)</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Any additional information you'd like us to know" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <Button 
-                    type="submit" 
-                    disabled={submitting} 
-                    className="w-full"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      'Submit Inquiry'
-                    )}
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span>Total Items:</span>
+                  <span className="font-medium">{getTotalItems()}</span>
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <Button className="w-full" size="lg">
+                    Submit Inquiry
                   </Button>
-                </form>
-              </Form>
+                  <p className="text-sm text-gray-500 mt-2 text-center">
+                    This will create an inquiry for these products
+                  </p>
+                </div>
+              </div>
             </CardContent>
-            <CardFooter className="text-sm text-gray-500 flex justify-center">
-              <p>We'll get back to you with pricing shortly</p>
-            </CardFooter>
           </Card>
         </div>
-      ) : (
-        <div className="text-center py-12">
-          <ShoppingCart className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium mb-2">Your cart is empty</h3>
-          <p className="text-gray-500 mb-8">
-            Looks like you haven't added any products to your cart yet.
-          </p>
-          <Link to="/products">
-            <Button>Browse Products</Button>
-          </Link>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

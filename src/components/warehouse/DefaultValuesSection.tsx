@@ -7,9 +7,20 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { DefaultValuesForm } from '@/components/warehouse/DefaultValuesForm';
-import { DefaultValues } from '@/hooks/useStockInBoxes';
-import { Warehouse, Location } from '@/hooks/useWarehouseData';
+import { DefaultValuesForm, DefaultValues } from '@/components/warehouse/DefaultValuesForm';
+
+// Use the same types as DefaultValuesForm to avoid conflicts
+interface Warehouse {
+  id: string;
+  name: string;
+}
+
+interface Location {
+  id: string;
+  warehouse_id: string;
+  zone: string;
+  floor: string;
+}
 
 interface DefaultValuesSectionProps {
   defaultValues: DefaultValues;

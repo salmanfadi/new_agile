@@ -4,8 +4,13 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 
 const BarcodeScannerPage: React.FC = () => {
+  const handleBarcodeScanned = (barcode: string) => {
+    console.log('Barcode scanned:', barcode);
+    // Handle barcode scanning result
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       <PageHeader 
         title="Barcode Scanner" 
         description="Test the barcode scanning functionality"
@@ -26,6 +31,8 @@ const BarcodeScannerPage: React.FC = () => {
         <BarcodeScanner 
           allowManualEntry={true}
           allowCameraScanning={true}
+          onBarcodeScanned={handleBarcodeScanned}
+          scanButtonLabel="Scan Barcode"
         />
       </div>
     </div>

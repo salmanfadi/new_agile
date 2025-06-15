@@ -21,6 +21,7 @@ export interface ProcessedBatchesTableProps {
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
+  highlightBatchId?: string | null;
 }
 
 export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({ 
@@ -29,7 +30,8 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
   onPrintBarcodes,
   page = 1,
   pageSize = 10,
-  onPageChange
+  onPageChange,
+  highlightBatchId = null
 }) => {
   const navigate = useNavigate();
   const { 
@@ -65,10 +67,55 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
     refetch();
   };
   
+  // Show skeleton UI instead of a spinner when loading
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+          <div className="h-8 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+        </div>
+        
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Batch ID</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Boxes</TableHead>
+                <TableHead>Submitted By</TableHead>
+                <TableHead>Processed By</TableHead>
+                <TableHead>Processed Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array(5).fill(0).map((_, index) => (
+                <TableRow key={`skeleton-row-${index}`}>
+                  <TableCell><div className="h-4 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div></TableCell>
+                  <TableCell>
+                    <div className="space-y-2">
+                      <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                      <div className="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                    </div>
+                  </TableCell>
+                  <TableCell><div className="h-4 w-8 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div></TableCell>
+                  <TableCell><div className="h-4 w-8 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div></TableCell>
+                  <TableCell><div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div></TableCell>
+                  <TableCell><div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div></TableCell>
+                  <TableCell><div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div></TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end space-x-2">
+                      <div className="h-8 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                      <div className="h-8 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   }
@@ -119,7 +166,10 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
           </TableHeader>
           <TableBody>
             {data.data.map((batch) => (
-              <TableRow key={batch.id}>
+              <TableRow 
+                key={batch.id} 
+                className={batch.id === highlightBatchId ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
+              >
                 <TableCell className="font-medium">{batch.id.slice(0, 8)}</TableCell>
                 <TableCell>
                   <div>

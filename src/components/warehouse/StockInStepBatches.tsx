@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { BoxData } from '@/hooks/useStockInBoxes';
 import { useWarehouses } from '@/hooks/useWarehouses';
@@ -10,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { toast } from '@/components/ui/use-toast';
 import { Loader2, Plus, Trash2, Check, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { StockInRequestData } from '@/hooks/useStockInRequests';
+import { StockInRequestData } from '@/types/database';
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -91,7 +92,7 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
   
   // Track total boxes across all batches
   const totalBoxesInBatches = batches.reduce((sum, batch) => sum + batch.boxCount, 0);
-  const remainingBoxes = Math.max(0, stockIn.number_of_boxes - totalBoxesInBatches);
+  const remainingBoxes = Math.max(0, (stockIn?.boxes || 0) - totalBoxesInBatches);
   
   // Get selected warehouse name
   const getWarehouseName = (id: string) => {
@@ -213,7 +214,7 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
         <CardHeader>
           <CardTitle>Create Batch</CardTitle>
           <CardDescription>
-            Group boxes into batches by warehouse, location and properties. Total boxes: {stockIn.number_of_boxes}, Remaining: {remainingBoxes}
+            Group boxes into batches by warehouse, location and properties. Total boxes: {stockIn?.boxes || 0}, Remaining: {remainingBoxes}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -316,12 +317,12 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
         </CardFooter>
       </Card>
 
-      {remainingBoxes !== stockIn.number_of_boxes && (
+      {remainingBoxes !== (stockIn?.boxes || 0) && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Batch Status</AlertTitle>
           <AlertDescription>
-            You have created batches for {totalBoxesInBatches} out of {stockIn.number_of_boxes} boxes.
+            You have created batches for {totalBoxesInBatches} out of {stockIn?.boxes || 0} boxes.
             {remainingBoxes > 0 ? ` You still need to allocate ${remainingBoxes} more boxes.` : ' All boxes have been allocated.'}
           </AlertDescription>
         </Alert>
@@ -389,4 +390,4 @@ const StockInStepBatches: React.FC<StockInStepBatchesProps> = ({
   );
 }
 
-export default StockInStepBatches; 
+export default StockInStepBatches;

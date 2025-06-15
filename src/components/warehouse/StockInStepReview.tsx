@@ -1,87 +1,100 @@
+
 import React from 'react';
-import { StockInRequestData } from '@/hooks/useStockInRequests';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { DefaultValuesType } from './StockInWizard';
 
-interface StockInStepReviewProps {
-  stockIn: StockInRequestData;
-  onContinue: () => Promise<void>;
-  onCancel: () => void;
-  warehouseId: string;
-  setWarehouseId: React.Dispatch<React.SetStateAction<string>>;
-  locationId: string;
-  setLocationId: React.Dispatch<React.SetStateAction<string>>;
-  defaultValues: DefaultValuesType;
-  setDefaultValues: React.Dispatch<React.SetStateAction<DefaultValuesType>>;
-  confirmedBoxes: number;
-  setConfirmedBoxes: React.Dispatch<React.SetStateAction<number>>;
-  isLoading: boolean;
+// Define the type here to avoid import issues
+interface DefaultValuesType {
+  warehouse_id: string;
+  location_id: string;
+  color: string;
+  size: string;
+  quantity: number;
 }
 
-const StockInStepReview: React.FC<StockInStepReviewProps> = ({
-  stockIn,
-  onContinue,
-  onCancel,
-  warehouseId,
-  setWarehouseId,
-  locationId,
-  setLocationId,
+interface BoxData {
+  id: string;
+  barcode: string;
+  quantity: number;
+  color: string;
+  size: string;
+  warehouse_id: string;
+  location_id: string;
+}
+
+interface StockInStepReviewProps {
+  boxes: BoxData[];
+  defaultValues: DefaultValuesType;
+  warehouses: Array<{ id: string; name: string }>;
+  locations: Array<{ id: string; warehouse_id: string; zone: string; floor: string }>;
+}
+
+export const StockInStepReview: React.FC<StockInStepReviewProps> = ({
+  boxes,
   defaultValues,
-  setDefaultValues,
-  confirmedBoxes,
-  setConfirmedBoxes,
-  isLoading
+  warehouses,
+  locations
 }) => {
-  // This step is read-only, no data fetching needed
+  const getWarehouseName = (warehouseId: string) => {
+    return warehouses.find(w => w.id === warehouseId)?.name || 'Unknown Warehouse';
+  };
+
+  const getLocationName = (locationId: string) => {
+    const location = locations.find(l => l.id === locationId);
+    return location ? `Floor ${location.floor} - Zone ${location.zone}` : 'Unknown Location';
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Review Stock In Request</CardTitle>
+          <CardTitle>Review Stock In Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
-              <h3 className="font-medium mb-2">Product</h3>
-              <p>{stockIn.product.name}</p>
-              {stockIn.product.sku && (
-                <p className="text-sm text-gray-500">SKU: {stockIn.product.sku}</p>
-              )}
-            </div>
-            <div>
-              <h3 className="font-medium mb-2">Number of Boxes</h3>
-              <p>{stockIn.number_of_boxes}</p>
-            </div>
-            <div>
-              <h3 className="font-medium mb-2">Source</h3>
-              <p>{stockIn.source}</p>
-            </div>
-            {stockIn.notes && (
-              <div>
-                <h3 className="font-medium mb-2">Notes</h3>
-                <p>{stockIn.notes}</p>
+              <h4 className="font-medium mb-2">Default Values Applied</h4>
+              <div className="space-y-2 text-sm">
+                <p><span className="font-medium">Warehouse:</span> {getWarehouseName(defaultValues.warehouse_id)}</p>
+                <p><span className="font-medium">Location:</span> {getLocationName(defaultValues.location_id)}</p>
+                <p><span className="font-medium">Color:</span> {defaultValues.color || 'Not set'}</p>
+                <p><span className="font-medium">Size:</span> {defaultValues.size || 'Not set'}</p>
+                <p><span className="font-medium">Quantity per box:</span> {defaultValues.quantity}</p>
               </div>
-            )}
+            </div>
             <div>
-              <h3 className="font-medium mb-2">Status</h3>
-              <Badge>{stockIn.status}</Badge>
+              <h4 className="font-medium mb-2">Summary</h4>
+              <div className="space-y-2 text-sm">
+                <p><span className="font-medium">Total Boxes:</span> {boxes.length}</p>
+                <p><span className="font-medium">Total Items:</span> {boxes.reduce((sum, box) => sum + box.quantity, 0)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-medium mb-2">Boxes to be processed</h4>
+            <div className="max-h-64 overflow-y-auto">
+              <div className="grid gap-2">
+                {boxes.map((box, index) => (
+                  <div key={box.id} className="flex items-center justify-between p-2 border rounded">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm">{box.barcode}</span>
+                      <Badge variant="outline">Qty: {box.quantity}</Badge>
+                      {box.color && <Badge variant="outline">{box.color}</Badge>}
+                      {box.size && <Badge variant="outline">{box.size}</Badge>}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {getWarehouseName(box.warehouse_id)} - {getLocationName(box.location_id)}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button onClick={onContinue} disabled={isLoading}>
-          Continue
-        </Button>
-      </div>
     </div>
   );
 };
 
-export default StockInStepReview; 
+export default StockInStepReview;

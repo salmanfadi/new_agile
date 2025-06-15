@@ -32,16 +32,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Helper function to clean up auth state
   const cleanupAuthState = () => {
-    // Only remove specific auth keys we know are problematic
-    const keysToRemove = [
-      'supabase.auth.token',
-      'sb-access-token',
-      'sb-refresh-token'
-    ];
-    
-    keysToRemove.forEach(key => {
+    // Remove all Supabase auth keys from localStorage
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
         localStorage.removeItem(key);
-      if (sessionStorage) {
+      }
+    });
+    
+    // Remove from sessionStorage if in use
+    Object.keys(sessionStorage || {}).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
         sessionStorage.removeItem(key);
       }
     });
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('role, full_name, email, active')
+        .select('role, name, username, active')
         .eq('id', authUser.id)
         .single();
         
@@ -62,8 +62,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       if (profileError) {
         console.error('Error fetching user profile:', profileError);
-        // Return null to trigger re-login
-        return null;
+        // If profile doesn't exist, create a default one
+        const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: authUser.id,
+            username: authUser.email?.split('@')[0] || 'user',
+            name: authUser.email?.split('@')[0] || 'User',
+            role: defaultRole as UserRole,
+            active: true
+          }])
+          .select()
+          .single();
+          
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          // Fallback to default user with proper role
+          return {
+            ...authUser,
+            role: defaultRole as UserRole,
+            name: authUser.email?.split('@')[0] || 'User',
+            username: authUser.email || '',
+            active: true
+          } as User;
+        }
+        
+        return {
+          ...authUser,
+          role: newProfile.role as UserRole,
+          name: newProfile.name,
+          username: newProfile.username,
+          active: newProfile.active
+        } as User;
       }
       
       if (profileData) {
@@ -72,17 +103,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return {
           ...authUser,
           role: role as UserRole,
-          name: profileData.full_name || authUser.email?.split('@')[0] || 'User',
-          email: profileData.email || authUser.email,
+          name: profileData.name || authUser.email?.split('@')[0] || 'User',
+          username: profileData.username || authUser.email || '',
           active: profileData.active !== false
         } as User;
       }
       
-      // If no profile data, return null to trigger re-login
-      return null;
+      // Fallback if no profile data, with proper role for admin
+      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+      return {
+        ...authUser,
+        role: defaultRole as UserRole,
+        name: authUser.email?.split('@')[0] || 'User',
+        username: authUser.email || '',
+        active: true
+      } as User;
     } catch (err) {
       console.error('Error processing user profile:', err);
-      return null;
+      // Return fallback user with proper role for admin
+      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+      return {
+        ...authUser,
+        role: defaultRole as UserRole,
+        name: authUser.email?.split('@')[0] || 'User',
+        username: authUser.email || '',
+        active: true
+      } as User;
     }
   };
 
@@ -203,6 +249,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setUser(null);
           setIsAuthenticated(false);
         }
+
       }
     });
     

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { useInventoryData } from '@/hooks/useInventoryData';
-import { InventoryTable } from '@/components/warehouse/InventoryTable';
+import InventoryTable from '@/components/warehouse/InventoryTable';
 
 export const InventoryStatus = () => {
   const [searchTerm, setSearchTerm] = useState('');

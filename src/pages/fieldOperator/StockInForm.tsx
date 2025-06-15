@@ -87,9 +87,8 @@ const StockInForm: React.FC = () => {
         submitted_by: data.submitted_by,
         source: data.source,
         notes: data.notes,
-        status: 'pending',
-        number_of_boxes: data.number_of_boxes,
-        quantity: data.number_of_boxes * 10 // Default quantity per box, adjust as needed
+        status: 'pending' as const,
+        boxes: Number(data.number_of_boxes)
       };
       
       const { data: result, error } = await supabase
@@ -116,24 +115,17 @@ const StockInForm: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['operator-recent-activities', user?.id] });
       
       toast({
-        title: 'Success!',
-        description: `Stock in request for ${formData.numberOfBoxes} boxes has been submitted successfully.`,
+        title: 'Stock In request submitted!',
+        description: `${formData.numberOfBoxes} boxes of the selected product have been submitted for processing.`,
       });
       navigate('/operator/submissions');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Submission error:", error);
-      
-      // More descriptive error message
-      let errorMessage = 'Failed to submit stock in request';
-      if (error.message?.includes('row-level security')) {
-        errorMessage = 'You do not have permission to create stock in requests. Please contact your administrator.';
-      }
-      
       toast({
         variant: 'destructive',
         title: 'Submission failed',
-        description: errorMessage,
+        description: error instanceof Error ? error.message : 'Failed to submit stock in request',
       });
     },
   });
@@ -289,10 +281,10 @@ const StockInForm: React.FC = () => {
               variant="ghost"
               size="sm"
               className="mb-2 -ml-2"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/field')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
+              Back to Home
             </Button>
             <CardTitle>Stock In Form</CardTitle>
           </CardHeader>
