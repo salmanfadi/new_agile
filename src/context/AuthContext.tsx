@@ -135,45 +135,72 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     console.log('AuthContext: Initializing...');
     
-    // Get initial session
+    // Get initial session with retry mechanism
     const getInitialSession = async () => {
       setIsLoading(true);
+      let retryCount = 0;
+      const maxRetries = 3;
+      const timeout = 10000; // 10 seconds timeout
       
-      try {
-        console.log('Fetching session from Supabase...');
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          setError(error);
-          setSession(null);
-          setUser(null);
-          setIsAuthenticated(false);
-        } else if (data.session) {
-          console.log('Session found, processing user...');
-          setSession(data.session);
+      const attemptSessionFetch = async () => {
+        try {
+          console.log(`Fetching session from Supabase (attempt ${retryCount + 1})...`);
           
-          if (data.session.user) {
-            const userWithProfile = await getUserProfile(data.session.user);
-            setUser(userWithProfile);
-            setIsAuthenticated(true);
-            console.log('User authenticated:', userWithProfile);
+          const sessionPromise = supabase.auth.getSession();
+          const timeoutPromise = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Auth check timeout')), timeout)
+          );
+          
+          const { data, error } = await Promise.race([
+            sessionPromise,
+            timeoutPromise
+          ]);
+          
+          if (error) {
+            throw error;
+          }
+          
+          if (data?.session) {
+            console.log('Session found, processing user...');
+            setSession(data.session);
+            
+            if (data.session.user) {
+              const userWithProfile = await getUserProfile(data.session.user);
+              if (userWithProfile) {
+                setUser(userWithProfile);
+                setIsAuthenticated(true);
+                console.log('User authenticated:', userWithProfile);
+              } else {
+                console.log('No user profile found');
+                setUser(null);
+                setIsAuthenticated(false);
+              }
+            }
           } else {
+            console.log('No session found');
+            setSession(null);
             setUser(null);
             setIsAuthenticated(false);
           }
-        } else {
-          console.log('No session found');
+          return true;
+        } catch (err) {
+          console.error(`Error in getInitialSession (attempt ${retryCount + 1}):`, err);
+          if (retryCount < maxRetries - 1) {
+            retryCount++;
+            console.log(`Retrying in ${retryCount * 2} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
+            return attemptSessionFetch();
+          }
+          setError(err instanceof Error ? err : new Error('Failed to initialize auth'));
           setSession(null);
           setUser(null);
           setIsAuthenticated(false);
+          return false;
         }
-      } catch (err) {
-        console.error('Error in getInitialSession:', err);
-        setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-        setSession(null);
-        setUser(null);
-        setIsAuthenticated(false);
+      };
+      
+      try {
+        await attemptSessionFetch();
       } finally {
         setIsLoading(false);
       }
@@ -181,30 +208,48 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     getInitialSession();
     
-    // Listen for auth changes
+    // Listen for auth changes with timeout handling
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', { event, session });
-      setSession(session);
       
-      if (session?.user) {
-        console.log('User session found, processing profile...');
-        setIsAuthenticated(true);
+      try {
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Auth state change timeout')), 10000)
+        );
         
-        // Use setTimeout to avoid potential deadlocks
-        setTimeout(async () => {
-          try {
-            const userWithProfile = await getUserProfile(session.user);
-            setUser(userWithProfile);
-            console.log('User profile updated:', userWithProfile);
-          } catch (err) {
-            console.error('Error in auth state change:', err);
-            setError(err instanceof Error ? err : new Error('Failed to load user profile'));
-          }
-        }, 0);
-      } else {
-        console.log('No user session, clearing state');
-        setUser(null);
-        setIsAuthenticated(false);
+        await Promise.race([
+          (async () => {
+            setSession(session);
+            
+            if (session?.user) {
+              console.log('User session found, processing profile...');
+              const userWithProfile = await getUserProfile(session.user);
+              if (userWithProfile) {
+                setUser(userWithProfile);
+                setIsAuthenticated(true);
+                console.log('User profile updated and authenticated:', userWithProfile);
+              } else {
+                setUser(null);
+                setIsAuthenticated(false);
+                console.log('User profile not found or inactive');
+              }
+            } else {
+              console.log('No user session, clearing state');
+              setUser(null);
+              setIsAuthenticated(false);
+            }
+          })(),
+          timeoutPromise
+        ]);
+      } catch (err) {
+        console.error('Error in auth state change:', err);
+        setError(err instanceof Error ? err : new Error('Auth state change failed'));
+        // Don't clear auth state on timeout, maintain previous state
+        if (!(err instanceof Error && err.message.includes('timeout'))) {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+
       }
     });
     
@@ -220,14 +265,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       console.log('Attempting login with email:', email);
       
-      // Clean up any existing auth state
-      cleanupAuthState();
-      
-      // Attempt global sign out to ensure clean state
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        console.log("Sign out before login failed:", err);
+      // Only clean up if there's an existing session
+      const { data: existingSession } = await supabase.auth.getSession();
+      if (existingSession?.session) {
+        try {
+          await supabase.auth.signOut();
+        } catch (err) {
+          console.log("Sign out before login failed:", err);
+        }
       }
       
       const { data, error } = await supabase.auth.signInWithPassword({

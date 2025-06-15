@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Warehouse, LogOut, User, Settings } from 'lucide-react';
@@ -16,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
 interface HeaderProps {
   isCollapsed?: boolean;
@@ -24,7 +24,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ isCollapsed = false, className, toggleSidebar }) => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   // Get user initials for avatar fallback
@@ -35,12 +35,22 @@ const Header: React.FC<HeaderProps> = ({ isCollapsed = false, className, toggleS
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      // First navigate to login to prevent any auth-required route issues
+      navigate('/login', { replace: true });
+      
+      // Then sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Clear any auth-related local storage
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('sb-access-token');
+      localStorage.removeItem('sb-refresh-token');
+      
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of your account",
       });
-      navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
       toast({
@@ -83,7 +93,7 @@ const Header: React.FC<HeaderProps> = ({ isCollapsed = false, className, toggleS
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="rounded-full p-0 h-9 w-9 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <Avatar className="h-9 w-9 border">
-                  <AvatarImage src={user.avatar_url} alt={user.name || user.email} />
+                  <AvatarImage src={undefined} alt={user.name || user.email} />
                   <AvatarFallback>{getUserInitials()}</AvatarFallback>
                 </Avatar>
               </Button>

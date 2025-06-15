@@ -1,6 +1,115 @@
 # Agile Warehouse UI
 
-A **React + Vite + TypeScript** front-end for Agile Warehouse – an inventory-management platform backed by **Supabase**.  The UI lets Admins, Warehouse Managers and Field Operators manage stock-in, stock-out, transfers and barcode-driven look-ups with real-time updates.
+A modern warehouse management system built with React, TypeScript, and Supabase.
+
+## Recent Changes (2024-03-21)
+
+### Authentication and User Management
+- Fixed logout functionality in the Header component
+  - Updated auth hook import from `@/context/AuthContext` to `@/hooks/useAuth`
+  - Improved logout process to properly clear auth state
+  - Added immediate navigation to login screen after logout
+  - Added cleanup of auth-related local storage tokens
+
+### Customer Management
+- Fixed the Customers tab in the Sales Operator page
+  - Updated database schema integration
+  - Fixed profile data display
+  - Added proper role filtering for non-staff users
+  - Improved error handling and loading states
+
+## Project Structure
+
+```
+src/
+├── components/
+│   ├── layout/
+│   │   └── Header.tsx       # Main navigation and auth controls
+│   └── ui/                  # Reusable UI components
+├── context/
+│   └── AuthContext.tsx      # Authentication context
+├── hooks/
+│   ├── useAuth.ts          # Authentication hook
+│   └── use-toast.ts        # Toast notifications
+├── lib/
+│   └── supabase.ts         # Supabase client configuration
+├── pages/
+│   ├── admin/              # Admin-specific pages
+│   └── salesOperator/      # Sales operator pages
+└── types/                  # TypeScript type definitions
+```
+
+## Features
+
+- 🔐 Authentication with Supabase
+- 👥 Role-based access control
+- 📊 Customer management
+- 🏢 Warehouse management
+- 📦 Inventory tracking
+- 🛍️ Sales operations
+- 🌙 Dark mode support
+
+## Getting Started
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up environment variables:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## Environment Setup
+
+The project requires the following environment variables:
+
+- `VITE_SUPABASE_URL`: Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous key
+
+## Authentication
+
+The application uses Supabase Authentication with the following features:
+- Email/Password authentication
+- Role-based access control
+- Secure session management
+- Automatic token refresh
+- Profile management
+
+## Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm run test` - Run tests
+
+## Tech Stack
+
+- React
+- TypeScript
+- Vite
+- Supabase
+- TailwindCSS
+- Shadcn UI
+- React Query
+- React Router
+
+## Contributing
+
+1. Create a feature branch
+2. Make your changes
+3. Submit a pull request
+
+## License
+
+MIT
 
 ---
 ## 📂 Project structure

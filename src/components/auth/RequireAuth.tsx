@@ -8,44 +8,45 @@ interface RequireAuthProps {
   allowedRoles?: UserRole[];
 }
 
-export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles = [] }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+export const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => {
+  const { user, isAuthenticated, isLoading, session } = useAuth();
   const location = useLocation();
 
-  // Debug logging
+  // Add debug logging
   useEffect(() => {
-    console.log('Auth state:', { 
-      isAuthenticated, 
-      user: { 
-        id: user?.id, 
-        email: user?.email,
-        role: user?.role,
-        active: user?.active 
-      },
-      currentPath: location.pathname,
-      search: location.search,
-      allowedRoles,
-      hasRequiredRole: user ? allowedRoles.includes(user.role) : false
+    console.log('RequireAuth state:', {
+      isLoading,
+      isAuthenticated,
+      user,
+      session,
+      currentPath: location.pathname
     });
-  }, [isAuthenticated, user, location, allowedRoles]);
+  }, [isLoading, isAuthenticated, user, session, location]);
 
-  // Development bypass for barcodes route - remove in production
-  if (process.env.NODE_ENV === 'development' && location.pathname.includes('barcodes')) {
-    console.warn('Bypassing auth for barcodes route in development mode');
-    return <>{children}</>;
-  }
+  // Show loading state while checking auth
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
-  if (!isAuthenticated || !user) {
-    console.log('Not authenticated, redirecting to login');
+  // Only redirect if we're sure the user is not authenticated
+  if (!isLoading && (!isAuthenticated || !user)) {
+    console.log('Redirecting to login from:', location.pathname);
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    console.log('User role not allowed:', user.role, 'Allowed roles:', allowedRoles);
+  // Check role access
+  if (!isLoading && allowedRoles && !allowedRoles.includes(user.role)) {
+    console.log('Unauthorized access attempt:', {
+      userRole: user.role,
+      allowedRoles,
+      path: location.pathname
+    });
+
     return <Navigate to="/unauthorized" replace />;
   }
 
