@@ -31,29 +31,47 @@ export function useBarcodeProcessor({
     setError(null);
     
     try {
-      // First try to find the inventory item directly using our database function
-      const { data: inventoryData, error: inventoryError } = await supabase.rpc(
-        'find_inventory_by_barcode',
-        { search_barcode: scannedBarcode }
-      );
+      // First try to find the inventory item directly by querying the inventory table
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select(`
+          id,
+          product_id,
+          quantity,
+          barcode,
+          color,
+          size,
+          batch_id,
+          status,
+          warehouse_id,
+          location_id,
+          products!inner(id, name, sku, description),
+          warehouses!inner(id, name),
+          warehouse_locations!inner(id, zone, floor)
+        `)
+        .eq('barcode', scannedBarcode)
+        .limit(1);
       
       if (inventoryError) {
         console.error('Error finding inventory by barcode:', inventoryError);
       }
       
       // If we found the item directly, process it
-      if (inventoryData && inventoryData.length > 0) {
+      if (inventoryData && Array.isArray(inventoryData) && inventoryData.length > 0) {
         const item = inventoryData[0];
         
         // Get warehouse and location IDs
-        const warehouseId = await getWarehouseId(item.warehouse_name);
-        const locationId = await getLocationId(item.floor, item.zone);
+        const warehouseId = await getWarehouseId(item.warehouses?.name || '');
+        const locationId = await getLocationId(
+          parseInt(item.warehouse_locations?.floor || '1'), 
+          item.warehouse_locations?.zone || ''
+        );
         
         // Log the scan for tracking purposes using inventory_movements
         const logDetails = { 
-          inventory_id: item.inventory_id,
-          product_name: item.product_name,
-          location: `${item.warehouse_name} - Floor ${item.floor} - Zone ${item.zone}`,
+          inventory_id: item.id,
+          product_name: item.products?.name || 'Unknown Product',
+          location: `${item.warehouses?.name} - Floor ${item.warehouse_locations?.floor} - Zone ${item.warehouse_locations?.zone}`,
           barcode: scannedBarcode,
           event_type: 'scan'
         };
@@ -61,14 +79,11 @@ export function useBarcodeProcessor({
         if (warehouseId && locationId) {
           // Add an inventory movement record instead of using barcode_logs
           await supabase.from('inventory_movements').insert({
-            product_id: item.inventory_id,
-            warehouse_id: warehouseId,
-            location_id: locationId,
-            movement_type: 'adjustment' as MovementType, // Using adjustment for scanning/lookup operations
+            inventory_id: item.id,
+            movement_type: 'adjustment' as MovementType,
             quantity: 0, // Zero quantity as this is just a scan, not actual movement
-            status: 'approved', // Using string literal that matches the enum
-            performed_by: user?.id || 'anonymous',
-            details: logDetails
+            performed_by: user?.id || null,
+            notes: JSON.stringify(logDetails)
           });
         }
         
@@ -76,19 +91,19 @@ export function useBarcodeProcessor({
         const formattedResponse: ScanResponse = {
           status: 'success',
           data: {
-            box_id: item.barcode,
+            box_id: item.barcode || '',
             product: {
-              id: item.inventory_id,
-              name: item.product_name,
-              sku: item.product_sku || '',
-              description: 'Product from inventory'
+              id: item.product_id,
+              name: item.products?.name || 'Unknown Product',
+              sku: item.products?.sku || '',
+              description: item.products?.description || 'Product from inventory'
             },
             box_quantity: item.quantity,
             total_product_quantity: item.quantity,
             location: {
-              warehouse: item.warehouse_name,
-              zone: item.zone,
-              position: `Floor ${item.floor}`
+              warehouse: item.warehouses?.name || 'Unknown Warehouse',
+              zone: item.warehouse_locations?.zone || 'Unknown Zone',
+              position: `Floor ${item.warehouse_locations?.floor || '1'}`
             },
             status: item.status || 'available',
             attributes: {
@@ -110,7 +125,7 @@ export function useBarcodeProcessor({
         
         toast({
           title: 'Item Found',
-          description: `Found ${item.product_name} in ${item.warehouse_name}`,
+          description: `Found ${item.products?.name} in ${item.warehouses?.name}`,
         });
       } else {
         // If no direct match, try the serverless function for more complex lookup logic
@@ -180,7 +195,7 @@ export function useBarcodeProcessor({
     const { data, error } = await supabase
       .from('warehouse_locations')
       .select('id')
-      .eq('floor', floor)
+      .eq('floor', floor.toString())
       .eq('zone', zone)
       .single();
     

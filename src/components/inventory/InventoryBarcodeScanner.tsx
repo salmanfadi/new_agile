@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Barcode, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { useInventoryData } from '@/hooks/useInventoryData';
 
 interface InventoryBarcodeScannerProps {
   onBarcodeScanned: (barcode: string) => void;
@@ -68,7 +67,6 @@ export const InventoryBarcodeScanner: React.FC<InventoryBarcodeScannerProps> = (
           <div className="p-4">
             <BarcodeScanner
               onDetected={handleBarcodeDetected}
-              onClose={handleCloseScanner}
               allowManualEntry={true}
               allowCameraScanning={true}
               scanButtonLabel="Find Item"

@@ -15,28 +15,30 @@ interface LedgerFilters {
 export const useInventoryLedger = (filters: LedgerFilters = {}) => {
   const fetchInventoryLedger = async () => {
     try {
-      // Call the get_inventory_levels database function we created
-      const { data, error } = await supabase.rpc('get_inventory_levels');
+      // Use the existing get_inventory_summary function instead
+      const { data, error } = await supabase.rpc('get_inventory_summary');
       
       if (error) {
         console.error('Error fetching inventory ledger:', error);
         throw error;
       }
       
-      // Process and transform the data
-      let ledgerItems = data as InventoryLedgerItem[];
+      // Transform the data to match InventoryLedgerItem interface
+      let ledgerItems: InventoryLedgerItem[] = (data || []).map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.product_name || 'Unknown Product',
+        product_sku: item.product_sku || '',
+        warehouse_id: 'default', // Since summary doesn't have warehouse info
+        warehouse_name: 'All Warehouses',
+        location_id: 'default',
+        location_name: 'All Locations',
+        stock_level: item.total_quantity || 0,
+        last_updated: item.last_updated || new Date().toISOString(),
+      }));
       
       // Apply client-side filters
       if (filters.productId) {
         ledgerItems = ledgerItems.filter(item => item.product_id === filters.productId);
-      }
-      
-      if (filters.warehouseId) {
-        ledgerItems = ledgerItems.filter(item => item.warehouse_id === filters.warehouseId);
-      }
-      
-      if (filters.locationId) {
-        ledgerItems = ledgerItems.filter(item => item.location_id === filters.locationId);
       }
       
       if (filters.minStock !== undefined) {
@@ -47,9 +49,7 @@ export const useInventoryLedger = (filters: LedgerFilters = {}) => {
         const term = filters.searchTerm.toLowerCase();
         ledgerItems = ledgerItems.filter(item => 
           item.product_name.toLowerCase().includes(term) ||
-          (item.product_sku && item.product_sku.toLowerCase().includes(term)) ||
-          item.warehouse_name.toLowerCase().includes(term) ||
-          item.location_name.toLowerCase().includes(term)
+          (item.product_sku && item.product_sku.toLowerCase().includes(term))
         );
       }
       

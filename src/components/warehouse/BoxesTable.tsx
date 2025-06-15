@@ -1,146 +1,126 @@
-import React from 'react';
-import { Box } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { BoxData } from '@/hooks/useStockInBoxes';
-import { Warehouse, Location } from '@/hooks/useWarehouseData';
 
-interface BoxesTableProps {
-  boxesData: BoxData[];
-  handleBoxUpdate: (index: number, field: keyof BoxData, value: string | number) => void;
-  warehouses?: Warehouse[];
-  locations?: Location[];
+import React from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Eye, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { WarehouseLocationDetails } from '@/types/location';
+
+interface BoxItem {
+  id: string;
+  barcode: string;
+  product_name: string;
+  quantity: number;
+  color?: string;
+  size?: string;
+  status: string;
+  warehouse_name?: string;
+  location?: WarehouseLocationDetails;
 }
 
-export const BoxesTable: React.FC<BoxesTableProps> = ({
-  boxesData,
-  handleBoxUpdate,
-  warehouses,
-  locations
+interface BoxesTableProps {
+  boxes: BoxItem[];
+  isLoading?: boolean;
+  onViewDetails?: (box: BoxItem) => void;
+}
+
+export const BoxesTable: React.FC<BoxesTableProps> = ({ 
+  boxes, 
+  isLoading = false, 
+  onViewDetails 
 }) => {
-  return (
-    <div>
-      <h3 className="font-medium mb-3">Box Details</h3>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Box #</TableHead>
-              <TableHead>Barcode</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Warehouse</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Color</TableHead>
-              <TableHead>Size</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {boxesData.map((box, index) => (
-              <TableRow key={box.id}>
-                <TableCell>
-                  <span className="flex items-center space-x-1">
-                    <Box className="h-4 w-4" />
-                    <span>{index + 1}</span>
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Input 
-                    value={box.barcode}
-                    onChange={(e) => handleBoxUpdate(index, 'barcode', e.target.value)}
-                    className="w-32"
-                    required
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input 
-                    type="number"
-                    value={box.quantity}
-                    onChange={(e) => handleBoxUpdate(index, 'quantity', parseInt(e.target.value) || 0)}
-                    className="w-20"
-                    min="1"
-                    required
-                  />
-                </TableCell>
-                <TableCell>
-                  <Select 
-                    value={box.warehouse_id} 
-                    onValueChange={(value) => {
-                      handleBoxUpdate(index, 'warehouse_id', value);
-                      // Reset location when warehouse changes
-                      handleBoxUpdate(index, 'location_id', '');
-                    }}
-                    required
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Warehouse" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {warehouses?.map(warehouse => (
-                        <SelectItem key={warehouse.id} value={warehouse.id}>{warehouse.name}</SelectItem>
-                      )) || (
-                        <SelectItem value="no-warehouses-available" disabled>None</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Select 
-                    value={box.location_id} 
-                    onValueChange={(value) => handleBoxUpdate(index, 'location_id', value)}
-                    disabled={!box.warehouse_id}
-                    required
-                  >
-                    <SelectTrigger className="w-28">
-                      <SelectValue placeholder="Location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations?.filter(loc => loc.warehouse_id === box.warehouse_id).length > 0 ? (
-                        locations?.filter(loc => loc.warehouse_id === box.warehouse_id).map(location => (
-                          <SelectItem key={location.id} value={location.id}>
-                            F{location.floor}, Z{location.zone}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-locations-available" disabled>
-                          {box.warehouse_id ? 'No locations' : 'Select warehouse'}
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Input 
-                    value={box.color}
-                    onChange={(e) => handleBoxUpdate(index, 'color', e.target.value)}
-                    className="w-24"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input 
-                    value={box.size}
-                    onChange={(e) => handleBoxUpdate(index, 'size', e.target.value)}
-                    className="w-24"
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
+    );
+  }
+
+  if (!boxes || boxes.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No boxes found
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Barcode</TableHead>
+            <TableHead>Product</TableHead>
+            <TableHead>Quantity</TableHead>
+            <TableHead>Attributes</TableHead>
+            <TableHead>Location</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {boxes.map((box) => (
+            <TableRow key={box.id}>
+              <TableCell className="font-mono text-sm">{box.barcode}</TableCell>
+              <TableCell className="font-medium">{box.product_name}</TableCell>
+              <TableCell>{box.quantity}</TableCell>
+              <TableCell>
+                <div className="flex gap-1">
+                  {box.color && (
+                    <Badge variant="outline" className="text-xs">
+                      {box.color}
+                    </Badge>
+                  )}
+                  {box.size && (
+                    <Badge variant="outline" className="text-xs">
+                      {box.size}
+                    </Badge>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="text-sm">
+                  <div className="font-medium">{box.warehouse_name || 'Unknown Warehouse'}</div>
+                  <div className="text-muted-foreground">
+                    {box.location ? `Floor ${box.location.floor}, Zone ${box.location.zone}` : 'Unknown Location'}
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge 
+                  variant={
+                    box.status === 'available' ? 'default' :
+                    box.status === 'reserved' ? 'secondary' :
+                    box.status === 'sold' ? 'destructive' :
+                    'outline'
+                  }
+                >
+                  {box.status}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onViewDetails?.(box)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 };
+
+export default BoxesTable;

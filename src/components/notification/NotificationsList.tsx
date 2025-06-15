@@ -14,47 +14,40 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, CheckCircle, AlertCircle, Clock, Filter } from 'lucide-react';
-import { Notification } from '@/components/notification/NotificationItem';
-import { NotificationFilters } from '@/components/notification/NotificationFilters';
+import { Bell, CheckCircle, Clock, Filter } from 'lucide-react';
+import { Notification } from '@/types/database';
 import { toast } from '@/hooks/use-toast';
+
+interface NotificationFilter {
+  actionType?: string;
+  isRead?: boolean;
+}
 
 export const NotificationsList: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<{ actionType?: string; isRead?: boolean }>({});
+  const [filter, setFilter] = useState<NotificationFilter>({});
   const [showFilters, setShowFilters] = useState(false);
   
   // Fetch notifications
   const { data: notifications, isLoading } = useQuery({
     queryKey: ['notifications', filter],
-    queryFn: async () => {
+    queryFn: async (): Promise<Notification[]> => {
       let query = supabase.from('notifications')
         .select('*')
         .order('created_at', { ascending: false });
       
       // Apply filters if they exist
-      if (filter.actionType) {
-        query = query.eq('action_type', filter.actionType);
-      }
-      
       if (filter.isRead !== undefined) {
-        query = query.eq('is_read', filter.isRead);
+        query = query.eq('read', filter.isRead);
       }
       
       const { data, error } = await query;
       
       if (error) throw error;
       
-      // Parse metadata JSON if it's a string
-      return data?.map(item => ({
-        ...item,
-        metadata: typeof item.metadata === 'string' 
-          ? JSON.parse(item.metadata) 
-          : item.metadata
-      })) || [];
+      return data || [];
     }
   });
 
@@ -63,7 +56,7 @@ export const NotificationsList: React.FC = () => {
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('id', id);
         
       if (error) throw error;
@@ -79,8 +72,8 @@ export const NotificationsList: React.FC = () => {
     mutationFn: async () => {
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
-        .eq('is_read', false);
+        .update({ read: true })
+        .eq('read', false);
         
       if (error) throw error;
       return true;
@@ -111,7 +104,7 @@ export const NotificationsList: React.FC = () => {
             
             toast({
               title: "New Notification",
-              description: `New ${payload.new.action_type} action recorded`
+              description: `New notification received`
             });
           }
         }
@@ -131,7 +124,7 @@ export const NotificationsList: React.FC = () => {
     markAllAsReadMutation.mutate();
   };
   
-  const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
+  const unreadCount = notifications?.filter(n => !n.read).length || 0;
 
   return (
     <div className="space-y-4">
@@ -143,7 +136,7 @@ export const NotificationsList: React.FC = () => {
               Notification History
             </CardTitle>
             <CardDescription>
-              View system notifications and barcode generation events
+              View system notifications and activity events
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -174,13 +167,6 @@ export const NotificationsList: React.FC = () => {
         </CardHeader>
         
         <CardContent className="space-y-4">
-          {showFilters && (
-            <NotificationFilters 
-              currentFilter={filter} 
-              onFilterChange={setFilter} 
-            />
-          )}
-          
           {isLoading ? (
             <div className="flex justify-center my-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -189,20 +175,41 @@ export const NotificationsList: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Details</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Message</TableHead>
                   <TableHead>Time</TableHead>
                   <TableHead className="text-right">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {notifications.map(notification => (
-                  <Notification 
+                  <TableRow 
                     key={notification.id}
-                    notification={notification}
-                    onMarkAsRead={handleMarkAsRead}
-                  />
+                    className={!notification.read ? 'bg-blue-50' : ''}
+                  >
+                    <TableCell className="font-medium">
+                      {notification.title}
+                    </TableCell>
+                    <TableCell>
+                      {notification.message || 'No message'}
+                    </TableCell>
+                    <TableCell>
+                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {!notification.read ? (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleMarkAsRead(notification.id)}
+                        >
+                          Mark as Read
+                        </Button>
+                      ) : (
+                        <Badge variant="outline">Read</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>

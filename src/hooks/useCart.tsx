@@ -1,112 +1,132 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Product, CartItem } from '@/types/database';
-import { useToast } from './use-toast';
+
+interface CartContextType {
+  items: CartItem[];
+  cartItems: CartItem[]; // Add this for backward compatibility
+  addToCart: (product: Product, quantity: number, requirements?: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
+  updateRequirements: (productId: string, requirements: string) => void;
+  updateCartItem: (productId: string, updates: Partial<CartItem>) => void; // Add missing method
+  removeFromCart: (productId: string) => void;
+  clearCart: () => void;
+  getTotalItems: () => number;
+  getTotalPrice: () => number;
+  cartCount: number; // Add missing property
+}
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [items, setItems] = useState<CartItem[]>([]);
+
+  const addToCart = (product: Product, quantity: number, requirements?: string) => {
+    setItems((currentItems) => {
+      const existingItem = currentItems.find(item => item.product_id === product.id);
+      
+      if (existingItem) {
+        return currentItems.map(item =>
+          item.product_id === product.id
+            ? { 
+                ...item, 
+                quantity: item.quantity + quantity,
+                requirements: requirements || item.requirements 
+              }
+            : item
+        );
+      }
+      
+      return [
+        ...currentItems,
+        {
+          id: Math.random().toString(36).substr(2, 9),
+          product_id: product.id,
+          quantity,
+          price: 0,
+          product,
+          requirements: requirements || ''
+        } as CartItem
+      ];
+    });
+  };
+
+  const updateQuantity = (productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    
+    setItems(currentItems =>
+      currentItems.map(item =>
+        item.product_id === productId ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  const updateRequirements = (productId: string, requirements: string) => {
+    setItems(currentItems =>
+      currentItems.map(item =>
+        item.product_id === productId 
+          ? { ...item, requirements: requirements }
+          : item
+      )
+    );
+  };
+
+  const updateCartItem = (productId: string, updates: Partial<CartItem>) => {
+    setItems(currentItems =>
+      currentItems.map(item =>
+        item.product_id === productId 
+          ? { ...item, ...updates }
+          : item
+      )
+    );
+  };
+
+  const removeFromCart = (productId: string) => {
+    setItems(currentItems =>
+      currentItems.filter(item => item.product_id !== productId)
+    );
+  };
+
+  const clearCart = () => {
+    setItems([]);
+  };
+
+  const getTotalItems = () => {
+    return items.reduce((total, item) => total + item.quantity, 0);
+  };
+
+  const getTotalPrice = () => {
+    return items.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
+  };
+
+  const cartCount = getTotalItems();
+
+  return (
+    <CartContext.Provider value={{
+      items,
+      cartItems: items, // Provide cartItems as alias to items
+      addToCart,
+      updateQuantity,
+      updateRequirements,
+      updateCartItem,
+      removeFromCart,
+      clearCart,
+      getTotalItems,
+      getTotalPrice,
+      cartCount
+    }}>
+      {children}
+    </CartContext.Provider>
+  );
+};
 
 export const useCart = () => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const { toast } = useToast();
-
-  // Load cart from localStorage on mount
-  useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      try {
-        setCartItems(JSON.parse(savedCart));
-      } catch (error) {
-        console.error('Error parsing cart from localStorage:', error);
-      }
-    }
-  }, []);
-
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cartItems));
-  }, [cartItems]);
-
-  const addToCart = useCallback((product: Product, quantity: number = 1, requirements?: string) => {
-    setCartItems((currentItems) => {
-      // Check if product is already in cart
-      const existingItemIndex = currentItems.findIndex(item => item.productId === product.id);
-      
-      if (existingItemIndex > -1) {
-        // Update existing item
-        const updatedItems = [...currentItems];
-        updatedItems[existingItemIndex] = {
-          ...updatedItems[existingItemIndex],
-          quantity: updatedItems[existingItemIndex].quantity + quantity,
-          requirements: requirements || updatedItems[existingItemIndex].requirements
-        };
-        
-        toast({
-          title: "Cart updated",
-          description: `Updated quantity of ${product.name} in your cart`,
-        });
-        
-        return updatedItems;
-      } else {
-        // Add new item
-        toast({
-          title: "Added to cart",
-          description: `${product.name} has been added to your cart`,
-        });
-        
-        return [...currentItems, {
-          productId: product.id,
-          product,
-          quantity,
-          requirements
-        }];
-      }
-    });
-  }, [toast]);
-
-  const updateCartItem = useCallback((productId: string, quantity: number, requirements?: string) => {
-    setCartItems((currentItems) => {
-      return currentItems.map(item => {
-        if (item.productId === productId) {
-          return {
-            ...item,
-            quantity: quantity,
-            requirements: requirements !== undefined ? requirements : item.requirements
-          };
-        }
-        return item;
-      });
-    });
-  }, []);
-
-  const removeFromCart = useCallback((productId: string) => {
-    setCartItems((currentItems) => {
-      const filteredItems = currentItems.filter(item => item.productId !== productId);
-      
-      toast({
-        title: "Item removed",
-        description: "Item has been removed from your cart",
-      });
-      
-      return filteredItems;
-    });
-  }, [toast]);
-
-  const clearCart = useCallback(() => {
-    setCartItems([]);
-    localStorage.removeItem('cart');
-    
-    toast({
-      title: "Cart cleared",
-      description: "All items have been removed from your cart",
-    });
-  }, [toast]);
-
-  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
-  
-  return {
-    cartItems,
-    cartCount,
-    addToCart,
-    updateCartItem,
-    removeFromCart,
-    clearCart
-  };
+  const context = useContext(CartContext);
+  if (context === undefined) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
 };

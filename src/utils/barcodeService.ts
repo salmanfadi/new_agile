@@ -21,13 +21,13 @@ interface BatchItem {
   description?: string | null;
 }
 
-// Type for the barcode_logs table in Supabase
-interface BarcodeLog {
+// Type for the barcodes table in Supabase
+interface Barcode {
   id: string;
   barcode: string;  // Changed from barcode_number to barcode
+  status: string;
+  quantity: number;
   created_at: string;
-  action: string;
-  scanned_by: string;
 }
 
 // Type for the inventory table in Supabase
@@ -48,18 +48,18 @@ interface InventoryItem {
  */
 export const fetchBarcodeForItem = async (itemId: string): Promise<string | null> => {
   try {
-    // First try to get from barcode_logs with the new field name
-    const { data: barcodeLog, error: logError } = await supabase
-      .from('barcode_logs')
+    // Try to get from barcodes table
+    const { data: barcodeData, error: barcodeError } = await supabase
+      .from('barcodes')
       .select('barcode')
       .eq('id', itemId)
       .single();
 
-    if (!logError && barcodeLog?.barcode) {
-      return barcodeLog.barcode;
+    if (!barcodeError && barcodeData?.barcode) {
+      return barcodeData.barcode;
     }
 
-    // If not found in barcode_logs, try inventory table with the new field name
+    // If not found in barcodes, try inventory table
     const { data: inventoryItem, error: invError } = await supabase
       .from('inventory')
       .select('barcode')
@@ -84,12 +84,6 @@ export const fetchBarcodeForItem = async (itemId: string): Promise<string | null
  * @param length Length of the barcode (default: 12)
  * @returns Promise that resolves to the generated barcode string
  */
-/**
- * Generates a new barcode and saves it to the database
- * @param itemId The ID of the item to generate a barcode for
- * @param length Length of the barcode (default: 12)
- * @returns Promise that resolves to the generated barcode string
- */
 export const generateAndSaveBarcode = async (itemId: string, length = 12): Promise<string> => {
   if (!itemId) {
     throw new Error('Item ID is required to generate a barcode');
@@ -107,15 +101,15 @@ export const generateAndSaveBarcode = async (itemId: string, length = 12): Promi
   const barcode = Math.floor(min + Math.random() * (max - min + 1)).toString();
 
   try {
-    // Save to barcode_logs table with the 'barcode' field name
+    // Save to barcodes table
     const { error } = await supabase
-      .from('barcode_logs')
+      .from('barcodes')
       .insert([
         {
           id: itemId,
-          barcode,  // Using 'barcode' field name consistently
-          action: 'generated',
-          scanned_by: 'system',
+          barcode,
+          status: 'active',
+          quantity: 1,
           created_at: new Date().toISOString()
         }
       ]);
@@ -154,11 +148,6 @@ export const isValidBarcode = (barcode: string): boolean => {
   return /^\d+$/.test(barcode) && barcode.length >= 8 && barcode.length <= 13;
 };
 
-/**
- * Gets or generates barcode data for a batch item
- * @param item Batch item data
- * @returns Promise that resolves to the barcode data
- */
 /**
  * Gets or generates barcode data for a batch item
  * @param item Batch item data

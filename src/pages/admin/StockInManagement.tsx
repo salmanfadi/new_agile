@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { StockInRequestData } from '@/hooks/useStockInRequests';
+import { StockInRequestData } from '@/types/database';
 
 const AdminStockInManagement: React.FC = () => {
   const navigate = useNavigate();

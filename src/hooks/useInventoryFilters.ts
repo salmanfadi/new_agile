@@ -10,6 +10,17 @@ interface Filters {
   statusFilter: string;
 }
 
+interface Warehouse {
+  id: string;
+  name: string;
+  location?: string;
+}
+
+interface BatchOption {
+  value: string;
+  label: string;
+}
+
 export const useInventoryFilters = () => {
   const [filters, setFilters] = useState<Filters>({
     searchTerm: '',
@@ -46,7 +57,7 @@ export const useInventoryFilters = () => {
   // Fetch warehouses for filtering
   const warehousesQuery = useQuery({
     queryKey: ['warehouses'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Warehouse[]> => {
       const { data, error } = await supabase
         .from('warehouses')
         .select('id, name, location')
@@ -60,14 +71,10 @@ export const useInventoryFilters = () => {
   // Fetch batch IDs for filtering
   const batchesQuery = useQuery({
     queryKey: ['batch-ids'],
-    queryFn: async () => {
+    queryFn: async (): Promise<BatchOption[]> => {
       const { data, error } = await supabase
         .from('processed_batches')
-        .select(`
-          id, 
-          product_id, 
-          products!fk_processed_batches_products(name)
-        `)
+        .select('id, product_id')
         .order('processed_at', { ascending: false })
         .limit(20);
       
@@ -75,7 +82,7 @@ export const useInventoryFilters = () => {
       
       return (data || []).map(batch => ({
         value: batch.id,
-        label: `Batch ${batch.id.substring(0, 8)}... - ${batch.products?.name || 'Unknown'}`
+        label: `Batch ${batch.id.substring(0, 8)}...`
       }));
     }
   });

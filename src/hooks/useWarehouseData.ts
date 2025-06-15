@@ -1,48 +1,74 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
-export interface Warehouse {
-  id: string;
-  name: string;
-}
 
 export interface Location {
   id: string;
   name: string;
-  description: string | null;
+  description?: string;
   warehouse_id: string;
   created_at: string;
+  updated_at: string;
 }
 
-export const useWarehouseData = (selectedWarehouseId: string) => {
-  // Fetch warehouses for the dropdown
-  const { data: warehouses } = useQuery({
+export interface Warehouse {
+  id: string;
+  name: string;
+  code?: string;
+  address?: string;
+  contact_person?: string;
+  contact_phone?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  location?: string;
+}
+
+export const useWarehouseData = () => {
+  const warehousesQuery = useQuery({
     queryKey: ['warehouses'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('warehouses').select('*').order('name');
+    queryFn: async (): Promise<Warehouse[]> => {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
       if (error) throw error;
-      return data as Warehouse[];
-    },
+      return data || [];
+    }
   });
 
-  // Fetch warehouse locations based on selected warehouse
-  const { data: locations } = useQuery({
-    queryKey: ['warehouse-locations', selectedWarehouseId],
-    queryFn: async () => {
+  const locationsQuery = useQuery({
+    queryKey: ['warehouse-locations'],
+    queryFn: async (): Promise<Location[]> => {
       const { data, error } = await supabase
         .from('warehouse_locations')
         .select('*')
-        .eq('warehouse_id', selectedWarehouseId)
-        .order('name');
-        
+        .order('zone');
+      
       if (error) throw error;
-      return data as Location[];
-    },
-    enabled: !!selectedWarehouseId,
+      
+      // Transform the data to match the Location interface
+      return (data || []).map(item => ({
+        id: item.id,
+        name: `${item.zone}${item.floor ? ' - Floor ' + item.floor : ''}`,
+        description: `Zone: ${item.zone}${item.floor ? ', Floor: ' + item.floor : ''}`,
+        warehouse_id: item.warehouse_id,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }));
+    }
   });
 
   return {
-    warehouses,
-    locations,
+    warehouses: warehousesQuery.data || [],
+    locations: locationsQuery.data || [],
+    isLoadingWarehouses: warehousesQuery.isLoading,
+    isLoadingLocations: locationsQuery.isLoading,
+    warehousesError: warehousesQuery.error,
+    locationsError: locationsQuery.error,
+    refetchWarehouses: warehousesQuery.refetch,
+    refetchLocations: locationsQuery.refetch
   };
 };

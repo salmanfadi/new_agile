@@ -1,52 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/integrations/supabase/types';
 
-export type Tables = Database['public']['Tables'];
-export type Views = {
-  batch_items_with_barcodes: {
-    Row: {
-      id: string;
-      batch_id: string;
-      product_id: string;
-      warehouse_id: string;
-      location_id: string;
-      barcode_id: string;
-      barcode: string;
-      color: string | null;
-      size: string | null;
-      quantity: number;
-      status: string;
-      created_at: string;
-      updated_at: string;
-    };
-  };
-};
+import { supabase } from '@/integrations/supabase/client';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const dbUrl = import.meta.env.VITE_SUPABASE_DB_URL;
+// Re-export the configured supabase client
+export { supabase };
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-export const supabase = createClient<Database & { public: { Views: Views } }>(
-  supabaseUrl,
-  supabaseAnonKey
-);
-
-// Configure direct database connection
-const dbConfig = {
-  connectionString: dbUrl,
-  ssl: {
-    rejectUnauthorized: false
-  }
-};
-
-// Update the executeQuery function to use direct database connection when needed
+// Export utility functions
 export const executeQuery = async (table: string, query: any) => {
   try {
-    // First try using Supabase client
     const { data, error } = await query;
     if (error) {
       console.error(`Error executing query on ${table}:`, error);

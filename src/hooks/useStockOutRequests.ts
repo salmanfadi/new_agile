@@ -1,17 +1,35 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+// Define user profile type to avoid deep nesting issues
+type UserProfile = {
+  id: string;
+  name: string;
+  username: string;
+} | null;
+
+// Define stock out detail type separately
+type StockOutDetail = {
+  id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+// Main stock out request data interface
 export interface StockOutRequestData {
   id: string;
   product: { name: string; id: string };
-  requester: { name: string; username: string; id: string } | null;
-  approvedBy: { name: string; username: string; id: string } | null;
-  rejectedBy: { name: string; username: string; id: string } | null;
-  completedBy: { name: string; username: string; id: string } | null;
+  requester: UserProfile;
+  approvedBy: UserProfile;
+  rejectedBy: UserProfile;
+  completedBy: UserProfile;
   quantity: number;
   approvedQuantity: number | null;
-  status: "pending" | "approved" | "rejected" | "processing" | "completed";
+  status: "pending" | "approved" | "rejected" | "completed";
   destination: string;
   reason: string | null;
   created_at: string;
@@ -21,19 +39,20 @@ export interface StockOutRequestData {
   invoice_number: string | null;
   packing_slip_number: string | null;
   reservation_id: string | null;
-  details: Array<{
-    id: string;
-    product_id: string;
-    quantity: number;
-    status: "pending" | "processing" | "completed";
-    barcode: string;
-    batch_id: string | null;
-    processed_by: { name: string; username: string; id: string } | null;
-    processed_at: string | null;
-  }>;
+  details: StockOutDetail[];
 }
 
-export const useStockOutRequests = (filters: Record<string, any> = {}, page: number = 1, pageSize: number = 20) => {
+export interface StockOutRequestFilters {
+  status?: 'all' | 'pending' | 'approved' | 'rejected' | 'completed';
+  destination?: string;
+  date_from?: string;
+  date_to?: string;
+  requested_by?: string;
+  reservation_id?: string;
+  [key: string]: any;
+}
+
+export const useStockOutRequests = (filters: StockOutRequestFilters = {}, page: number = 1, pageSize: number = 20) => {
   return useQuery({
     queryKey: ['stock-out-requests', filters, page, pageSize],
     queryFn: async (): Promise<{ data: StockOutRequestData[]; totalCount: number }> => {
@@ -42,32 +61,20 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
           .from('stock_out')
           .select(`
             id,
-            product_id,
             requested_by,
             approved_by,
-            rejected_by,
-            completed_by,
-            quantity,
-            approved_quantity,
             status,
             destination,
-            reason,
+            notes,
             created_at,
             approved_at,
-            rejected_at,
-            completed_at,
-            invoice_number,
-            packing_slip_number,
-            reservation_id,
+            updated_at,
             stock_out_details (
               id,
               product_id,
               quantity,
-              status,
-              barcode,
-              batch_id,
-              processed_by,
-              processed_at
+              created_at,
+              updated_at
             )
           `, { count: 'exact' });
 
@@ -86,9 +93,6 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
         }
         if (filters.requested_by) {
           query = query.eq('requested_by', filters.requested_by);
-        }
-        if (filters.reservation_id) {
-          query = query.eq('reservation_id', filters.reservation_id);
         }
 
         // Pagination
@@ -110,15 +114,18 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
         // Process each stock out record to fetch related data
         const processedData = await Promise.all(stockData.map(async (item) => {
           // Get product details
-          let product = { name: 'Unknown Product', id: item.product_id || '' };
-          if (item.product_id) {
-            const { data: productData } = await supabase
-              .from('products')
-              .select('id, name')
-              .eq('id', item.product_id)
-              .single();
-            if (productData) {
-              product = productData;
+          let product = { name: 'Unknown Product', id: '' };
+          if (item.stock_out_details && item.stock_out_details.length > 0) {
+            const productId = item.stock_out_details[0].product_id;
+            if (productId) {
+              const { data: productData } = await supabase
+                .from('products')
+                .select('id, name')
+                .eq('id', productId)
+                .single();
+              if (productData) {
+                product = productData;
+              }
             }
           }
 
@@ -142,47 +149,41 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
           };
 
           // Get all user details in parallel
-          const [requester, approvedBy, rejectedBy, completedBy] = await Promise.all([
+          const [requester, approvedBy] = await Promise.all([
             getUserDetails(item.requested_by),
-            getUserDetails(item.approved_by),
-            getUserDetails(item.rejected_by),
-            getUserDetails(item.completed_by)
+            getUserDetails(item.approved_by)
           ]);
 
           // Process details
-          const details = await Promise.all((item.stock_out_details || []).map(async (detail) => {
-            const processedBy = await getUserDetails(detail.processed_by);
-            return {
-              id: detail.id,
-              product_id: detail.product_id,
-              quantity: detail.quantity,
-              status: detail.status,
-              barcode: detail.barcode,
-              batch_id: detail.batch_id,
-              processed_by: processedBy,
-              processed_at: detail.processed_at
-            };
+          const details = (item.stock_out_details || []).map((detail) => ({
+            id: detail.id,
+            product_id: detail.product_id,
+            quantity: detail.quantity,
+            created_at: detail.created_at,
+            updated_at: detail.updated_at
           }));
+
+          const totalQuantity = details.reduce((sum, detail) => sum + detail.quantity, 0);
 
           return {
             id: item.id,
             product,
             requester,
             approvedBy,
-            rejectedBy,
-            completedBy,
-            quantity: item.quantity,
-            approvedQuantity: item.approved_quantity,
-            status: item.status,
-            destination: item.destination,
-            reason: item.reason,
+            rejectedBy: null,
+            completedBy: null,
+            quantity: totalQuantity,
+            approvedQuantity: null,
+            status: item.status || 'pending',
+            destination: item.destination || '',
+            reason: item.notes,
             created_at: item.created_at,
             approved_at: item.approved_at,
-            rejected_at: item.rejected_at,
-            completed_at: item.completed_at,
-            invoice_number: item.invoice_number,
-            packing_slip_number: item.packing_slip_number,
-            reservation_id: item.reservation_id,
+            rejected_at: null,
+            completed_at: null,
+            invoice_number: null,
+            packing_slip_number: null,
+            reservation_id: null,
             details
           } as StockOutRequestData;
         }));
@@ -202,4 +203,4 @@ export const useStockOutRequests = (filters: Record<string, any> = {}, page: num
     staleTime: 1000 * 30,
     refetchInterval: 1000 * 60,
   });
-}; 
+};

@@ -1,44 +1,51 @@
 
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardStatsGrid } from '@/components/admin/DashboardStatsGrid';
 import { RecentActivityTable } from '@/components/admin/RecentActivityTable';
 import { useAdminDashboardData } from '@/hooks/useAdminDashboardData';
 
-const AdminDashboard = () => {
-  const { stats, activities, isLoadingStats, isLoadingActivities } = useAdminDashboardData();
+export interface ActivityItem {
+  id: string;
+  action: string;
+  user: string;
+  timestamp: string;
+  details?: string;
+}
+
+const AdminDashboard: React.FC = () => {
+  const { 
+    stats, 
+    activity, 
+    statsLoading, 
+    activityLoading 
+  } = useAdminDashboardData();
+
+  // Transform activity data to match ActivityItem interface
+  const transformedActivity: ActivityItem[] = (activity || []).map(item => ({
+    id: item.id,
+    action: item.action,
+    user: item.user,
+    timestamp: item.timestamp,
+    details: item.details
+  }));
 
   return (
     <div className="space-y-6">
       <PageHeader 
         title="Admin Dashboard" 
-        description="Overview of system status and recent activity"
+        description="Overview of system metrics and recent activity"
       />
       
-      {isLoadingStats ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-        </div>
-      ) : (
-        <DashboardStatsGrid stats={stats} />
-      )}
+      <DashboardStatsGrid 
+        stats={stats} 
+        loading={statsLoading} 
+      />
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>Latest stock movements and system events</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingActivities ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-            </div>
-          ) : (
-            <RecentActivityTable activities={activities} />
-          )}
-        </CardContent>
-      </Card>
+      <RecentActivityTable 
+        activities={transformedActivity}
+        loading={activityLoading}
+      />
     </div>
   );
 };

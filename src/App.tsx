@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -19,7 +19,6 @@ import ProductManagement from './pages/admin/ProductManagement';
 import WarehouseManagement from './pages/admin/WarehouseManagement';
 import UsersManagement from './pages/admin/UsersManagement';
 import AdminInventoryView from './pages/admin/InventoryView';
-import CustomerInquiries from './pages/admin/CustomerInquiries';
 import SalesInquiries from './pages/admin/SalesInquiries';
 import BatchInventoryPage from './pages/admin/BatchInventoryPage';
 import BarcodeManagement from './pages/admin/BarcodeManagement';
@@ -29,16 +28,17 @@ import InventoryTransfers from './pages/admin/InventoryTransfers';
 import BarcodeInventoryPage from './pages/admin/BarcodeInventoryPage';
 import BatchStockInPage from './pages/admin/BatchStockInPage';
 import AdminEnhancedInventoryView from './pages/admin/EnhancedInventoryView';
+import ProductInventoryView from './pages/admin/ProductInventoryView';
 import BatchDetailsPage from './pages/admin/BatchDetailsPage';
 import ReserveStock from './pages/admin/ReserveStock';
-import CreateStockOutRequest from '@/pages/admin/CreateStockOutRequest';
 
 // Manager pages
 import ManagerDashboard from './pages/warehouseManager/ManagerDashboard';
 import StockInProcessing from './pages/warehouseManager/StockInProcessing';
 import StockInDetailsPage from './pages/warehouseManager/StockInDetailsPage';
 import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
-import StockOutPage from './pages/warehouseManager/StockOutPage';
+import StockOutApproval from './pages/warehouseManager/StockOutApproval';
+import BarcodeScanner from './pages/warehouseManager/BarcodeScanner';
 import BarcodeLookup from './pages/warehouseManager/BarcodeLookup';
 import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehouseManager/InventoryTransfers';
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
@@ -61,7 +61,7 @@ import { default as OperatorReserveStock } from './pages/fieldOperator/ReserveSt
 
 // Sales operator pages
 import SalesOperatorDashboard from './pages/salesOperator/SalesOperatorDashboard';
-import CustomerInquiriesManagement from './pages/salesOperator/CustomerInquiriesManagement';
+import SalesInquiriesManagement from './pages/salesOperator/SalesInquiriesManagement';
 import SalesInventoryView from './pages/salesOperator/InventoryView';
 import ProductView from './pages/salesOperator/ProductView';
 import OrdersManagement from './pages/salesOperator/OrdersManagement';
@@ -167,13 +167,13 @@ function App() {
                 <Route path="/admin/warehouses" element={<WarehouseManagement />} />
                 <Route path="/admin/users" element={<UsersManagement />} />
                 <Route path="/admin/inventory" element={<AdminEnhancedInventoryView />} />
+                <Route path="/admin/inventory/products" element={<ProductInventoryView />} />
                 <Route path="/admin/inventory/batch/:batchId" element={<BatchDetailsPage />} />
                 <Route path="/admin/inventory/barcode/:barcodeId" element={<BarcodeInventoryPage />} />
                 <Route path="/admin/barcodes" element={<BarcodeManagement />} />
-                <Route path="/admin/customer-inquiries" element={<CustomerInquiries />} />
+                <Route path="/admin/sales-inquiries" element={<SalesInquiries />} />
                 <Route path="/admin/stock-in" element={<StockInManagement />} />
                 <Route path="/admin/stock-out" element={<StockOutManagement />} />
-                <Route path="/admin/stock-out/create" element={<CreateStockOutRequest />} />
                 <Route path="/admin/transfers" element={<InventoryTransfers />} />
                 <Route path="/admin/reserve-stock" element={<ReserveStock />} />
                 
@@ -205,7 +205,8 @@ function App() {
                 <Route path="/manager/stock-in" element={<StockInProcessing />} />
                 <Route path="/manager/stock-in/:id" element={<StockInDetailsPage />} />
                 <Route path="/manager/stock-in/process/:id" element={<ProcessStockInPage />} />
-                <Route path="/manager/stock-out" element={<StockOutPage />} />
+                <Route path="/manager/stock-out" element={<StockOutApproval />} />
+                <Route path="/manager/stock-out/barcode-scanner" element={<BarcodeScanner />} />
                 <Route path="/manager/barcode" element={<BarcodeLookup />} />
                 <Route path="/manager/inventory" element={<EnhancedInventoryView />} />
                 <Route path="/manager/inventory/search" element={<ManagerInventoryView />} />
@@ -252,7 +253,7 @@ function App() {
                 <Route path="/sales" element={<SalesOperatorDashboard />} />
                 <Route path="/sales/products" element={<ProductView />} />
                 <Route path="/sales/inventory" element={<SalesInventoryView />} />
-                <Route path="/sales/inquiries" element={<CustomerInquiriesManagement />} />
+                <Route path="/sales/inquiries" element={<SalesInquiriesManagement />} />
                 <Route path="/sales/orders" element={<OrdersManagement />} />
               </Route>
               

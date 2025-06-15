@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { 
   SidebarProvider, 
   Sidebar, 
@@ -13,9 +14,9 @@ import {
   SidebarGroupLabel,
   SidebarFooter
 } from '@/components/ui/sidebar';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
-import { useTheme } from 'next-themes';
 import { 
   Package, 
   Users, 
@@ -39,25 +40,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
-interface MainLayoutProps {
-  children: React.ReactNode;
-}
-
-// Helper function for NavLink classes
-const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
-  return cn(
-    "w-full flex items-center gap-2 px-3 py-2 rounded-md transition-colors",
-    isActive 
-      ? "bg-primary text-primary-foreground" 
-      : "hover:bg-muted"
-  );
-};
-
-export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const { theme } = useTheme();
-  const role = user?.role;
+export const MainLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+  const { user, signOut } = useAuth();
   
   // Get the current user's initials for the avatar
   const getInitials = () => {
@@ -67,7 +51,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const handleSignOut = async () => {
     try {
-      await logout();
+      await signOut();
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -86,7 +70,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </SidebarHeader>
           
           <SidebarContent className="flex-1 overflow-y-auto">
-            <NavItems role={role} />
+            <NavItems role={user?.role} />
           </SidebarContent>
           
           <SidebarFooter className="border-t">
@@ -100,7 +84,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   <div className="space-y-0.5">
                     <p className="text-sm font-medium">{user?.name || user?.email}</p>
                     <p className="text-xs text-muted-foreground">
-                      {role && formatRole(role)}
+                      {user?.role && formatRole(user.role)}
                     </p>
                   </div>
                 </div>
@@ -156,6 +140,12 @@ interface NavItemsProps {
 }
 
 const NavItems: React.FC<NavItemsProps> = ({ role }) => {
+  const getNavLinkClass = ({ isActive }: { isActive: boolean }) => 
+    cn(
+      "flex w-full items-center gap-2 rounded-md p-2 text-sm",
+      isActive ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    );
+
   // Admin navigation
   if (role === 'admin') {
     return (
@@ -201,14 +191,6 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Reserve Stock">
-                <NavLink to="/admin/reserve-stock" className={getNavLinkClass}>
-                  <Clock className="h-4 w-4" />
-                  <span>Reserve Stock</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
         
@@ -233,9 +215,9 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Users">
-                <NavLink to="/admin/users" className={getNavLinkClass}>
+                <NavLink to="/admin/profiles" className={getNavLinkClass}>
                   <Users className="h-4 w-4" />
-                  <span>Users</span>
+                  <span>User Profiles</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -280,29 +262,37 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
         </SidebarGroup>
         
         <SidebarGroup>
-          <SidebarGroupLabel>Inventory</SidebarGroupLabel>
+          <SidebarGroupLabel>Warehouse Operations</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Inventory">
-                <NavLink to="/manager/inventory" className={getNavLinkClass}>
-                  <PackageSearch className="h-4 w-4" />
-                  <span>Inventory</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Stock In">
                 <NavLink to="/manager/stock-in" className={getNavLinkClass}>
                   <PackagePlus className="h-4 w-4" />
-                  <span>Stock In</span>
+                  <span>Stock In Processing</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Stock Out">
-                <NavLink to="/manager/stock-out" className={getNavLinkClass}>
+                <NavLink to="/manager/stock-out-approval" className={getNavLinkClass}>
                   <PackageMinus className="h-4 w-4" />
-                  <span>Stock Out</span>
+                  <span>Stock Out Approval</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Inventory">
+                <NavLink to="/manager/inventory" className={getNavLinkClass}>
+                  <PackageSearch className="h-4 w-4" />
+                  <span>Inventory Lookup</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Barcode">
+                <NavLink to="/manager/barcode" className={getNavLinkClass}>
+                  <ScanLine className="h-4 w-4" />
+                  <span>Barcode Lookup</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -339,10 +329,10 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
         </SidebarGroup>
         
         <SidebarGroup>
-          <SidebarGroupLabel>Operations</SidebarGroupLabel>
+          <SidebarGroupLabel>Field Operations</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Stock In">
+              <SidebarMenuButton asChild tooltip="New Stock In">
                 <NavLink to="/operator/stock-in" className={getNavLinkClass}>
                   <PackagePlus className="h-4 w-4" />
                   <span>Stock In</span>
@@ -350,7 +340,7 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Stock Out">
+              <SidebarMenuButton asChild tooltip="New Stock Out">
                 <NavLink to="/operator/stock-out" className={getNavLinkClass}>
                   <PackageMinus className="h-4 w-4" />
                   <span>Stock Out</span>
@@ -358,8 +348,16 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="My Submissions">
+                <NavLink to="/operator/submissions" className={getNavLinkClass}>
+                  <LayoutDashboard className="h-4 w-4" />
+                  <span>My Submissions</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip="Barcode Lookup">
-                <NavLink to="/operator/barcode" className={getNavLinkClass}>
+                <NavLink to="/operator/barcode-lookup" className={getNavLinkClass}>
                   <ScanLine className="h-4 w-4" />
                   <span>Barcode Lookup</span>
                 </NavLink>
@@ -398,29 +396,21 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
         </SidebarGroup>
         
         <SidebarGroup>
-          <SidebarGroupLabel>Sales</SidebarGroupLabel>
+          <SidebarGroupLabel>Sales Operations</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Products">
-                <NavLink to="/sales/products" className={getNavLinkClass}>
-                  <Package className="h-4 w-4" />
-                  <span>Products</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Inventory">
-                <NavLink to="/sales/inventory" className={getNavLinkClass}>
-                  <PackageSearch className="h-4 w-4" />
-                  <span>Inventory</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Sales Inquiries">
+              <SidebarMenuButton asChild tooltip="Customer Inquiries">
                 <NavLink to="/sales/inquiries" className={getNavLinkClass}>
                   <MessageSquare className="h-4 w-4" />
-                  <span>Sales Inquiries</span>
+                  <span>Customer Inquiries</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Products">
+                <NavLink to="/sales/inventory" className={getNavLinkClass}>
+                  <PackageSearch className="h-4 w-4" />
+                  <span>Product Catalog</span>
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -430,7 +420,22 @@ const NavItems: React.FC<NavItemsProps> = ({ role }) => {
     );
   }
 
-  return null;
+  // Default/fallback navigation
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild tooltip="Dashboard">
+            <NavLink to="/" end className={getNavLinkClass}>
+              <Home className="h-4 w-4" />
+              <span>Dashboard</span>
+            </NavLink>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
+  );
 };
 
 export default MainLayout;

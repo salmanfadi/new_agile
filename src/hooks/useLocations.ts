@@ -1,16 +1,18 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface Location {
+export interface WarehouseLocation {
   id: string;
   warehouse_id: string;
   zone: string;
   floor: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export const useLocations = (warehouseId: string) => {
-  const fetchLocations = async (): Promise<Location[]> => {
+  const fetchLocations = async (): Promise<WarehouseLocation[]> => {
     if (!warehouseId) {
       console.log('No warehouse ID provided to useLocations');
       return [];
@@ -30,7 +32,7 @@ export const useLocations = (warehouseId: string) => {
     }
     
     console.log('Successfully fetched locations:', data);
-    return data as Location[];
+    return data as WarehouseLocation[];
   };
   
   const { data, isLoading, error } = useQuery({

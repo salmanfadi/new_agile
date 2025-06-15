@@ -1,225 +1,200 @@
 
 import React, { useState } from 'react';
-import { useTransfers } from '@/hooks/useTransfers';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CheckCircle, XCircle, Clock, Package } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-const TransferApprovalList: React.FC = () => {
-  const { getPendingTransfers, approveTransfer, rejectTransfer } = useTransfers();
-  const { data: pendingTransfers, isLoading, error } = getPendingTransfers();
-  
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedTransfer, setSelectedTransfer] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-  
-  const handleApproveClick = (transferId: string) => {
-    approveTransfer.mutate(transferId);
-  };
-  
-  const handleRejectClick = (transferId: string) => {
-    setSelectedTransfer(transferId);
-    setIsDialogOpen(true);
-  };
-  
-  const handleRejectConfirm = () => {
-    if (selectedTransfer) {
-      rejectTransfer.mutate({ 
-        transferId: selectedTransfer, 
-        reason: rejectionReason 
+interface Transfer {
+  id: string;
+  source_warehouse_id: string;
+  destination_warehouse_id: string;
+  status: 'pending' | 'completed' | 'in_transit' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+  initiated_by: string;
+}
+
+interface TransferApprovalListProps {
+  onRefresh?: () => void;
+}
+
+export const TransferApprovalList: React.FC<TransferApprovalListProps> = ({ onRefresh }) => {
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [processingTransfers, setProcessingTransfers] = useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    fetchPendingTransfers();
+  }, []);
+
+  const fetchPendingTransfers = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase
+        .from('inventory_transfers')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching transfers:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to fetch pending transfers',
+        });
+        return;
+      }
+
+      setTransfers(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to fetch transfer data',
       });
-      setIsDialogOpen(false);
-      setSelectedTransfer(null);
-      setRejectionReason('');
+    } finally {
+      setIsLoading(false);
     }
   };
-  
+
+  const handleApproval = async (transferId: string, action: 'approve' | 'reject') => {
+    setProcessingTransfers(prev => new Set(prev).add(transferId));
+    
+    try {
+      const newStatus = action === 'approve' ? 'in_transit' : 'cancelled';
+      
+      const { error } = await supabase
+        .from('inventory_transfers')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', transferId);
+
+      if (error) throw error;
+
+      toast({
+        title: `Transfer ${action === 'approve' ? 'Approved' : 'Rejected'}`,
+        description: `Transfer has been ${action === 'approve' ? 'approved and is now in transit' : 'rejected'}`,
+      });
+
+      // Refresh the list
+      await fetchPendingTransfers();
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error(`Error ${action}ing transfer:`, error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: `Failed to ${action} transfer`,
+      });
+    } finally {
+      setProcessingTransfers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(transferId);
+        return newSet;
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Pending Transfers</CardTitle>
-          <CardDescription>Loading transfer requests...</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-  
-  if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Pending Transfers</CardTitle>
-          <CardDescription className="text-red-500">
-            Error loading transfer requests. Please try again.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-  
-  if (!pendingTransfers || pendingTransfers.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Pending Transfers</CardTitle>
-          <CardDescription>No pending transfer requests found</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-  
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Pending Transfers</CardTitle>
-          <CardDescription>Review and approve transfer requests</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {pendingTransfers && pendingTransfers.map(transfer => (
-              <Card key={transfer.id} className="border-t border-gray-200">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg">Transfer Request</CardTitle>
-                    <Badge variant="outline">Pending</Badge>
-                  </div>
-                  <CardDescription>
-                    Requested by {transfer.initiator?.name || transfer.initiator?.username || 'Unknown'} on {new Date(transfer.created_at).toLocaleString()}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center mb-4">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">From</p>
-                      <p className="font-medium">{transfer.source_warehouse?.name || 'Unknown Warehouse'}</p>
-                      <p className="text-sm text-gray-500">
-                        Floor {transfer.source_location?.floor || '?'}, Zone {transfer.source_location?.zone || '?'}
-                      </p>
-                    </div>
-                    
-                    <div className="flex justify-center items-center">
-                      <div className="flex items-center text-gray-500">
-                        <ArrowLeft className="h-4 w-4" />
-                        <span className="mx-2">{transfer.quantity}</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">To</p>
-                      <p className="font-medium">{transfer.destination_warehouse?.name || 'Unknown Warehouse'}</p>
-                      <p className="text-sm text-gray-500">
-                        Floor {transfer.destination_location?.floor || '?'}, Zone {transfer.destination_location?.zone || '?'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    <p className="text-sm font-medium">Product</p>
-                    <p>
-                      {transfer.products?.name || 'Unknown Product'}{' '}
-                      {transfer.products?.sku && <span className="text-gray-500">({transfer.products.sku})</span>}
-                    </p>
-                  </div>
-
-                  {transfer.transfer_reason && (
-                    <div className="space-y-2 mb-4">
-                      <p className="text-sm font-medium">Transfer Reason</p>
-                      <p className="text-gray-600">{transfer.transfer_reason}</p>
-                    </div>
-                  )}
-                  
-                  {transfer.notes && (
-                    <div className="space-y-2 mb-4">
-                      <p className="text-sm font-medium">Notes</p>
-                      <p className="text-gray-600">{transfer.notes}</p>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-end space-x-2 mt-4">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => handleRejectClick(transfer.id)}
-                      disabled={rejectTransfer.isPending}
-                    >
-                      <X className="mr-1 h-4 w-4" />
-                      Reject
-                    </Button>
-                    <Button 
-                      onClick={() => handleApproveClick(transfer.id)}
-                      disabled={approveTransfer.isPending}
-                    >
-                      <Check className="mr-1 h-4 w-4" />
-                      Approve
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <CardContent className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </CardContent>
       </Card>
-      
-      {/* Rejection Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Transfer</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this transfer request.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="rejectionReason">Reason for Rejection</Label>
-              <Textarea
-                id="rejectionReason"
-                placeholder="Enter reason for rejection"
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                rows={4}
-              />
-            </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="h-5 w-5" />
+          Pending Transfer Approvals
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {transfers.length === 0 ? (
+          <div className="text-center py-8">
+            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No pending transfers requiring approval</p>
           </div>
-          
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRejectConfirm}
-              disabled={rejectionReason.trim() === ''}
-            >
-              Reject Transfer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Transfer ID</TableHead>
+                  <TableHead>From Warehouse</TableHead>
+                  <TableHead>To Warehouse</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Requested</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transfers.map((transfer) => (
+                  <TableRow key={transfer.id}>
+                    <TableCell className="font-mono text-sm">
+                      {transfer.id.substring(0, 8)}...
+                    </TableCell>
+                    <TableCell>
+                      {transfer.source_warehouse_id}
+                    </TableCell>
+                    <TableCell>
+                      {transfer.destination_warehouse_id}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {transfer.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <p>{new Date(transfer.created_at).toLocaleDateString()}</p>
+                        <p className="text-muted-foreground">by {transfer.initiated_by}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleApproval(transfer.id, 'approve')}
+                          disabled={processingTransfers.has(transfer.id)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleApproval(transfer.id, 'reject')}
+                          disabled={processingTransfers.has(transfer.id)}
+                          className="border-red-200 text-red-600 hover:bg-red-50"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

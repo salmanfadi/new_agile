@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { jsPDF } from 'jspdf';
 
 interface BatchData {
@@ -55,10 +55,7 @@ const BatchBarcodesViewer: React.FC = () => {
           .from('processed_batches')
           .select(`
             *,
-            product:products(id, name, sku),
-            warehouse:warehouses(id, name),
-            location:warehouse_locations(id, name),
-            stock_in_id
+            product:products(id, name, sku)
           `)
           .eq('stock_in_id', stockInIdParam);
 
@@ -66,7 +63,43 @@ const BatchBarcodesViewer: React.FC = () => {
           showErrorToast('Error loading batches', relatedError.message);
           throw relatedError;
         }
-        return stockInBatches || [];
+
+        // Get warehouse and location data separately
+        const batchesWithDetails = await Promise.all(
+          (stockInBatches || []).map(async (batch) => {
+            // Get warehouse data
+            const { data: warehouse } = await supabase
+              .from('warehouses')
+              .select('id, name')
+              .eq('id', batch.warehouse_id)
+              .single();
+
+            // Get location data
+            const { data: location } = await supabase
+              .from('warehouse_locations')
+              .select('id, zone, floor')
+              .eq('id', batch.location_id)
+              .single();
+
+            // Get barcodes
+            const { data: barcodes } = await supabase
+              .from('barcodes')
+              .select('barcode')
+              .eq('batch_id', batch.id)
+              .order('created_at');
+
+            return {
+              ...batch,
+              product_name: batch.product?.name || 'Unknown Product',
+              product_sku: batch.product?.sku || 'N/A',
+              warehouse_name: warehouse?.name || 'Unknown Warehouse',
+              location_name: location ? `Floor ${location.floor} - Zone ${location.zone}` : 'Unknown Location',
+              barcodes: barcodes?.map(b => b.barcode) || []
+            };
+          })
+        );
+
+        return batchesWithDetails;
       }
       // Otherwise, if batchId is provided, get that batch and related ones
       else if (batchId) {
@@ -75,10 +108,7 @@ const BatchBarcodesViewer: React.FC = () => {
           .from('processed_batches')
           .select(`
             *,
-            product:products(id, name, sku),
-            warehouse:warehouses(id, name),
-            location:warehouse_locations(id, name),
-            stock_in_id
+            product:products(id, name, sku)
           `)
           .eq('id', batchId)
           .single();
@@ -95,9 +125,7 @@ const BatchBarcodesViewer: React.FC = () => {
             .from('processed_batches')
             .select(`
               *,
-              product:products(id, name, sku),
-              warehouse:warehouses(id, name),
-              location:warehouse_locations(id, name)
+              product:products(id, name, sku)
             `)
             .eq('stock_in_id', currentBatch.stock_in_id);
 
@@ -108,9 +136,24 @@ const BatchBarcodesViewer: React.FC = () => {
           relatedBatches = [currentBatch];
         }
 
-        // Fetch barcodes for all batches
+        // Fetch additional data for all batches
         const batchesWithBarcodes = await Promise.all(
           relatedBatches.map(async (batch) => {
+            // Get warehouse data
+            const { data: warehouse } = await supabase
+              .from('warehouses')
+              .select('id, name')
+              .eq('id', batch.warehouse_id)
+              .single();
+
+            // Get location data
+            const { data: location } = await supabase
+              .from('warehouse_locations')
+              .select('id, zone, floor')
+              .eq('id', batch.location_id)
+              .single();
+
+            // Get barcodes
             const { data: barcodes } = await supabase
               .from('barcodes')
               .select('barcode')
@@ -121,8 +164,8 @@ const BatchBarcodesViewer: React.FC = () => {
               ...batch,
               product_name: batch.product?.name || 'Unknown Product',
               product_sku: batch.product?.sku || 'N/A',
-              warehouse_name: batch.warehouse?.name || 'Unknown Warehouse',
-              location_name: batch.location?.name || 'Unknown Location',
+              warehouse_name: warehouse?.name || 'Unknown Warehouse',
+              location_name: location ? `Floor ${location.floor} - Zone ${location.zone}` : 'Unknown Location',
               barcodes: barcodes?.map(b => b.barcode) || []
             };
           })
@@ -135,9 +178,7 @@ const BatchBarcodesViewer: React.FC = () => {
           .from('processed_batches')
           .select(`
             *,
-            product:products(id, name, sku),
-            warehouse:warehouses(id, name),
-            location:warehouse_locations(id, name)
+            product:products(id, name, sku)
           `)
           .order('created_at', { ascending: false })
           .limit(10);
@@ -147,9 +188,24 @@ const BatchBarcodesViewer: React.FC = () => {
           throw recentError;
         }
 
-        // Fetch barcodes for all batches
+        // Fetch additional data for all batches
         const batchesWithBarcodes = await Promise.all(
           (recentBatches || []).map(async (batch) => {
+            // Get warehouse data
+            const { data: warehouse } = await supabase
+              .from('warehouses')
+              .select('id, name')
+              .eq('id', batch.warehouse_id)
+              .single();
+
+            // Get location data
+            const { data: location } = await supabase
+              .from('warehouse_locations')
+              .select('id, zone, floor')
+              .eq('id', batch.location_id)
+              .single();
+
+            // Get barcodes
             const { data: barcodes } = await supabase
               .from('barcodes')
               .select('barcode')
@@ -160,8 +216,8 @@ const BatchBarcodesViewer: React.FC = () => {
               ...batch,
               product_name: batch.product?.name || 'Unknown Product',
               product_sku: batch.product?.sku || 'N/A',
-              warehouse_name: batch.warehouse?.name || 'Unknown Warehouse',
-              location_name: batch.location?.name || 'Unknown Location',
+              warehouse_name: warehouse?.name || 'Unknown Warehouse',
+              location_name: location ? `Floor ${location.floor} - Zone ${location.zone}` : 'Unknown Location',
               barcodes: barcodes?.map(b => b.barcode) || []
             };
           })
@@ -405,95 +461,87 @@ const BatchBarcodesViewer: React.FC = () => {
         </div>
       )}
     
-    {batch ? (
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                {batch.product_name}
-                <Badge variant="outline">Batch #{batch.batch_number}</Badge>
-              </CardTitle>
-              <CardDescription className="mt-2">
-                {batch.total_boxes} boxes • {batch.quantity_per_box} items per box • {batch.total_boxes * batch.quantity_per_box} total items
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Warehouse</p>
-              <p className="font-medium">{batch.warehouse_name}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Location</p>
-              <p className="font-medium">{batch.location_name}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Status</p>
-              <Badge variant={batch.status === 'completed' ? 'default' : 'secondary'}>
-                {batch.status}
-              </Badge>
-            </div>
-            {batch.color && (
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Color</p>
-                <p className="font-medium">{batch.color}</p>
+      {batch ? (
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  {batch.product_name}
+                  <Badge variant="outline">Batch #{batch.batch_number}</Badge>
+                </CardTitle>
+                <CardDescription className="mt-2">
+                  {batch.total_boxes} boxes • {batch.quantity_per_box} items per box • {batch.total_boxes * batch.quantity_per_box} total items
+                </CardDescription>
               </div>
-            )}
-            {batch.size && (
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Size</p>
-                <p className="font-medium">{batch.size}</p>
+                <p className="text-sm text-muted-foreground">Warehouse</p>
+                <p className="font-medium">{batch.warehouse_name}</p>
               </div>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <h3 className="text-lg font-medium">Barcodes</h3>
-            <ScrollArea className="h-[400px] rounded-md border p-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-20">Box #</TableHead>
-                    <TableHead>Barcode</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {batch.barcodes.length > 0 ? (
-                    batch.barcodes.map((barcode, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{index + 1}</TableCell>
-                        <TableCell>{barcode}</TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Location</p>
+                <p className="font-medium">{batch.location_name}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Status</p>
+                <Badge variant={batch.status === 'completed' ? 'default' : 'secondary'}>
+                  {batch.status}
+                </Badge>
+              </div>
+              {batch.color && (
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Color</p>
+                  <p className="font-medium">{batch.color}</p>
+                </div>
+              )}
+              {batch.size && (
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Size</p>
+                  <p className="font-medium">{batch.size}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium">Barcodes</h3>
+              <ScrollArea className="h-[400px] rounded-md border p-4">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center py-4 text-muted-foreground">
-                        No barcodes found for this batch
-                      </TableCell>
+                      <TableHead className="w-20">Box #</TableHead>
+                      <TableHead>Barcode</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </div>
-        </CardContent>
-      </Card>
-    ) : isLoading ? (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    ) : error ? (
-      <div className="p-4 text-destructive">
-        Error loading batch data: {error instanceof Error ? error.message : 'Unknown error'}
-      </div>
-    ) : (
-      <div className="p-4">No batch data found</div>
-    )}
-  </div>
-);
+                  </TableHeader>
+                  <TableBody>
+                    {batch.barcodes.length > 0 ? (
+                      batch.barcodes.map((barcode, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell>{barcode}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center py-4 text-muted-foreground">
+                          No barcodes found for this batch
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="p-4">No batch data found</div>
+      )}
+    </div>
+  );
 };
 
 export default BatchBarcodesViewer;
