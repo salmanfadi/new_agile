@@ -140,7 +140,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setIsLoading(true);
       let retryCount = 0;
       const maxRetries = 3;
-      const timeout = 30000; // Increased timeout to 30 seconds
+      const timeout = 60000; // Increased timeout to 60 seconds
       
       const attemptSessionFetch = async () => {
         try {
@@ -214,7 +214,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       try {
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth state change timeout')), 30000)
+          setTimeout(() => reject(new Error('Auth state change timeout')), 60000) // Increased timeout to 60 seconds
         );
         
         await Promise.race([

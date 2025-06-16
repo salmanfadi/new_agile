@@ -193,66 +193,11 @@ const BarcodeScanner: React.FC = () => {
           }
         });
 
-        // Add debug information if needed
+        // Simplified debug information without problematic drawing operations
         Quagga.onProcessed((result) => {
-          if (!Quagga || !(Quagga as any).canvas) return;
-          
-          const canvas = (Quagga as any).canvas;
-          if (!canvas || !canvas.ctx || !canvas.dom) return;
-          
-          const drawingCtx = canvas.ctx.overlay;
-          const drawingCanvas = canvas.dom.overlay;
-
-          if (result) {
-            if (result.boxes) {
-              drawingCtx.clearRect(
-                0,
-                0,
-                parseInt(drawingCanvas.getAttribute("width") || "0"),
-                parseInt(drawingCanvas.getAttribute("height") || "0")
-              );
-              result.boxes
-                .filter((box) => {
-                  if (!result.box) return true;
-                  return true;
-                })
-                .forEach((box) => {
-                  if (box && box.length >= 4) {
-                    drawingCtx.strokeStyle = "green";
-                    drawingCtx.lineWidth = 2;
-                    drawingCtx.strokeRect(Number(box[0]), Number(box[1]), Number(box[2]) - Number(box[0]), Number(box[3]) - Number(box[1]));
-                  }
-                });
-            }
-
-            if (result.box) {
-              const boxData = result.box;
-              if (boxData && Array.isArray(boxData) && boxData.length >= 2 && 
-                  Array.isArray(boxData[0]) && boxData[0].length >= 2 &&
-                  Array.isArray(boxData[1]) && boxData[1].length >= 2) {
-                const x = Number(boxData[0][0]);
-                const y = Number(boxData[0][1]);
-                const width = Number(boxData[1][0]) - x;
-                const height = Number(boxData[1][1]) - y;
-                
-                const rect = { x, y, width, height };
-                
-                drawingCtx.strokeStyle = "blue";
-                drawingCtx.lineWidth = 2;
-                drawingCtx.strokeRect(
-                  rect.x,
-                  rect.y,
-                  rect.width,
-                  rect.height
-                );
-              }
-            }
-
-            if (result.codeResult && result.codeResult.code) {
-              drawingCtx.font = "24px Arial";
-              drawingCtx.fillStyle = "green";
-              drawingCtx.fillText(result.codeResult.code, 10, 50);
-            }
+          // Only log detection results, avoid canvas operations that might cause errors
+          if (result && result.codeResult) {
+            console.log('Barcode processing result:', result.codeResult.code);
           }
         });
       }
