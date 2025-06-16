@@ -126,7 +126,7 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
     animationFrameRef.current = requestAnimationFrame(detectBarcode);
   }, [detectBarcode]);
 
-  // Enhanced camera initialization with simplified constraints
+  // Enhanced camera initialization with relaxed constraints
   const initializeCamera = useCallback(async () => {
     try {
       setCameraError('');
@@ -137,15 +137,15 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
         stream.getTracks().forEach(track => track.stop());
       }
 
-      // Simplified constraints - just use basic settings
+      // Relaxed constraints - remove width and height constraints
       const constraints: MediaStreamConstraints = {
         video: {
-          facingMode: 'environment' // Use rear camera, no other constraints
+          facingMode: 'environment' // Use rear camera only
         },
         audio: false
       };
 
-      console.log('Requesting camera with simplified constraints:', constraints);
+      console.log('Requesting camera with relaxed constraints:', constraints);
       
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('Camera stream obtained successfully:', mediaStream);
