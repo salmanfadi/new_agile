@@ -144,50 +144,95 @@ export const useSalesOrders = () => {
 
   const pushToStockOut = useMutation({
     mutationFn: async (salesOrder: SalesOrder) => {
-      // Create stock-out request
-      const { data: stockOutRequest, error: stockOutError } = await supabase
-        .from('stock_out')
-        .insert({
-          sales_order_id: salesOrder.id,
-          customer_name: salesOrder.customer_name,
-          customer_email: salesOrder.customer_email,
-          customer_company: salesOrder.customer_company,
-          customer_phone: salesOrder.customer_phone,
-          destination: `${salesOrder.customer_company} - ${salesOrder.customer_name}`,
-          notes: `Stock-out request for Sales Order: ${salesOrder.sales_order_number}`,
-          status: 'from_sales_order',
-        })
-        .select()
-        .single();
-
-      if (stockOutError) throw stockOutError;
-
-      // Create stock-out details for each item
-      const stockOutDetails = salesOrder.items.map(item => ({
-        stock_out_id: stockOutRequest.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-      }));
-
-      const { error: detailsError } = await supabase
-        .from('stock_out_details')
-        .insert(stockOutDetails);
-
-      if (detailsError) throw detailsError;
-
-      // Update sales order to mark as pushed to stock-out
-      const { error: updateError } = await supabase
+      // First check if the order is already pushed to stock-out to prevent duplicates
+      const { data: existingOrder, error: checkError } = await supabase
         .from('sales_orders')
-        .update({
-          pushed_to_stockout: true,
-          stockout_id: stockOutRequest.id,
-          status: 'processing'
-        })
-        .eq('id', salesOrder.id);
+        .select('pushed_to_stockout, stockout_id')
+        .eq('id', salesOrder.id)
+        .single();
+      
+      if (checkError) {
+        throw new Error(`Failed to check order status: ${checkError.message}`);
+      }
+      
+      if (existingOrder?.pushed_to_stockout) {
+        // Order already pushed to stock-out, return existing stockout_id
+        const { data: existingStockOut, error: fetchError } = await supabase
+          .from('stock_out')
+          .select('*')
+          .eq('id', existingOrder.stockout_id)
+          .single();
+          
+        if (fetchError) {
+          throw new Error(`Order marked as pushed to stock-out but failed to fetch stock-out details: ${fetchError.message}`);
+        }
+        
+        return existingStockOut;
+      }
 
-      if (updateError) throw updateError;
+      // Start a transaction using RPC function
+      // Note: This assumes you have a stored procedure in Supabase for transaction handling
+      // If not available, we'll use the sequential approach with better error handling
+      try {
+        // Create stock-out request
+        const { data: stockOutRequest, error: stockOutError } = await supabase
+          .from('stock_out')
+          .insert({
+            sales_order_id: salesOrder.id,
+            customer_name: salesOrder.customer_name,
+            customer_email: salesOrder.customer_email,
+            customer_company: salesOrder.customer_company,
+            customer_phone: salesOrder.customer_phone,
+            destination: `${salesOrder.customer_company} - ${salesOrder.customer_name}`,
+            notes: `Stock-out request for Sales Order: ${salesOrder.sales_order_number}`,
+            status: 'pending',
+          })
+          .select()
+          .single();
 
-      return stockOutRequest;
+        if (stockOutError) {
+          throw new Error(`Failed to create stock-out request: ${stockOutError.message}`);
+        }
+
+        // Create stock-out details for each item
+        const stockOutDetails = salesOrder.items.map(item => ({
+          stock_out_id: stockOutRequest.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+        }));
+
+        const { error: detailsError } = await supabase
+          .from('stock_out_details')
+          .insert(stockOutDetails);
+
+        if (detailsError) {
+          // Attempt to clean up the stock-out request if details insertion fails
+          await supabase.from('stock_out').delete().eq('id', stockOutRequest.id);
+          throw new Error(`Failed to create stock-out details: ${detailsError.message}`);
+        }
+
+        // Update sales order to mark as pushed to stock-out
+        const { error: updateError } = await supabase
+          .from('sales_orders')
+          .update({
+            pushed_to_stockout: true,
+            stockout_id: stockOutRequest.id,
+            status: 'processing'
+          })
+          .eq('id', salesOrder.id);
+
+        if (updateError) {
+          // Attempt to clean up if update fails
+          await supabase.from('stock_out_details').delete().eq('stock_out_id', stockOutRequest.id);
+          await supabase.from('stock_out').delete().eq('id', stockOutRequest.id);
+          throw new Error(`Failed to update sales order: ${updateError.message}`);
+        }
+
+        return stockOutRequest;
+      } catch (error) {
+        // Re-throw the error to be handled by onError
+        throw error;
+      }
     },
     onSuccess: (stockOutRequest, salesOrder) => {
       queryClient.invalidateQueries({ queryKey: ['sales-orders'] });
@@ -195,14 +240,16 @@ export const useSalesOrders = () => {
       toast({
         title: 'Success',
         description: `Sales Order ${salesOrder.sales_order_number} pushed to stock-out successfully`,
+        duration: 5000,
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error('Push to stock-out error:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to push order to stock-out',
+        description: error.message || 'Failed to push order to stock-out',
+        duration: 7000,
       });
     },
   });

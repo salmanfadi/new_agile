@@ -50,12 +50,23 @@ const OrdersManagement: React.FC = () => {
     }
   };
 
+  const [orderToPush, setOrderToPush] = useState<any | null>(null);
+  const [isPushDialogOpen, setIsPushDialogOpen] = useState(false);
+
   const handlePushToStockOut = async (order: any) => {
     try {
       await pushToStockOut.mutateAsync(order);
+      setIsPushDialogOpen(false);
+      setOrderToPush(null);
     } catch (error) {
       console.error('Error pushing to stock-out:', error);
+      // Error is handled by the mutation's onError callback
     }
+  };
+  
+  const openPushConfirmation = (order: any) => {
+    setOrderToPush(order);
+    setIsPushDialogOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -78,7 +89,7 @@ const OrdersManagement: React.FC = () => {
   };
 
   const canPushToStockOut = (order: any) => {
-    return ['confirmed', 'processing'].includes(order.status) && !order.pushed_to_stockout;
+    return ['pending', 'confirmed', 'processing'].includes(order.status) && !order.pushed_to_stockout;
   };
 
   return (
@@ -159,13 +170,16 @@ const OrdersManagement: React.FC = () => {
                     <TableCell>
                       {canPushToStockOut(order) && (
                         <Button
-                          onClick={() => handlePushToStockOut(order)}
+                          onClick={() => openPushConfirmation(order)}
                           disabled={pushToStockOut.isPending}
                           size="sm"
                           className="flex items-center gap-2"
+                          variant="secondary"
                         >
                           <Truck className="h-4 w-4" />
-                          {pushToStockOut.isPending ? 'Pushing...' : 'Push to Stock-Out'}
+                          {pushToStockOut.isPending && pushToStockOut.variables?.id === order.id 
+                            ? 'Processing...' 
+                            : 'Push to Stock-Out'}
                         </Button>
                       )}
                     </TableCell>
@@ -197,6 +211,54 @@ const OrdersManagement: React.FC = () => {
             onCancel={() => setIsCreateDialogOpen(false)}
             isLoading={createSalesOrder.isPending}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Push to Stock-Out Confirmation Dialog */}
+      <Dialog open={isPushDialogOpen} onOpenChange={setIsPushDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Push Order to Stock-Out</DialogTitle>
+            <DialogDescription>
+              This will create a stock-out request for warehouse processing.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {orderToPush && (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="font-medium">Order Number:</div>
+                  <div>{orderToPush.sales_order_number}</div>
+                  <div className="font-medium">Customer:</div>
+                  <div>{orderToPush.customer_name}</div>
+                  <div className="font-medium">Company:</div>
+                  <div>{orderToPush.customer_company}</div>
+                  <div className="font-medium">Items:</div>
+                  <div>{orderToPush.items.length} items</div>
+                </div>
+                <div className="border-t pt-2">
+                  <p className="text-sm text-muted-foreground">
+                    This action will mark the order as "processing" and create a stock-out request for the warehouse team.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsPushDialogOpen(false)} disabled={pushToStockOut.isPending}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => orderToPush && handlePushToStockOut(orderToPush)}
+              disabled={pushToStockOut.isPending}
+              className="flex items-center gap-2"
+            >
+              {pushToStockOut.isPending && (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              )}
+              {pushToStockOut.isPending ? 'Processing...' : 'Confirm'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

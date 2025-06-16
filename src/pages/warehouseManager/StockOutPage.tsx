@@ -41,17 +41,26 @@ const StockOutPage: React.FC = () => {
         .from('stock_out')
         .select(`
           *,
-          product:products(*),
-          customer:customers(*)
+          stock_out_details(*, product:products(*))
         `)
+        .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      
+      // Transform the data to make it easier to work with
+      return data?.map(stockOut => ({
+        ...stockOut,
+        // Extract the first product for display in the table
+        // (We'll handle multiple products in the ProcessStockOutForm)
+        product: stockOut.stock_out_details?.[0]?.product || null,
+        quantity: stockOut.stock_out_details?.[0]?.quantity || 0
+      })) || [];
     },
   });
 
   const handleProcess = (stockOut: any) => {
+    // Make sure we pass the full stock_out_details to the form
     setSelectedStockOut(stockOut);
     setIsProcessingDialogOpen(true);
   };
@@ -117,39 +126,39 @@ const StockOutPage: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stockOutRequests.map((request: any) => (
-                  <TableRow key={request.id}>
+                {stockOutRequests.map((stockOut: any) => (
+                  <TableRow key={stockOut.id}>
                     <TableCell>
-                      {format(new Date(request.created_at), 'MMM d, yyyy')}
+                      {format(new Date(stockOut.created_at), 'MMM d, yyyy')}
                     </TableCell>
-                    <TableCell>{request.destination}</TableCell>
+                    <TableCell>{stockOut.destination}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
-                          request.status === 'pending'
+                          stockOut.status === 'pending'
                             ? 'default'
-                            : request.status === 'approved'
+                            : stockOut.status === 'approved'
                             ? 'secondary'
                             : 'destructive'
                         }
                       >
-                        {request.status}
+                        {stockOut.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{request.notes || 'N/A'}</TableCell>
+                    <TableCell>{stockOut.notes || 'N/A'}</TableCell>
                     <TableCell>
-                      {request.status === 'pending' && (
+                      {stockOut.status === 'pending' && (
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            onClick={() => handleProcess(request)}
+                            onClick={() => handleProcess(stockOut)}
                           >
                             Process
                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handleReject(request)}
+                            onClick={() => handleReject(stockOut)}
                           >
                             Reject
                           </Button>
