@@ -126,29 +126,26 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
     animationFrameRef.current = requestAnimationFrame(detectBarcode);
   }, [detectBarcode]);
 
-  // Enhanced camera initialization specifically for iOS
+  // Enhanced camera initialization with simplified constraints
   const initializeCamera = useCallback(async () => {
     try {
       setCameraError('');
-      console.log('Starting camera initialization for iOS...');
+      console.log('Starting camera initialization...');
       
       // Stop any existing stream
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
 
-      // iOS-specific constraints - removed unsupported properties
+      // Simplified constraints - just use basic settings
       const constraints: MediaStreamConstraints = {
         video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280, min: 640 },
-          height: { ideal: 720, min: 480 },
-          frameRate: { ideal: 30, min: 15 }
+          facingMode: 'environment' // Use rear camera, no other constraints
         },
         audio: false
       };
 
-      console.log('Requesting camera with constraints:', constraints);
+      console.log('Requesting camera with simplified constraints:', constraints);
       
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('Camera stream obtained successfully:', mediaStream);
@@ -158,7 +155,7 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         
-        // Enhanced video setup for iOS
+        // Enhanced video setup for mobile devices
         videoRef.current.setAttribute('playsinline', 'true');
         videoRef.current.setAttribute('webkit-playsinline', 'true');
         videoRef.current.muted = true;
@@ -190,7 +187,7 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
           video.addEventListener('loadedmetadata', handleLoadedMetadata);
           video.addEventListener('error', handleError);
           
-          // Start playing with iOS-specific handling
+          // Start playing
           const playPromise = video.play();
           if (playPromise !== undefined) {
             playPromise.catch(reject);
@@ -212,10 +209,7 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
       } else if (error.name === 'NotReadableError') {
         errorMessage = 'Camera is being used by another application.';
       } else if (error.name === 'OverconstrainedError') {
-        errorMessage = 'Camera constraints not supported. Trying with basic settings.';
-        // Try with simpler constraints
-        retryWithBasicConstraints();
-        return;
+        errorMessage = 'Camera settings not supported by this device.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -230,39 +224,6 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
       });
     }
   }, [stream, startScanning]);
-
-  // Fallback with basic constraints for iOS
-  const retryWithBasicConstraints = useCallback(async () => {
-    try {
-      console.log('Retrying with basic constraints...');
-      
-      const basicConstraints: MediaStreamConstraints = {
-        video: {
-          facingMode: 'environment'
-        },
-        audio: false
-      };
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia(basicConstraints);
-      console.log('Camera stream obtained with basic constraints');
-      
-      setStream(mediaStream);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.setAttribute('webkit-playsinline', 'true');
-        videoRef.current.muted = true;
-        
-        await videoRef.current.play();
-        startScanning();
-      }
-    } catch (error: any) {
-      console.error('Basic camera initialization also failed:', error);
-      setCameraError('Unable to access camera with any settings');
-      setIsScanning(false);
-    }
-  }, []);
 
   const stopCamera = useCallback(() => {
     console.log('Stopping camera...');

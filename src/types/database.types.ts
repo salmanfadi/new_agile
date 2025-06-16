@@ -68,6 +68,65 @@ export interface Database {
           quantity?: number | null;
         };
       };
+      stock_out: {
+        Row: {
+          id: string;
+          warehouse_id: string | null;
+          created_by: string | null;
+          requested_by: string | null;
+          destination: string | null;
+          notes: string | null;
+          status: string | null;
+          approved_by: string | null;
+          approved_at: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+          sales_order_id: string | null;
+          customer_name: string | null;
+          customer_email: string | null;
+          customer_company: string | null;
+          customer_phone: string | null;
+          approved_quantity: number | null;
+        };
+        Insert: {
+          id?: string;
+          warehouse_id?: string | null;
+          created_by?: string | null;
+          requested_by?: string | null;
+          destination?: string | null;
+          notes?: string | null;
+          status?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          sales_order_id?: string | null;
+          customer_name?: string | null;
+          customer_email?: string | null;
+          customer_company?: string | null;
+          customer_phone?: string | null;
+          approved_quantity?: number | null;
+        };
+        Update: {
+          id?: string;
+          warehouse_id?: string | null;
+          created_by?: string | null;
+          requested_by?: string | null;
+          destination?: string | null;
+          notes?: string | null;
+          status?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+          sales_order_id?: string | null;
+          customer_name?: string | null;
+          customer_email?: string | null;
+          customer_company?: string | null;
+          customer_phone?: string | null;
+          approved_quantity?: number | null;
+        };
+      };
     };
   };
-} 
+}

@@ -1,4 +1,3 @@
-
 export type StockStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'processing';
 export type StockInStatus = 'pending' | 'approved' | 'rejected' | 'processing' | 'completed';
 
@@ -67,6 +66,7 @@ export interface StockOutRequest {
   priority: 'low' | 'normal' | 'high' | 'urgent';
   processed_by: string | null;
   created_at: string;
+  approved_quantity?: number | null;
 }
 
 export interface StockOutWithProduct {
@@ -80,6 +80,7 @@ export interface StockOutWithProduct {
   product: any;
   item_id?: string;
   product_name?: string;
+  approved_quantity?: number | null;
 }
 
 // Add type alias for backward compatibility
