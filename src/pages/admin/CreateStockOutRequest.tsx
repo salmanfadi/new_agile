@@ -133,6 +133,7 @@ const CreateStockOutRequest: React.FC = () => {
             invoice_number: invoiceNumber,
             packing_slip_number: packingSlipNumber,
             warehouse_id: data.warehouse_id,
+            approved_quantity: null, // Initialize as null for pending requests
           },
         ])
         .select()
@@ -305,11 +306,16 @@ const CreateStockOutRequest: React.FC = () => {
                       required
                     />
                     {availableQuantity !== undefined && (
-                      <span className="text-sm text-muted-foreground">
+                      <span className={`text-sm ${availableQuantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
                         Available: {availableQuantity}
                       </span>
                     )}
                   </div>
+                  {availableQuantity === 0 && (
+                    <p className="text-xs text-red-600 mt-1">
+                      No stock available for this product in the selected warehouse
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="destination">Destination *</Label>
@@ -346,7 +352,7 @@ const CreateStockOutRequest: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                disabled={isLoading || formData.quantity > (availableQuantity || 0)}
+                disabled={isLoading || formData.quantity > (availableQuantity || 0) || availableQuantity === 0}
               >
                 {isLoading ? (
                   <>
@@ -365,4 +371,4 @@ const CreateStockOutRequest: React.FC = () => {
   );
 };
 
-export default CreateStockOutRequest; 
+export default CreateStockOutRequest;
