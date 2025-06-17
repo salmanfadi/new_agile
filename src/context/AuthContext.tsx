@@ -140,7 +140,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setIsLoading(true);
       let retryCount = 0;
       const maxRetries = 3;
-      const timeout = 30000; // Reduced timeout to 30 seconds
+      const timeout = 60000; // Increased timeout to 60 seconds
       
       const attemptSessionFetch = async () => {
         try {
