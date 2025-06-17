@@ -214,7 +214,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       try {
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth state change timeout')), 60000) // Increased timeout to 60 seconds
+          setTimeout(() => reject(new Error('Auth state change timeout')), 120000) // Increased timeout to 120 seconds
         );
         
         await Promise.race([
