@@ -32,7 +32,7 @@ export const mapStockInWithDetails = (stockIn: any, details: any[]): StockInWith
   if (stockIn.profiles) {
     stockInData.submitter = {
       id: stockIn.profiles.id,
-      name: stockIn.profiles.name,
+      name: stockIn.profiles.full_name,
       username: stockIn.profiles.username,
     };
   }

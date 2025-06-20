@@ -70,13 +70,13 @@ const StockOutApproval: React.FC = () => {
   // Update stock out status mutation
   const updateStockOutMutation = useMutation({
     mutationFn: async ({ id, status, approved_quantity }: { id: string; status: string; approved_quantity?: number }) => {
+      // First update the stock_out table with fields that exist in that table
       const updateData: any = { 
         status,
-        approved_by: user?.id 
+        approved_by: user?.id,
+        approved_at: new Date().toISOString()
       };
-      if (approved_quantity !== undefined) {
-        updateData.approved_quantity = approved_quantity;
-      }
+      
       const { data, error } = await supabase
         .from('stock_out')
         .update(updateData)
@@ -119,6 +119,34 @@ const StockOutApproval: React.FC = () => {
         title: 'Error checking inventory',
         description: error instanceof Error ? error.message : 'Failed to check available inventory',
       });
+    }
+  };
+  
+  // Function to update stock_out_details with approved quantity
+  const updateStockOutDetails = async (stockOutId: string, productId: string, approvedQty: number) => {
+    try {
+      // Get the stock_out_details record
+      const { data: details, error: fetchError } = await supabase
+        .from('stock_out_details')
+        .select('*')
+        .eq('stock_out_id', stockOutId)
+        .eq('product_id', productId)
+        .single();
+        
+      if (fetchError) throw fetchError;
+      
+      if (details) {
+        // Update the processed_quantity field which exists in stock_out_details
+        const { error: updateError } = await supabase
+          .from('stock_out_details')
+          .update({ processed_quantity: approvedQty })
+          .eq('id', details.id);
+          
+        if (updateError) throw updateError;
+      }
+    } catch (error) {
+      console.error('Error updating stock_out_details:', error);
+      throw error;
     }
   };
 
@@ -273,11 +301,38 @@ const StockOutApproval: React.FC = () => {
           {selectedStockOut && (
             <form onSubmit={(e) => {
               e.preventDefault();
-              updateStockOutMutation.mutate({
-                id: selectedStockOut.id,
-                status: 'approved',
-                approved_quantity: approvedQuantity
-              });
+              const handleConfirmApproval = async () => {
+                if (!selectedStockOut) return;
+                
+                try {
+                  // First update the stock_out table status
+                  await updateStockOutMutation.mutateAsync({
+                    id: selectedStockOut.id,
+                    status: 'approved'
+                  });
+                  
+                  // Then update the stock_out_details with approved quantity
+                  await updateStockOutDetails(
+                    selectedStockOut.id, 
+                    selectedStockOut.product.id, 
+                    approvedQuantity
+                  );
+                  
+                  toast({
+                    title: 'Stock Out Approved',
+                    description: `Approved ${approvedQuantity} items for stock out request.`,
+                  });
+                  
+                  setIsApprovalDialogOpen(false);
+                } catch (error) {
+                  toast({
+                    variant: 'destructive',
+                    title: 'Approval failed',
+                    description: error instanceof Error ? error.message : 'Failed to approve stock out request',
+                  });
+                }
+              };
+              handleConfirmApproval();
             }}>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">

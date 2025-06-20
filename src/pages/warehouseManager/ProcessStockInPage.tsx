@@ -34,8 +34,6 @@ const ProcessStockInPage: React.FC = () => {
   // Convert StockInWithDetails to ProcessableStockIn for the component
   const processableStockIn = {
     id: currentStockIn.id,
-    product_id: currentStockIn.product_id,
-    quantity: currentStockIn.quantity || currentStockIn.boxes || 0,
     boxes: currentStockIn.boxes,
     status: currentStockIn.status,
     created_at: currentStockIn.created_at || "",

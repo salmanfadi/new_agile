@@ -71,8 +71,6 @@ const StockInDetailsPage: React.FC = () => {
   // Map currentStockIn to ProcessableStockIn for StockInDetailView
   const processableStockIn = {
     id: currentStockIn.id,
-    product_id: currentStockIn.product_id,
-    quantity: currentStockIn.quantity || currentStockIn.boxes || 0,
     boxes: currentStockIn.boxes,
     status: currentStockIn.status,
     created_at: currentStockIn.created_at || '',
@@ -97,7 +95,6 @@ const StockInDetailsPage: React.FC = () => {
         details={details}
         isLoading={stockInData.loading}
       />
-      
       {/* Pagination Controls for Details */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between py-4">

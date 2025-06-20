@@ -22,6 +22,7 @@ export const useUserStockActivity = (userId?: string): UserStockActivity => {
         .select(`
           id,
           product_id,
+          number_of_boxes,
           quantity,
           status,
           created_at,

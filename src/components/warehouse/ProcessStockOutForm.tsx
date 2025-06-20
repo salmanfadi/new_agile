@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { executeQuery } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
 import {
   Dialog,
@@ -86,11 +86,13 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({
       
       // First check available inventory
       console.log('Checking inventory for product:', productId);
-      const { data: inventoryData, error: inventoryError } = await supabase
-        .from('inventory')
-        .select('quantity')
-        .eq('product_id', productId)
-        .eq('status', 'in_stock');
+      const { data: inventoryData, error: inventoryError } = await executeQuery('inventory', async (supabase) => {
+        return await supabase
+          .from('inventory')
+          .select('quantity')
+          .eq('product_id', productId)
+          .eq('status', 'in_stock');
+      });
 
       if (inventoryError) {
         console.error('Inventory check error:', inventoryError);
@@ -99,7 +101,7 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({
       
       console.log('Inventory data:', inventoryData);
 
-      const availableQuantity = inventoryData.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      const availableQuantity = Array.isArray(inventoryData) ? inventoryData.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0;
 
       if (availableQuantity < approvedQuantity) {
         toast({
@@ -115,11 +117,13 @@ const ProcessStockOutForm: React.FC<ProcessStockOutFormProps> = ({
       console.log('Updating stock_out with id:', stockOut.id);
       
       // First try a simple direct update with just the status
-      const { data: updateData, error: updateError } = await supabase
-        .from('stock_out')
-        .update({ status: 'approved' })
-        .eq('id', stockOut.id)
-        .select();
+      const { data: updateData, error: updateError } = await executeQuery('stock_out', async (supabase) => {
+        return await supabase
+          .from('stock_out')
+          .update({ status: 'approved' })
+          .eq('id', stockOut.id)
+          .select();
+      });
       
       console.log('Update result:', { data: updateData, error: updateError });
 

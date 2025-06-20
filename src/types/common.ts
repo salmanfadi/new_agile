@@ -42,6 +42,7 @@ export interface StockInItem {
   id: string;
   product_id: string;
   quantity: number;
+  number_of_boxes: number;
   status: string;
   created_at: string;
   updated_at: string;

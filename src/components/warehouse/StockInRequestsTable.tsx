@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -13,8 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Box, AlertTriangle } from 'lucide-react';
-import { useStockInRequests } from '@/hooks/useStockInRequests';
-import { StockInRequest } from '@/types/database';
+import { useStockInRequests, StockInRequestData } from '@/hooks/useStockInRequests';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import ProcessStockInForm from './ProcessStockInForm';
 import { useToast } from '@/hooks/use-toast';
@@ -22,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 interface StockInRequestsTableProps {
   status?: string;
   filters?: Record<string, any>;
-  onReject?: (stockIn: StockInRequest) => void;
+  onReject?: (stockIn: StockInRequestData) => void;
   userId?: string;
   adminMode?: boolean;
 }
@@ -43,7 +41,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   const [pageSize, setPageSize] = useState(20);
   
   // State for the process form dialog
-  const [selectedStockIn, setSelectedStockIn] = useState<StockInRequest | null>(null);
+  const [selectedStockIn, setSelectedStockIn] = useState<StockInRequestData | null>(null);
   const [isProcessFormOpen, setIsProcessFormOpen] = useState(false);
   
   // Use the shared hook for stock in requests
@@ -62,7 +60,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   const totalPages = Math.ceil(totalCount / pageSize);
   
   // Handle process button click - Open the form dialog
-  const handleProcess = (stockIn: StockInRequest) => {
+  const handleProcess = (stockIn: StockInRequestData) => {
     console.log("Opening process form for stock in with ID:", stockIn.id);
     
     // Validate that userId is available
@@ -93,7 +91,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
   }, [isProcessFormOpen, selectedStockIn]);
   
   // Handle continue processing for requests that are already in processing status
-  const handleContinueProcessing = (stockIn: StockInRequest) => {
+  const handleContinueProcessing = (stockIn: StockInRequestData) => {
     console.log("Continuing processing with ID:", stockIn.id);
     // Redirect to the unified batch processing page with the correct route based on user role
     const baseUrl = adminMode ? 
@@ -103,7 +101,7 @@ export const StockInRequestsTable: React.FC<StockInRequestsTableProps> = ({
     navigate(`${baseUrl}${stockIn.id}`);
   };
 
-  const handleReject = (stockIn: StockInRequest) => {
+  const handleReject = (stockIn: StockInRequestData) => {
     console.log("Rejecting stock in with ID:", stockIn.id);
     if (onReject) {
       onReject(stockIn);

@@ -5,15 +5,17 @@ export interface CustomerInquiry {
   id: string;
   customer_name: string;
   customer_email: string;
-  customer_company: string;
-  customer_phone: string | null;
-  status: 'new' | 'in_progress' | 'completed';
-  notes: string | null;
-  converted_to_order: boolean;
+  customer_phone?: string | null;
+  status: 'pending' | 'in_progress' | 'finalizing' | 'completed';
+  notes?: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
+  reference_number?: string | null;
   items?: CustomerInquiryItem[];
-  message?: string | null; // Optional for compatibility with SalesInquiry
+  message?: string | null; // For backward compatibility
+  product_id?: string | null; // For single product inquiries
+  product_name?: string | null; // For single product inquiries
+  quantity?: number | null; // For single product inquiries
 }
 
 export interface CustomerInquiryItem {
@@ -25,21 +27,16 @@ export interface CustomerInquiryItem {
   specific_requirements: string | null;
   created_at: string;
   product?: Product | null;
+  product_name?: string;
+  sku?: string;
+  description?: string;
+  unit?: string;
+  image_url?: string;
 }
 
-export interface SalesInquiry {
-  id: string;
-  customer_name: string;
-  customer_email: string;
-  customer_company: string;
-  customer_phone: string | null;
-  status: 'new' | 'in_progress' | 'completed';
-  message: string | null; // Required for SalesInquiry
-  notes: string | null; // Added to match CustomerInquiry
-  converted_to_order: boolean;
-  created_at: string;
-  updated_at: string;
-  items?: SalesInquiryItem[];
+// For backward compatibility - now we use CustomerInquiry directly
+export interface SalesInquiry extends CustomerInquiry {
+  message: string | null;
 }
 
 export interface SalesInquiryItem {

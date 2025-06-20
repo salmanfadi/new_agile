@@ -1,0 +1,309 @@
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { executeQuery } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import ProcessStockOutForm from '@/components/warehouse/ProcessStockOutForm';
+import { CreateStockOutForm } from '@/components/warehouse/CreateStockOutForm';
+import { format } from 'date-fns';
+import { Plus, RefreshCw, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PageHeader } from '@/components/ui/PageHeader';
+
+type StockOutStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'from_sales_order';
+
+interface StockOutRequest {
+  id: string;
+  destination: string;
+  notes?: string;
+  status: StockOutStatus;
+  created_at: string;
+  updated_at: string;
+  requested_by: string;
+  approved_by?: string;
+  approved_at?: string;
+  sales_order_id?: string;
+  customer_name?: string;
+  customer_email?: string;
+  customer_company?: string;
+  customer_phone?: string;
+  stock_out_details: Array<{
+    id: string;
+    quantity: number;
+    product_id: string;
+    products?: {
+      name: string;
+      sku?: string;
+      hsn_code?: string;
+      gst_rate?: number;
+    };
+  }>;
+  profiles?: {
+    full_name?: string;
+  };
+  sales_orders?: {
+    sales_order_number: string;
+    status: string;
+  };
+}
+
+const StockOutManagement: React.FC = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedStockOut, setSelectedStockOut] = useState<any | null>(null);
+  const [isProcessingDialogOpen, setIsProcessingDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState<string>('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch stock out requests
+  const { data: stockOutRequests, isLoading, refetch } = useQuery({
+    queryKey: ['stock-out-requests'],
+    queryFn: async () => {
+      const { data, error } = await executeQuery('stock_out', async (supabase) => {
+        return await supabase
+          .from('stock_out')
+          .select(`
+            *,
+            stock_out_details(*, product:products(*)),
+            profiles:requested_by(full_name),
+            sales_orders:sales_order_id(sales_order_number, status)
+          `)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+      });
+
+      if (error) throw error;
+      
+      // Transform the data to make it easier to work with
+      return data?.map(stockOut => ({
+        ...stockOut,
+        // Extract the first product for display in the table
+        // (We'll handle multiple products in the ProcessStockOutForm)
+        product: stockOut.stock_out_details?.[0]?.product || null,
+        quantity: stockOut.stock_out_details?.[0]?.quantity || 0
+      })) || [];
+    },
+  });
+
+  const handleProcess = (stockOut: any) => {
+    // Make sure we pass the full stock_out_details to the form
+    setSelectedStockOut(stockOut);
+    setIsProcessingDialogOpen(true);
+  };
+
+  const handleReject = async (stockOut: any) => {
+    try {
+      const { error } = await executeQuery('stock_out', async (supabase) => {
+        return await supabase
+          .from('stock_out')
+          .update({
+            status: 'rejected',
+            rejected_by: user?.id,
+            rejected_at: new Date().toISOString(),
+          })
+          .eq('id', stockOut.id);
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Stock out request has been rejected.',
+      });
+      
+      // Refresh the data
+      refetch();
+    } catch (error) {
+      console.error('Error rejecting stock out:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to reject stock out request',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+      toast({
+        title: 'Refreshed',
+        description: 'Stock out requests have been refreshed.',
+      });
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to refresh stock out requests',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Stock Out Requests</h1>
+        </div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 bg-gray-200 animate-pulse rounded-lg"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Stock Out Requests</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Request
+          </Button>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Requests</CardTitle>
+          <CardDescription>
+            Review and process stock out requests
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-4">Loading...</div>
+          ) : !stockOutRequests?.length ? (
+            <div className="text-center py-4">No pending stock out requests</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Destination</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stockOutRequests.map((stockOut: any) => (
+                  <TableRow key={stockOut.id}>
+                    <TableCell>
+                      {format(new Date(stockOut.created_at), 'MMM d, yyyy')}
+                    </TableCell>
+                    <TableCell>{stockOut.destination}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          stockOut.status === 'pending'
+                            ? 'default'
+                            : stockOut.status === 'approved'
+                            ? 'secondary'
+                            : 'destructive'
+                        }
+                      >
+                        {stockOut.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{stockOut.notes || 'N/A'}</TableCell>
+                    <TableCell>
+                      {stockOut.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleProcess(stockOut)}
+                          >
+                            Process
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleReject(stockOut)}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Process Stock Out Dialog */}
+      <Dialog open={isProcessingDialogOpen} onOpenChange={setIsProcessingDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Process Stock Out Request</DialogTitle>
+          </DialogHeader>
+          {selectedStockOut && (
+            <ProcessStockOutForm
+              stockOut={selectedStockOut}
+              onSuccess={() => {
+                setIsProcessingDialogOpen(false);
+                refetch();
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Stock Out Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Create Stock Out Request</DialogTitle>
+          </DialogHeader>
+          <CreateStockOutForm
+            initialBarcode={scannedBarcode}
+            onSuccess={() => {
+              setIsCreateDialogOpen(false);
+              setScannedBarcode('');
+              refetch();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default StockOutManagement;

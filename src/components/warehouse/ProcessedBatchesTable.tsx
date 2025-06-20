@@ -192,33 +192,25 @@ export const ProcessedBatchesTable: React.FC<ProcessedBatchesTableProps> = ({
                 <TableCell className="font-medium">{batch.id.slice(0, 8)}</TableCell>
                 <TableCell>
                   <div>
-                    <div className="font-medium">{batch.product?.name || 'Unknown Product'}</div>
-                    <div className="text-sm text-muted-foreground">SKU: {batch.product?.sku || 'N/A'}</div>
+                    <div className="font-medium">{batch.product?.name || batch.product_name || 'Unknown Product'}</div>
+                    <div className="text-sm text-muted-foreground">SKU: {batch.product?.sku || batch.product_sku || 'N/A'}</div>
                   </div>
                 </TableCell>
-                <TableCell>{batch.totalQuantity}</TableCell>
-                <TableCell>{batch.totalBoxes}</TableCell>
-                <TableCell>{batch.processorName || 'Unknown'}</TableCell>
+                <TableCell>{batch.totalQuantity || batch.total_quantity || 0}</TableCell>
+                <TableCell>{batch.totalBoxes || batch.boxes || 0}</TableCell>
+                <TableCell>{batch.processorName || batch.processor_name || 'Unknown'}</TableCell>
                 <TableCell>
                   {batch.created_at ? format(new Date(batch.created_at), 'MMM d, yyyy h:mm a') : 'N/A'}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
                     <Button 
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleViewDetails(batch.id)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
-                      Details
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePrintBarcodes(batch.id)}
-                    >
-                      <Printer className="h-4 w-4 mr-1" />
-                      Barcodes
+                      View Barcodes
                     </Button>
                   </div>
                 </TableCell>

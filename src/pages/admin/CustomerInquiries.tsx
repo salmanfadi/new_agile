@@ -3,7 +3,7 @@ import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useCustomerInquiries } from '@/hooks/useCustomerInquiries';
 import { InquiryManagement } from '@/components/sales/InquiryManagement';
-import { TestDataCreator } from '@/components/dev/TestDataCreator';
+
 import { SalesInquiry } from '@/types/inquiries';
 
 const CustomerInquiries: React.FC = () => {
@@ -43,7 +43,6 @@ const CustomerInquiries: React.FC = () => {
         description="View and manage customer pricing inquiries"
       />
       
-      <TestDataCreator />
       
       <InquiryManagement
         inquiries={salesInquiries}

@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import BarcodeScanner from '@/components/barcode/BarcodeScanner';
+import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { Printer, AlertCircle, ArrowLeft } from 'lucide-react';
@@ -75,10 +74,10 @@ const ManagerBarcodeLookup: React.FC = () => {
           </CardContent>
         </Card>
         
-        <BarcodeScanner 
+        <MobileBarcodeScanner 
+          onBarcodeScanned={handleBarcodeDetected}
           allowManualEntry={true}
-          allowCameraScanning={true}
-          onDetected={handleBarcodeDetected}
+          scanButtonLabel="Scan Barcode"
         />
         
         {(lastScan || scanData) && (

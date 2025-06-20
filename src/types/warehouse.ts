@@ -31,22 +31,28 @@ export interface BatchData {
   created_at: string;
   processed_at: string;
   warehouse_id: string;
+  location_id?: string;
+  warehouse_name?: string;
+  location_name?: string;
+  // Batch processing properties
+  boxCount?: number;
+  quantityPerBox?: number;
+  color?: string;
+  size?: string;
+  batchBarcode?: string;
+  boxBarcodes?: string[];
+  // Product information
+  product_name?: string;
+  product_sku?: string;
+  product?: {
+    id: string;
+    name: string;
+    sku?: string;
+  };
   // Additional properties for barcode viewer
   batch_number?: string;
   barcodes?: string[];
-  boxBarcodes?: string[];
   quantity_per_box?: number;
-  quantityPerBox?: number;
-  product_name?: string;
-  product_sku?: string;
-  warehouse_name?: string;
-  location_name?: string;
-  color?: string;
-  size?: string;
-  product: {
-    id: string;
-    name: string;
-  };
 }
 
 // Updated interface for BarcodeViewerDialog

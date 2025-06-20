@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { executeQuery } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -24,27 +23,54 @@ import { Badge } from '@/components/ui/badge';
 import ProcessStockOutForm from '@/components/warehouse/ProcessStockOutForm';
 import { CreateStockOutForm } from '@/components/warehouse/CreateStockOutForm';
 import { format } from 'date-fns';
-import { Plus } from 'lucide-react';
+import { ArrowLeft, Plus, ScanLine } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
+import { useNavigate } from 'react-router-dom';
 
-const StockOutPage: React.FC = () => {
+interface StockOutPageProps {
+  isAdminView?: boolean;
+  overrideBackNavigation?: () => boolean;
+}
+
+const StockOutPage: React.FC<StockOutPageProps> = ({
+  isAdminView = false,
+  overrideBackNavigation
+}) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [selectedStockOut, setSelectedStockOut] = useState<any | null>(null);
   const [isProcessingDialogOpen, setIsProcessingDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState<string>('');
+
+  // Handle back navigation
+  const handleBackClick = () => {
+    if (overrideBackNavigation && overrideBackNavigation()) {
+      return;
+    }
+    navigate('/manager');
+  };
 
   // Fetch stock out requests
   const { data: stockOutRequests, isLoading } = useQuery({
-    queryKey: ['stock-out-requests'],
+    queryKey: ['stock-out-requests', isAdminView],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_out')
-        .select(`
-          *,
-          stock_out_details(*, product:products(*))
-        `)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+      const { data, error } = await executeQuery('stock_out', async (supabase) => {
+        let query = supabase
+          .from('stock_out')
+          .select(`
+            *,
+            stock_out_details(*, product:products(*)),
+            profiles:requested_by(full_name)
+          `)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+        
+        return query;
+      });
 
       if (error) throw error;
       
@@ -67,14 +93,16 @@ const StockOutPage: React.FC = () => {
 
   const handleReject = async (stockOut: any) => {
     try {
-      const { error } = await supabase
-        .from('stock_out')
-        .update({
-          status: 'rejected',
-          rejected_by: user?.id,
-          rejected_at: new Date().toISOString(),
-        })
-        .eq('id', stockOut.id);
+      const { error } = await executeQuery('stock_out', async (supabase) => {
+        return await supabase
+          .from('stock_out')
+          .update({
+            status: 'rejected',
+            rejected_by: user?.id,
+            rejected_at: new Date().toISOString(),
+          })
+          .eq('id', stockOut.id);
+      });
 
       if (error) throw error;
 
@@ -92,22 +120,64 @@ const StockOutPage: React.FC = () => {
     }
   };
 
+  // Handle barcode scanning
+  const handleBarcodeScanned = (barcode: string) => {
+    setScannedBarcode(barcode);
+    setIsScannerOpen(false);
+    
+    // Show a toast notification for the scanned barcode
+    toast({
+      title: "Barcode Scanned",
+      description: `Scanned barcode: ${barcode}`,
+    });
+    
+    // Automatically open create dialog with the scanned barcode
+    setIsCreateDialogOpen(true);
+  };
+
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Stock Out Requests</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Request
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleBackClick}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to {isAdminView ? "Admin" : "Manager"} Dashboard
         </Button>
       </div>
-
+      
       <Card>
         <CardHeader>
-          <CardTitle>Pending Requests</CardTitle>
-          <CardDescription>
-            Review and process stock out requests
-          </CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Stock Out Requests</CardTitle>
+              <CardDescription>
+                {isAdminView 
+                  ? "Monitor and manage outgoing stock requests across warehouses" 
+                  : "Process outgoing stock requests"}
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsScannerOpen(true)}
+              >
+                <ScanLine className="mr-2 h-4 w-4" />
+                Scan Barcode
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setIsCreateDialogOpen(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Stock Out
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -173,18 +243,37 @@ const StockOutPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <ProcessStockOutForm
-        open={isProcessingDialogOpen}
-        onOpenChange={setIsProcessingDialogOpen}
-        stockOut={selectedStockOut}
-        userId={user?.id}
-      />
+      {isProcessingDialogOpen && selectedStockOut && (
+        <ProcessStockOutForm
+          open={isProcessingDialogOpen}
+          onOpenChange={setIsProcessingDialogOpen}
+          stockOut={selectedStockOut}
+          userId={user?.id}
+        />
+      )}
 
       <CreateStockOutForm
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         userId={user?.id}
+        initialBarcode={scannedBarcode}
       />
+      
+      {/* Barcode Scanner Dialog */}
+      <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Scan Product Barcode</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <MobileBarcodeScanner
+              onBarcodeScanned={handleBarcodeScanned}
+              allowManualEntry={true}
+              scanButtonLabel="Start Scanning"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

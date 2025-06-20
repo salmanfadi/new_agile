@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import BarcodeScanner from '@/components/barcode/BarcodeScanner';
+import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
 
 const BarcodeScannerPage: React.FC = () => {
   const handleBarcodeScanned = (barcode: string) => {
@@ -28,10 +27,9 @@ const BarcodeScannerPage: React.FC = () => {
           </ul>
         </div>
         
-        <BarcodeScanner 
-          allowManualEntry={true}
-          allowCameraScanning={true}
+        <MobileBarcodeScanner 
           onBarcodeScanned={handleBarcodeScanned}
+          allowManualEntry={true}
           scanButtonLabel="Scan Barcode"
         />
       </div>

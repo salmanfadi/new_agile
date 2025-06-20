@@ -47,34 +47,74 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     });
   };
 
+  // Define profile data type to match database schema
+  interface ProfileData {
+    full_name?: string;
+    role?: UserRole;
+    active?: boolean;
+    email?: string;
+  }
+
   // Helper function to get user profile
   const getUserProfile = async (authUser: any) => {
     try {
       console.log('Fetching user profile for user ID:', authUser.id);
       
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, name, username, active')
-        .eq('id', authUser.id)
-        .single();
-        
-      console.log('Profile fetch result:', { profileData, profileError });
+      // Use a try-catch block to handle any potential errors with the query
+      let profileData: ProfileData | null = null;
+      let profileError: any = null;
       
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError);
-        // If profile doesn't exist, create a default one
-        const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
-        const { data: newProfile, error: createError } = await supabase
+      try {
+        const result = await supabase
           .from('profiles')
-          .insert([{
-            id: authUser.id,
-            username: authUser.email?.split('@')[0] || 'user',
-            name: authUser.email?.split('@')[0] || 'User',
-            role: defaultRole as UserRole,
-            active: true
-          }])
-          .select()
+          .select('full_name, role, active, email')
+          .eq('id', authUser.id)
           .single();
+        
+        profileData = result.data as ProfileData | null;
+        profileError = result.error;
+      } catch (err) {
+        console.error('Exception in profile fetch:', err);
+        profileError = err;
+      }
+        
+      console.log('Profile fetch result:', { 
+        profileData: profileData ? 'Found' : 'Not found', 
+        profileError: profileError ? profileError.message : null 
+      });
+      
+      // If profile doesn't exist or there's an error, create a default one
+      if (profileError || !profileData) {
+        console.error('Error fetching user profile:', profileError);
+        console.log('Creating new profile for user:', authUser.id);
+        let defaultRole = 'field_operator';
+        if (authUser.email === 'admin@gmail.com') {
+          defaultRole = 'admin';
+        } else if (authUser.email === 'salesoperator@gmail.com') {
+          defaultRole = 'sales_operator';
+        }
+        let newProfile: ProfileData | null = null;
+        let createError: any = null;
+        
+        try {
+          const result = await supabase
+            .from('profiles')
+            .insert([{
+              id: authUser.id,
+              email: authUser.email,
+              full_name: authUser.email?.split('@')[0] || 'User',
+              role: defaultRole as UserRole,
+              active: true
+            }])
+            .select('full_name, role, active, email')
+            .single();
+            
+          newProfile = result.data as ProfileData | null;
+          createError = result.error;
+        } catch (err) {
+          console.error('Exception in profile creation:', err);
+          createError = err;
+        }
           
         if (createError) {
           console.error('Error creating profile:', createError);
@@ -88,29 +128,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           } as User;
         }
         
-        return {
+        // Create a properly typed user object from the profile data
+        const safeNewProfile = newProfile as ProfileData | null;
+        const userData: User = {
           ...authUser,
-          role: newProfile.role as UserRole,
-          name: newProfile.name,
-          username: newProfile.username,
-          active: newProfile.active
-        } as User;
+          role: (safeNewProfile?.role as UserRole) || (defaultRole as UserRole),
+          name: safeNewProfile?.full_name || authUser.email?.split('@')[0] || 'User',
+          username: safeNewProfile?.email || authUser.email || '',
+          active: safeNewProfile?.active !== false
+        };
+        return userData;
       }
       
-      if (profileData) {
+      if (profileData && !profileError) {
         // Ensure admin@gmail.com always has admin role
-        const role = authUser.email === 'admin@gmail.com' ? 'admin' : profileData.role;
-        return {
+        const safeProfileData = profileData as ProfileData;
+        const role = authUser.email === 'admin@gmail.com' ? 'admin' : (safeProfileData.role as UserRole || 'field_operator');
+        const userData: User = {
           ...authUser,
-          role: role as UserRole,
-          name: profileData.name || authUser.email?.split('@')[0] || 'User',
-          username: profileData.username || authUser.email || '',
-          active: profileData.active !== false
-        } as User;
+          role: role,
+          name: safeProfileData.full_name || authUser.email?.split('@')[0] || 'User',
+          username: safeProfileData.email || authUser.email || '',
+          active: safeProfileData.active !== false
+        };
+        return userData;
       }
       
-      // Fallback if no profile data, with proper role for admin
-      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+      // Fallback if no profile data, with proper role based on email
+      let defaultRole = 'field_operator';
+      if (authUser.email === 'admin@gmail.com') {
+        defaultRole = 'admin';
+      } else if (authUser.email === 'salesoperator@gmail.com') {
+        defaultRole = 'sales_operator';
+      }
       return {
         ...authUser,
         role: defaultRole as UserRole,
@@ -120,8 +170,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } as User;
     } catch (err) {
       console.error('Error processing user profile:', err);
-      // Return fallback user with proper role for admin
-      const defaultRole = authUser.email === 'admin@gmail.com' ? 'admin' : 'field_operator';
+      // Return fallback user with proper role based on email
+      let defaultRole = 'field_operator';
+      if (authUser.email === 'admin@gmail.com') {
+        defaultRole = 'admin';
+      } else if (authUser.email === 'salesoperator@gmail.com') {
+        defaultRole = 'sales_operator';
+      }
       return {
         ...authUser,
         role: defaultRole as UserRole,
@@ -140,7 +195,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setIsLoading(true);
       let retryCount = 0;
       const maxRetries = 3;
-      const timeout = 10000; // 10 seconds timeout
+      const timeout = 20000; // 20 seconds timeout - increased to handle potential network delays
       
       const attemptSessionFetch = async () => {
         try {
@@ -151,6 +206,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             setTimeout(() => reject(new Error('Auth check timeout')), timeout)
           );
           
+          // Use Promise.race with a longer timeout
           const { data, error } = await Promise.race([
             sessionPromise,
             timeoutPromise

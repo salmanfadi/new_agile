@@ -1,18 +1,20 @@
 
 import React from 'react';
-import { BatchData } from '@/types/warehouse';
+import { BatchFormData } from '../StockInStepBatches';
 
 interface BatchInfoProps {
-  batch: BatchData;
-  getQuantityPerBox: (batch: BatchData) => number;
+  batch: BatchFormData;
+  getQuantityPerBox: (batch: BatchFormData) => number;
+  productName?: string;
+  productSku?: string;
 }
 
-export const BatchInfo: React.FC<BatchInfoProps> = ({ batch, getQuantityPerBox }) => {
+export const BatchInfo: React.FC<BatchInfoProps> = ({ batch, getQuantityPerBox, productName, productSku }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       <div className="space-y-1">
         <p className="text-sm font-medium text-muted-foreground">Product</p>
-        <span>{batch.product_name || batch.product?.name || 'N/A'} ({batch.product_sku || 'N/A'})</span>
+        <span>{productName || 'N/A'} ({productSku || 'N/A'})</span>
       </div>
       <div className="space-y-1">
         <p className="text-sm font-medium text-muted-foreground">Warehouse</p>

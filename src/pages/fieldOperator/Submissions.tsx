@@ -52,8 +52,8 @@ const Submissions: React.FC = () => {
                       <p className="font-medium">{item.product?.sku || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Quantity</p>
-                      <p className="font-medium">{item.quantity}</p>
+                      <p className="text-sm text-muted-foreground">Boxes</p>
+                      <p className="font-medium">{item.number_of_boxes || 1}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Submitted</p>

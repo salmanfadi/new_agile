@@ -17,7 +17,7 @@ import { useSalesOrderActions } from '@/hooks/useSalesOrderActions';
 
 const SalesOrdersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { salesOrders, isLoading } = useSalesOrders();
+  const { salesOrders, isLoading, isRefreshing, refreshSalesOrders } = useSalesOrders();
   
   const {
     selectedOrder,
@@ -59,6 +59,8 @@ const SalesOrdersPage: React.FC = () => {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         onCreateClick={() => setIsCreateDialogOpen(true)}
+        onRefresh={refreshSalesOrders}
+        isRefreshing={isRefreshing}
       />
 
       <SalesOrdersTable

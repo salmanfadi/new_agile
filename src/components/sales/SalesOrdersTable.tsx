@@ -31,6 +31,8 @@ export const SalesOrdersTable: React.FC<SalesOrdersTableProps> = ({
   onViewOrder,
   onPushToStockOut
 }) => {
+  // Use React.memo for child components to prevent unnecessary re-renders
+  const MemoizedSalesOrderActions = React.memo(SalesOrderActions);
   const getStatusBadge = (status: SalesOrder['status']) => {
     const statusConfig = {
       pending: { variant: 'secondary' as const, label: 'Pending' },
@@ -103,12 +105,16 @@ export const SalesOrdersTable: React.FC<SalesOrdersTableProps> = ({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <SalesOrderActions
+                        <MemoizedSalesOrderActions
                           order={order}
                           canPushToStockOut={canPush}
-                          isPushPending={isPushPending}
+                          isPushPending={isPushPending && order.id === localStorage.getItem('currentPushingOrderId')}
                           onViewOrder={() => onViewOrder(order)}
-                          onPushToStockOut={() => onPushToStockOut(order)}
+                          onPushToStockOut={() => {
+                            // Store the current order ID being processed
+                            localStorage.setItem('currentPushingOrderId', order.id);
+                            onPushToStockOut(order);
+                          }}
                         />
                       </TableCell>
                     </TableRow>

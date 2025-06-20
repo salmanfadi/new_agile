@@ -1,62 +1,57 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { executeQuery } from '@/lib/supabase';
 import { CustomerInquiry } from '@/types/inquiries';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 
 export const useCustomerInquiries = () => {
-  const [inquiries, setInquiries] = useState<CustomerInquiry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'in_progress' | 'finalizing' | 'completed'>('all');
   const [selectedInquiry, setSelectedInquiry] = useState<CustomerInquiry | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchInquiries = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      if (!supabase) {
-        throw new Error('Supabase client is not initialized');
-      }
-
-      const { data, error } = await supabase
-        .from('customer_inquiries')
-        .select(`
-          *,
-          items:customer_inquiry_items(
+  // Use React Query to fetch inquiries
+  const { data: inquiries = [], isLoading, error: queryError } = useQuery({
+    queryKey: ['customer-inquiries'],
+    queryFn: async () => {
+      const { data, error } = await executeQuery('customer_inquiries', async (supabase) => {
+        return await supabase
+          .from('customer_inquiries')
+          .select(`
             *,
-            product:products(
-              id,
-              name,
-              sku,
-              description,
-              hsn_code,
-              gst_rate,
-              created_at,
-              updated_at,
-              category,
-              barcode,
-              unit,
-              min_stock_level,
-              is_active,
-              gst_category,
-              image_url
+            items:customer_inquiry_items(
+              *,
+              product:products(
+                id,
+                name,
+                sku,
+                description,
+                hsn_code,
+                gst_rate,
+                created_at,
+                updated_at,
+                category,
+                barcode,
+                unit,
+                min_stock_level,
+                is_active,
+                gst_category,
+                image_url
+              )
             )
-          )
-        `)
-        .order('created_at', { ascending: false });
+          `)
+          .order('created_at', { ascending: false });
+      });
 
       if (error) {
         throw error;
       }
 
       // Transform the data to match CustomerInquiry type
-      const transformedData = (data || []).map(inquiry => ({
+      return (data || []).map(inquiry => ({
         ...inquiry,
         items: inquiry.items?.map(item => ({
           ...item,
@@ -65,171 +60,151 @@ export const useCustomerInquiries = () => {
             image_url: item.product.image_url || null
           } : null
         })) || []
-      }));
-
-      setInquiries(transformedData as CustomerInquiry[]);
-    } catch (error: any) {
-      const errorMessage = error.message || 'Failed to fetch inquiries';
-      console.error('Error fetching inquiries:', error);
-      setError(errorMessage);
-      toast({
-        variant: "destructive",
-        title: "Error Loading Inquiries",
-        description: errorMessage
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+      })) as CustomerInquiry[];
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+  
+  // Set up real-time subscriptions
   useEffect(() => {
-    fetchInquiries();
-    
-    const channel = supabase
-      .channel('customer_inquiries_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'customer_inquiries' },
-        (payload) => {
-          fetchInquiries();
-        }
-      )
-      .subscribe();
+    const setupRealtimeSubscription = async () => {
+      const { data: subscription } = await executeQuery('realtime', async (supabase) => {
+        return supabase
+          .channel('customer_inquiries_changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'customer_inquiries' },
+            () => {
+              // Invalidate and refetch the query when data changes
+              queryClient.invalidateQueries({ queryKey: ['customer-inquiries'] });
+            }
+          )
+          .subscribe();
+      });
       
-    return () => {
-      supabase.removeChannel(channel);
+      return () => {
+        if (subscription) {
+          executeQuery('realtime', async (supabase) => {
+            return supabase.removeChannel(subscription);
+          });
+        }
+      };
     };
-  }, []);
+    
+    const unsubscribe = setupRealtimeSubscription();
+    return () => {
+      unsubscribe.then(unsub => unsub && unsub());
+    };
+  }, [queryClient]);
 
-  const convertInquiryToOrder = async (inquiry: CustomerInquiry) => {
-    try {
-      console.log('Converting inquiry to sales order:', inquiry);
+  const convertInquiryToOrder = useMutation({
+    mutationFn: async (inquiry: CustomerInquiry) => {
+      console.log('Converting inquiry to completed status:', inquiry);
 
       if (!inquiry.items || inquiry.items.length === 0) {
         throw new Error('Inquiry has no items');
       }
 
-      // Generate sales order number
-      const salesOrderNumber = `SO-${Date.now()}`;
-
-      // Create sales order
-      const { data: salesOrder, error: orderError } = await supabase
-        .from('sales_orders')
-        .insert({
-          customer_name: inquiry.customer_name,
-          customer_email: inquiry.customer_email,
-          customer_company: inquiry.customer_company,
-          customer_phone: inquiry.customer_phone,
-          sales_order_number: salesOrderNumber,
-          status: 'pending',
-          order_date: new Date().toISOString(),
-          total_amount: 0, // Will be updated when pricing is added
-          inquiry_id: inquiry.id,
-        })
-        .select()
-        .single();
-
-      if (orderError) {
-        console.error('Error creating sales order:', orderError);
-        throw orderError;
-      }
-
-      // Create sales order items
-      const orderItems = inquiry.items.map(item => ({
-        sales_order_id: salesOrder.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: 0, // Set to 0 since pricing is not collected
-        requirements: item.specific_requirements,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('sales_order_items')
-        .insert(orderItems);
-
-      if (itemsError) {
-        console.error('Error creating sales order items:', itemsError);
-        throw itemsError;
-      }
-
-      // Update inquiry status to completed
-      const { error: updateError } = await supabase
-        .from('customer_inquiries')
-        .update({
-          status: 'completed',
-          converted_to_order: true,
-        })
-        .eq('id', inquiry.id);
+      // Since sales_orders table doesn't exist yet, we'll just mark the inquiry as completed
+      const { error: updateError } = await executeQuery('customer_inquiries', async (supabase) => {
+        return await supabase
+          .from('customer_inquiries')
+          .update({
+            status: 'completed',
+            notes: inquiry.notes ? `${inquiry.notes}\nMarked as converted to order on ${new Date().toISOString()}` : 
+              `Marked as converted to order on ${new Date().toISOString()}`
+          })
+          .eq('id', inquiry.id);
+      });
 
       if (updateError) {
         console.error('Error updating inquiry:', updateError);
         throw updateError;
       }
 
+      return inquiry;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-inquiries'] });
       toast({
         title: "Success",
-        description: `Inquiry converted to Sales Order ${salesOrderNumber}`,
+        description: `Inquiry marked as completed and ready for order processing`,
       });
-
-      return true;
-    } catch (error) {
+    },
+    onError: (error: any) => {
       console.error('Error in convertInquiryToOrder:', error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to convert inquiry to sales order. Please try again.",
       });
-      return false;
     }
-  };
+  });
 
-  const updateInquiryStatus = async (id: string, status: 'new' | 'in_progress' | 'completed') => {
-    try {
+  const updateInquiryStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string, status: 'pending' | 'in_progress' | 'finalizing' | 'completed' }) => {
       if (status === 'completed') {
         const inquiry = inquiries.find(inq => inq.id === id);
         if (!inquiry) throw new Error('Inquiry not found');
         
-        const success = await convertInquiryToOrder(inquiry);
-        if (!success) throw new Error('Failed to convert inquiry to order');
+        // Use the convertInquiryToOrder mutation directly
+        await convertInquiryToOrder.mutateAsync(inquiry);
+        return { id, status };
       }
 
-      const { error } = await supabase
-        .from('customer_inquiries')
-        .update({ status })
-        .eq('id', id);
+      const { error } = await executeQuery('customer_inquiries', async (supabase) => {
+        return await supabase
+          .from('customer_inquiries')
+          .update({ status })
+          .eq('id', id);
+      });
 
       if (error) throw error;
 
-      setInquiries(prevInquiries =>
-        prevInquiries.map(inquiry =>
-          inquiry.id === id ? { ...inquiry, status } : inquiry
-        )
-      );
-
-      return true;
-    } catch (error) {
+      return { id, status };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-inquiries'] });
+      toast({
+        title: "Success",
+        description: "Inquiry status updated successfully",
+      });
+    },
+    onError: (error: any) => {
       console.error('Error updating inquiry status:', error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to update inquiry status",
       });
-      return false;
     }
-  };
+  });
 
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'MMM dd, yyyy h:mm a');
   };
 
   const refreshInquiries = () => {
-    fetchInquiries();
+    queryClient.invalidateQueries({ queryKey: ['customer-inquiries'] });
   };
 
+  // Filter inquiries based on search term and status filter
+  const filteredInquiries = inquiries.filter(inquiry => {
+    const matchesSearch = 
+      searchTerm === '' || 
+      inquiry.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inquiry.customer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inquiry.customer_phone?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || inquiry.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   return {
-    inquiries,
+    inquiries: filteredInquiries,
     isLoading,
-    error,
+    error: queryError,
     searchTerm,
     setSearchTerm,
     statusFilter,

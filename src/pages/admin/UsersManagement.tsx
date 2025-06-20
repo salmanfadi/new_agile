@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { executeQuery } from '@/lib/supabase';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -16,11 +16,12 @@ import { Badge } from '@/components/ui/badge';
 
 interface UserProfile {
   id: string;
-  name: string;
-  username: string;
+  full_name: string;
+  email: string;
   role: string;
   active: boolean;
   created_at: string;
+  avatar_url?: string;
 }
 
 const UsersManagement: React.FC = () => {
@@ -28,10 +29,12 @@ const UsersManagement: React.FC = () => {
   const { data: users, isLoading, error } = useQuery<UserProfile[]>({
     queryKey: ['users'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name, username, role, active, created_at')
-        .order('created_at', { ascending: false });
+      const { data, error } = await executeQuery('profiles', async (supabase) => {
+        return await supabase
+          .from('profiles')
+          .select('id, full_name, email, role, active, created_at, avatar_url')
+          .order('created_at', { ascending: false });
+      });
 
       if (error) throw error;
       return data || [];
@@ -67,7 +70,7 @@ const UsersManagement: React.FC = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Username</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
@@ -77,8 +80,8 @@ const UsersManagement: React.FC = () => {
               {users && users.length > 0 ? (
                 users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell>{user.name || '-'}</TableCell>
-                    <TableCell>{user.username || '-'}</TableCell>
+                    <TableCell>{user.full_name || '-'}</TableCell>
+                    <TableCell>{user.email || '-'}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {user.role?.replace('_', ' ') || '-'}

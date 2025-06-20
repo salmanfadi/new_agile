@@ -13,9 +13,10 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Calendar, Package, Plus, Truck } from 'lucide-react';
+import { Search, Calendar, Package, Plus, Truck, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
-import { useOrders } from '@/hooks/useOrders';
+import { useSalesOrders } from '@/hooks/useSalesOrders';
+// No need for useQueryClient
 import {
   Dialog,
   DialogContent,
@@ -24,20 +25,25 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { CreateSalesOrderForm } from '@/components/sales/CreateSalesOrderForm';
-import { useSalesOrders } from '@/hooks/useSalesOrders';
 
 const OrdersManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const { salesOrders, isLoading, createSalesOrder, pushToStockOut } = useSalesOrders();
+  const { salesOrders, isLoading, isRefreshing, refreshSalesOrders, createSalesOrder, pushToStockOut } = useSalesOrders();
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Orders page - salesOrders:', salesOrders);
+  }, [salesOrders]);
+  // We rely on the status from the database for button visibility
 
   const filteredOrders = React.useMemo(() => {
-    if (!salesOrders) return [];
+    if (!salesOrders || salesOrders.length === 0) return [];
     return salesOrders.filter(order => 
-      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.sales_order_number.toLowerCase().includes(searchTerm.toLowerCase())
+      (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.customer_email && order.customer_email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.customer_company && order.customer_company.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.sales_order_number && order.sales_order_number.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [salesOrders, searchTerm]);
 
@@ -53,15 +59,13 @@ const OrdersManagement: React.FC = () => {
   const [orderToPush, setOrderToPush] = useState<any | null>(null);
   const [isPushDialogOpen, setIsPushDialogOpen] = useState(false);
 
-  const handlePushToStockOut = async (order: any) => {
-    try {
-      await pushToStockOut.mutateAsync(order);
-      setIsPushDialogOpen(false);
-      setOrderToPush(null);
-    } catch (error) {
-      console.error('Error pushing to stock-out:', error);
-      // Error is handled by the mutation's onError callback
-    }
+  const handlePushToStockOut = (order: any) => {
+    setIsPushDialogOpen(false);
+    setOrderToPush(null);
+    
+    // Perform the mutation - the status will be updated to 'finalizing'
+    // which will make the button disappear on refetch
+    pushToStockOut.mutate(order);
   };
   
   const openPushConfirmation = (order: any) => {
@@ -73,23 +77,21 @@ const OrdersManagement: React.FC = () => {
     switch (status) {
       case 'pending':
         return <Badge variant="secondary">Pending</Badge>;
-      case 'confirmed':
-        return <Badge variant="default">Confirmed</Badge>;
-      case 'processing':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Processing</Badge>;
-      case 'dispatched':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700">Dispatched</Badge>;
+      case 'in_progress':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">In Progress</Badge>;
+      case 'finalizing':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700">Finalizing</Badge>;
       case 'completed':
         return <Badge variant="outline" className="bg-green-50 text-green-700">Completed</Badge>;
-      case 'cancelled':
-        return <Badge variant="destructive">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   const canPushToStockOut = (order: any) => {
-    return ['pending', 'confirmed', 'processing'].includes(order.status) && !order.pushed_to_stockout;
+    // Only allow pushing to stock-out if the order is in_progress
+    // Don't allow if it's already finalizing (being processed for stock-out) or completed
+    return order.status === 'in_progress';
   };
 
   return (
@@ -108,14 +110,25 @@ const OrdersManagement: React.FC = () => {
               Create Order
             </Button>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search orders..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-grow">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search orders..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={refreshSalesOrders} 
+              disabled={isRefreshing}
+              className="flex-shrink-0"
+              title="Refresh orders"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -150,7 +163,7 @@ const OrdersManagement: React.FC = () => {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {format(new Date(order.order_date), 'MMM d, yyyy')}
+                        {format(new Date(order.created_at), 'MMM d, yyyy')}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -161,11 +174,6 @@ const OrdersManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}
-                      {order.pushed_to_stockout && (
-                        <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700">
-                          In Stock-Out
-                        </Badge>
-                      )}
                     </TableCell>
                     <TableCell>
                       {canPushToStockOut(order) && (
@@ -238,7 +246,7 @@ const OrdersManagement: React.FC = () => {
                 </div>
                 <div className="border-t pt-2">
                   <p className="text-sm text-muted-foreground">
-                    This action will mark the order as "processing" and create a stock-out request for the warehouse team.
+                    This action will create a stock-out request for the warehouse team and link it to this order.
                   </p>
                 </div>
               </div>
