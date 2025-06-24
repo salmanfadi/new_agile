@@ -109,11 +109,19 @@ const StockOutApproval: React.FC = () => {
   const handleApprove = async (stockOut: any) => {
     try {
       // Check available inventory
-      const availableQuantity = await getAvailableInventory(stockOut.product.id);
+      // Use product_id directly from stockOut instead of stockOut.product.id
+      const productId = stockOut.product_id;
+      
+      if (!productId) {
+        throw new Error('Product ID not found in stock out request');
+      }
+      
+      const availableQuantity = await getAvailableInventory(productId);
       setSelectedStockOut(stockOut);
-      setApprovedQuantity(Math.min(stockOut.quantity, availableQuantity));
+      setApprovedQuantity(Math.min(stockOut.quantity || 0, availableQuantity));
       setIsApprovalDialogOpen(true);
     } catch (error) {
+      console.error('Error in handleApprove:', error);
       toast({
         variant: 'destructive',
         title: 'Error checking inventory',
@@ -125,6 +133,8 @@ const StockOutApproval: React.FC = () => {
   // Function to update stock_out_details with approved quantity
   const updateStockOutDetails = async (stockOutId: string, productId: string, approvedQty: number) => {
     try {
+      console.log('Updating stock_out_details:', { stockOutId, productId, approvedQty });
+      
       // Get the stock_out_details record
       const { data: details, error: fetchError } = await supabase
         .from('stock_out_details')
@@ -132,20 +142,33 @@ const StockOutApproval: React.FC = () => {
         .eq('stock_out_id', stockOutId)
         .eq('product_id', productId)
         .single();
-        
-      if (fetchError) throw fetchError;
       
-      if (details) {
-        // Update the processed_quantity field which exists in stock_out_details
-        const { error: updateError } = await supabase
-          .from('stock_out_details')
-          .update({ processed_quantity: approvedQty })
-          .eq('id', details.id);
-          
-        if (updateError) throw updateError;
+      console.log('Stock out details fetch result:', { details, fetchError });
+        
+      if (fetchError) {
+        console.error('Error fetching stock_out_details:', fetchError);
+        throw fetchError;
       }
+      
+      if (!details) {
+        console.error('No stock_out_details found for the given criteria');
+        throw new Error('Stock out details not found');
+      }
+      
+      // Update the processed_quantity field which exists in stock_out_details
+      const { error: updateError } = await supabase
+        .from('stock_out_details')
+        .update({ processed_quantity: approvedQty } as any)
+        .eq('id', details.id);
+        
+      if (updateError) {
+        console.error('Error updating stock_out_details:', updateError);
+        throw updateError;
+      }
+      
+      console.log('Stock out details updated successfully');
     } catch (error) {
-      console.error('Error updating stock_out_details:', error);
+      console.error('Error in updateStockOutDetails:', error);
       throw error;
     }
   };
@@ -157,14 +180,6 @@ const StockOutApproval: React.FC = () => {
           title="Stock Out Approval" 
           description="Review and approve stock out requests"
         />
-        <Button
-          variant="outline"
-          className="flex items-center gap-2"
-          onClick={() => navigate('/manager/stock-out/barcode-scanner')}
-        >
-          <Scan className="h-4 w-4" />
-          Scan Barcode
-        </Button>
       </div>
       <Card>
         <CardHeader>
@@ -197,8 +212,8 @@ const StockOutApproval: React.FC = () => {
                 <TableBody>
                   {stockOutRequests.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>{item.product.name}</TableCell>
-                      <TableCell>{item.requester?.name || 'Unknown'}</TableCell>
+                      <TableCell>{item.product_name || 'Unknown Product'}</TableCell>
+                      <TableCell>{item.requester_name || 'Unknown'}</TableCell>
                       <TableCell>{item.quantity}</TableCell>
                       <TableCell>{item.destination}</TableCell>
                       <TableCell>{item.reason || '-'}</TableCell>
@@ -314,7 +329,7 @@ const StockOutApproval: React.FC = () => {
                   // Then update the stock_out_details with approved quantity
                   await updateStockOutDetails(
                     selectedStockOut.id, 
-                    selectedStockOut.product.id, 
+                    selectedStockOut.product_id, 
                     approvedQuantity
                   );
                   
@@ -336,9 +351,9 @@ const StockOutApproval: React.FC = () => {
             }}>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <div className="font-medium">Product: {selectedStockOut.product.name}</div>
-                  <div className="text-sm text-gray-500">Requested Quantity: {selectedStockOut.quantity}</div>
-                  <div className="text-sm text-gray-500">Destination: {selectedStockOut.destination}</div>
+                  <div className="font-medium">Product: {selectedStockOut.product_name || 'Unknown Product'}</div>
+                  <div className="text-sm text-gray-500">Requested Quantity: {selectedStockOut.quantity || 0}</div>
+                  <div className="text-sm text-gray-500">Destination: {selectedStockOut.destination || 'Not specified'}</div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="approved_quantity">Approved Quantity</Label>
@@ -356,13 +371,45 @@ const StockOutApproval: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2">
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={() => setIsApprovalDialogOpen(false)}
                 >
                   Cancel
+                </Button>
+                <Button 
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsApprovalDialogOpen(false);
+                    // Navigate to the barcode scanner page with the stock out ID and product info
+                    // Ensure we have all the necessary data for the barcode scanner page
+                    const enhancedStockOutRequest = {
+                      ...selectedStockOut,
+                      product_name: selectedStockOut.product_name || 'Unknown Product',
+                      quantity: selectedStockOut.quantity || 0,
+                      remaining_quantity: selectedStockOut.quantity || 0,
+                      // Add any other fields needed for the barcode scanner page
+                      product_id: selectedStockOut.product_id,
+                      product_sku: selectedStockOut.product_sku || null,
+                      product_description: selectedStockOut.product_description || null,
+                      product_category: selectedStockOut.product_category || null,
+                    };
+                    
+                    console.log('Navigating to barcode scanner with data:', enhancedStockOutRequest);
+                    
+                    navigate(`/barcode-scanner/${selectedStockOut.id}`, {
+                      state: { 
+                        stockOutRequest: enhancedStockOutRequest
+                      }
+                    });
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Scan className="h-4 w-4" />
+                  Scan Barcode
                 </Button>
                 <Button 
                   type="submit"

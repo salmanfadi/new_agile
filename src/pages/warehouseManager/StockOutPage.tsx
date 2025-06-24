@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import ProcessStockOutForm from '@/components/warehouse/ProcessStockOutForm';
 import { CreateStockOutForm } from '@/components/warehouse/CreateStockOutForm';
 import { format } from 'date-fns';
-import { ArrowLeft, Plus, ScanLine } from 'lucide-react';
+import { ArrowLeft, Plus, ScanLine, Barcode } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import MobileBarcodeScanner from '@/components/barcode/MobileBarcodeScanner';
 import { useNavigate } from 'react-router-dom';
@@ -167,7 +167,15 @@ const StockOutPage: React.FC<StockOutPageProps> = ({
                 onClick={() => setIsScannerOpen(true)}
               >
                 <ScanLine className="mr-2 h-4 w-4" />
-                Scan Barcode
+                Quick Scan
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/manager/stock-out/barcode-stock-out')}
+              >
+                <Barcode className="mr-2 h-4 w-4" />
+                Barcode Stock Out
               </Button>
               <Button
                 size="sm"

@@ -22,6 +22,7 @@ import CustomerInquiries from './pages/admin/CustomerInquiries';
 import AdminInventoryView from './pages/admin/InventoryView';
 import BatchInventoryPage from './pages/admin/BatchInventoryPage';
 import BarcodeManagement from './pages/admin/BarcodeManagement';
+import AdminBarcodeLookup from './pages/admin/BarcodeLookup';
 import StockInManagement from './pages/admin/StockInManagement';
 import StockOutManagement from './pages/admin/StockOutManagement';
 import InventoryTransfers from './pages/admin/InventoryTransfers';
@@ -38,7 +39,8 @@ import StockInProcessing from './pages/warehouseManager/StockInProcessing';
 import StockInDetailsPage from './pages/warehouseManager/StockInDetailsPage';
 import ProcessStockInPage from './pages/warehouseManager/ProcessStockInPage';
 import StockOutApproval from './pages/warehouseManager/StockOutApproval';
-import BarcodeScannerPage from './pages/BarcodeScanner';
+import BarcodeScannerPage from './pages/BarcodeScannerPage';
+import BarcodeStockOutPage from './pages/warehouseManager/BarcodeStockOutPage';
 import BarcodeLookup from './pages/warehouseManager/BarcodeLookup';
 import { InventoryTransfers as ManagerInventoryTransfers } from './pages/warehouseManager/InventoryTransfers';
 import ManagerBatchStockInPage from './pages/warehouseManager/BatchStockInPage';
@@ -161,6 +163,7 @@ function App() {
                 <Route path="/admin/inventory/batch/:batchId" element={<BatchDetailsPage />} />
                 <Route path="/admin/inventory/barcode/:barcodeId" element={<BarcodeInventoryPage />} />
                 <Route path="/admin/barcodes" element={<BarcodeManagement />} />
+                <Route path="/admin/barcode" element={<AdminBarcodeLookup />} />
                 <Route path="/admin/stock-in" element={<StockInManagement />} />
                 <Route path="/admin/stock-out" element={<StockOutManagement />} />
                 <Route path="/admin/transfers" element={<InventoryTransfers />} />
@@ -185,6 +188,8 @@ function App() {
                 <Route path="/manager/stock-in/process/:id" element={<ProcessStockInPage />} />
                 <Route path="/manager/stock-out" element={<StockOutApproval />} />
                 <Route path="/manager/stock-out/barcode-scanner" element={<BarcodeScannerPage />} />
+                <Route path="/barcode-scanner/:stockOutId" element={<BarcodeScannerPage />} />
+                <Route path="/manager/stock-out/barcode-stock-out" element={<BarcodeStockOutPage />} />
                 <Route path="/manager/barcode" element={<BarcodeLookup />} />
                 <Route path="/manager/inventory" element={<EnhancedInventoryView />} />
                 <Route path="/manager/inventory/search" element={<ManagerInventoryView />} />

@@ -83,7 +83,7 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
     };
   }, [isScanning]);
   
-  // Initialize Quagga barcode scanner
+  // Initialize Quagga barcode scanner with optimized settings for long barcodes
   const initializeQuagga = useCallback(() => {
     if (!scannerRef.current) return;
     
@@ -96,27 +96,33 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
           name: "Live",
           type: "LiveStream",
           target: scannerRef.current,
+          willReadFrequently: true, // Fix for the Canvas2D warning
           constraints: {
             facingMode: currentCamera, // Use environment (rear) camera by default
             aspectRatio: { min: 1, max: 2 }, // Prefer landscape orientation
+            width: { min: 640 },
+            height: { min: 480 },
+            // Request higher resolution for better barcode detection
+            advanced: [{width: {min: 1280}, height: {min: 720}}]
           },
         },
         locator: {
-          patchSize: "medium",
-          halfSample: true
+          patchSize: "large", // Use larger patch size for better detection of long barcodes
+          halfSample: false // Disable half sampling for more accurate detection
         },
         numOfWorkers: navigator.hardwareConcurrency || 4,
         frequency: 10,
         decoder: {
           readers: [
-            "ean_reader",
-            "ean_8_reader",
-            "code_128_reader",
-            "code_39_reader",
-            "code_93_reader",
-            "upc_reader",
-            "upc_e_reader"
-          ]
+            "code_128_reader" // Only use Code 128 format for our long barcodes
+          ],
+          multiple: false // Only return the first valid barcode
+        },
+        debug: {
+          drawBoundingBox: true,
+          showFrequency: true,
+          drawScanline: true,
+          showPattern: true
         },
         locate: true
       }, (err) => {
@@ -169,7 +175,15 @@ const MobileBarcodeScanner: React.FC<MobileBarcodeScannerProps> = ({
     const code = result.codeResult.code;
     if (!code) return;
     
-    console.log("Barcode detected:", code, "with format:", result.codeResult.format);
+    // Check if this is a valid barcode format for our application
+    console.log("Barcode detected:", code, "with format:", result.codeResult.format, "confidence:", result.codeResult.confidence);
+    
+    // For our application, we need to ensure we're getting the full barcode
+    // The barcode should be a long numeric string (19+ digits for our inventory system)
+    if (code.length < 19) {
+      console.log("Ignoring short barcode - not a complete scan");
+      return;
+    }
     
     // Play success sound
     try {
